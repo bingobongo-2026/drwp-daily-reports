@@ -1,8 +1,8 @@
 <?php if (!defined('ABSPATH')) exit; ?>
 <div class="wrap">
   <h1>日報一覧</h1>
-  <?php if (!empty($_GET['updated'])): ?>
-    <div class="notice notice-success"><p><?php echo esc_html($_GET['updated']); ?> 件更新しました。</p></div>
+  <?php if (isset($_GET['updated'])): ?>
+    <div class="notice notice-success"><p><?php echo intval($_GET['updated']); ?> 件更新しました。</p></div>
   <?php endif; ?>
   <form method="get">
     <input type="hidden" name="page" value="drwp_reports" />
@@ -79,7 +79,14 @@
             <td><?php echo esc_html($report->report_date); ?></td>
             <td><?php echo esc_html($report->public_title ?: '（未設定）'); ?></td>
             <td><?php echo esc_html($report->review_status); ?></td>
-            <td><?php echo esc_html($report->post_category_id ?: '-'); ?></td>
+            <td><?php
+              $cat_name = '-';
+              if (!empty($report->post_category_id)) {
+                  $term = get_term((int) $report->post_category_id, 'category');
+                  $cat_name = ($term && !is_wp_error($term)) ? $term->name : (string) $report->post_category_id;
+              }
+              echo esc_html($cat_name);
+            ?></td>
             <td><?php echo esc_html($report->post_tags ?: '-'); ?></td>
             <td><?php echo esc_html($report->post_status ?: 'draft'); ?></td>
             <td><?php echo $report->linked_post_id ? '<a href="' . esc_url(get_edit_post_link((int) $report->linked_post_id)) . '">#' . esc_html($report->linked_post_id) . '</a>' : '-'; ?></td>

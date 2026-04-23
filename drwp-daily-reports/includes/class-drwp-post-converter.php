@@ -17,7 +17,7 @@ class DRWP_Post_Converter {
     public static function build_content($report) {
         $html = '';
         if (!empty($report->public_intro)) {
-            $html .= '<p>' . wp_kses_post(wpautop($report->public_intro)) . '</p>';
+            $html .= wp_kses_post(wpautop($report->public_intro));
         }
         if (!empty($report->public_body)) {
             $html .= '<h2>本日の作業内容</h2>';
@@ -75,6 +75,7 @@ class DRWP_Post_Converter {
 
         if (!empty($report->scheduled_at) && $report->post_status === 'future') {
             $post_data['post_date'] = $report->scheduled_at;
+            $post_data['post_date_gmt'] = get_gmt_from_date($report->scheduled_at);
         }
 
         if (!empty($report->linked_post_id) && $update_existing) {

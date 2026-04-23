@@ -3,7 +3,7 @@
  * Plugin Name: DRWP Daily Reports
  * Description: Daily reports, review workflow, and conversion to WordPress posts with license checks.
  * Version: 1.8.0
- * Author: OpenAI Prototype
+ * Author: DRWP Prototype
  */
 
 if (!defined('ABSPATH')) exit;
