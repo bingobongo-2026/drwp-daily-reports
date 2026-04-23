@@ -1,0 +1,25 @@
+<!doctype html><html><head><meta charset="utf-8"><title>License form</title>
+<style>body{font-family:sans-serif;max-width:800px;margin:24px auto;padding:0 16px}label{display:block;margin:10px 0 4px}input,select,textarea{width:100%;padding:8px}</style>
+</head><body>
+<h1>{{ "Edit" if row else "Create" }} license</h1>
+<form method="post" action="/licenses/save">
+<input type="hidden" name="id" value="{{ row['id'] if row else 0 }}">
+<label>License key</label>
+<input name="license_key" value="{{ row['license_key'] if row else '' }}" required>
+<label>Status</label>
+<select name="status">
+  {% for s in ["active","grace","inactive"] %}
+  <option value="{{ s }}" {% if row and row["status"] == s %}selected{% endif %}>{{ s }}</option>
+  {% endfor %}
+</select>
+<label>Plan</label>
+<input name="plan" value="{{ row['plan'] if row else 'standard' }}">
+<label>Expires at (ISO format, UTC)</label>
+<input name="expires_at" value="{{ row['expires_at'] if row and row['expires_at'] else '' }}" placeholder="2026-12-31T00:00:00">
+<label>Allowed domain</label>
+<input name="allowed_domain" value="{{ row['allowed_domain'] if row and row['allowed_domain'] else '' }}" placeholder="example.com">
+<label>Note</label>
+<textarea name="note" rows="4">{{ row['note'] if row and row['note'] else '' }}</textarea>
+<p><button>Save</button> <a href="/">Back</a></p>
+</form>
+</body></html>

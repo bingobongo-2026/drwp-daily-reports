@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Licenses</title>
+<style>body{font-family:sans-serif;max-width:1100px;margin:24px auto;padding:0 16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px}form.inline{display:inline}</style>
+</head><body>
+<h1>Licenses</h1>
+<p><a href="/licenses/new">Create new license</a></p>
+<form method="get">
+<input name="q" value="{{ q or '' }}" placeholder="search key/domain"><button>Search</button>
+</form>
+<table>
+<thead><tr><th>ID</th><th>Key</th><th>Status</th><th>Plan</th><th>Expires</th><th>Domain</th><th>Token bound</th><th></th></tr></thead>
+<tbody>
+{% for row in rows %}
+<tr>
+<td>{{ row["id"] }}</td>
+<td>{{ row["license_key"] }}</td>
+<td>{{ row["status"] }}</td>
+<td>{{ row["plan"] }}</td>
+<td>{{ row["expires_at"] or "" }}</td>
+<td>{{ row["allowed_domain"] or "" }}</td>
+<td>{{ "yes" if row["site_token"] else "no" }}</td>
+<td>
+<a href="/licenses/{{ row['id'] }}">Edit</a>
+<form class="inline" method="post" action="/licenses/{{ row['id'] }}/unbind"><button>Unbind</button></form>
+<form class="inline" method="post" action="/licenses/{{ row['id'] }}/delete" onsubmit="return confirm('Delete?')"><button>Delete</button></form>
+</td>
+</tr>
+{% endfor %}
+</tbody></table>
+
+<h2>Recent audit logs</h2>
+<table>
+<thead><tr><th>At</th><th>Key</th><th>Action</th><th>Detail</th></tr></thead>
+<tbody>
+{% for row in logs %}
+<tr><td>{{ row["created_at"] }}</td><td>{{ row["license_key"] }}</td><td>{{ row["action"] }}</td><td>{{ row["detail"] }}</td></tr>
+{% endfor %}
+</tbody></table>
+</body></html>
