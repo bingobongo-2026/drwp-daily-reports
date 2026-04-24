@@ -4,6 +4,15 @@
   <?php if (!empty($_GET['saved'])): ?>
     <div class="notice notice-success"><p>保存しました。</p></div>
   <?php endif; ?>
+  <?php if (!empty($_GET['reviewed'])): ?>
+    <div class="notice notice-success"><p>レビュー状態を更新しました。</p></div>
+  <?php endif; ?>
+  <?php if (!empty($_GET['commented'])): ?>
+    <div class="notice notice-success"><p>コメントを追加しました。</p></div>
+  <?php endif; ?>
+  <?php if (!empty($report->id)): ?>
+    <p>現在のレビュー状態: <strong><?php echo esc_html($report->review_status ?: 'pending'); ?></strong></p>
+  <?php endif; ?>
   <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
     <?php wp_nonce_field('drwp_save_report'); ?>
     <input type="hidden" name="action" value="drwp_save_report" />
@@ -112,5 +121,77 @@
     <?php echo DRWP_Post_Converter::build_preview_html($report); ?>
   <?php else: ?>
     <div class="notice notice-info"><p>保存するとここに公開プレビューが表示されます。</p></div>
+  <?php endif; ?>
+
+  <?php if (!empty($report->id)): ?>
+
+    <?php if (current_user_can('edit_others_posts')): ?>
+      <h2 style="margin-top:24px;">レビュー</h2>
+      <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="background:#fff;border:1px solid #dcdcde;padding:12px;">
+        <?php wp_nonce_field('drwp_review_report'); ?>
+        <input type="hidden" name="action" value="drwp_review_report" />
+        <input type="hidden" name="id" value="<?php echo (int) $report->id; ?>" />
+        <p>
+          <label>新しい状態
+            <select name="review_status">
+              <?php foreach (['pending' => 'レビュー待ち', 'approved' => '承認', 'needs_revision' => '差し戻し'] as $val => $label): ?>
+                <option value="<?php echo esc_attr($val); ?>" <?php selected($report->review_status, $val); ?>><?php echo esc_html($label); ?></option>
+              <?php endforeach; ?>
+            </select>
+          </label>
+        </p>
+        <p><textarea name="comment" rows="3" class="large-text" placeholder="コメント（任意、差し戻し時は具体的に）"></textarea></p>
+        <?php submit_button('レビュー結果を反映', 'primary', 'submit', false); ?>
+      </form>
+    <?php endif; ?>
+
+    <h2 style="margin-top:24px;">コメント</h2>
+    <?php $comments = DRWP_Comment::for_report($report->id); ?>
+    <?php if (empty($comments)): ?>
+      <p>まだコメントはありません。</p>
+    <?php else: ?>
+      <ul class="drwp-comment-list" style="padding:0;list-style:none;">
+        <?php foreach ($comments as $comment): ?>
+          <li>
+            <strong><?php echo esc_html($comment->display_name ?: '（不明）'); ?></strong>
+            <span style="color:#50575e;"> — <?php echo esc_html($comment->created_at); ?></span>
+            <div><?php echo wp_kses_post(wpautop($comment->body)); ?></div>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    <?php endif; ?>
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="background:#fff;border:1px solid #dcdcde;padding:12px;">
+      <?php wp_nonce_field('drwp_add_comment'); ?>
+      <input type="hidden" name="action" value="drwp_add_comment" />
+      <input type="hidden" name="id" value="<?php echo (int) $report->id; ?>" />
+      <p><textarea name="comment" rows="3" class="large-text" required></textarea></p>
+      <?php submit_button('コメントを追加', 'secondary', 'submit', false); ?>
+    </form>
+
+    <h2 style="margin-top:24px;">操作履歴</h2>
+    <?php $audit = DRWP_Audit::for_report($report->id, 50); ?>
+    <?php if (empty($audit)): ?>
+      <p>まだ履歴はありません。</p>
+    <?php else: ?>
+      <table class="widefat striped">
+        <thead><tr><th>日時</th><th>イベント</th><th>ユーザー</th><th>メッセージ</th><th>詳細</th></tr></thead>
+        <tbody>
+          <?php foreach ($audit as $row): ?>
+            <tr>
+              <td><?php echo esc_html($row->created_at); ?></td>
+              <td><code><?php echo esc_html($row->event); ?></code></td>
+              <td><?php echo esc_html($row->display_name ?: ('#' . (int) $row->user_id)); ?></td>
+              <td><?php echo esc_html($row->message); ?></td>
+              <td>
+                <?php if (!empty($row->meta_json)): ?>
+                  <details><summary>meta</summary><pre style="white-space:pre-wrap;margin:4px 0;"><?php echo esc_html($row->meta_json); ?></pre></details>
+                <?php else: ?>-<?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    <?php endif; ?>
+
   <?php endif; ?>
 </div>

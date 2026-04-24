@@ -97,6 +97,12 @@ class DRWP_Post_Converter {
         }
 
         $wpdb->update($table, ['linked_post_id' => $post_id], ['id' => $report_id]);
+        DRWP_Audit::log(
+            !empty($report->linked_post_id) ? 'post_resynced' : 'post_created_from_report',
+            !empty($report->linked_post_id) ? '連携記事へ再反映' : '日報から記事を生成',
+            $report_id,
+            ['post_id' => (int) $post_id]
+        );
         return $post_id;
     }
 }

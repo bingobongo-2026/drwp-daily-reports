@@ -110,10 +110,12 @@ class DRWP_Admin {
         ];
         if ($existing) {
             $wpdb->update($table, $data, ['id' => $id]);
+            DRWP_Audit::log('report_updated', '日報を更新', $id, ['project_id' => $data['project_id']]);
         } else {
             $data['user_id'] = get_current_user_id();
             $wpdb->insert($table, $data);
             $id = (int) $wpdb->insert_id;
+            DRWP_Audit::log('report_created', '日報を作成', $id, ['project_id' => $data['project_id']]);
         }
         wp_safe_redirect(admin_url('admin.php?page=drwp_report_edit&id=' . $id . '&saved=1'));
         exit;
@@ -145,9 +147,15 @@ class DRWP_Admin {
             if (!self::current_user_can_edit_report($report)) continue;
 
             if ($action === 'bulk_approve') {
-                $count += (int) $wpdb->update($table, ['review_status' => 'approved'], ['id' => $id]);
+                if ((int) $wpdb->update($table, ['review_status' => 'approved'], ['id' => $id])) {
+                    DRWP_Audit::log('review_status_changed', '一括承認', $id, ['from' => $report->review_status, 'to' => 'approved']);
+                    $count++;
+                }
             } elseif ($action === 'bulk_revision') {
-                $count += (int) $wpdb->update($table, ['review_status' => 'needs_revision'], ['id' => $id]);
+                if ((int) $wpdb->update($table, ['review_status' => 'needs_revision'], ['id' => $id])) {
+                    DRWP_Audit::log('review_status_changed', '一括差し戻し', $id, ['from' => $report->review_status, 'to' => 'needs_revision']);
+                    $count++;
+                }
             } elseif ($action === 'bulk_convert') {
                 $result = DRWP_Post_Converter::sync_post($id, true);
                 if (!is_wp_error($result)) $count++;
@@ -159,7 +167,10 @@ class DRWP_Admin {
                     'post_status' => sanitize_text_field($_POST['bulk_post_status'] ?? 'draft'),
                     'scheduled_at' => sanitize_text_field($_POST['bulk_scheduled_at'] ?? '') ?: null,
                 ];
-                $count += (int) $wpdb->update($table, $data, ['id' => $id]);
+                if ((int) $wpdb->update($table, $data, ['id' => $id])) {
+                    DRWP_Audit::log('publish_settings_updated', '公開設定を一括更新', $id, $data);
+                    $count++;
+                }
             }
         }
         wp_safe_redirect(admin_url('admin.php?page=drwp_reports&updated=' . $count));
