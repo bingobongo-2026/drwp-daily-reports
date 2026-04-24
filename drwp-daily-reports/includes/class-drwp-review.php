@@ -35,6 +35,14 @@ class DRWP_Review {
             'comment_id' => $comment_id ?: null,
         ]);
 
+        do_action(
+            'drwp_review_changed',
+            $id,
+            (string) $report->review_status,
+            $status,
+            isset($_POST['comment']) ? wp_strip_all_tags(wp_unslash($_POST['comment'])) : ''
+        );
+
         wp_safe_redirect(admin_url('admin.php?page=drwp_report_edit&id=' . $id . '&reviewed=1'));
         exit;
     }
@@ -52,9 +60,11 @@ class DRWP_Review {
         $is_owner = (int) $report->user_id === get_current_user_id();
         if (!current_user_can('edit_others_posts') && !$is_owner) wp_die('forbidden');
 
-        $comment_id = DRWP_Comment::insert($id, $_POST['comment'] ?? '');
+        $raw = (string) ($_POST['comment'] ?? '');
+        $comment_id = DRWP_Comment::insert($id, $raw);
         if ($comment_id) {
             DRWP_Audit::log('comment_added', 'コメントを追加', $id, ['comment_id' => $comment_id]);
+            do_action('drwp_comment_added', $id, $comment_id, wp_strip_all_tags(wp_unslash($raw)));
         }
         wp_safe_redirect(admin_url('admin.php?page=drwp_report_edit&id=' . $id . '&commented=1'));
         exit;
