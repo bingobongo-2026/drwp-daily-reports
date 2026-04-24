@@ -22,6 +22,7 @@ require_once DRWP_PATH . 'includes/class-drwp-comment.php';
 require_once DRWP_PATH . 'includes/class-drwp-review.php';
 require_once DRWP_PATH . 'includes/class-drwp-media.php';
 require_once DRWP_PATH . 'includes/class-drwp-dashboard.php';
+require_once DRWP_PATH . 'includes/class-drwp-csv-import.php';
 require_once DRWP_PATH . 'includes/class-drwp-post-converter.php';
 require_once DRWP_PATH . 'includes/class-drwp-admin.php';
 
@@ -35,4 +36,5 @@ add_action('plugins_loaded', function () {
     DRWP_Review::init();
     DRWP_Audit_Admin::init();
     DRWP_Dashboard::init();
+    DRWP_CSV_Import::init();
 });
