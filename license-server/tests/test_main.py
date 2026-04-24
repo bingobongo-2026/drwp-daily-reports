@@ -1,20 +1,65 @@
-import os
+import importlib
+import sys
 
 import pytest
 from fastapi.testclient import TestClient
 
 
+def _fresh_client(tmp_path, monkeypatch, *, admin_token: str | None = "test-token"):
+    if admin_token is None:
+        monkeypatch.delenv("DRWP_ADMIN_TOKEN", raising=False)
+    else:
+        monkeypatch.setenv("DRWP_ADMIN_TOKEN", admin_token)
+    monkeypatch.setenv("DRWP_LICENSE_DB", str(tmp_path / "test.sqlite"))
+    monkeypatch.setenv("DRWP_SIGNING_KEY", str(tmp_path / "test.key"))
+    for name in ("app.main", "app.db", "app.signing", "app"):
+        sys.modules.pop(name, None)
+    main = importlib.import_module("app.main")
+    return TestClient(main.app), main
+
+
 @pytest.fixture
-def client(monkeypatch):
-    monkeypatch.setenv("DRWP_ADMIN_TOKEN", "test-token")
-    from app import main
-    return TestClient(main.app)
+def client(tmp_path, monkeypatch):
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    return c
 
 
-def test_public_key(client):
-    r = client.get("/api/public-key")
-    assert r.status_code == 200
-    assert "PUBLIC KEY" in r.json()["public_key"]
+@pytest.fixture
+def seeded(tmp_path, monkeypatch):
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    c.post(
+        "/admin/licenses",
+        auth=("admin", "test-token"),
+        json={
+            "license_key": "ACTIVE-KEY",
+            "domain": "example.test",
+            "plan": "pro",
+            "status": "active",
+            "expires_at": "2099-12-31T23:59:59+00:00",
+        },
+    )
+    c.post(
+        "/admin/licenses",
+        auth=("admin", "test-token"),
+        json={
+            "license_key": "EXPIRED-KEY",
+            "domain": "example.test",
+            "plan": "pro",
+            "status": "active",
+            "expires_at": "2000-01-01T00:00:00+00:00",
+        },
+    )
+    c.post(
+        "/admin/licenses",
+        auth=("admin", "test-token"),
+        json={
+            "license_key": "INACTIVE-KEY",
+            "domain": "example.test",
+            "plan": "pro",
+            "status": "inactive",
+        },
+    )
+    return c
 
 
 def test_healthz(client):
@@ -23,41 +68,133 @@ def test_healthz(client):
     assert r.json() == {"ok": True}
 
 
-def test_check_returns_active(client):
+def test_public_key_is_ed25519(client):
+    r = client.get("/api/public-key")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["algorithm"] == "ed25519"
+    assert len(body["public_key"]) > 10
+
+
+def test_check_unknown_key_returns_not_found_with_valid_signature(client):
     r = client.post(
         "/api/check",
-        json={"license_key": "DEMO-KEY", "domain": "example.test"},
+        json={"license_key": "UNKNOWN", "domain": "example.test"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "not_found"
+
+    from app import signing
+    sig = body.pop("signature")
+    assert signing.verify(body, sig) is True
+
+
+def test_check_active_signature_round_trip(seeded):
+    r = seeded.post(
+        "/api/check",
+        json={"license_key": "ACTIVE-KEY", "domain": "example.test"},
     )
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "active"
-    assert body["allowed_domain"] == "example.test"
+    assert body["plan"] == "pro"
+
+    from app import signing
+    sig = body.pop("signature")
+    assert signing.verify(body, sig) is True
+
+    # Tampering with any field invalidates the signature.
+    body["status"] = "expired"
+    assert signing.verify(body, sig) is False
 
 
-def test_check_rejects_missing_fields(client):
-    r = client.post("/api/check", json={"domain": "example.test"})
-    assert r.status_code == 422
+def test_check_rejects_expired(seeded):
+    r = seeded.post(
+        "/api/check",
+        json={"license_key": "EXPIRED-KEY", "domain": "example.test"},
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "expired"
+
+
+def test_check_rejects_domain_mismatch(seeded):
+    r = seeded.post(
+        "/api/check",
+        json={"license_key": "ACTIVE-KEY", "domain": "other.test"},
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "domain_mismatch"
+
+
+def test_check_reflects_inactive_status(seeded):
+    r = seeded.post(
+        "/api/check",
+        json={"license_key": "INACTIVE-KEY", "domain": "example.test"},
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "inactive"
 
 
 def test_admin_requires_auth(client):
-    r = client.get("/admin/licenses")
-    assert r.status_code == 401
+    assert client.get("/admin/licenses").status_code == 401
+    assert client.get("/admin/licenses", auth=("admin", "wrong")).status_code == 401
 
 
-def test_admin_rejects_bad_token(client):
-    r = client.get("/admin/licenses", auth=("admin", "wrong"))
-    assert r.status_code == 401
-
-
-def test_admin_accepts_good_token(client):
-    r = client.get("/admin/licenses", auth=("admin", "test-token"))
-    assert r.status_code == 200
-    assert r.json()["items"][0]["license_key"] == "DEMO-KEY"
-
-
-def test_admin_503_when_token_unset(monkeypatch):
-    monkeypatch.delenv("DRWP_ADMIN_TOKEN", raising=False)
-    from app import main
-    c = TestClient(main.app)
+def test_admin_503_when_token_unset(tmp_path, monkeypatch):
+    c, _ = _fresh_client(tmp_path, monkeypatch, admin_token=None)
     r = c.get("/admin/licenses", auth=("admin", "anything"))
     assert r.status_code == 503
+
+
+def test_admin_crud_roundtrip(client):
+    auth = ("admin", "test-token")
+
+    create = client.post(
+        "/admin/licenses",
+        auth=auth,
+        json={"license_key": "NEW-KEY", "domain": "a.test"},
+    )
+    assert create.status_code == 201
+    assert create.json()["license_key"] == "NEW-KEY"
+
+    # duplicate key is rejected
+    dup = client.post(
+        "/admin/licenses",
+        auth=auth,
+        json={"license_key": "NEW-KEY", "domain": "a.test"},
+    )
+    assert dup.status_code == 409
+
+    listed = client.get("/admin/licenses", auth=auth)
+    assert listed.status_code == 200
+    assert any(item["license_key"] == "NEW-KEY" for item in listed.json()["items"])
+
+    read = client.get("/admin/licenses/NEW-KEY", auth=auth)
+    assert read.status_code == 200
+    assert read.json()["status"] == "active"
+
+    patch = client.patch(
+        "/admin/licenses/NEW-KEY",
+        auth=auth,
+        json={"status": "inactive", "plan": "pro"},
+    )
+    assert patch.status_code == 200
+    assert patch.json()["status"] == "inactive"
+    assert patch.json()["plan"] == "pro"
+
+    delete = client.delete("/admin/licenses/NEW-KEY", auth=auth)
+    assert delete.status_code == 204
+
+    missing = client.get("/admin/licenses/NEW-KEY", auth=auth)
+    assert missing.status_code == 404
+
+    patch_missing = client.patch(
+        "/admin/licenses/NOPE",
+        auth=auth,
+        json={"status": "inactive"},
+    )
+    assert patch_missing.status_code == 404
+
+    delete_missing = client.delete("/admin/licenses/NOPE", auth=auth)
+    assert delete_missing.status_code == 404
