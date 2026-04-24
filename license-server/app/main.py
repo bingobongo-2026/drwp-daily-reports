@@ -3,8 +3,10 @@ import secrets
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from . import db, signing
@@ -12,6 +14,25 @@ from . import db, signing
 app = FastAPI(title="DRWP License Server v1.9")
 
 db.init_db()
+
+templates = Jinja2Templates(
+    directory=os.path.join(os.path.dirname(__file__), "templates")
+)
+
+_FLASH = {
+    "created": ("作成しました。", "ok"),
+    "updated": ("更新しました。", "ok"),
+    "deleted": ("削除しました。", "ok"),
+    "conflict": ("そのライセンスキーは既に存在します。", "err"),
+    "not_found": ("ライセンスが見つかりませんでした。", "err"),
+}
+
+
+def _flash_ctx(msg: Optional[str]) -> dict:
+    if not msg:
+        return {"flash": None, "flash_class": None}
+    text, cls = _FLASH.get(msg, (msg, "ok"))
+    return {"flash": text, "flash_class": cls}
 
 security = HTTPBasic()
 
@@ -160,3 +181,127 @@ def admin_delete(license_key: str, _: str = Depends(require_admin)):
     if not db.delete_license(license_key):
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="License not found")
     return None
+
+
+# --- HTML admin UI ---------------------------------------------------------
+
+@app.get("/admin/ui", include_in_schema=False)
+def ui_root(_: str = Depends(require_admin)):
+    return RedirectResponse("/admin/ui/licenses", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.get("/admin/ui/licenses", response_class=HTMLResponse, include_in_schema=False)
+def ui_list(request: Request, msg: Optional[str] = None, _: str = Depends(require_admin)):
+    return templates.TemplateResponse(
+        request,
+        "licenses.html",
+        {"items": db.list_licenses(), **_flash_ctx(msg)},
+    )
+
+
+@app.get("/admin/ui/licenses/new", response_class=HTMLResponse, include_in_schema=False)
+def ui_new(request: Request, msg: Optional[str] = None, _: str = Depends(require_admin)):
+    return templates.TemplateResponse(
+        request,
+        "license_form.html",
+        {
+            "license": None,
+            "action_url": "/admin/ui/licenses",
+            **_flash_ctx(msg),
+        },
+    )
+
+
+@app.post("/admin/ui/licenses", include_in_schema=False)
+def ui_create(
+    license_key: str = Form(...),
+    domain: str = Form(...),
+    plan: str = Form("standard"),
+    status_: str = Form("active", alias="status"),
+    expires_at: Optional[str] = Form(None),
+    _: str = Depends(require_admin),
+):
+    key = license_key.strip()
+    if not key or db.get_license(key) is not None:
+        return RedirectResponse(
+            "/admin/ui/licenses/new?msg=conflict",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    db.create_license(
+        license_key=key,
+        domain=domain.strip(),
+        plan=plan.strip() or "standard",
+        status=status_.strip() or "active",
+        expires_at=(expires_at or "").strip() or None,
+    )
+    return RedirectResponse(
+        "/admin/ui/licenses?msg=created",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.get(
+    "/admin/ui/licenses/{license_key}/edit",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+def ui_edit(
+    license_key: str,
+    request: Request,
+    msg: Optional[str] = None,
+    _: str = Depends(require_admin),
+):
+    lic = db.get_license(license_key)
+    if lic is None:
+        return RedirectResponse(
+            "/admin/ui/licenses?msg=not_found",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    return templates.TemplateResponse(
+        request,
+        "license_form.html",
+        {
+            "license": lic,
+            "action_url": f"/admin/ui/licenses/{license_key}/edit",
+            **_flash_ctx(msg),
+        },
+    )
+
+
+@app.post("/admin/ui/licenses/{license_key}/edit", include_in_schema=False)
+def ui_update(
+    license_key: str,
+    domain: str = Form(...),
+    plan: str = Form("standard"),
+    status_: str = Form("active", alias="status"),
+    expires_at: Optional[str] = Form(None),
+    _: str = Depends(require_admin),
+):
+    # For expires_at, an empty form value means "clear"; pass it through as
+    # an empty string so update_license writes it. Only missing (None) would
+    # skip the column.
+    updated = db.update_license(
+        license_key,
+        domain=domain.strip(),
+        plan=plan.strip() or "standard",
+        status=status_.strip() or "active",
+        expires_at=(expires_at or "").strip(),
+    )
+    if updated is None:
+        return RedirectResponse(
+            "/admin/ui/licenses?msg=not_found",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    return RedirectResponse(
+        "/admin/ui/licenses?msg=updated",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/admin/ui/licenses/{license_key}/delete", include_in_schema=False)
+def ui_delete(license_key: str, _: str = Depends(require_admin)):
+    msg = "deleted" if db.delete_license(license_key) else "not_found"
+    return RedirectResponse(
+        f"/admin/ui/licenses?msg={msg}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )

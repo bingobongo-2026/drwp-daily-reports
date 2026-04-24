@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}ライセンス — DRWP License Server{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="row" style="justify-content: space-between;">
+    <h1>ライセンス</h1>
+    <a class="btn" href="/admin/ui/licenses/new">新規作成</a>
+  </div>
+  <p class="muted">合計 {{ items|length }} 件</p>
+  <table>
+    <thead>
+      <tr>
+        <th>キー</th>
+        <th>ドメイン</th>
+        <th>プラン</th>
+        <th>状態</th>
+        <th>有効期限</th>
+        <th>更新日時</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if not items %}
+        <tr><td colspan="7" class="muted">ライセンスがありません。</td></tr>
+      {% endif %}
+      {% for it in items %}
+      <tr>
+        <td class="mono">{{ it.license_key }}</td>
+        <td>{{ it.domain }}</td>
+        <td>{{ it.plan }}</td>
+        <td><span class="pill {{ 'active' if it.status == 'active' else 'inactive' }}">{{ it.status }}</span></td>
+        <td class="mono">{{ it.expires_at or '—' }}</td>
+        <td class="mono">{{ it.updated_at }}</td>
+        <td class="row">
+          <a class="btn ghost" href="/admin/ui/licenses/{{ it.license_key }}/edit">編集</a>
+          <form class="inline" method="post" action="/admin/ui/licenses/{{ it.license_key }}/delete" onsubmit="return confirm('削除しますか？');">
+            <button class="btn danger" type="submit">削除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

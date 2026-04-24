@@ -200,6 +200,129 @@ def test_admin_crud_roundtrip(client):
     assert delete_missing.status_code == 404
 
 
+def test_ui_requires_auth(client):
+    # Unauthenticated UI requests are rejected with 401 (no redirect loop).
+    assert client.get("/admin/ui/licenses").status_code == 401
+    assert client.get("/admin/ui/licenses/new").status_code == 401
+    assert client.post(
+        "/admin/ui/licenses",
+        data={"license_key": "X", "domain": "y.test"},
+    ).status_code == 401
+
+
+def test_ui_root_redirects_to_list(client):
+    auth = ("admin", "test-token")
+    r = client.get("/admin/ui", auth=auth, follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"] == "/admin/ui/licenses"
+
+
+def test_ui_list_renders_html(client):
+    auth = ("admin", "test-token")
+    r = client.get("/admin/ui/licenses", auth=auth)
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/html")
+    assert "DRWP License Server" in r.text
+    assert "ライセンスがありません" in r.text
+
+
+def test_ui_create_via_form(client):
+    auth = ("admin", "test-token")
+    r = client.post(
+        "/admin/ui/licenses",
+        auth=auth,
+        data={
+            "license_key": "UI-KEY",
+            "domain": "ui.test",
+            "plan": "pro",
+            "status": "active",
+            "expires_at": "2099-12-31T23:59:59+00:00",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert r.headers["location"] == "/admin/ui/licenses?msg=created"
+
+    listed = client.get("/admin/ui/licenses?msg=created", auth=auth)
+    assert listed.status_code == 200
+    assert "UI-KEY" in listed.text
+    assert "作成しました" in listed.text
+
+
+def test_ui_create_duplicate_flashes_conflict(client):
+    auth = ("admin", "test-token")
+    client.post(
+        "/admin/ui/licenses",
+        auth=auth,
+        data={"license_key": "DUP", "domain": "ui.test"},
+    )
+    r = client.post(
+        "/admin/ui/licenses",
+        auth=auth,
+        data={"license_key": "DUP", "domain": "ui.test"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "msg=conflict" in r.headers["location"]
+
+
+def test_ui_edit_and_update(client):
+    auth = ("admin", "test-token")
+    client.post(
+        "/admin/ui/licenses",
+        auth=auth,
+        data={"license_key": "EDIT-KEY", "domain": "before.test"},
+    )
+
+    form = client.get("/admin/ui/licenses/EDIT-KEY/edit", auth=auth)
+    assert form.status_code == 200
+    assert 'value="before.test"' in form.text
+    assert 'value="EDIT-KEY"' in form.text
+
+    update = client.post(
+        "/admin/ui/licenses/EDIT-KEY/edit",
+        auth=auth,
+        data={
+            "license_key": "EDIT-KEY",
+            "domain": "after.test",
+            "plan": "standard",
+            "status": "inactive",
+            "expires_at": "",
+        },
+        follow_redirects=False,
+    )
+    assert update.status_code == 303
+    assert "msg=updated" in update.headers["location"]
+
+    reread = client.get("/admin/licenses/EDIT-KEY", auth=auth)
+    assert reread.json()["domain"] == "after.test"
+    assert reread.json()["status"] == "inactive"
+
+
+def test_ui_edit_missing_redirects_with_flash(client):
+    auth = ("admin", "test-token")
+    r = client.get("/admin/ui/licenses/NOPE/edit", auth=auth, follow_redirects=False)
+    assert r.status_code == 303
+    assert "msg=not_found" in r.headers["location"]
+
+
+def test_ui_delete_roundtrip(client):
+    auth = ("admin", "test-token")
+    client.post(
+        "/admin/ui/licenses",
+        auth=auth,
+        data={"license_key": "DEL", "domain": "ui.test"},
+    )
+    r = client.post(
+        "/admin/ui/licenses/DEL/delete",
+        auth=auth,
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "msg=deleted" in r.headers["location"]
+    assert client.get("/admin/licenses/DEL", auth=auth).status_code == 404
+
+
 def test_canonical_form_is_sorted_compact_utf8(tmp_path, monkeypatch):
     # The canonical form is the bytes PHP (or any verifier) must reproduce:
     # keys sorted by string order, no whitespace, unescaped UTF-8 and slashes.
