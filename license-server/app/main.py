@@ -86,7 +86,16 @@ def _sign_response(body: dict) -> dict:
 
 @app.get("/api/public-key")
 def public_key():
-    return {"public_key": signing.public_key_b64(), "algorithm": "ed25519"}
+    return {
+        "public_key": signing.public_key_b64(),
+        "previous_keys": signing.previous_public_keys_b64(),
+        "algorithm": "ed25519",
+    }
+
+
+@app.post("/admin/rotate-signing-key")
+def admin_rotate_signing_key(_: str = Depends(require_admin)):
+    return signing.rotate()
 
 
 @app.get("/healthz")

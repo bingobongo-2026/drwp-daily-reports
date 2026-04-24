@@ -11,6 +11,7 @@ class DRWP_License {
     const OPT_LAST_VALID_AT   = 'drwp_license_last_valid_at';
     const OPT_LAST_MESSAGE    = 'drwp_license_last_message';
     const OPT_PUBLIC_KEY      = 'drwp_license_public_key';
+    const OPT_PREVIOUS_KEYS   = 'drwp_license_previous_keys';
     const OPT_SIGNATURE_VALID = 'drwp_license_signature_valid';
 
     const GRACE_DAYS = 7;
@@ -69,7 +70,19 @@ class DRWP_License {
         if ($raw === false || strlen($raw) !== 32) {
             return new WP_Error('drwp_license_public_key', 'Public key must be 32 raw bytes');
         }
+
+        // Validate any archived previous keys; ignore the malformed ones.
+        $previous = [];
+        foreach ((array) ($body['previous_keys'] ?? []) as $candidate) {
+            $candidate = (string) $candidate;
+            $bytes = base64_decode($candidate, true);
+            if ($bytes !== false && strlen($bytes) === 32) {
+                $previous[] = $candidate;
+            }
+        }
+
         update_option(self::OPT_PUBLIC_KEY, $body['public_key']);
+        update_option(self::OPT_PREVIOUS_KEYS, $previous);
         return $body['public_key'];
     }
 
@@ -94,16 +107,30 @@ class DRWP_License {
         if ($public_b64 === '') {
             return new WP_Error('drwp_license_no_key', 'Public key is not cached');
         }
-        $public = base64_decode($public_b64, true);
-        $sig    = base64_decode((string) $signature_b64, true);
-        if ($public === false || $sig === false) {
-            return new WP_Error('drwp_license_base64', 'Invalid base64 input');
+        $sig = base64_decode((string) $signature_b64, true);
+        if ($sig === false) {
+            return new WP_Error('drwp_license_base64', 'Invalid signature base64');
         }
+
+        $candidates = [$public_b64];
+        foreach ((array) get_option(self::OPT_PREVIOUS_KEYS, []) as $prev) {
+            $prev = (string) $prev;
+            if ($prev !== '' && $prev !== $public_b64) $candidates[] = $prev;
+        }
+
+        $message = self::canonical($payload);
         try {
-            return (bool) sodium_crypto_sign_verify_detached($sig, self::canonical($payload), $public);
+            foreach ($candidates as $candidate) {
+                $pub = base64_decode($candidate, true);
+                if ($pub === false || strlen($pub) !== 32) continue;
+                if (sodium_crypto_sign_verify_detached($sig, $message, $pub)) {
+                    return true;
+                }
+            }
         } catch (Exception $e) {
             return new WP_Error('drwp_license_sodium', $e->getMessage());
         }
+        return false;
     }
 
     public static function check_now() {
