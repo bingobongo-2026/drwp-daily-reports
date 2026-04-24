@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ 'ライセンス編集' if license else 'ライセンス作成' }} — DRWP License Server{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{{ 'ライセンス編集' if license else 'ライセンス作成' }}</h1>
+  <form method="post" action="{{ action_url }}">
+    <label for="license_key">ライセンスキー</label>
+    <input type="text" id="license_key" name="license_key"
+           value="{{ license.license_key if license else '' }}"
+           {% if license %}readonly{% else %}required{% endif %}>
+
+    <label for="domain">ドメイン</label>
+    <input type="text" id="domain" name="domain"
+           value="{{ license.domain if license else '' }}" required>
+
+    <label for="plan">プラン</label>
+    <select id="plan" name="plan">
+      {% for p in ['standard', 'pro'] %}
+        <option value="{{ p }}" {% if license and license.plan == p %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="status">状態</label>
+    <select id="status" name="status">
+      {% for s in ['active', 'inactive'] %}
+        <option value="{{ s }}" {% if license and license.status == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="expires_at">有効期限 (ISO 8601, 任意)</label>
+    <input type="text" id="expires_at" name="expires_at"
+           value="{{ license.expires_at if license and license.expires_at else '' }}"
+           placeholder="2099-12-31T23:59:59+00:00">
+
+    <div class="row" style="margin-top: 16px;">
+      <button class="btn" type="submit">{{ '更新' if license else '作成' }}</button>
+      <a class="btn ghost" href="/admin/ui/licenses">キャンセル</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
