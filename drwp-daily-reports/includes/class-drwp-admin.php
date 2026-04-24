@@ -27,6 +27,7 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', '現場', '現場', 'manage_options', 'drwp_projects', ['DRWP_Project', 'render_page']);
         add_submenu_page('drwp_reports', 'ライセンス', 'ライセンス', 'manage_options', 'drwp_license', ['DRWP_License_Admin', 'render_page']);
         add_submenu_page('drwp_reports', '操作履歴', '操作履歴', 'manage_options', 'drwp_audit', ['DRWP_Audit_Admin', 'render_page']);
+        add_submenu_page('drwp_reports', 'CSV インポート', 'CSV インポート', self::CAP_EDIT, 'drwp_csv_import', ['DRWP_CSV_Import', 'render_page']);
         add_submenu_page(null, '公開プレビュー', '公開プレビュー', self::CAP_EDIT, 'drwp_report_preview', [__CLASS__, 'report_preview_page']);
     }
 
