@@ -323,6 +323,72 @@ def test_ui_delete_roundtrip(client):
     assert client.get("/admin/licenses/DEL", auth=auth).status_code == 404
 
 
+def test_rotate_archives_previous_and_keeps_old_signatures_valid(client):
+    auth = ("admin", "test-token")
+
+    # Capture original public key and a signature minted under it.
+    original_pub = client.get("/api/public-key").json()["public_key"]
+    client.post(
+        "/admin/licenses",
+        auth=auth,
+        json={"license_key": "ROT-KEY", "domain": "rot.test"},
+    )
+    first = client.post(
+        "/api/check",
+        json={"license_key": "ROT-KEY", "domain": "rot.test"},
+    ).json()
+    first_sig = first["signature"]
+
+    # Rotate. The new public key differs and the old one moves to previous.
+    rot = client.post("/admin/rotate-signing-key", auth=auth)
+    assert rot.status_code == 200
+    body = rot.json()
+    assert body["public_key"] != original_pub
+    assert original_pub in body["previous_keys"]
+
+    pk = client.get("/api/public-key").json()
+    assert pk["public_key"] == body["public_key"]
+    assert original_pub in pk["previous_keys"]
+
+    # New signatures use the new key.
+    second = client.post(
+        "/api/check",
+        json={"license_key": "ROT-KEY", "domain": "rot.test"},
+    ).json()
+    assert second["signature"] != first_sig
+
+    # Old signatures still verify because the previous key is archived.
+    from app import signing
+    payload_first = {k: v for k, v in first.items() if k != "signature"}
+    payload_second = {k: v for k, v in second.items() if k != "signature"}
+    assert signing.verify(payload_first, first_sig) is True
+    assert signing.verify(payload_second, second["signature"]) is True
+
+
+def test_rotate_caps_previous_keys(client):
+    auth = ("admin", "test-token")
+    pubs = [client.get("/api/public-key").json()["public_key"]]
+    # Rotate enough times to overflow the cap.
+    from app.signing import MAX_PREVIOUS_KEYS
+
+    for _ in range(MAX_PREVIOUS_KEYS + 2):
+        body = client.post("/admin/rotate-signing-key", auth=auth).json()
+        pubs.append(body["public_key"])
+
+    pk = client.get("/api/public-key").json()
+    assert len(pk["previous_keys"]) == MAX_PREVIOUS_KEYS
+    # Most recent rotations are kept; the oldest got evicted.
+    assert pubs[-2] in pk["previous_keys"]
+    assert pubs[0] not in pk["previous_keys"]
+
+
+def test_rotate_requires_admin(client):
+    assert client.post("/admin/rotate-signing-key").status_code == 401
+    assert client.post(
+        "/admin/rotate-signing-key", auth=("admin", "wrong")
+    ).status_code == 401
+
+
 def test_canonical_form_is_sorted_compact_utf8(tmp_path, monkeypatch):
     # The canonical form is the bytes PHP (or any verifier) must reproduce:
     # keys sorted by string order, no whitespace, unescaped UTF-8 and slashes.
