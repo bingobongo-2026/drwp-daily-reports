@@ -5,6 +5,7 @@ class DRWP_Admin {
     const CAP_EDIT  = 'edit_posts';
     const CAP_REVIEW = 'edit_others_posts';
     const CAP_CONVERT = 'publish_posts';
+    const PER_PAGE = 25;
 
     public static function init() {
         add_action('admin_menu', [__CLASS__, 'menu']);
@@ -45,25 +46,66 @@ class DRWP_Admin {
         if (!current_user_can(self::CAP_EDIT)) wp_die('forbidden');
         global $wpdb;
         $table = self::reports_table();
-        $search = isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '';
-        $status = isset($_GET['review_status']) ? sanitize_text_field(wp_unslash($_GET['review_status'])) : '';
-        $where = 'WHERE 1=1';
+
+        $filters = [
+            'search'        => isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '',
+            'review_status' => isset($_GET['review_status']) ? sanitize_text_field(wp_unslash($_GET['review_status'])) : '',
+            'post_status'   => isset($_GET['post_status']) ? sanitize_text_field(wp_unslash($_GET['post_status'])) : '',
+            'project_id'    => isset($_GET['project_id']) ? absint($_GET['project_id']) : 0,
+            'date_from'     => isset($_GET['date_from']) ? sanitize_text_field(wp_unslash($_GET['date_from'])) : '',
+            'date_to'       => isset($_GET['date_to']) ? sanitize_text_field(wp_unslash($_GET['date_to'])) : '',
+        ];
+
+        $where = '1=1';
         $args = [];
         if (!current_user_can(self::CAP_REVIEW)) {
             $where .= ' AND user_id = %d';
             $args[] = get_current_user_id();
         }
-        if ($search !== '') {
-            $where .= " AND (public_title LIKE %s OR public_body LIKE %s OR work_description LIKE %s OR post_tags LIKE %s)";
-            $like = '%' . $wpdb->esc_like($search) . '%';
+        if ($filters['search'] !== '') {
+            $where .= ' AND (public_title LIKE %s OR public_body LIKE %s OR work_description LIKE %s OR post_tags LIKE %s)';
+            $like = '%' . $wpdb->esc_like($filters['search']) . '%';
             $args[] = $like; $args[] = $like; $args[] = $like; $args[] = $like;
         }
-        if ($status !== '') {
-            $where .= " AND review_status = %s";
-            $args[] = $status;
+        if ($filters['review_status'] !== '') {
+            $where .= ' AND review_status = %s';
+            $args[] = $filters['review_status'];
         }
-        $sql = "SELECT * FROM $table $where ORDER BY report_date DESC, id DESC LIMIT 100";
-        $reports = $args ? $wpdb->get_results($wpdb->prepare($sql, $args)) : $wpdb->get_results($sql);
+        if ($filters['post_status'] !== '') {
+            $where .= ' AND post_status = %s';
+            $args[] = $filters['post_status'];
+        }
+        if ($filters['project_id']) {
+            $where .= ' AND project_id = %d';
+            $args[] = $filters['project_id'];
+        }
+        if ($filters['date_from'] !== '') {
+            $where .= ' AND report_date >= %s';
+            $args[] = $filters['date_from'];
+        }
+        if ($filters['date_to'] !== '') {
+            $where .= ' AND report_date <= %s';
+            $args[] = $filters['date_to'];
+        }
+
+        $count_sql = "SELECT COUNT(*) FROM $table WHERE $where";
+        $total = $args
+            ? (int) $wpdb->get_var($wpdb->prepare($count_sql, $args))
+            : (int) $wpdb->get_var($count_sql);
+
+        $paged = max(1, (int) ($_GET['paged'] ?? 1));
+        $pages = max(1, (int) ceil($total / self::PER_PAGE));
+        if ($paged > $pages) $paged = $pages;
+        $offset = ($paged - 1) * self::PER_PAGE;
+
+        $sql = "SELECT * FROM $table WHERE $where ORDER BY report_date DESC, id DESC LIMIT %d OFFSET %d";
+        $query_args = $args;
+        $query_args[] = self::PER_PAGE;
+        $query_args[] = $offset;
+        $reports = $wpdb->get_results($wpdb->prepare($sql, $query_args));
+
+        $projects = DRWP_Project::all();
+
         include DRWP_PATH . 'admin/views/reports-list.php';
     }
 
