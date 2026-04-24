@@ -3,7 +3,7 @@
  * Plugin Name: DRWP Daily Reports
  * Description: Daily reports, review workflow, and conversion to WordPress posts with license checks.
  * Version: 1.8.0
- * Author: OpenAI Prototype
+ * Author: DRWP Prototype
  */
 
 if (!defined('ABSPATH')) exit;
@@ -14,11 +14,21 @@ define('DRWP_URL', plugin_dir_url(__FILE__));
 
 require_once DRWP_PATH . 'includes/class-drwp-db.php';
 require_once DRWP_PATH . 'includes/class-drwp-license.php';
+require_once DRWP_PATH . 'includes/class-drwp-license-admin.php';
+require_once DRWP_PATH . 'includes/class-drwp-project.php';
+require_once DRWP_PATH . 'includes/class-drwp-audit.php';
+require_once DRWP_PATH . 'includes/class-drwp-comment.php';
+require_once DRWP_PATH . 'includes/class-drwp-review.php';
+require_once DRWP_PATH . 'includes/class-drwp-media.php';
 require_once DRWP_PATH . 'includes/class-drwp-post-converter.php';
 require_once DRWP_PATH . 'includes/class-drwp-admin.php';
 
 register_activation_hook(__FILE__, ['DRWP_DB', 'activate']);
 
 add_action('plugins_loaded', function () {
+    DRWP_DB::maybe_upgrade();
     DRWP_Admin::init();
+    DRWP_License_Admin::init();
+    DRWP_Project::init();
+    DRWP_Review::init();
 });

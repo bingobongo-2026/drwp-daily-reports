@@ -1,29 +1,50 @@
-<?php
-if (!defined('ABSPATH')) exit;
-global $wpdb;
-$table = $wpdb->prefix . 'drwp_projects';
-$projects = $wpdb->get_results("SELECT * FROM $table ORDER BY id DESC", ARRAY_A);
-?>
+<?php if (!defined('ABSPATH')) exit; ?>
 <div class="wrap">
   <h1>現場</h1>
-  <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="background:#fff;padding:16px;margin:12px 0;">
+
+  <?php if (!empty($_GET['saved'])): ?>
+    <div class="notice notice-success"><p>現場を保存しました。</p></div>
+  <?php endif; ?>
+  <?php if (!empty($_GET['error']) && $_GET['error'] === 'missing_name'): ?>
+    <div class="notice notice-error"><p>現場名は必須です。</p></div>
+  <?php endif; ?>
+
+  <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="background:#fff;padding:16px;margin-top:12px;">
     <?php wp_nonce_field('drwp_save_project'); ?>
-    <input type="hidden" name="action" value="drwp_save_project">
+    <input type="hidden" name="action" value="drwp_save_project" />
     <table class="form-table">
-      <tr><th>現場名</th><td><input type="text" name="name" class="regular-text"></td></tr>
-      <tr><th>顧客名</th><td><input type="text" name="client_name" class="regular-text"></td></tr>
-      <tr><th>住所</th><td><input type="text" name="site_address" class="regular-text"></td></tr>
-      <tr><th>状態</th><td><select name="status"><option value="active">active</option><option value="paused">paused</option><option value="completed">completed</option></select></td></tr>
+      <tr>
+        <th><label for="drwp-project-name">現場名</label></th>
+        <td><input type="text" id="drwp-project-name" class="regular-text" name="name" required /></td>
+      </tr>
+      <tr>
+        <th><label for="drwp-project-status">状態</label></th>
+        <td>
+          <select name="status" id="drwp-project-status">
+            <option value="active">active</option>
+            <option value="inactive">inactive</option>
+          </select>
+        </td>
+      </tr>
     </table>
-    <?php submit_button('保存'); ?>
+    <?php submit_button('現場を追加'); ?>
   </form>
 
-  <table class="widefat striped">
-    <thead><tr><th>ID</th><th>現場名</th><th>顧客名</th><th>住所</th><th>状態</th></tr></thead>
+  <table class="widefat striped" style="margin-top:16px;">
+    <thead>
+      <tr><th>ID</th><th>現場名</th><th>状態</th><th>更新日時</th></tr>
+    </thead>
     <tbody>
-    <?php foreach ($projects as $p): ?>
-      <tr><td><?php echo intval($p['id']); ?></td><td><?php echo esc_html($p['name']); ?></td><td><?php echo esc_html($p['client_name']); ?></td><td><?php echo esc_html($p['site_address']); ?></td><td><?php echo esc_html($p['status']); ?></td></tr>
-    <?php endforeach; ?>
+      <?php if (empty($projects)): ?>
+        <tr><td colspan="4">まだ現場がありません。</td></tr>
+      <?php else: foreach ($projects as $project): ?>
+        <tr>
+          <td><?php echo (int) $project->id; ?></td>
+          <td><?php echo esc_html($project->name); ?></td>
+          <td><?php echo esc_html($project->status); ?></td>
+          <td><?php echo esc_html($project->updated_at); ?></td>
+        </tr>
+      <?php endforeach; endif; ?>
     </tbody>
   </table>
 </div>

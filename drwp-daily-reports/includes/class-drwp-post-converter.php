@@ -17,16 +17,29 @@ class DRWP_Post_Converter {
     public static function build_content($report) {
         $html = '';
         if (!empty($report->public_intro)) {
-            $html .= '<p>' . wp_kses_post(wpautop($report->public_intro)) . '</p>';
+            $html .= wp_kses_post(wpautop($report->public_intro));
         }
         if (!empty($report->public_body)) {
             $html .= '<h2>本日の作業内容</h2>';
             $html .= wp_kses_post(wpautop($report->public_body));
         }
+        $html .= self::build_photo_gallery($report);
         if (!empty($report->public_next_plan)) {
             $html .= '<h2>今後の予定</h2>';
             $html .= wp_kses_post(wpautop($report->public_next_plan));
         }
+        return $html;
+    }
+
+    protected static function build_photo_gallery($report) {
+        if (empty($report->id)) return '';
+        $photos = DRWP_Media::for_report((int) $report->id);
+        if (empty($photos)) return '';
+        $html = '<div class="drwp-public-photos">';
+        foreach ($photos as $photo) {
+            $html .= DRWP_Media::render_figure($photo, 'large');
+        }
+        $html .= '</div>';
         return $html;
     }
 
@@ -75,6 +88,7 @@ class DRWP_Post_Converter {
 
         if (!empty($report->scheduled_at) && $report->post_status === 'future') {
             $post_data['post_date'] = $report->scheduled_at;
+            $post_data['post_date_gmt'] = get_gmt_from_date($report->scheduled_at);
         }
 
         if (!empty($report->linked_post_id) && $update_existing) {
@@ -96,6 +110,12 @@ class DRWP_Post_Converter {
         }
 
         $wpdb->update($table, ['linked_post_id' => $post_id], ['id' => $report_id]);
+        DRWP_Audit::log(
+            !empty($report->linked_post_id) ? 'post_resynced' : 'post_created_from_report',
+            !empty($report->linked_post_id) ? '連携記事へ再反映' : '日報から記事を生成',
+            $report_id,
+            ['post_id' => (int) $post_id]
+        );
         return $post_id;
     }
 }
