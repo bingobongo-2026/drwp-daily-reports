@@ -4,4 +4,5 @@ __pycache__/
 .venv/
 .env
 license-server/signing.key
+license-server/signing.key.previous.json
 license-server/data.sqlite3
