@@ -10,6 +10,14 @@ class DRWP_Admin {
         add_action('admin_menu', [__CLASS__, 'menu']);
         add_action('admin_post_drwp_save_report', [__CLASS__, 'save_report']);
         add_action('admin_post_drwp_bulk_reports', [__CLASS__, 'bulk_reports']);
+        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue']);
+    }
+
+    public static function enqueue($hook) {
+        if (!is_string($hook) || strpos($hook, 'drwp_report_edit') === false) return;
+        wp_enqueue_media();
+        wp_enqueue_style('drwp-admin', DRWP_URL . 'admin/assets/admin.css', [], DRWP_VERSION);
+        wp_enqueue_script('drwp-admin', DRWP_URL . 'admin/assets/admin.js', ['jquery'], DRWP_VERSION, true);
     }
 
     public static function menu() {
@@ -66,6 +74,7 @@ class DRWP_Admin {
         $report = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
         if ($report && !self::current_user_can_edit_report($report)) wp_die('forbidden');
         $projects = DRWP_Project::all(true);
+        $photos = $report ? DRWP_Media::for_report($report->id) : [];
         include DRWP_PATH . 'admin/views/report-edit.php';
     }
 
@@ -117,6 +126,19 @@ class DRWP_Admin {
             $id = (int) $wpdb->insert_id;
             DRWP_Audit::log('report_created', '日報を作成', $id, ['project_id' => $data['project_id']]);
         }
+
+        $photos = [];
+        $attachment_ids = (array) ($_POST['attachment_ids'] ?? []);
+        $captions = (array) ($_POST['attachment_captions'] ?? []);
+        foreach ($attachment_ids as $i => $att_id) {
+            $photos[] = [
+                'attachment_id' => (int) $att_id,
+                'caption'       => (string) ($captions[$i] ?? ''),
+            ];
+        }
+        $saved_photos = DRWP_Media::sync($id, $photos);
+        DRWP_Audit::log('photos_updated', '写真を更新', $id, ['count' => $saved_photos]);
+
         wp_safe_redirect(admin_url('admin.php?page=drwp_report_edit&id=' . $id . '&saved=1'));
         exit;
     }

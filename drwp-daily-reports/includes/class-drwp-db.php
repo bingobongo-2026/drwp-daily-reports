@@ -18,6 +18,7 @@ class DRWP_DB {
         $projects = $wpdb->prefix . 'drwp_projects';
         $comments = $wpdb->prefix . 'drwp_comments';
         $audit = $wpdb->prefix . 'drwp_audit_logs';
+        $photos = $wpdb->prefix . 'drwp_report_photos';
 
         $sql1 = "CREATE TABLE $projects (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -81,6 +82,18 @@ class DRWP_DB {
             KEY event (event)
         ) $charset;";
         dbDelta($sql4);
+
+        $sql5 = "CREATE TABLE $photos (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            report_id BIGINT UNSIGNED NOT NULL,
+            attachment_id BIGINT UNSIGNED NOT NULL,
+            caption VARCHAR(255) NULL,
+            sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY report_id (report_id)
+        ) $charset;";
+        dbDelta($sql5);
 
         add_option('drwp_license_api_url', 'https://license.example.com');
         add_option('drwp_public_key', '');

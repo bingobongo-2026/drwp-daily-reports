@@ -19,6 +19,7 @@ require_once DRWP_PATH . 'includes/class-drwp-project.php';
 require_once DRWP_PATH . 'includes/class-drwp-audit.php';
 require_once DRWP_PATH . 'includes/class-drwp-comment.php';
 require_once DRWP_PATH . 'includes/class-drwp-review.php';
+require_once DRWP_PATH . 'includes/class-drwp-media.php';
 require_once DRWP_PATH . 'includes/class-drwp-post-converter.php';
 require_once DRWP_PATH . 'includes/class-drwp-admin.php';
 

@@ -109,6 +109,28 @@
         <th><label>予約日時</label></th>
         <td><input type="datetime-local" name="scheduled_at" value="<?php echo !empty($report->scheduled_at) ? esc_attr(date('Y-m-d\TH:i', strtotime($report->scheduled_at))) : ''; ?>" /></td>
       </tr>
+      <tr>
+        <th><label>写真</label></th>
+        <td>
+          <p><button type="button" class="button" id="drwp-open-media">写真を選択</button>
+          <span class="description">メディアライブラリから画像を追加。キャプションは任意。ドラッグ可。</span></p>
+          <div id="drwp-photo-list" class="drwp-photo-list">
+            <?php foreach (($photos ?? []) as $photo): ?>
+              <?php $thumb = wp_get_attachment_image_url((int) $photo->attachment_id, 'thumbnail'); ?>
+              <div class="drwp-photo-item">
+                <a href="#" class="drwp-photo-remove" aria-label="削除">×</a>
+                <?php if ($thumb): ?>
+                  <img src="<?php echo esc_url($thumb); ?>" alt="" />
+                <?php else: ?>
+                  <em>添付 #<?php echo (int) $photo->attachment_id; ?> が見つかりません</em>
+                <?php endif; ?>
+                <input type="hidden" name="attachment_ids[]" value="<?php echo (int) $photo->attachment_id; ?>" />
+                <input type="text" name="attachment_captions[]" class="drwp-photo-caption" placeholder="キャプション" value="<?php echo esc_attr((string) ($photo->caption ?? '')); ?>" />
+              </div>
+            <?php endforeach; ?>
+          </div>
+        </td>
+      </tr>
     </table>
 
     <?php submit_button('保存'); ?>

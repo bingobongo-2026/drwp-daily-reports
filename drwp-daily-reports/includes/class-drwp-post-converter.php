@@ -23,10 +23,23 @@ class DRWP_Post_Converter {
             $html .= '<h2>本日の作業内容</h2>';
             $html .= wp_kses_post(wpautop($report->public_body));
         }
+        $html .= self::build_photo_gallery($report);
         if (!empty($report->public_next_plan)) {
             $html .= '<h2>今後の予定</h2>';
             $html .= wp_kses_post(wpautop($report->public_next_plan));
         }
+        return $html;
+    }
+
+    protected static function build_photo_gallery($report) {
+        if (empty($report->id)) return '';
+        $photos = DRWP_Media::for_report((int) $report->id);
+        if (empty($photos)) return '';
+        $html = '<div class="drwp-public-photos">';
+        foreach ($photos as $photo) {
+            $html .= DRWP_Media::render_figure($photo, 'large');
+        }
+        $html .= '</div>';
         return $html;
     }
 
