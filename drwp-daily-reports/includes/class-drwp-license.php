@@ -2,14 +2,16 @@
 if (!defined('ABSPATH')) exit;
 
 class DRWP_License {
-    const OPT_API_URL       = 'drwp_license_api_url';
-    const OPT_KEY           = 'drwp_license_key';
-    const OPT_STATUS        = 'drwp_license_status';
-    const OPT_PLAN          = 'drwp_license_plan';
-    const OPT_EXPIRES_AT    = 'drwp_license_expires_at';
-    const OPT_CHECKED_AT    = 'drwp_license_checked_at';
-    const OPT_LAST_VALID_AT = 'drwp_license_last_valid_at';
-    const OPT_LAST_MESSAGE  = 'drwp_license_last_message';
+    const OPT_API_URL         = 'drwp_license_api_url';
+    const OPT_KEY             = 'drwp_license_key';
+    const OPT_STATUS          = 'drwp_license_status';
+    const OPT_PLAN            = 'drwp_license_plan';
+    const OPT_EXPIRES_AT      = 'drwp_license_expires_at';
+    const OPT_CHECKED_AT      = 'drwp_license_checked_at';
+    const OPT_LAST_VALID_AT   = 'drwp_license_last_valid_at';
+    const OPT_LAST_MESSAGE    = 'drwp_license_last_message';
+    const OPT_PUBLIC_KEY      = 'drwp_license_public_key';
+    const OPT_SIGNATURE_VALID = 'drwp_license_signature_valid';
 
     const GRACE_DAYS = 7;
 
@@ -33,21 +35,75 @@ class DRWP_License {
 
     public static function state() {
         return [
-            'api_url'       => (string) get_option(self::OPT_API_URL, ''),
-            'license_key'   => (string) get_option(self::OPT_KEY, ''),
-            'status'        => self::status(),
-            'raw_status'    => (string) get_option(self::OPT_STATUS, ''),
-            'plan'          => (string) get_option(self::OPT_PLAN, ''),
-            'expires_at'    => (string) get_option(self::OPT_EXPIRES_AT, ''),
-            'checked_at'    => (int) get_option(self::OPT_CHECKED_AT, 0),
-            'last_valid_at' => (int) get_option(self::OPT_LAST_VALID_AT, 0),
-            'message'       => (string) get_option(self::OPT_LAST_MESSAGE, ''),
+            'api_url'         => (string) get_option(self::OPT_API_URL, ''),
+            'license_key'     => (string) get_option(self::OPT_KEY, ''),
+            'status'          => self::status(),
+            'raw_status'      => (string) get_option(self::OPT_STATUS, ''),
+            'plan'            => (string) get_option(self::OPT_PLAN, ''),
+            'expires_at'      => (string) get_option(self::OPT_EXPIRES_AT, ''),
+            'checked_at'      => (int) get_option(self::OPT_CHECKED_AT, 0),
+            'last_valid_at'   => (int) get_option(self::OPT_LAST_VALID_AT, 0),
+            'message'         => (string) get_option(self::OPT_LAST_MESSAGE, ''),
+            'public_key'      => (string) get_option(self::OPT_PUBLIC_KEY, ''),
+            'signature_valid' => (string) get_option(self::OPT_SIGNATURE_VALID, ''),
         ];
     }
 
     public static function save_settings($api_url, $license_key) {
         update_option(self::OPT_API_URL, esc_url_raw($api_url));
         update_option(self::OPT_KEY, sanitize_text_field($license_key));
+    }
+
+    public static function fetch_public_key() {
+        $api_url = rtrim((string) get_option(self::OPT_API_URL, ''), '/');
+        if ($api_url === '') {
+            return new WP_Error('drwp_license_missing', 'API URL is not set');
+        }
+        $response = wp_remote_get($api_url . '/api/public-key', ['timeout' => 10]);
+        if (is_wp_error($response)) return $response;
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        if (!is_array($body) || empty($body['public_key']) || ($body['algorithm'] ?? '') !== 'ed25519') {
+            return new WP_Error('drwp_license_public_key', 'Unexpected public key response');
+        }
+        $raw = base64_decode((string) $body['public_key'], true);
+        if ($raw === false || strlen($raw) !== 32) {
+            return new WP_Error('drwp_license_public_key', 'Public key must be 32 raw bytes');
+        }
+        update_option(self::OPT_PUBLIC_KEY, $body['public_key']);
+        return $body['public_key'];
+    }
+
+    public static function canonical(array $payload) {
+        $sorted = self::ksort_recursive($payload);
+        return wp_json_encode($sorted, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    private static function ksort_recursive(array $arr) {
+        ksort($arr, SORT_STRING);
+        foreach ($arr as $k => $v) {
+            if (is_array($v)) $arr[$k] = self::ksort_recursive($v);
+        }
+        return $arr;
+    }
+
+    public static function verify_signature(array $payload, $signature_b64) {
+        if (!function_exists('sodium_crypto_sign_verify_detached')) {
+            return new WP_Error('drwp_license_sodium', 'libsodium is not available');
+        }
+        $public_b64 = (string) get_option(self::OPT_PUBLIC_KEY, '');
+        if ($public_b64 === '') {
+            return new WP_Error('drwp_license_no_key', 'Public key is not cached');
+        }
+        $public = base64_decode($public_b64, true);
+        $sig    = base64_decode((string) $signature_b64, true);
+        if ($public === false || $sig === false) {
+            return new WP_Error('drwp_license_base64', 'Invalid base64 input');
+        }
+        try {
+            return (bool) sodium_crypto_sign_verify_detached($sig, self::canonical($payload), $public);
+        } catch (Exception $e) {
+            return new WP_Error('drwp_license_sodium', $e->getMessage());
+        }
     }
 
     public static function check_now() {
@@ -59,6 +115,7 @@ class DRWP_License {
         if ($api_url === '' || $key === '') {
             update_option(self::OPT_STATUS, 'inactive');
             update_option(self::OPT_LAST_MESSAGE, 'API URL またはライセンスキーが未設定です。');
+            update_option(self::OPT_SIGNATURE_VALID, '');
             return new WP_Error('drwp_license_missing', 'API URL or license key is missing');
         }
 
@@ -85,10 +142,39 @@ class DRWP_License {
             return new WP_Error('drwp_license_http', $msg);
         }
 
-        $status = sanitize_text_field($body['status'] ?? 'inactive');
+        $signature = (string) ($body['signature'] ?? '');
+        $payload = $body;
+        unset($payload['signature']);
+
+        $sig_valid = 'skipped';
+        if ((string) get_option(self::OPT_PUBLIC_KEY, '') !== '') {
+            if ($signature === '') {
+                update_option(self::OPT_STATUS, 'inactive');
+                update_option(self::OPT_LAST_MESSAGE, '応答に署名がありません。');
+                update_option(self::OPT_SIGNATURE_VALID, 'missing');
+                return new WP_Error('drwp_license_signature_missing', 'Response has no signature');
+            }
+            $verified = self::verify_signature($payload, $signature);
+            if (is_wp_error($verified)) {
+                update_option(self::OPT_STATUS, 'inactive');
+                update_option(self::OPT_LAST_MESSAGE, $verified->get_error_message());
+                update_option(self::OPT_SIGNATURE_VALID, 'error');
+                return $verified;
+            }
+            if (!$verified) {
+                update_option(self::OPT_STATUS, 'inactive');
+                update_option(self::OPT_LAST_MESSAGE, '署名検証に失敗しました。');
+                update_option(self::OPT_SIGNATURE_VALID, 'invalid');
+                return new WP_Error('drwp_license_signature_invalid', 'Signature verification failed');
+            }
+            $sig_valid = 'valid';
+        }
+        update_option(self::OPT_SIGNATURE_VALID, $sig_valid);
+
+        $status = sanitize_text_field($payload['status'] ?? 'inactive');
         update_option(self::OPT_STATUS, $status);
-        update_option(self::OPT_PLAN, sanitize_text_field($body['plan'] ?? ''));
-        update_option(self::OPT_EXPIRES_AT, sanitize_text_field($body['expires_at'] ?? ''));
+        update_option(self::OPT_PLAN, sanitize_text_field($payload['plan'] ?? ''));
+        update_option(self::OPT_EXPIRES_AT, sanitize_text_field($payload['expires_at'] ?? ''));
         update_option(self::OPT_LAST_MESSAGE, '');
         if ($status === 'active') {
             update_option(self::OPT_LAST_VALID_AT, $now);

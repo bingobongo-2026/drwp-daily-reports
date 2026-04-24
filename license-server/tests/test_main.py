@@ -198,3 +198,19 @@ def test_admin_crud_roundtrip(client):
 
     delete_missing = client.delete("/admin/licenses/NOPE", auth=auth)
     assert delete_missing.status_code == 404
+
+
+def test_canonical_form_is_sorted_compact_utf8(tmp_path, monkeypatch):
+    # The canonical form is the bytes PHP (or any verifier) must reproduce:
+    # keys sorted by string order, no whitespace, unescaped UTF-8 and slashes.
+    # A PHP verifier gets the same bytes by doing
+    # ksort($arr, SORT_STRING) and json_encode($arr,
+    # JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE).
+    monkeypatch.setenv("DRWP_SIGNING_KEY", str(tmp_path / "t.key"))
+    for name in ("app.signing", "app"):
+        sys.modules.pop(name, None)
+    from app import signing
+
+    payload = {"b": "2", "a": "1", "c": "日本", "url": "https://example.test/x"}
+    bytes_ = signing.canonical(payload)
+    assert bytes_ == b'{"a":"1","b":"2","c":"\xe6\x97\xa5\xe6\x9c\xac","url":"https://example.test/x"}'
