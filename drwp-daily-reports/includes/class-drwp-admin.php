@@ -15,6 +15,8 @@ class DRWP_Admin {
     public static function menu() {
         add_menu_page('日報管理', '日報管理', self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page'], 'dashicons-media-spreadsheet');
         add_submenu_page('drwp_reports', '日報編集', '日報編集', self::CAP_EDIT, 'drwp_report_edit', [__CLASS__, 'report_edit_page']);
+        add_submenu_page('drwp_reports', '現場', '現場', 'manage_options', 'drwp_projects', ['DRWP_Project', 'render_page']);
+        add_submenu_page('drwp_reports', 'ライセンス', 'ライセンス', 'manage_options', 'drwp_license', ['DRWP_License_Admin', 'render_page']);
         add_submenu_page(null, '公開プレビュー', '公開プレビュー', self::CAP_EDIT, 'drwp_report_preview', [__CLASS__, 'report_preview_page']);
     }
 
@@ -63,6 +65,7 @@ class DRWP_Admin {
         $id = isset($_GET['id']) ? absint($_GET['id']) : 0;
         $report = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
         if ($report && !self::current_user_can_edit_report($report)) wp_die('forbidden');
+        $projects = DRWP_Project::all(true);
         include DRWP_PATH . 'admin/views/report-edit.php';
     }
 
@@ -87,8 +90,10 @@ class DRWP_Admin {
         $existing = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
         if ($existing && !self::current_user_can_edit_report($existing)) wp_die('forbidden');
 
+        $project_id = absint($_POST['project_id'] ?? 0);
+        if ($project_id && !DRWP_Project::find($project_id)) $project_id = 0;
         $data = [
-            'project_id' => absint($_POST['project_id'] ?? 0) ?: null,
+            'project_id' => $project_id ?: null,
             'report_date' => sanitize_text_field($_POST['report_date'] ?? current_time('Y-m-d')),
             'work_description' => wp_kses_post(wp_unslash($_POST['work_description'] ?? '')),
             'issues' => wp_kses_post(wp_unslash($_POST['issues'] ?? '')),

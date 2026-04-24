@@ -1,0 +1,57 @@
+<?php
+if (!defined('ABSPATH')) exit;
+
+class DRWP_Project {
+    public static function init() {
+        add_action('admin_post_drwp_save_project', [__CLASS__, 'save']);
+    }
+
+    public static function table() {
+        global $wpdb;
+        return $wpdb->prefix . 'drwp_projects';
+    }
+
+    public static function all($only_active = false) {
+        global $wpdb;
+        $sql = 'SELECT * FROM ' . self::table();
+        if ($only_active) $sql .= " WHERE status = 'active'";
+        $sql .= ' ORDER BY name ASC, id DESC';
+        return $wpdb->get_results($sql);
+    }
+
+    public static function find($id) {
+        global $wpdb;
+        $id = absint($id);
+        if (!$id) return null;
+        return $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . self::table() . ' WHERE id = %d', $id));
+    }
+
+    public static function render_page() {
+        if (!current_user_can('manage_options')) wp_die('forbidden');
+        $projects = self::all();
+        include DRWP_PATH . 'admin/views/projects-page.php';
+    }
+
+    public static function save() {
+        if (!current_user_can('manage_options')) wp_die('forbidden');
+        check_admin_referer('drwp_save_project');
+        global $wpdb;
+        $id     = absint($_POST['id'] ?? 0);
+        $name   = sanitize_text_field(wp_unslash($_POST['name'] ?? ''));
+        $status = sanitize_text_field($_POST['status'] ?? 'active');
+        if ($name === '') {
+            wp_safe_redirect(admin_url('admin.php?page=drwp_projects&error=missing_name'));
+            exit;
+        }
+        $allowed_status = ['active', 'inactive'];
+        if (!in_array($status, $allowed_status, true)) $status = 'active';
+
+        if ($id) {
+            $wpdb->update(self::table(), ['name' => $name, 'status' => $status], ['id' => $id]);
+        } else {
+            $wpdb->insert(self::table(), ['name' => $name, 'status' => $status]);
+        }
+        wp_safe_redirect(admin_url('admin.php?page=drwp_projects&saved=1'));
+        exit;
+    }
+}

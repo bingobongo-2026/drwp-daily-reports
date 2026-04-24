@@ -60,6 +60,7 @@
           <th><input type="checkbox" onclick="document.querySelectorAll('.drwp-check').forEach(cb => cb.checked = this.checked)" /></th>
           <th>ID</th>
           <th>日付</th>
+          <th>現場</th>
           <th>公開タイトル</th>
           <th>レビュー</th>
           <th>カテゴリ</th>
@@ -71,12 +72,20 @@
       </thead>
       <tbody>
         <?php if (empty($reports)): ?>
-          <tr><td colspan="10">データがありません。</td></tr>
+          <tr><td colspan="11">データがありません。</td></tr>
         <?php else: foreach ($reports as $report): ?>
           <tr>
             <td><input class="drwp-check" type="checkbox" name="report_ids[]" value="<?php echo esc_attr($report->id); ?>" /></td>
             <td><?php echo esc_html($report->id); ?></td>
             <td><?php echo esc_html($report->report_date); ?></td>
+            <td><?php
+              $project_name = '-';
+              if (!empty($report->project_id)) {
+                  $project = DRWP_Project::find((int) $report->project_id);
+                  $project_name = $project ? $project->name : (string) $report->project_id;
+              }
+              echo esc_html($project_name);
+            ?></td>
             <td><?php echo esc_html($report->public_title ?: '（未設定）'); ?></td>
             <td><?php echo esc_html($report->review_status); ?></td>
             <td><?php

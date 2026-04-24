@@ -11,8 +11,21 @@
 
     <table class="form-table" role="presentation">
       <tr>
+        <th><label for="drwp-project-id">現場</label></th>
+        <td>
+          <select name="project_id" id="drwp-project-id">
+            <option value="">（未設定）</option>
+            <?php foreach (($projects ?? []) as $project): ?>
+              <option value="<?php echo esc_attr($project->id); ?>" <?php selected((int) ($report->project_id ?? 0), (int) $project->id); ?>>
+                <?php echo esc_html($project->name); ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </td>
+      </tr>
+      <tr>
         <th><label>日付</label></th>
-        <td><input type="date" name="report_date" value="<?php echo esc_attr($report->report_date ?? date('Y-m-d')); ?>" /></td>
+        <td><input type="date" name="report_date" value="<?php echo esc_attr($report->report_date ?? current_time('Y-m-d')); ?>" /></td>
       </tr>
       <tr>
         <th><label>作業内容</label></th>
