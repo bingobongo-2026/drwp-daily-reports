@@ -17,6 +17,7 @@ require_once DRWP_PATH . 'includes/class-drwp-license.php';
 require_once DRWP_PATH . 'includes/class-drwp-license-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-project.php';
 require_once DRWP_PATH . 'includes/class-drwp-audit.php';
+require_once DRWP_PATH . 'includes/class-drwp-audit-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-comment.php';
 require_once DRWP_PATH . 'includes/class-drwp-review.php';
 require_once DRWP_PATH . 'includes/class-drwp-media.php';
@@ -31,4 +32,5 @@ add_action('plugins_loaded', function () {
     DRWP_License_Admin::init();
     DRWP_Project::init();
     DRWP_Review::init();
+    DRWP_Audit_Admin::init();
 });
