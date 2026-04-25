@@ -27,13 +27,13 @@ class DRWP_Project {
     }
 
     public static function render_page() {
-        if (!current_user_can('manage_options')) wp_die('forbidden');
+        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         $projects = self::all();
         include DRWP_PATH . 'admin/views/projects-page.php';
     }
 
     public static function save() {
-        if (!current_user_can('manage_options')) wp_die('forbidden');
+        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         check_admin_referer('drwp_save_project');
         global $wpdb;
         $id     = absint($_POST['id'] ?? 0);

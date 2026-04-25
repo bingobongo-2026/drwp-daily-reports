@@ -9,7 +9,7 @@ class DRWP_Audit_Admin {
     }
 
     public static function render_page() {
-        if (!current_user_can('manage_options')) wp_die('forbidden');
+        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
 
         $filters = self::read_filters_from_request();
 
@@ -25,7 +25,7 @@ class DRWP_Audit_Admin {
     }
 
     public static function export_csv() {
-        if (!current_user_can('manage_options')) wp_die('forbidden');
+        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         check_admin_referer('drwp_export_audit_csv');
 
         $filters = self::read_filters_from_request();

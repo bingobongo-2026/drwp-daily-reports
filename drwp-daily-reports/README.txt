@@ -32,8 +32,6 @@ during the rotation window.
   admin pages.
 * Cross-report audit log viewer with filters, pagination, and filtered
   CSV export.
-* Email notifications on submit / review state change / new comment,
-  each with independent toggles.
 * Dashboard widget surfacing today / pending / needs_revision /
   approved counts plus recent reports.
 * CSV bulk import (UTF-8, BOM optional, max 5 MB) with auto-creation

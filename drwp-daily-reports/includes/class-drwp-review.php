@@ -10,17 +10,17 @@ class DRWP_Review {
     }
 
     public static function handle() {
-        if (!current_user_can('edit_others_posts')) wp_die('forbidden');
+        if (!current_user_can('edit_others_posts')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         check_admin_referer('drwp_review_report');
 
         $id = absint($_POST['id'] ?? 0);
         $status = sanitize_text_field($_POST['review_status'] ?? '');
-        if (!in_array($status, self::ALLOWED_STATUSES, true)) wp_die('invalid status');
+        if (!in_array($status, self::ALLOWED_STATUSES, true)) wp_die(esc_html__('invalid status', 'drwp-daily-reports'));
 
         global $wpdb;
         $table = $wpdb->prefix . 'drwp_reports';
         $report = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
-        if (!$report) wp_die('not found');
+        if (!$report) wp_die(esc_html__('not found', 'drwp-daily-reports'));
 
         $wpdb->update($table, ['review_status' => $status], ['id' => $id]);
 
@@ -42,15 +42,15 @@ class DRWP_Review {
     public static function add_comment() {
         check_admin_referer('drwp_add_comment');
         $id = absint($_POST['id'] ?? 0);
-        if (!$id) wp_die('not found');
+        if (!$id) wp_die(esc_html__('not found', 'drwp-daily-reports'));
 
         global $wpdb;
         $table = $wpdb->prefix . 'drwp_reports';
         $report = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
-        if (!$report) wp_die('not found');
+        if (!$report) wp_die(esc_html__('not found', 'drwp-daily-reports'));
 
         $is_owner = (int) $report->user_id === get_current_user_id();
-        if (!current_user_can('edit_others_posts') && !$is_owner) wp_die('forbidden');
+        if (!current_user_can('edit_others_posts') && !$is_owner) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
 
         $comment_id = DRWP_Comment::insert($id, $_POST['comment'] ?? '');
         if ($comment_id) {

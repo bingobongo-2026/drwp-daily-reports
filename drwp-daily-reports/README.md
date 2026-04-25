@@ -29,8 +29,6 @@ its responses with Ed25519 so a tampered status can't unlock features.
 - Comment thread per report.
 - Cross-report audit log viewer with filter, pagination, and
   filter-preserving CSV export.
-- Email notifications on submit / review state change / new comment,
-  each with an independent toggle plus a master switch.
 
 ### Licensing
 - Calls `/api/check` on the license server, caches plan / expiry, and
@@ -77,7 +75,7 @@ its responses with Ed25519 so a tampered status can't unlock features.
 | `edit_posts`       | View / create / edit own reports, REST list & writes    |
 | `edit_others_posts`| Approve / request revisions, see all reports, bulk ops  |
 | `publish_posts`    | Convert reports into posts, bulk convert                |
-| `manage_options`   | Project / license / notification / audit admin pages    |
+| `manage_options`   | Project / license / audit admin pages                   |
 
 ## Tables
 
@@ -93,17 +91,6 @@ its responses with Ed25519 so a tampered status can't unlock features.
 `dbDelta` whenever the stored schema version is behind the plugin's,
 so existing installs pick up new tables without a deactivate/activate
 cycle.
-
-## Hooks
-
-The plugin emits three actions notification listeners can subscribe to:
-
-- `drwp_report_submitted($id, $report)` — fired after `save_report`,
-  before redirect.
-- `drwp_review_changed($id, $from, $to, $comment)` — fired by single
-  and bulk review status changes.
-- `drwp_comment_added($id, $comment_id, $body)` — fired by the comment
-  endpoint.
 
 ## Notes
 

@@ -1,23 +1,23 @@
 <?php if (!defined('ABSPATH')) exit; ?>
 <div class="wrap">
-  <h1 class="wp-heading-inline">操作履歴</h1>
+  <h1 class="wp-heading-inline"><?php esc_html_e('操作履歴', 'drwp-daily-reports'); ?></h1>
   <hr class="wp-header-end">
 
   <form method="get" style="margin:12px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
     <input type="hidden" name="page" value="drwp_audit" />
-    <input type="search" name="s" value="<?php echo esc_attr($filters['search']); ?>" placeholder="メッセージ / meta / ユーザー名" style="min-width:240px;" />
+    <input type="search" name="s" value="<?php echo esc_attr($filters['search']); ?>" placeholder="<?php esc_attr_e('メッセージ / meta / ユーザー名', 'drwp-daily-reports'); ?>" style="min-width:240px;" />
     <select name="event">
-      <option value="">操作すべて</option>
+      <option value=""><?php esc_html_e('操作すべて', 'drwp-daily-reports'); ?></option>
       <?php foreach ($events as $key => $label): ?>
         <option value="<?php echo esc_attr($key); ?>" <?php selected($filters['event'], $key); ?>><?php echo esc_html($label); ?></option>
       <?php endforeach; ?>
     </select>
-    <input type="number" name="report_id" value="<?php echo $filters['report_id'] ? (int) $filters['report_id'] : ''; ?>" placeholder="日報ID" style="width:90px;" min="0" />
-    <input type="number" name="user_id" value="<?php echo $filters['user_id'] ? (int) $filters['user_id'] : ''; ?>" placeholder="ユーザーID" style="width:100px;" min="0" />
+    <input type="number" name="report_id" value="<?php echo $filters['report_id'] ? (int) $filters['report_id'] : ''; ?>" placeholder="<?php esc_attr_e('日報ID', 'drwp-daily-reports'); ?>" style="width:90px;" min="0" />
+    <input type="number" name="user_id" value="<?php echo $filters['user_id'] ? (int) $filters['user_id'] : ''; ?>" placeholder="<?php esc_attr_e('ユーザーID', 'drwp-daily-reports'); ?>" style="width:100px;" min="0" />
     <input type="date" name="date_from" value="<?php echo esc_attr($filters['date_from']); ?>" />
     <input type="date" name="date_to" value="<?php echo esc_attr($filters['date_to']); ?>" />
-    <button class="button">絞り込み</button>
-    <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_audit')); ?>">クリア</a>
+    <button class="button"><?php esc_html_e('絞り込み', 'drwp-daily-reports'); ?></button>
+    <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_audit')); ?>"><?php esc_html_e('クリア', 'drwp-daily-reports'); ?></a>
     <a class="button"
        href="<?php
          echo esc_url(wp_nonce_url(
@@ -30,26 +30,34 @@
              ),
              'drwp_export_audit_csv'
          ));
-       ?>">CSV出力</a>
+       ?>"><?php esc_html_e('CSV出力', 'drwp-daily-reports'); ?></a>
   </form>
 
-  <p class="description" style="margin:8px 0 12px;">合計 <?php echo (int) $total; ?> 件</p>
+  <p class="description" style="margin:8px 0 12px;">
+    <?php
+      printf(
+          /* translators: %d: total log entry count */
+          esc_html(_n('合計 %d 件', '合計 %d 件', (int) $total, 'drwp-daily-reports')),
+          (int) $total
+      );
+    ?>
+  </p>
 
   <table class="widefat striped">
     <thead>
       <tr>
         <th style="width:56px;">ID</th>
-        <th style="width:160px;">日時</th>
-        <th>操作</th>
-        <th>ユーザー</th>
-        <th>日報</th>
-        <th>メッセージ</th>
-        <th>詳細</th>
+        <th style="width:160px;"><?php esc_html_e('日時', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('操作', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('ユーザー', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('日報', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('メッセージ', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('詳細', 'drwp-daily-reports'); ?></th>
       </tr>
     </thead>
     <tbody>
       <?php if (empty($logs)): ?>
-        <tr><td colspan="7">該当する履歴がありません。</td></tr>
+        <tr><td colspan="7"><?php esc_html_e('該当する履歴がありません。', 'drwp-daily-reports'); ?></td></tr>
       <?php else: foreach ($logs as $log): ?>
         <tr>
           <td><?php echo (int) $log['id']; ?></td>

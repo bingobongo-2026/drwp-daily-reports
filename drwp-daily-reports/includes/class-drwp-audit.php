@@ -9,14 +9,14 @@ class DRWP_Audit {
 
     public static function events_map() {
         return [
-            'report_created'           => '日報作成',
-            'report_updated'           => '日報更新',
-            'review_status_changed'    => 'レビュー状態変更',
-            'comment_added'            => 'コメント追加',
-            'photos_updated'           => '写真更新',
-            'publish_settings_updated' => '公開設定一括更新',
-            'post_created_from_report' => '記事生成',
-            'post_resynced'            => '記事再反映',
+            'report_created'           => __('日報作成', 'drwp-daily-reports'),
+            'report_updated'           => __('日報更新', 'drwp-daily-reports'),
+            'review_status_changed'    => __('レビュー状態変更', 'drwp-daily-reports'),
+            'comment_added'            => __('コメント追加', 'drwp-daily-reports'),
+            'photos_updated'           => __('写真更新', 'drwp-daily-reports'),
+            'publish_settings_updated' => __('公開設定一括更新', 'drwp-daily-reports'),
+            'post_created_from_report' => __('記事生成', 'drwp-daily-reports'),
+            'post_resynced'            => __('記事再反映', 'drwp-daily-reports'),
         ];
     }
 

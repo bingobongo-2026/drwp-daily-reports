@@ -22,13 +22,20 @@ class DRWP_Admin {
     }
 
     public static function menu() {
-        add_menu_page('日報管理', '日報管理', self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page'], 'dashicons-media-spreadsheet');
-        add_submenu_page('drwp_reports', '日報編集', '日報編集', self::CAP_EDIT, 'drwp_report_edit', [__CLASS__, 'report_edit_page']);
-        add_submenu_page('drwp_reports', '現場', '現場', 'manage_options', 'drwp_projects', ['DRWP_Project', 'render_page']);
-        add_submenu_page('drwp_reports', 'ライセンス', 'ライセンス', 'manage_options', 'drwp_license', ['DRWP_License_Admin', 'render_page']);
-        add_submenu_page('drwp_reports', '操作履歴', '操作履歴', 'manage_options', 'drwp_audit', ['DRWP_Audit_Admin', 'render_page']);
-        add_submenu_page('drwp_reports', 'CSV インポート', 'CSV インポート', self::CAP_EDIT, 'drwp_csv_import', ['DRWP_CSV_Import', 'render_page']);
-        add_submenu_page(null, '公開プレビュー', '公開プレビュー', self::CAP_EDIT, 'drwp_report_preview', [__CLASS__, 'report_preview_page']);
+        $reports = __('日報管理', 'drwp-daily-reports');
+        add_menu_page($reports, $reports, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page'], 'dashicons-media-spreadsheet');
+        $edit = __('日報編集', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $edit, $edit, self::CAP_EDIT, 'drwp_report_edit', [__CLASS__, 'report_edit_page']);
+        $proj = __('現場', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $proj, $proj, 'manage_options', 'drwp_projects', ['DRWP_Project', 'render_page']);
+        $lic = __('ライセンス', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $lic, $lic, 'manage_options', 'drwp_license', ['DRWP_License_Admin', 'render_page']);
+        $audit = __('操作履歴', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $audit, $audit, 'manage_options', 'drwp_audit', ['DRWP_Audit_Admin', 'render_page']);
+        $csv = __('CSV インポート', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $csv, $csv, self::CAP_EDIT, 'drwp_csv_import', ['DRWP_CSV_Import', 'render_page']);
+        $prev = __('公開プレビュー', 'drwp-daily-reports');
+        add_submenu_page(null, $prev, $prev, self::CAP_EDIT, 'drwp_report_preview', [__CLASS__, 'report_preview_page']);
     }
 
     private static function reports_table() {
@@ -44,7 +51,7 @@ class DRWP_Admin {
     }
 
     public static function reports_page() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die('forbidden');
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         global $wpdb;
         $table = self::reports_table();
 
@@ -111,37 +118,37 @@ class DRWP_Admin {
     }
 
     public static function report_edit_page() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die('forbidden');
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         global $wpdb;
         $table = self::reports_table();
         $id = isset($_GET['id']) ? absint($_GET['id']) : 0;
         $report = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
-        if ($report && !self::current_user_can_edit_report($report)) wp_die('forbidden');
+        if ($report && !self::current_user_can_edit_report($report)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         $projects = DRWP_Project::all(true);
         $photos = $report ? DRWP_Media::for_report($report->id) : [];
         include DRWP_PATH . 'admin/views/report-edit.php';
     }
 
     public static function report_preview_page() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die('forbidden');
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         global $wpdb;
         $table = self::reports_table();
         $id = isset($_GET['id']) ? absint($_GET['id']) : 0;
         $report = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
-        if ($report && !self::current_user_can_edit_report($report)) wp_die('forbidden');
+        if ($report && !self::current_user_can_edit_report($report)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         include DRWP_PATH . 'admin/views/report-preview.php';
     }
 
     public static function save_report() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die('forbidden');
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         check_admin_referer('drwp_save_report');
-        if (!DRWP_License::can_write()) wp_die('ライセンス状態により保存できません。');
+        if (!DRWP_License::can_write()) wp_die(esc_html__('ライセンス状態により保存できません。', 'drwp-daily-reports'));
 
         global $wpdb;
         $table = self::reports_table();
         $id = absint($_POST['id'] ?? 0);
         $existing = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
-        if ($existing && !self::current_user_can_edit_report($existing)) wp_die('forbidden');
+        if ($existing && !self::current_user_can_edit_report($existing)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
 
         $project_id = absint($_POST['project_id'] ?? 0);
         if ($project_id && !DRWP_Project::find($project_id)) $project_id = 0;
@@ -188,7 +195,7 @@ class DRWP_Admin {
     }
 
     public static function bulk_reports() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die('forbidden');
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         check_admin_referer('drwp_bulk_reports');
         global $wpdb;
         $table = self::reports_table();
@@ -203,8 +210,8 @@ class DRWP_Admin {
 
         $review_actions = ['bulk_approve', 'bulk_revision'];
         $convert_actions = ['bulk_convert'];
-        if (in_array($action, $review_actions, true) && !current_user_can(self::CAP_REVIEW)) wp_die('forbidden');
-        if (in_array($action, $convert_actions, true) && !current_user_can(self::CAP_CONVERT)) wp_die('forbidden');
+        if (in_array($action, $review_actions, true) && !current_user_can(self::CAP_REVIEW)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (in_array($action, $convert_actions, true) && !current_user_can(self::CAP_CONVERT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
 
         foreach ($ids as $id) {
             if (!$id) continue;
@@ -244,7 +251,7 @@ class DRWP_Admin {
     }
 
     private static function export_csv($ids) {
-        if (!current_user_can(self::CAP_EDIT)) wp_die('forbidden');
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         $ids = array_values(array_filter(array_map('absint', (array) $ids)));
         if (empty($ids)) {
             wp_safe_redirect(admin_url('admin.php?page=drwp_reports'));
