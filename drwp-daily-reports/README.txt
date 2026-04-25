@@ -1,25 +1,56 @@
-DRWP Daily Reports v1.3.0
-
 === DRWP Daily Reports ===
-Contributors: openai-prototype
+Contributors: drwp-prototype
+Tags: daily-reports, workflow, review, japanese
 Requires at least: 6.0
 Tested up to: 6.5
-Stable tag: 1.1.0
+Requires PHP: 7.4
+Stable tag: 1.8.0
 License: GPLv2 or later
 
-日報・写真・レビュー・ブログ下書き化を行う WordPress プラグインです。
+Field/site daily reports with a review workflow, photo attachments, and
+license-gated conversion to public WordPress posts. Pairs with a
+standalone Ed25519-signing license server.
+
+== Description ==
+
+Capture daily site reports, route them through an approve / revise
+review queue, attach photos via the Media Library, and convert
+approved reports into `post` posts with captioned galleries. Includes
+CSV bulk import, a cross-report audit log viewer, email notifications,
+a dashboard widget, and a `wp-json/drwp/v1/*` REST API that works with
+WordPress Application Passwords.
+
+License calls go to a standalone server and are verified with
+Ed25519. A 7-day grace window prevents transient outages from
+immediately locking write access; rotated public keys are accepted
+during the rotation window.
+
+== Changelog ==
+
+= 1.8.0 =
+* REST API at /wp-json/drwp/v1/* with the same capability gates as the
+  admin pages.
+* Cross-report audit log viewer with filters, pagination, and filtered
+  CSV export.
+* Email notifications on submit / review state change / new comment,
+  each with independent toggles.
+* Dashboard widget surfacing today / pending / needs_revision /
+  approved counts plus recent reports.
+* CSV bulk import (UTF-8, BOM optional, max 5 MB) with auto-creation
+  of unknown projects.
+* License server signing-key rotation: previous keys are kept so old
+  signatures keep validating until clients refresh.
+* Plugin verifies signatures with libsodium against current+previous
+  keys.
+
+= 1.6.0 =
+* Bulk publish-settings updates, category IDs for post conversion,
+  and bulk sync to linked posts.
+
+= 1.3.0 =
+* Audit log table + screen, with entries for save, review, comments,
+  post conversion, project changes, and license settings.
 
 = 1.1.0 =
-* 現場担当 / 管理者 / 広報担当向けの権限制御を追加
-* 自分の日報のみ編集できる制御を追加
-* レビュー権限と記事化権限を分離
-* メニュー表示を権限ごとに分離
-
-
-v1.3.0 additions:
-- Audit log table and admin screen
-- Recent activity shown on report detail screen
-- Audit entries for report save, review, comments, post conversion, project changes, and license settings
-
-
-Version 1.6.0 adds bulk publish settings updates, category IDs for post conversion, and bulk sync to linked posts.
+* Capability model split between site staff, reviewers, and
+  publishers. Menus filter by capability.
