@@ -4,6 +4,8 @@
  * Description: Daily reports, review workflow, and conversion to WordPress posts with license checks.
  * Version: 1.8.0
  * Author: DRWP Prototype
+ * Text Domain: drwp-daily-reports
+ * Domain Path: /languages
  */
 
 if (!defined('ABSPATH')) exit;
@@ -30,6 +32,7 @@ require_once DRWP_PATH . 'includes/class-drwp-admin.php';
 register_activation_hook(__FILE__, ['DRWP_DB', 'activate']);
 
 add_action('plugins_loaded', function () {
+    load_plugin_textdomain('drwp-daily-reports', false, dirname(plugin_basename(__FILE__)) . '/languages');
     DRWP_DB::maybe_upgrade();
     DRWP_Admin::init();
     DRWP_License_Admin::init();

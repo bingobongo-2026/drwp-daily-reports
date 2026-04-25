@@ -21,16 +21,16 @@ class DRWP_CSV_Import {
     }
 
     public static function render_page() {
-        if (!current_user_can(DRWP_Admin::CAP_EDIT)) wp_die('forbidden');
+        if (!current_user_can(DRWP_Admin::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         $result = get_transient('drwp_csv_import_result_' . get_current_user_id());
         if ($result) delete_transient('drwp_csv_import_result_' . get_current_user_id());
         include DRWP_PATH . 'admin/views/csv-import-page.php';
     }
 
     public static function handle() {
-        if (!current_user_can(DRWP_Admin::CAP_EDIT)) wp_die('forbidden');
+        if (!current_user_can(DRWP_Admin::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         check_admin_referer('drwp_import_csv');
-        if (!DRWP_License::can_write()) wp_die('ライセンス状態によりインポートできません。');
+        if (!DRWP_License::can_write()) wp_die(esc_html__('ライセンス状態によりインポートできません。', 'drwp-daily-reports'));
 
         if (empty($_FILES['csv']['tmp_name']) || !is_uploaded_file($_FILES['csv']['tmp_name'])) {
             self::flash(['ok' => false, 'message' => 'CSV ファイルが選択されていません。']);

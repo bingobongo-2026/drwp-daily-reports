@@ -1,13 +1,19 @@
 <?php if (!defined('ABSPATH')) exit; ?>
 <div class="wrap">
-  <h1>CSV インポート</h1>
+  <h1><?php esc_html_e('CSV インポート', 'drwp-daily-reports'); ?></h1>
 
   <?php if (!empty($result)): ?>
     <?php if (!empty($result['ok'])): ?>
       <div class="notice notice-success"><p><?php echo esc_html($result['message']); ?></p></div>
       <?php if (!empty($result['errors'])): ?>
         <div class="notice notice-warning">
-          <p><?php echo count($result['errors']); ?> 件のエラーがありました:</p>
+          <p><?php
+            printf(
+                /* translators: %d: error count */
+                esc_html(_n('%d 件のエラーがありました:', '%d 件のエラーがありました:', count($result['errors']), 'drwp-daily-reports')),
+                count($result['errors'])
+            );
+          ?></p>
           <ul style="margin-left:20px;">
             <?php foreach ($result['errors'] as $err): ?>
               <li><?php echo esc_html($err); ?></li>
@@ -20,7 +26,7 @@
     <?php endif; ?>
   <?php endif; ?>
 
-  <p class="description">UTF-8 (BOM 可) の CSV を受け付けます。最大 5MB。</p>
+  <p class="description"><?php esc_html_e('UTF-8 (BOM 可) の CSV を受け付けます。最大 5MB。', 'drwp-daily-reports'); ?></p>
 
   <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data" style="background:#fff;padding:16px;margin-top:12px;">
     <?php wp_nonce_field('drwp_import_csv'); ?>
@@ -28,24 +34,37 @@
     <p>
       <input type="file" name="csv" accept=".csv,text/csv" required />
     </p>
-    <?php submit_button('インポート'); ?>
+    <?php submit_button(__('インポート', 'drwp-daily-reports')); ?>
   </form>
 
-  <h2>列の仕様</h2>
+  <h2><?php esc_html_e('列の仕様', 'drwp-daily-reports'); ?></h2>
   <table class="widefat striped" style="max-width:760px;">
-    <thead><tr><th>列名</th><th>必須</th><th>説明</th></tr></thead>
+    <thead><tr>
+      <th><?php esc_html_e('列名', 'drwp-daily-reports'); ?></th>
+      <th><?php esc_html_e('必須', 'drwp-daily-reports'); ?></th>
+      <th><?php esc_html_e('説明', 'drwp-daily-reports'); ?></th>
+    </tr></thead>
     <tbody>
-      <tr><td><code>report_date</code></td><td>必須</td><td>YYYY-MM-DD</td></tr>
-      <tr><td><code>work_description</code></td><td>必須</td><td>作業内容</td></tr>
-      <tr><td><code>project_name</code></td><td>任意</td><td>未登録なら自動作成</td></tr>
-      <tr><td><code>issues</code></td><td>任意</td><td>問題点</td></tr>
-      <tr><td><code>next_plan</code></td><td>任意</td><td>次回予定</td></tr>
-      <tr><td><code>public_title</code></td><td>任意</td><td>公開タイトル</td></tr>
-      <tr><td><code>public_intro</code></td><td>任意</td><td>公開導入</td></tr>
-      <tr><td><code>public_body</code></td><td>任意</td><td>公開本文</td></tr>
-      <tr><td><code>public_next_plan</code></td><td>任意</td><td>公開用今後の予定</td></tr>
-      <tr><td><code>post_template</code></td><td>任意</td><td>standard / site_report / before_after</td></tr>
-      <tr><td><code>post_tags</code></td><td>任意</td><td>カンマ区切り</td></tr>
+      <?php
+      $required = __('必須', 'drwp-daily-reports');
+      $optional = __('任意', 'drwp-daily-reports');
+      $rows = [
+          ['report_date',       $required, 'YYYY-MM-DD'],
+          ['work_description',  $required, __('作業内容', 'drwp-daily-reports')],
+          ['project_name',      $optional, __('未登録なら自動作成', 'drwp-daily-reports')],
+          ['issues',            $optional, __('問題点', 'drwp-daily-reports')],
+          ['next_plan',         $optional, __('次回予定', 'drwp-daily-reports')],
+          ['public_title',      $optional, __('公開タイトル', 'drwp-daily-reports')],
+          ['public_intro',      $optional, __('公開導入', 'drwp-daily-reports')],
+          ['public_body',       $optional, __('公開本文', 'drwp-daily-reports')],
+          ['public_next_plan',  $optional, __('公開用今後の予定', 'drwp-daily-reports')],
+          ['post_template',     $optional, 'standard / site_report / before_after'],
+          ['post_tags',         $optional, __('カンマ区切り', 'drwp-daily-reports')],
+      ];
+      foreach ($rows as $r) {
+          echo '<tr><td><code>' . esc_html($r[0]) . '</code></td><td>' . esc_html($r[1]) . '</td><td>' . esc_html($r[2]) . '</td></tr>';
+      }
+      ?>
     </tbody>
   </table>
 </div>
