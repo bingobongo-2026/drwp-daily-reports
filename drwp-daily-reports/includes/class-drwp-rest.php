@@ -215,10 +215,13 @@ class DRWP_REST {
         if (!DRWP_License::can_write()) {
             return new WP_Error('drwp_license', 'License inactive', ['status' => 402]);
         }
+        $input = $request->get_json_params() ?: [];
+        if ($err = self::validate_input($input)) return $err;
+
         global $wpdb;
         $table = $wpdb->prefix . 'drwp_reports';
 
-        $data = self::sanitize_writable($request->get_json_params() ?: []);
+        $data = self::sanitize_writable($input);
         $data['user_id'] = get_current_user_id();
         $data['review_status'] = $data['review_status'] ?? 'pending';
 
@@ -242,12 +245,32 @@ class DRWP_REST {
         $report = self::find_report($id);
         if (!$report) return new WP_Error('drwp_not_found', 'Report not found', ['status' => 404]);
 
-        $data = self::sanitize_writable($request->get_json_params() ?: []);
+        $input = $request->get_json_params() ?: [];
+        if ($err = self::validate_input($input)) return $err;
+
+        $data = self::sanitize_writable($input);
         if (!empty($data)) {
             $wpdb->update($wpdb->prefix . 'drwp_reports', $data, ['id' => $id]);
             DRWP_Audit::log('report_updated', '日報を更新 (REST)', $id, ['source' => 'rest']);
         }
         return rest_ensure_response(self::shape_report(self::find_report($id)));
+    }
+
+    /**
+     * Reject explicitly-supplied invalid input rather than letting
+     * sanitize_writable silently drop it. Returns a WP_Error or null.
+     */
+    private static function validate_input(array $input) {
+        if (isset($input['report_date'])
+            && !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $input['report_date'])
+        ) {
+            return new WP_Error(
+                'drwp_invalid_date',
+                'report_date must match YYYY-MM-DD',
+                ['status' => 400]
+            );
+        }
+        return null;
     }
 
     private static function sanitize_writable(array $input) {

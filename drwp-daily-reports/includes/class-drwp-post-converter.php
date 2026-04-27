@@ -20,12 +20,12 @@ class DRWP_Post_Converter {
             $html .= wp_kses_post(wpautop($report->public_intro));
         }
         if (!empty($report->public_body)) {
-            $html .= '<h2>本日の作業内容</h2>';
+            $html .= '<h2>' . esc_html__('本日の作業内容', 'drwp-daily-reports') . '</h2>';
             $html .= wp_kses_post(wpautop($report->public_body));
         }
         $html .= self::build_photo_gallery($report);
         if (!empty($report->public_next_plan)) {
-            $html .= '<h2>今後の予定</h2>';
+            $html .= '<h2>' . esc_html__('今後の予定', 'drwp-daily-reports') . '</h2>';
             $html .= wp_kses_post(wpautop($report->public_next_plan));
         }
         return $html;
@@ -55,15 +55,43 @@ class DRWP_Post_Converter {
         ob_start();
         ?>
         <div class="drwp-preview" style="background:#fff;border:1px solid #dcdcde;padding:16px;margin-top:16px;">
-            <p style="margin:0 0 8px;color:#50575e;">公開プレビュー</p>
-            <h2 style="margin-top:0;"><?php echo esc_html($report->public_title ?: '（公開タイトル未設定）'); ?></h2>
+            <p style="margin:0 0 8px;color:#50575e;"><?php esc_html_e('公開プレビュー', 'drwp-daily-reports'); ?></p>
+            <h2 style="margin-top:0;"><?php echo esc_html($report->public_title ?: __('（公開タイトル未設定）', 'drwp-daily-reports')); ?></h2>
             <p style="color:#50575e;">
-                状態: <?php echo esc_html($report->post_status ?: 'draft'); ?>
-                <?php if (!empty($category_name)): ?> / カテゴリ: <?php echo esc_html($category_name); ?><?php endif; ?>
-                <?php if (!empty($report->scheduled_at)): ?> / 公開予定: <?php echo esc_html($report->scheduled_at); ?><?php endif; ?>
+                <?php
+                  printf(
+                      /* translators: %s: post status string (draft / pending / future) */
+                      esc_html__('状態: %s', 'drwp-daily-reports'),
+                      esc_html($report->post_status ?: 'draft')
+                  );
+                ?>
+                <?php if (!empty($category_name)): ?>
+                  / <?php
+                    printf(
+                        /* translators: %s: WP category name */
+                        esc_html__('カテゴリ: %s', 'drwp-daily-reports'),
+                        esc_html($category_name)
+                    );
+                  ?>
+                <?php endif; ?>
+                <?php if (!empty($report->scheduled_at)): ?>
+                  / <?php
+                    printf(
+                        /* translators: %s: scheduled publish datetime */
+                        esc_html__('公開予定: %s', 'drwp-daily-reports'),
+                        esc_html($report->scheduled_at)
+                    );
+                  ?>
+                <?php endif; ?>
             </p>
             <?php if (!empty($tags)): ?>
-                <p style="color:#50575e;">タグ: <?php echo esc_html(implode(', ', $tags)); ?></p>
+                <p style="color:#50575e;"><?php
+                  printf(
+                      /* translators: %s: comma-separated tag list */
+                      esc_html__('タグ: %s', 'drwp-daily-reports'),
+                      esc_html(implode(', ', $tags))
+                  );
+                ?></p>
             <?php endif; ?>
             <hr />
             <?php echo self::build_content($report); ?>
@@ -80,7 +108,7 @@ class DRWP_Post_Converter {
         if (!DRWP_License::can_convert()) return new WP_Error('drwp_license', 'License inactive');
 
         $post_data = [
-            'post_title'   => $report->public_title ?: '現場レポート',
+            'post_title'   => $report->public_title ?: __('現場レポート', 'drwp-daily-reports'),
             'post_content' => self::build_content($report),
             'post_status'  => $report->post_status ?: 'draft',
             'post_type'    => 'post',
