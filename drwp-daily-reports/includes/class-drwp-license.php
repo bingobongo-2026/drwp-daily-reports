@@ -141,7 +141,7 @@ class DRWP_License {
 
         if ($api_url === '' || $key === '') {
             update_option(self::OPT_STATUS, 'inactive');
-            update_option(self::OPT_LAST_MESSAGE, 'API URL またはライセンスキーが未設定です。');
+            update_option(self::OPT_LAST_MESSAGE, __('API URL またはライセンスキーが未設定です。', 'drwp-daily-reports'));
             update_option(self::OPT_SIGNATURE_VALID, '');
             return new WP_Error('drwp_license_missing', 'API URL or license key is missing');
         }
@@ -177,7 +177,7 @@ class DRWP_License {
         if ((string) get_option(self::OPT_PUBLIC_KEY, '') !== '') {
             if ($signature === '') {
                 update_option(self::OPT_STATUS, 'inactive');
-                update_option(self::OPT_LAST_MESSAGE, '応答に署名がありません。');
+                update_option(self::OPT_LAST_MESSAGE, __('応答に署名がありません。', 'drwp-daily-reports'));
                 update_option(self::OPT_SIGNATURE_VALID, 'missing');
                 return new WP_Error('drwp_license_signature_missing', 'Response has no signature');
             }
@@ -190,7 +190,7 @@ class DRWP_License {
             }
             if (!$verified) {
                 update_option(self::OPT_STATUS, 'inactive');
-                update_option(self::OPT_LAST_MESSAGE, '署名検証に失敗しました。');
+                update_option(self::OPT_LAST_MESSAGE, __('署名検証に失敗しました。', 'drwp-daily-reports'));
                 update_option(self::OPT_SIGNATURE_VALID, 'invalid');
                 return new WP_Error('drwp_license_signature_invalid', 'Signature verification failed');
             }

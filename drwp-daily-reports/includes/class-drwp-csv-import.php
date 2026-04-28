@@ -33,19 +33,19 @@ class DRWP_CSV_Import {
         if (!DRWP_License::can_write()) wp_die(esc_html__('ライセンス状態によりインポートできません。', 'drwp-daily-reports'));
 
         if (empty($_FILES['csv']['tmp_name']) || !is_uploaded_file($_FILES['csv']['tmp_name'])) {
-            self::flash(['ok' => false, 'message' => 'CSV ファイルが選択されていません。']);
+            self::flash(['ok' => false, 'message' => __('CSV ファイルが選択されていません。', 'drwp-daily-reports')]);
             self::redirect_back();
         }
 
         $size = (int) ($_FILES['csv']['size'] ?? 0);
         if ($size <= 0 || $size > 5 * 1024 * 1024) {
-            self::flash(['ok' => false, 'message' => 'ファイルサイズが不正です（最大 5MB）。']);
+            self::flash(['ok' => false, 'message' => __('ファイルサイズが不正です（最大 5MB）。', 'drwp-daily-reports')]);
             self::redirect_back();
         }
 
         $fh = fopen($_FILES['csv']['tmp_name'], 'r');
         if (!$fh) {
-            self::flash(['ok' => false, 'message' => 'CSV を開けませんでした。']);
+            self::flash(['ok' => false, 'message' => __('CSV を開けませんでした。', 'drwp-daily-reports')]);
             self::redirect_back();
         }
 
@@ -56,7 +56,7 @@ class DRWP_CSV_Import {
         $header = fgetcsv($fh);
         if (!$header) {
             fclose($fh);
-            self::flash(['ok' => false, 'message' => 'ヘッダ行が見つかりません。']);
+            self::flash(['ok' => false, 'message' => __('ヘッダ行が見つかりません。', 'drwp-daily-reports')]);
             self::redirect_back();
         }
         $header = array_map(function ($v) { return strtolower(trim((string) $v)); }, $header);
@@ -66,7 +66,11 @@ class DRWP_CSV_Import {
             fclose($fh);
             self::flash([
                 'ok' => false,
-                'message' => '必須カラムが不足: ' . implode(', ', $missing),
+                'message' => sprintf(
+                    /* translators: %s: comma-separated list of missing required CSV columns */
+                    __('必須カラムが不足: %s', 'drwp-daily-reports'),
+                    implode(', ', $missing)
+                ),
             ]);
             self::redirect_back();
         }
@@ -86,7 +90,12 @@ class DRWP_CSV_Import {
 
             $report_date = sanitize_text_field((string) ($data['report_date'] ?? ''));
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $report_date)) {
-                $errors[] = "行 $line_no: report_date が不正 ('$report_date')";
+                $errors[] = sprintf(
+                    /* translators: 1: line number 2: invalid date string */
+                    __('行 %1$d: report_date が不正 (\'%2$s\')', 'drwp-daily-reports'),
+                    $line_no,
+                    $report_date
+                );
                 continue;
             }
 
@@ -121,7 +130,11 @@ class DRWP_CSV_Import {
                 $created++;
                 DRWP_Audit::log('report_imported', 'CSV インポートで作成', $report_id, ['line' => $line_no]);
             } else {
-                $errors[] = "行 $line_no: DB insert に失敗";
+                $errors[] = sprintf(
+                    /* translators: %d: source CSV line number */
+                    __('行 %d: DB insert に失敗', 'drwp-daily-reports'),
+                    $line_no
+                );
             }
         }
         fclose($fh);
@@ -130,7 +143,11 @@ class DRWP_CSV_Import {
             'ok'       => true,
             'created'  => $created,
             'errors'   => $errors,
-            'message'  => sprintf('%d 件をインポートしました。', $created),
+            'message'  => sprintf(
+                /* translators: %d: number of imported reports */
+                _n('%d 件をインポートしました。', '%d 件をインポートしました。', $created, 'drwp-daily-reports'),
+                $created
+            ),
         ]);
         self::redirect_back();
     }
