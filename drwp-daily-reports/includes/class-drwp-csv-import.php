@@ -30,7 +30,13 @@ class DRWP_CSV_Import {
     public static function handle() {
         if (!current_user_can(DRWP_Admin::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         check_admin_referer('drwp_import_csv');
-        if (!DRWP_License::can_write()) wp_die(esc_html__('ライセンス状態によりインポートできません。', 'drwp-daily-reports'));
+        if (!DRWP_License::can_write()) {
+            wp_die(
+                DRWP_License::blocked_message(__('ライセンス状態によりインポートできません。', 'drwp-daily-reports')),
+                esc_html__('ライセンス未有効', 'drwp-daily-reports'),
+                ['response' => 402]
+            );
+        }
 
         if (empty($_FILES['csv']['tmp_name']) || !is_uploaded_file($_FILES['csv']['tmp_name'])) {
             self::flash(['ok' => false, 'message' => __('CSV ファイルが選択されていません。', 'drwp-daily-reports')]);
