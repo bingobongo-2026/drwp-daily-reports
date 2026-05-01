@@ -6,3 +6,4 @@ __pycache__/
 license-server/signing.key
 license-server/signing.key.previous.json
 license-server/data.sqlite3
+

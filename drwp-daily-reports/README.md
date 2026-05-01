@@ -68,6 +68,12 @@ its responses with Ed25519 so a tampered status can't unlock features.
    read `valid`. Without a license, REST writes return HTTP 402 and
    the report editor blocks save.
 
+For local development with the bundled license server, see
+`../docker-compose.yml` and `../scripts/docker-setup.sh` in the repo
+root — `bash scripts/docker-setup.sh` brings up WordPress + MySQL +
+license server, installs WP, activates the plugin, seeds a demo
+license, and runs the initial check.
+
 ## Capabilities
 
 | Capability         | What it grants                                          |
