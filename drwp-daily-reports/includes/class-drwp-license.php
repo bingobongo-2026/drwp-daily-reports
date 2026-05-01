@@ -34,6 +34,25 @@ class DRWP_License {
         return self::status() === 'active';
     }
 
+    /**
+     * HTML for a wp_die() message that explains why the license is
+     * blocking the action and links to the settings page. Allows the
+     * 'a' tag with href so the user can click through.
+     */
+    public static function blocked_message($lead) {
+        $url = admin_url('admin.php?page=drwp_license');
+        $link = '<a href="' . esc_url($url) . '">' . esc_html__('ライセンス設定を開く', 'drwp-daily-reports') . '</a>';
+        return wp_kses(
+            '<p>' . esc_html($lead) . '</p>' .
+            '<p>' . sprintf(
+                /* translators: %s: anchor element pointing at the license settings page */
+                esc_html__('ライセンスを有効にするには %s をクリックしてください。', 'drwp-daily-reports'),
+                $link
+            ) . '</p>',
+            ['p' => [], 'a' => ['href' => true]]
+        );
+    }
+
     public static function state() {
         return [
             'api_url'         => (string) get_option(self::OPT_API_URL, ''),

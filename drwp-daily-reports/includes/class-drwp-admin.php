@@ -12,6 +12,56 @@ class DRWP_Admin {
         add_action('admin_post_drwp_save_report', [__CLASS__, 'save_report']);
         add_action('admin_post_drwp_bulk_reports', [__CLASS__, 'bulk_reports']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue']);
+        add_action('admin_notices', [__CLASS__, 'license_notice']);
+    }
+
+    public static function license_notice() {
+        if (!current_user_can(self::CAP_EDIT)) return;
+
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+        $on_drwp = $screen && is_string($screen->id) && strpos($screen->id, 'drwp_') !== false;
+        $on_dashboard = $screen && $screen->id === 'dashboard';
+        if (!$on_drwp && !$on_dashboard) return;
+
+        // Already on the license page — no need to nag.
+        if ($screen && $screen->id !== false && strpos((string) $screen->id, 'drwp_license') !== false) return;
+
+        $status = DRWP_License::status();
+        if ($status === 'active' || $status === 'grace') return;
+
+        $api_url     = (string) get_option(DRWP_License::OPT_API_URL, '');
+        $key         = (string) get_option(DRWP_License::OPT_KEY, '');
+        $public_key  = (string) get_option(DRWP_License::OPT_PUBLIC_KEY, '');
+        $is_configured = $api_url !== '' && $key !== '';
+
+        if (!current_user_can('manage_options')) {
+            // Non-admins see a soft notice without the link.
+            ?>
+            <div class="notice notice-warning"><p>
+              <?php esc_html_e('DRWP Daily Reports: ライセンスが有効になっていないため、日報の保存・記事化はできません。サイト管理者に連絡してください。', 'drwp-daily-reports'); ?>
+            </p></div>
+            <?php
+            return;
+        }
+
+        $url = admin_url('admin.php?page=drwp_license');
+        if (!$is_configured) {
+            $msg = __('DRWP Daily Reports: ライセンスが未設定です。日報の保存・記事化を行うには、API URL とライセンスキーを設定してください。', 'drwp-daily-reports');
+        } elseif ($public_key === '') {
+            $msg = __('DRWP Daily Reports: 公開鍵が未取得のため署名検証が無効です。「公開鍵を取得」を実行してください。', 'drwp-daily-reports');
+        } else {
+            $msg = __('DRWP Daily Reports: ライセンスがアクティブではありません。「いま照会する」を実行するか、ライセンスサーバの状態を確認してください。', 'drwp-daily-reports');
+        }
+        ?>
+        <div class="notice notice-warning">
+          <p>
+            <?php echo esc_html($msg); ?>
+            <a class="button button-small" href="<?php echo esc_url($url); ?>" style="margin-left:8px;">
+              <?php esc_html_e('ライセンス設定を開く', 'drwp-daily-reports'); ?>
+            </a>
+          </p>
+        </div>
+        <?php
     }
 
     public static function enqueue($hook) {
@@ -142,7 +192,13 @@ class DRWP_Admin {
     public static function save_report() {
         if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         check_admin_referer('drwp_save_report');
-        if (!DRWP_License::can_write()) wp_die(esc_html__('ライセンス状態により保存できません。', 'drwp-daily-reports'));
+        if (!DRWP_License::can_write()) {
+            wp_die(
+                DRWP_License::blocked_message(__('ライセンス状態により保存できません。', 'drwp-daily-reports')),
+                esc_html__('ライセンス未有効', 'drwp-daily-reports'),
+                ['response' => 402]
+            );
+        }
 
         global $wpdb;
         $table = self::reports_table();

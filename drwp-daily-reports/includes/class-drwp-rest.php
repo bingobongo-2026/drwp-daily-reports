@@ -213,7 +213,7 @@ class DRWP_REST {
 
     public static function create_report(WP_REST_Request $request) {
         if (!DRWP_License::can_write()) {
-            return new WP_Error('drwp_license', 'License inactive', ['status' => 402]);
+            return self::license_error();
         }
         $input = $request->get_json_params() ?: [];
         if ($err = self::validate_input($input)) return $err;
@@ -238,7 +238,7 @@ class DRWP_REST {
 
     public static function update_report(WP_REST_Request $request) {
         if (!DRWP_License::can_write()) {
-            return new WP_Error('drwp_license', 'License inactive', ['status' => 402]);
+            return self::license_error();
         }
         global $wpdb;
         $id = (int) $request['id'];
@@ -254,6 +254,29 @@ class DRWP_REST {
             DRWP_Audit::log('report_updated', '日報を更新 (REST)', $id, ['source' => 'rest']);
         }
         return rest_ensure_response(self::shape_report(self::find_report($id)));
+    }
+
+    /**
+     * Build a 402 license-inactive response that tells the client what
+     * went wrong (license_status) and where to fix it (settings_url).
+     * Generic 'License inactive' alone leaves API consumers guessing.
+     */
+    private static function license_error() {
+        $status   = DRWP_License::status();
+        $api_url  = (string) get_option(DRWP_License::OPT_API_URL, '');
+        $key      = (string) get_option(DRWP_License::OPT_KEY, '');
+        $reason   = ($api_url === '' || $key === '') ? 'not_configured' : $status;
+
+        return new WP_Error(
+            'drwp_license',
+            'License inactive — see data.reason for details',
+            [
+                'status'         => 402,
+                'license_status' => $status,
+                'reason'         => $reason,
+                'settings_url'   => admin_url('admin.php?page=drwp_license'),
+            ]
+        );
     }
 
     /**
