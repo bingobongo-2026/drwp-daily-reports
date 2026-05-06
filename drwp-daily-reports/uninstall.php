@@ -33,6 +33,12 @@ $options = [
     'drwp_license_public_key',
     'drwp_license_previous_keys',
     'drwp_license_signature_valid',
+    // Notification settings
+    'drwp_notify_enabled',
+    'drwp_notify_on_pending',
+    'drwp_notify_on_review',
+    'drwp_notify_on_comment',
+    'drwp_notify_from_email',
     // Legacy
     'drwp_public_key',
 ];
