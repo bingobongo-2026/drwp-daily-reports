@@ -13,8 +13,29 @@ class DRWP_License {
     const OPT_PUBLIC_KEY      = 'drwp_license_public_key';
     const OPT_PREVIOUS_KEYS   = 'drwp_license_previous_keys';
     const OPT_SIGNATURE_VALID = 'drwp_license_signature_valid';
+    const OPT_ADMIN_TOKEN     = 'drwp_license_admin_token';
 
     const GRACE_DAYS = 7;
+
+    /**
+     * License-server admin token used for /admin/* (rotate, license CRUD).
+     * Prefers the DRWP_LICENSE_ADMIN_TOKEN constant (recommended for
+     * production: keep secrets out of the database) and falls back to
+     * the option set on the license page.
+     */
+    public static function admin_token() {
+        if (defined('DRWP_LICENSE_ADMIN_TOKEN') && DRWP_LICENSE_ADMIN_TOKEN !== '') {
+            return (string) DRWP_LICENSE_ADMIN_TOKEN;
+        }
+        return (string) get_option(self::OPT_ADMIN_TOKEN, '');
+    }
+
+    public static function admin_token_source() {
+        if (defined('DRWP_LICENSE_ADMIN_TOKEN') && DRWP_LICENSE_ADMIN_TOKEN !== '') {
+            return 'constant';
+        }
+        return get_option(self::OPT_ADMIN_TOKEN, '') !== '' ? 'option' : 'unset';
+    }
 
     public static function status() {
         $status = get_option(self::OPT_STATUS, 'unknown');
@@ -55,23 +76,70 @@ class DRWP_License {
 
     public static function state() {
         return [
-            'api_url'         => (string) get_option(self::OPT_API_URL, ''),
-            'license_key'     => (string) get_option(self::OPT_KEY, ''),
-            'status'          => self::status(),
-            'raw_status'      => (string) get_option(self::OPT_STATUS, ''),
-            'plan'            => (string) get_option(self::OPT_PLAN, ''),
-            'expires_at'      => (string) get_option(self::OPT_EXPIRES_AT, ''),
-            'checked_at'      => (int) get_option(self::OPT_CHECKED_AT, 0),
-            'last_valid_at'   => (int) get_option(self::OPT_LAST_VALID_AT, 0),
-            'message'         => (string) get_option(self::OPT_LAST_MESSAGE, ''),
-            'public_key'      => (string) get_option(self::OPT_PUBLIC_KEY, ''),
-            'signature_valid' => (string) get_option(self::OPT_SIGNATURE_VALID, ''),
+            'api_url'            => (string) get_option(self::OPT_API_URL, ''),
+            'license_key'        => (string) get_option(self::OPT_KEY, ''),
+            'status'             => self::status(),
+            'raw_status'         => (string) get_option(self::OPT_STATUS, ''),
+            'plan'               => (string) get_option(self::OPT_PLAN, ''),
+            'expires_at'         => (string) get_option(self::OPT_EXPIRES_AT, ''),
+            'checked_at'         => (int) get_option(self::OPT_CHECKED_AT, 0),
+            'last_valid_at'      => (int) get_option(self::OPT_LAST_VALID_AT, 0),
+            'message'            => (string) get_option(self::OPT_LAST_MESSAGE, ''),
+            'public_key'         => (string) get_option(self::OPT_PUBLIC_KEY, ''),
+            'signature_valid'    => (string) get_option(self::OPT_SIGNATURE_VALID, ''),
+            'admin_token_source' => self::admin_token_source(),
         ];
     }
 
-    public static function save_settings($api_url, $license_key) {
+    public static function save_settings($api_url, $license_key, $admin_token = null) {
         update_option(self::OPT_API_URL, esc_url_raw($api_url));
         update_option(self::OPT_KEY, sanitize_text_field($license_key));
+        // null means "untouched". Empty string means "clear".
+        if ($admin_token !== null) {
+            update_option(self::OPT_ADMIN_TOKEN, sanitize_text_field((string) $admin_token));
+        }
+    }
+
+    /**
+     * Rotate the license server's signing key. Requires the admin
+     * token (constant or option). On success refreshes the cached
+     * public-key set so verification picks up the new key without a
+     * separate fetch_public_key() call.
+     *
+     * Returns the new public key (base64) or WP_Error.
+     */
+    public static function rotate_key() {
+        $api_url = rtrim((string) get_option(self::OPT_API_URL, ''), '/');
+        if ($api_url === '') {
+            return new WP_Error('drwp_license_missing', 'API URL is not set');
+        }
+        $token = self::admin_token();
+        if ($token === '') {
+            return new WP_Error('drwp_license_no_token', 'Admin token not configured');
+        }
+
+        $response = wp_remote_post($api_url . '/admin/rotate-signing-key', [
+            'timeout' => 15,
+            'headers' => [
+                'Authorization' => 'Basic ' . base64_encode('admin:' . $token),
+            ],
+        ]);
+        if (is_wp_error($response)) return $response;
+
+        $code = wp_remote_retrieve_response_code($response);
+        if ($code === 401) return new WP_Error('drwp_license_unauthorized', 'Admin token rejected (401)');
+        if ($code < 200 || $code >= 300) {
+            return new WP_Error('drwp_license_http', 'HTTP ' . (int) $code);
+        }
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        if (!is_array($body) || empty($body['public_key'])) {
+            return new WP_Error('drwp_license_unexpected', 'Unexpected rotation response');
+        }
+
+        // Refresh the cached active + previous keys so verify() picks
+        // up the rotation without waiting for the next fetch.
+        self::fetch_public_key();
+        return (string) $body['public_key'];
     }
 
     public static function fetch_public_key() {
