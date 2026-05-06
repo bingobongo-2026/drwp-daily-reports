@@ -31,6 +31,45 @@ jobs:
           done < <(find drwp-daily-reports -name '*.php' -print0)
           exit $fail
 
+  phpunit:
+    name: PHPUnit (PHP ${{ matrix.php-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-version: ['7.4', '8.2']
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -uroot -proot"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+    defaults:
+      run:
+        working-directory: drwp-daily-reports
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: mysqli, zip, libsodium
+          tools: composer
+          coverage: none
+      - name: Install Subversion (for WP test lib)
+        run: sudo apt-get update && sudo apt-get install -y subversion
+      - name: Install WP test library + DB
+        run: bash bin/install-wp-tests.sh wordpress_test root root 127.0.0.1 latest
+      - name: Composer install
+        run: composer install --no-interaction --no-progress
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit
+
   python-tests:
     name: License server pytest
     runs-on: ubuntu-latest

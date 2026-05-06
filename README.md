@@ -55,6 +55,23 @@ docker compose down
 docker compose down -v
 ```
 
+### Plugin tests (PHPUnit + WP test library)
+
+```sh
+cd drwp-daily-reports
+composer install
+# One-time: install the WP develop test library + a test database.
+# Args are: <db-name> <db-user> <db-pass> [host] [version].
+bash bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1 latest
+vendor/bin/phpunit
+```
+
+Tests use real `WP_UnitTestCase` (so they hit MySQL), and cover
+`DRWP_License`, `DRWP_Audit`, `DRWP_Comment`, `DRWP_Project`,
+`DRWP_Media`, `DRWP_Post_Converter`, and the `DRWP_REST` endpoints.
+The CI workflow runs the same suite on PHP 7.4 and 8.2 against a
+MySQL 8 service container.
+
 ### File layout
 
 ```
