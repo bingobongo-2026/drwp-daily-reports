@@ -1,0 +1,85 @@
+# Local-only development stack. Plugin source is bind-mounted so edits in
+# ./drwp-daily-reports show up immediately without a rebuild. Override
+# anything via docker-compose.override.yml or a .env file.
+services:
+  db:
+    image: mysql:8
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wp
+      MYSQL_PASSWORD: wp
+      MYSQL_RANDOM_ROOT_PASSWORD: "1"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uwp", "-pwp"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+
+  wordpress:
+    image: wordpress:6.5-php8.2
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: wp
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DEBUG: "1"
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_DEBUG_LOG', true);
+        define('WP_DEBUG_DISPLAY', false);
+    ports:
+      - "${WP_PORT:-8080}:80"
+    volumes:
+      # WP core + uploads live in a named volume so they survive `down`.
+      - wp-data:/var/www/html
+      # Plugin source is bind-mounted for live editing.
+      - ./drwp-daily-reports:/var/www/html/wp-content/plugins/drwp-daily-reports
+
+  # WP-CLI helper container — used by scripts/docker-setup.sh, not by users
+  # directly. Stays exited (`profiles: tools`) unless invoked.
+  wpcli:
+    image: wordpress:cli-php8.2
+    depends_on:
+      wordpress:
+        condition: service_started
+      db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: wp
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - wp-data:/var/www/html
+      - ./drwp-daily-reports:/var/www/html/wp-content/plugins/drwp-daily-reports
+    user: "33:33"  # www-data
+    profiles: ["tools"]
+    entrypoint: ["wp"]
+
+  license:
+    build:
+      context: ./license-server
+    environment:
+      DRWP_ADMIN_TOKEN: "${DRWP_ADMIN_TOKEN:-demo-token}"
+      DRWP_LICENSE_DB: /data/data.sqlite3
+      DRWP_SIGNING_KEY: /data/signing.key
+    ports:
+      - "${LICENSE_PORT:-8001}:8000"
+    volumes:
+      - license-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  db-data:
+  wp-data:
+  license-data:
