@@ -84,6 +84,8 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $audit, $audit, 'manage_options', 'drwp_audit', ['DRWP_Audit_Admin', 'render_page']);
         $csv = __('CSV インポート', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $csv, $csv, self::CAP_EDIT, 'drwp_csv_import', ['DRWP_CSV_Import', 'render_page']);
+        $notif = __('通知設定', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $notif, $notif, 'manage_options', 'drwp_notifications', ['DRWP_Notifications_Admin', 'render_page']);
         $prev = __('公開プレビュー', 'drwp-daily-reports');
         add_submenu_page(null, $prev, $prev, self::CAP_EDIT, 'drwp_report_preview', [__CLASS__, 'report_preview_page']);
     }
@@ -246,6 +248,9 @@ class DRWP_Admin {
         $saved_photos = DRWP_Media::sync($id, $photos);
         DRWP_Audit::log('photos_updated', '写真を更新', $id, ['count' => $saved_photos]);
 
+        $fresh = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
+        do_action('drwp_report_submitted', $id, $fresh);
+
         wp_safe_redirect(admin_url('admin.php?page=drwp_report_edit&id=' . $id . '&saved=1'));
         exit;
     }
@@ -278,11 +283,13 @@ class DRWP_Admin {
             if ($action === 'bulk_approve') {
                 if ((int) $wpdb->update($table, ['review_status' => 'approved'], ['id' => $id])) {
                     DRWP_Audit::log('review_status_changed', '一括承認', $id, ['from' => $report->review_status, 'to' => 'approved']);
+                    do_action('drwp_review_changed', (int) $id, (string) $report->review_status, 'approved', '');
                     $count++;
                 }
             } elseif ($action === 'bulk_revision') {
                 if ((int) $wpdb->update($table, ['review_status' => 'needs_revision'], ['id' => $id])) {
                     DRWP_Audit::log('review_status_changed', '一括差し戻し', $id, ['from' => $report->review_status, 'to' => 'needs_revision']);
+                    do_action('drwp_review_changed', (int) $id, (string) $report->review_status, 'needs_revision', '');
                     $count++;
                 }
             } elseif ($action === 'bulk_convert') {
