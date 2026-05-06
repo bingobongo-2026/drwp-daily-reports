@@ -31,6 +31,10 @@ require_once DRWP_PATH . 'includes/class-drwp-notifications-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-post-converter.php';
 require_once DRWP_PATH . 'includes/class-drwp-admin.php';
 
+if (defined('WP_CLI') && WP_CLI) {
+    require_once DRWP_PATH . 'includes/class-drwp-cli.php';
+}
+
 register_activation_hook(__FILE__, ['DRWP_DB', 'activate']);
 
 add_action('plugins_loaded', function () {
