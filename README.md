@@ -55,6 +55,32 @@ docker compose down
 docker compose down -v
 ```
 
+### WP-CLI commands
+
+When `WP_CLI` is defined the plugin registers eight `wp drwp` commands.
+Run them inside the wpcli helper container:
+
+```sh
+# Reports
+docker compose run --rm wpcli drwp report list
+docker compose run --rm wpcli drwp report list --status=pending --format=csv
+docker compose run --rm wpcli drwp report show 42
+docker compose run --rm wpcli drwp report convert 42
+docker compose run --rm wpcli drwp report import /var/www/html/import.csv --user=admin
+
+# License
+docker compose run --rm wpcli drwp license fetch-key
+docker compose run --rm wpcli drwp license check
+
+# Projects, audit
+docker compose run --rm wpcli drwp project list
+docker compose run --rm wpcli drwp audit tail --event=review_status_changed --n=10
+```
+
+Each command reuses the same DRWP_License / DRWP_Post_Converter /
+DRWP_Audit helpers as the admin pages, so license gating, audit
+events, and validation stay consistent regardless of the entry point.
+
 ### Plugin tests (PHPUnit + WP test library)
 
 ```sh
