@@ -167,4 +167,77 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         $this->assertArrayNotHasKey('public_key', $data);
         $this->assertArrayHasKey('status', $data);
     }
+
+    public function test_upload_photo_unauth_returns_401() {
+        wp_set_current_user(0);
+        $resp = $this->call('POST', '/drwp/v1/upload-photo');
+        $this->assertSame(401, $resp->get_status());
+    }
+
+    public function test_upload_photo_without_license_returns_402() {
+        $this->make_admin();
+        $resp = $this->call('POST', '/drwp/v1/upload-photo');
+        $this->assertSame(402, $resp->get_status());
+    }
+
+    public function test_upload_photo_without_file_returns_400() {
+        $this->make_admin();
+        $this->activate_license();
+        $resp = $this->call('POST', '/drwp/v1/upload-photo');
+        $this->assertSame(400, $resp->get_status());
+        $this->assertSame('drwp_no_file', $resp->get_data()['code']);
+    }
+
+    public function test_upload_photo_happy_path_via_filter_hook() {
+        $this->make_admin();
+        $this->activate_license();
+
+        // Pre-create an attachment so the filter can pretend the upload
+        // succeeded — bypasses the $_FILES / is_uploaded_file dance that
+        // wp_handle_upload requires in non-CGI contexts.
+        $attachment_id = self::factory()->attachment->create_object('upload.jpg', 0, [
+            'post_mime_type' => 'image/jpeg',
+            'post_type'      => 'attachment',
+        ]);
+        add_filter('drwp_handle_upload', function () use ($attachment_id) {
+            return $attachment_id;
+        });
+
+        $req = new WP_REST_Request('POST', '/drwp/v1/upload-photo');
+        $req->set_file_params(['file' => [
+            'name'     => 'upload.jpg',
+            'type'     => 'image/jpeg',
+            'tmp_name' => '/tmp/fake',
+            'error'    => UPLOAD_ERR_OK,
+            'size'     => 1024,
+        ]]);
+        $resp = rest_do_request($req);
+        $this->assertSame(200, $resp->get_status());
+        $data = $resp->get_data();
+        $this->assertSame((int) $attachment_id, (int) $data['id']);
+
+        // Audit row exists.
+        global $wpdb;
+        $events = $wpdb->get_col(
+            "SELECT event FROM {$wpdb->prefix}drwp_audit_logs ORDER BY id DESC LIMIT 5"
+        );
+        $this->assertContains('photo_uploaded', $events);
+    }
+
+    public function test_upload_photo_rejects_upload_error_code() {
+        $this->make_admin();
+        $this->activate_license();
+
+        $req = new WP_REST_Request('POST', '/drwp/v1/upload-photo');
+        $req->set_file_params(['file' => [
+            'name'     => 'oops.jpg',
+            'type'     => 'image/jpeg',
+            'tmp_name' => '',
+            'error'    => UPLOAD_ERR_INI_SIZE,
+            'size'     => 0,
+        ]]);
+        $resp = rest_do_request($req);
+        $this->assertSame(400, $resp->get_status());
+        $this->assertSame('drwp_upload_error', $resp->get_data()['code']);
+    }
 }

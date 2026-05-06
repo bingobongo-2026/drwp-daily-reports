@@ -69,6 +69,14 @@ class DRWP_Admin {
         wp_enqueue_media();
         wp_enqueue_style('drwp-admin', DRWP_URL . 'admin/assets/admin.css', [], DRWP_VERSION);
         wp_enqueue_script('drwp-admin', DRWP_URL . 'admin/assets/admin.js', ['jquery'], DRWP_VERSION, true);
+        wp_localize_script('drwp-admin', 'drwpRest', [
+            'url'          => esc_url_raw(rest_url('drwp/v1')),
+            'nonce'        => wp_create_nonce('wp_rest'),
+            'i18n'         => [
+                'uploading' => __('アップロード中…', 'drwp-daily-reports'),
+                'failed'    => __('アップロードに失敗しました', 'drwp-daily-reports'),
+            ],
+        ]);
     }
 
     public static function menu() {

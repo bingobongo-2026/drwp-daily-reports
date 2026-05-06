@@ -83,6 +83,12 @@ class DRWP_REST {
             'callback'            => [__CLASS__, 'license_state'],
             'permission_callback' => [__CLASS__, 'can_edit'],
         ]);
+
+        register_rest_route(self::NS, '/upload-photo', [
+            'methods'             => 'POST',
+            'callback'            => [__CLASS__, 'upload_photo'],
+            'permission_callback' => [__CLASS__, 'can_edit'],
+        ]);
     }
 
     private static function list_args() {
@@ -401,5 +407,52 @@ class DRWP_REST {
         $state = DRWP_License::state();
         unset($state['license_key'], $state['public_key']);
         return rest_ensure_response($state);
+    }
+
+    /**
+     * Upload a single photo via multipart/form-data.
+     *
+     * The actual file move + attachment insert is delegated through
+     * the `drwp_handle_upload` filter so tests (and any host that
+     * wants to plug in S3 etc.) can short-circuit. When the filter
+     * returns null we fall back to media_handle_upload(), which is
+     * what the WP media library uses.
+     */
+    public static function upload_photo(WP_REST_Request $request) {
+        if (!DRWP_License::can_write()) return self::license_error();
+        $files = $request->get_file_params();
+        if (empty($files['file']) || !is_array($files['file'])) {
+            return new WP_Error('drwp_no_file', 'file part is missing', ['status' => 400]);
+        }
+        if (($files['file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            return new WP_Error('drwp_upload_error', 'upload error code ' . (int) $files['file']['error'], ['status' => 400]);
+        }
+
+        $attachment_id = apply_filters('drwp_handle_upload', null, 'file', $request);
+        if ($attachment_id === null) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            require_once ABSPATH . 'wp-admin/includes/image.php';
+            require_once ABSPATH . 'wp-admin/includes/media.php';
+            // media_handle_upload reads from $_FILES, so mirror what
+            // the REST request gave us.
+            $_FILES['file'] = $files['file'];
+            $attachment_id = media_handle_upload('file', 0);
+        }
+        if (is_wp_error($attachment_id)) return $attachment_id;
+        if (!$attachment_id) {
+            return new WP_Error('drwp_upload_failed', 'attachment was not created', ['status' => 500]);
+        }
+        if (get_post_type((int) $attachment_id) !== 'attachment') {
+            return new WP_Error('drwp_not_attachment', 'returned id is not an attachment', ['status' => 500]);
+        }
+
+        DRWP_Audit::log('photo_uploaded', '直接アップロード', null, ['attachment_id' => (int) $attachment_id]);
+
+        return rest_ensure_response([
+            'id'            => (int) $attachment_id,
+            'thumbnail_url' => wp_get_attachment_image_url((int) $attachment_id, 'thumbnail'),
+            'full_url'      => wp_get_attachment_url((int) $attachment_id),
+            'title'         => get_the_title((int) $attachment_id),
+        ]);
     }
 }

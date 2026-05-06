@@ -112,8 +112,13 @@
       <tr>
         <th><label><?php esc_html_e('写真', 'drwp-daily-reports'); ?></label></th>
         <td>
-          <p><button type="button" class="button" id="drwp-open-media"><?php esc_html_e('写真を選択', 'drwp-daily-reports'); ?></button>
-          <span class="description"><?php esc_html_e('メディアライブラリから画像を追加。キャプションは任意。ドラッグ可。', 'drwp-daily-reports'); ?></span></p>
+          <p>
+            <button type="button" class="button" id="drwp-open-media"><?php esc_html_e('メディアライブラリから選択', 'drwp-daily-reports'); ?></button>
+            <label class="button" for="drwp-upload-files"><?php esc_html_e('PC からアップロード', 'drwp-daily-reports'); ?></label>
+            <input type="file" id="drwp-upload-files" multiple accept="image/*" style="display:none;" />
+            <span id="drwp-upload-status" class="description" style="margin-left:8px;"></span>
+          </p>
+          <p class="description"><?php esc_html_e('複数選択可。キャプションは任意。カードはドラッグで並べ替え可。', 'drwp-daily-reports'); ?></p>
           <div id="drwp-photo-list" class="drwp-photo-list">
             <?php foreach (($photos ?? []) as $photo): ?>
               <?php $thumb = wp_get_attachment_image_url((int) $photo->attachment_id, 'thumbnail'); ?>
