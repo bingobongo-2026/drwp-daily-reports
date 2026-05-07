@@ -28,6 +28,9 @@ require_once DRWP_PATH . 'includes/class-drwp-csv-import.php';
 require_once DRWP_PATH . 'includes/class-drwp-rest.php';
 require_once DRWP_PATH . 'includes/class-drwp-notifications.php';
 require_once DRWP_PATH . 'includes/class-drwp-notifications-admin.php';
+require_once DRWP_PATH . 'includes/class-drwp-cpt.php';
+require_once DRWP_PATH . 'includes/class-drwp-output.php';
+require_once DRWP_PATH . 'includes/class-drwp-output-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-post-converter.php';
 require_once DRWP_PATH . 'includes/class-drwp-admin.php';
 
@@ -40,6 +43,7 @@ register_activation_hook(__FILE__, ['DRWP_DB', 'activate']);
 add_action('plugins_loaded', function () {
     load_plugin_textdomain('drwp-daily-reports', false, dirname(plugin_basename(__FILE__)) . '/languages');
     DRWP_DB::maybe_upgrade();
+    DRWP_CPT::init();
     DRWP_Admin::init();
     DRWP_License_Admin::init();
     DRWP_Project::init();
@@ -50,4 +54,5 @@ add_action('plugins_loaded', function () {
     DRWP_REST::init();
     DRWP_Notifications::init();
     DRWP_Notifications_Admin::init();
+    DRWP_Output_Admin::init();
 });

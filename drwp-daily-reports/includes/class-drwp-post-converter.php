@@ -107,11 +107,24 @@ class DRWP_Post_Converter {
         if (!$report) return new WP_Error('drwp_missing', 'Report not found');
         if (!DRWP_License::can_convert()) return new WP_Error('drwp_license', 'License inactive');
 
+        $is_update = !empty($report->linked_post_id) && $update_existing;
+
+        // For updates, keep the original post_type so existing
+        // permalinks / taxonomies don't break when an admin flips the
+        // output setting later. Only new conversions honor the
+        // current setting.
+        if ($is_update) {
+            $existing_type = get_post_type((int) $report->linked_post_id);
+            $post_type = $existing_type ?: DRWP_Output::post_type();
+        } else {
+            $post_type = DRWP_Output::post_type();
+        }
+
         $post_data = [
             'post_title'   => $report->public_title ?: __('現場レポート', 'drwp-daily-reports'),
             'post_content' => self::build_content($report),
             'post_status'  => $report->post_status ?: 'draft',
-            'post_type'    => 'post',
+            'post_type'    => $post_type,
         ];
 
         if (!empty($report->scheduled_at) && $report->post_status === 'future') {
@@ -119,7 +132,7 @@ class DRWP_Post_Converter {
             $post_data['post_date_gmt'] = get_gmt_from_date($report->scheduled_at);
         }
 
-        if (!empty($report->linked_post_id) && $update_existing) {
+        if ($is_update) {
             $post_data['ID'] = (int) $report->linked_post_id;
             $post_id = wp_update_post($post_data, true);
         } else {
@@ -137,12 +150,23 @@ class DRWP_Post_Converter {
             wp_set_post_tags($post_id, $tags, false);
         }
 
+        // Featured image: take the first attached photo when (a)
+        // the operator opted in via DRWP_Output::auto_thumbnail()
+        // and (b) the post doesn't already have one — never overwrite
+        // a thumbnail the editor may have set by hand.
+        if (DRWP_Output::auto_thumbnail() && !has_post_thumbnail($post_id)) {
+            $photos = DRWP_Media::for_report((int) $report->id);
+            if (!empty($photos)) {
+                set_post_thumbnail($post_id, (int) $photos[0]->attachment_id);
+            }
+        }
+
         $wpdb->update($table, ['linked_post_id' => $post_id], ['id' => $report_id]);
         DRWP_Audit::log(
-            !empty($report->linked_post_id) ? 'post_resynced' : 'post_created_from_report',
-            !empty($report->linked_post_id) ? '連携記事へ再反映' : '日報から記事を生成',
+            $is_update ? 'post_resynced' : 'post_created_from_report',
+            $is_update ? '連携記事へ再反映' : '日報から記事を生成',
             $report_id,
-            ['post_id' => (int) $post_id]
+            ['post_id' => (int) $post_id, 'post_type' => $post_type]
         );
         return $post_id;
     }
