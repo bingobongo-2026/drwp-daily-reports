@@ -34,6 +34,9 @@ $options = [
     'drwp_license_previous_keys',
     'drwp_license_signature_valid',
     'drwp_license_admin_token',
+    // Output settings
+    'drwp_output_post_type',
+    'drwp_output_auto_thumbnail',
     // Notification settings
     'drwp_notify_enabled',
     'drwp_notify_on_pending',

@@ -95,4 +95,131 @@ class Test_DRWP_Post_Converter extends WP_UnitTestCase {
         ));
         $this->assertSame($post_id, $linked);
     }
+
+    public function test_sync_post_uses_drwp_report_cpt_when_configured() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        DRWP_Output::save_settings(['post_type' => DRWP_CPT::POST_TYPE, 'auto_thumbnail' => false]);
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'drwp_reports';
+        $wpdb->insert($table, [
+            'user_id' => 1,
+            'report_date' => '2026-04-25',
+            'public_title' => 'CPT',
+            'public_body' => 'body',
+            'review_status' => 'approved',
+        ]);
+        $post_id = DRWP_Post_Converter::sync_post((int) $wpdb->insert_id);
+
+        $this->assertIsInt($post_id);
+        $this->assertSame(DRWP_CPT::POST_TYPE, get_post_type($post_id));
+    }
+
+    public function test_sync_post_preserves_original_type_on_update() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+
+        // First sync as plain `post`.
+        DRWP_Output::save_settings(['post_type' => 'post', 'auto_thumbnail' => false]);
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'drwp_reports';
+        $wpdb->insert($table, [
+            'user_id' => 1,
+            'report_date' => '2026-04-25',
+            'public_title' => 't',
+            'public_body' => 'b',
+            'review_status' => 'approved',
+        ]);
+        $report_id = (int) $wpdb->insert_id;
+        $post_id_1 = DRWP_Post_Converter::sync_post($report_id);
+        $this->assertSame('post', get_post_type($post_id_1));
+
+        // Operator flips the setting after the fact — re-sync MUST keep
+        // the original post_type so existing permalinks don't break.
+        DRWP_Output::save_settings(['post_type' => DRWP_CPT::POST_TYPE, 'auto_thumbnail' => false]);
+        $post_id_2 = DRWP_Post_Converter::sync_post($report_id, true);
+        $this->assertSame($post_id_1, $post_id_2);
+        $this->assertSame('post', get_post_type($post_id_2));
+    }
+
+    public function test_sync_post_sets_first_photo_as_featured_image() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        DRWP_Output::save_settings(['post_type' => 'post', 'auto_thumbnail' => true]);
+
+        $att = self::factory()->attachment->create_object('p.jpg', 0, [
+            'post_mime_type' => 'image/jpeg',
+            'post_type'      => 'attachment',
+        ]);
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'drwp_reports';
+        $wpdb->insert($table, [
+            'user_id' => 1,
+            'report_date' => '2026-04-25',
+            'public_title' => 'with photo',
+            'public_body' => 'b',
+            'review_status' => 'approved',
+        ]);
+        $report_id = (int) $wpdb->insert_id;
+        DRWP_Media::sync($report_id, [['attachment_id' => $att, 'caption' => 'cap']]);
+
+        $post_id = DRWP_Post_Converter::sync_post($report_id);
+        $this->assertSame((int) $att, (int) get_post_thumbnail_id($post_id));
+    }
+
+    public function test_sync_post_does_not_overwrite_existing_thumbnail() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        DRWP_Output::save_settings(['post_type' => 'post', 'auto_thumbnail' => true]);
+
+        $hand_picked = self::factory()->attachment->create_object('hand.jpg', 0, [
+            'post_mime_type' => 'image/jpeg', 'post_type' => 'attachment',
+        ]);
+        $auto = self::factory()->attachment->create_object('auto.jpg', 0, [
+            'post_mime_type' => 'image/jpeg', 'post_type' => 'attachment',
+        ]);
+
+        // Pre-create the linked post with the hand-picked thumbnail set.
+        $linked = wp_insert_post(['post_title' => 'pre', 'post_status' => 'draft']);
+        set_post_thumbnail($linked, $hand_picked);
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'drwp_reports';
+        $wpdb->insert($table, [
+            'user_id' => 1,
+            'report_date' => '2026-04-25',
+            'public_title' => 't',
+            'public_body' => 'b',
+            'review_status' => 'approved',
+            'linked_post_id' => $linked,
+        ]);
+        $report_id = (int) $wpdb->insert_id;
+        DRWP_Media::sync($report_id, [['attachment_id' => $auto, 'caption' => '']]);
+
+        DRWP_Post_Converter::sync_post($report_id, true);
+        // The hand-picked thumbnail must survive.
+        $this->assertSame((int) $hand_picked, (int) get_post_thumbnail_id($linked));
+    }
+
+    public function test_auto_thumbnail_off_skips_set_post_thumbnail() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        DRWP_Output::save_settings(['post_type' => 'post', 'auto_thumbnail' => false]);
+
+        $att = self::factory()->attachment->create_object('p.jpg', 0, [
+            'post_mime_type' => 'image/jpeg', 'post_type' => 'attachment',
+        ]);
+        global $wpdb;
+        $table = $wpdb->prefix . 'drwp_reports';
+        $wpdb->insert($table, [
+            'user_id' => 1,
+            'report_date' => '2026-04-25',
+            'public_title' => 'no-thumb',
+            'public_body' => 'b',
+            'review_status' => 'approved',
+        ]);
+        $report_id = (int) $wpdb->insert_id;
+        DRWP_Media::sync($report_id, [['attachment_id' => $att]]);
+        $post_id = DRWP_Post_Converter::sync_post($report_id);
+
+        $this->assertSame(0, (int) get_post_thumbnail_id($post_id));
+    }
 }
