@@ -15,9 +15,16 @@ class Test_DRWP_License extends WP_UnitTestCase {
             DRWP_License::OPT_PREVIOUS_KEYS,
             DRWP_License::OPT_SIGNATURE_VALID,
             DRWP_License::OPT_LAST_MESSAGE,
+            DRWP_License::OPT_ADMIN_TOKEN,
         ] as $opt) {
             delete_option($opt);
         }
+        remove_all_filters('pre_http_request');
+    }
+
+    public function tear_down() {
+        remove_all_filters('pre_http_request');
+        parent::tear_down();
     }
 
     public function test_canonical_matches_python_server_bytes() {
@@ -112,5 +119,110 @@ class Test_DRWP_License extends WP_UnitTestCase {
         $this->assertStringContainsString('テスト', $msg);
         $this->assertStringContainsString('page=drwp_license', $msg);
         $this->assertStringContainsString('<a href=', $msg);
+    }
+
+    // --- admin_token + rotate_key ---------------------------------
+
+    public function test_admin_token_falls_back_to_option() {
+        if (defined('DRWP_LICENSE_ADMIN_TOKEN')) {
+            $this->markTestSkipped('Constant defined; option path not exercisable in this run.');
+        }
+        $this->assertSame('', DRWP_License::admin_token());
+        $this->assertSame('unset', DRWP_License::admin_token_source());
+
+        update_option(DRWP_License::OPT_ADMIN_TOKEN, 'opt-tok');
+        $this->assertSame('opt-tok', DRWP_License::admin_token());
+        $this->assertSame('option', DRWP_License::admin_token_source());
+    }
+
+    public function test_save_settings_with_null_token_leaves_option_alone() {
+        update_option(DRWP_License::OPT_ADMIN_TOKEN, 'kept');
+        DRWP_License::save_settings('https://x.test', 'KEY', null);
+        $this->assertSame('kept', get_option(DRWP_License::OPT_ADMIN_TOKEN));
+    }
+
+    public function test_save_settings_with_empty_string_clears_token() {
+        update_option(DRWP_License::OPT_ADMIN_TOKEN, 'kept');
+        DRWP_License::save_settings('https://x.test', 'KEY', '');
+        $this->assertSame('', get_option(DRWP_License::OPT_ADMIN_TOKEN));
+    }
+
+    public function test_rotate_key_without_token_returns_error() {
+        if (defined('DRWP_LICENSE_ADMIN_TOKEN')) {
+            $this->markTestSkipped('Constant defined; no-token state not reachable.');
+        }
+        update_option(DRWP_License::OPT_API_URL, 'https://x.test');
+        $r = DRWP_License::rotate_key();
+        $this->assertWPError($r);
+        $this->assertSame('drwp_license_no_token', $r->get_error_code());
+    }
+
+    public function test_rotate_key_without_api_url_returns_error() {
+        update_option(DRWP_License::OPT_ADMIN_TOKEN, 'tok');
+        $r = DRWP_License::rotate_key();
+        $this->assertWPError($r);
+        $this->assertSame('drwp_license_missing', $r->get_error_code());
+    }
+
+    public function test_rotate_key_unauthorized_surfaces_401() {
+        update_option(DRWP_License::OPT_API_URL, 'https://srv.test');
+        update_option(DRWP_License::OPT_ADMIN_TOKEN, 'wrong');
+        add_filter('pre_http_request', function ($pre, $args, $url) {
+            return ['response' => ['code' => 401], 'body' => '{"detail":"Invalid"}', 'headers' => []];
+        }, 10, 3);
+        $r = DRWP_License::rotate_key();
+        $this->assertWPError($r);
+        $this->assertSame('drwp_license_unauthorized', $r->get_error_code());
+    }
+
+    public function test_rotate_key_happy_path_refreshes_cached_keys() {
+        if (defined('DRWP_LICENSE_ADMIN_TOKEN')) {
+            // The constant override test ran first in this process; option
+            // path won't be exercisable.
+            $this->markTestSkipped('Constant defined; option-only path not exercisable.');
+        }
+        update_option(DRWP_License::OPT_API_URL, 'https://srv.test');
+        update_option(DRWP_License::OPT_ADMIN_TOKEN, 'right');
+
+        $new_pub = base64_encode(random_bytes(32));
+        $old_pub = base64_encode(random_bytes(32));
+
+        // Sequence: rotate then fetch_public_key both call wp_remote_*.
+        add_filter('pre_http_request', function ($pre, $args, $url) use ($new_pub, $old_pub) {
+            if (strpos($url, '/admin/rotate-signing-key') !== false) {
+                return [
+                    'response' => ['code' => 200],
+                    'body' => json_encode(['public_key' => $new_pub, 'previous_keys' => [$old_pub]]),
+                    'headers' => [],
+                ];
+            }
+            if (strpos($url, '/api/public-key') !== false) {
+                return [
+                    'response' => ['code' => 200],
+                    'body' => json_encode(['public_key' => $new_pub, 'previous_keys' => [$old_pub], 'algorithm' => 'ed25519']),
+                    'headers' => [],
+                ];
+            }
+            return $pre;
+        }, 10, 3);
+
+        $r = DRWP_License::rotate_key();
+        $this->assertSame($new_pub, $r);
+        $this->assertSame($new_pub, get_option(DRWP_License::OPT_PUBLIC_KEY));
+        $this->assertSame([$old_pub], get_option(DRWP_License::OPT_PREVIOUS_KEYS));
+    }
+
+    /**
+     * MUST run last: PHP can't undefine constants inside a process,
+     * so this test poisons admin_token_source() for everything after it.
+     */
+    public function test_zz_admin_token_constant_overrides_option() {
+        if (defined('DRWP_LICENSE_ADMIN_TOKEN')) {
+            $this->markTestSkipped('Constant already defined.');
+        }
+        update_option(DRWP_License::OPT_ADMIN_TOKEN, 'opt-tok');
+        define('DRWP_LICENSE_ADMIN_TOKEN', 'const-tok');
+        $this->assertSame('const-tok', DRWP_License::admin_token());
+        $this->assertSame('constant', DRWP_License::admin_token_source());
     }
 }

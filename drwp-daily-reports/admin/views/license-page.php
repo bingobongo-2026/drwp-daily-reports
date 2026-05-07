@@ -11,6 +11,9 @@
   <?php if (!empty($_GET['key_fetched'])): ?>
     <div class="notice notice-success"><p><?php esc_html_e('公開鍵を取得しました。以降のライセンス照会では署名検証が行われます。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>
+  <?php if (!empty($_GET['rotated'])): ?>
+    <div class="notice notice-success"><p><?php esc_html_e('署名鍵をローテートしました。古い署名は previous_keys 経由で引き続き検証できます。', 'drwp-daily-reports'); ?></p></div>
+  <?php endif; ?>
   <?php if (!empty($_GET['error'])): ?>
     <div class="notice notice-error"><p>
       <?php
@@ -35,6 +38,24 @@
         <th><label for="drwp-license-key"><?php esc_html_e('ライセンスキー', 'drwp-daily-reports'); ?></label></th>
         <td><input type="text" id="drwp-license-key" class="regular-text" name="license_key" value="<?php echo esc_attr($license['license_key']); ?>" /></td>
       </tr>
+      <tr>
+        <th><label for="drwp-admin-token"><?php esc_html_e('管理トークン', 'drwp-daily-reports'); ?></label></th>
+        <td>
+          <?php if ($license['admin_token_source'] === 'constant'): ?>
+            <code>DRWP_LICENSE_ADMIN_TOKEN</code>
+            <span class="description"><?php esc_html_e('（wp-config.php で定義済み。ここでは編集できません。）', 'drwp-daily-reports'); ?></span>
+          <?php else: ?>
+            <input type="password" id="drwp-admin-token" class="regular-text" name="admin_token"
+                   placeholder="<?php echo $license['admin_token_source'] === 'option' ? '••••••••' : ''; ?>" />
+            <input type="hidden" name="admin_token_present" value="1" />
+            <p class="description">
+              <?php esc_html_e('鍵ローテーションに必要なライセンスサーバの admin token です。本番では wp-config.php に', 'drwp-daily-reports'); ?>
+              <code>define('DRWP_LICENSE_ADMIN_TOKEN', '…');</code>
+              <?php esc_html_e('を置くことを推奨します。空のまま保存するとクリアされます。', 'drwp-daily-reports'); ?>
+            </p>
+          <?php endif; ?>
+        </td>
+      </tr>
     </table>
     <?php submit_button(__('設定を保存', 'drwp-daily-reports')); ?>
   </form>
@@ -50,6 +71,14 @@
       <input type="hidden" name="action" value="drwp_fetch_public_key" />
       <?php submit_button(__('公開鍵を取得', 'drwp-daily-reports'), 'secondary', 'submit', false); ?>
     </form>
+    <?php if ($license['admin_token_source'] !== 'unset'): ?>
+      <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+            onsubmit="return confirm('<?php echo esc_js(__('鍵をローテートします。古い署名は previous_keys 経由で引き続き検証されますが、続行しますか？', 'drwp-daily-reports')); ?>');">
+        <?php wp_nonce_field('drwp_rotate_license_key'); ?>
+        <input type="hidden" name="action" value="drwp_rotate_license_key" />
+        <?php submit_button(__('鍵をローテート', 'drwp-daily-reports'), 'delete', 'submit', false); ?>
+      </form>
+    <?php endif; ?>
   </div>
 
   <h2><?php esc_html_e('現在の状態', 'drwp-daily-reports'); ?></h2>

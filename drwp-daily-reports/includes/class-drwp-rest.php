@@ -405,7 +405,15 @@ class DRWP_REST {
 
     public static function license_state() {
         $state = DRWP_License::state();
+        // Strip everything that lets a caller impersonate or pivot:
+        //   - license_key  : identifies the site to the license server
+        //   - public_key   : 32 bytes of base64; not strictly secret
+        //                    but the API caller can fetch it directly
+        //                    if they need it
+        //   - admin_token  : not in state(), but defensive in case
+        //                    something else adds it later
         unset($state['license_key'], $state['public_key']);
+        unset($state['admin_token']);
         return rest_ensure_response($state);
     }
 
