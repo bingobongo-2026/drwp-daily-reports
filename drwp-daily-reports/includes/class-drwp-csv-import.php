@@ -49,15 +49,26 @@ class DRWP_CSV_Import {
             self::redirect_back();
         }
 
-        $fh = fopen($_FILES['csv']['tmp_name'], 'r');
-        if (!$fh) {
+        $raw = file_get_contents($_FILES['csv']['tmp_name']);
+        if ($raw === false || $raw === '') {
             self::flash(['ok' => false, 'message' => __('CSV を開けませんでした。', 'drwp-daily-reports')]);
             self::redirect_back();
         }
 
-        // Strip UTF-8 BOM if present.
-        $bom = fread($fh, 3);
-        if ($bom !== "\xEF\xBB\xBF") rewind($fh);
+        // Excel for Japanese Windows exports CSV as CP932 (a.k.a.
+        // SJIS-win) by default, and many older spreadsheets emit EUC-JP
+        // — both produce garbage if fed straight to fgetcsv. Detect the
+        // encoding and transcode to UTF-8 (and strip a UTF-8 BOM) so
+        // downstream parsing and DB writes stay correct.
+        $raw = self::to_utf8($raw);
+
+        $fh = fopen('php://temp', 'r+');
+        if (!$fh) {
+            self::flash(['ok' => false, 'message' => __('CSV を開けませんでした。', 'drwp-daily-reports')]);
+            self::redirect_back();
+        }
+        fwrite($fh, $raw);
+        rewind($fh);
 
         $header = fgetcsv($fh);
         if (!$header) {
@@ -156,6 +167,26 @@ class DRWP_CSV_Import {
             ),
         ]);
         self::redirect_back();
+    }
+
+    private static function to_utf8($raw) {
+        if (substr($raw, 0, 3) === "\xEF\xBB\xBF") {
+            $raw = substr($raw, 3);
+        }
+        if (!function_exists('mb_detect_encoding') || !function_exists('mb_convert_encoding')) {
+            return $raw;
+        }
+        // Order matters for mb_detect_encoding strict mode: it returns
+        // the first encoding the bytes are valid under. UTF-8 first to
+        // keep the no-op path cheap; SJIS-win (CP932) before SJIS
+        // because Excel's variant is a strict superset.
+        $candidates = ['UTF-8', 'SJIS-win', 'SJIS', 'EUC-JP', 'JIS', 'ASCII'];
+        $detected = mb_detect_encoding($raw, $candidates, true);
+        if ($detected === false || strtoupper($detected) === 'UTF-8' || strtoupper($detected) === 'ASCII') {
+            return $raw;
+        }
+        $converted = @mb_convert_encoding($raw, 'UTF-8', $detected);
+        return $converted === false ? $raw : $converted;
     }
 
     private static function row_to_assoc($header, $row) {

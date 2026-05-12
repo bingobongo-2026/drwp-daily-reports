@@ -11,6 +11,9 @@ class Test_DRWP_License extends WP_UnitTestCase {
             DRWP_License::OPT_KEY,
             DRWP_License::OPT_STATUS,
             DRWP_License::OPT_LAST_VALID_AT,
+            DRWP_License::OPT_CHECKED_AT,
+            DRWP_License::OPT_PLAN,
+            DRWP_License::OPT_EXPIRES_AT,
             DRWP_License::OPT_PUBLIC_KEY,
             DRWP_License::OPT_PREVIOUS_KEYS,
             DRWP_License::OPT_SIGNATURE_VALID,
@@ -20,6 +23,33 @@ class Test_DRWP_License extends WP_UnitTestCase {
             delete_option($opt);
         }
         remove_all_filters('pre_http_request');
+    }
+
+    /**
+     * Mint an Ed25519 keypair, cache the public key as the active one,
+     * and return both halves so a test can produce signed
+     * /api/check responses end-to-end.
+     */
+    private function seed_signing_keypair() {
+        if (!function_exists('sodium_crypto_sign_keypair')) {
+            $this->markTestSkipped('libsodium not available');
+        }
+        $kp = sodium_crypto_sign_keypair();
+        $sk = sodium_crypto_sign_secretkey($kp);
+        $pk = sodium_crypto_sign_publickey($kp);
+        update_option(DRWP_License::OPT_PUBLIC_KEY, base64_encode($pk));
+        return ['sk' => $sk, 'pk' => $pk];
+    }
+
+    private function signed_check_response(array $payload, $sk) {
+        $payload['signature'] = base64_encode(sodium_crypto_sign_detached(
+            DRWP_License::canonical($payload), $sk
+        ));
+        return [
+            'response' => ['code' => 200],
+            'body'     => wp_json_encode($payload),
+            'headers'  => [],
+        ];
     }
 
     public function tear_down() {
@@ -210,6 +240,122 @@ class Test_DRWP_License extends WP_UnitTestCase {
         $this->assertSame($new_pub, $r);
         $this->assertSame($new_pub, get_option(DRWP_License::OPT_PUBLIC_KEY));
         $this->assertSame([$old_pub], get_option(DRWP_License::OPT_PREVIOUS_KEYS));
+    }
+
+    // --- check_now() ---------------------------------------------
+
+    public function test_check_now_accepts_fresh_signed_active_response() {
+        $keys = $this->seed_signing_keypair();
+        update_option(DRWP_License::OPT_API_URL, 'https://srv.test');
+        update_option(DRWP_License::OPT_KEY, 'LIC-OK');
+
+        $now_iso = gmdate('Y-m-d\TH:i:s\Z');
+        add_filter('pre_http_request', function ($pre, $args, $url) use ($keys, $now_iso) {
+            if (strpos($url, '/api/check') === false) return $pre;
+            return $this->signed_check_response([
+                'license_key'    => 'LIC-OK',
+                'allowed_domain' => 'example.org',
+                'status'         => 'active',
+                'plan'           => 'pro',
+                'expires_at'     => '2099-12-31T23:59:59+00:00',
+                'issued_at'      => $now_iso,
+            ], $keys['sk']);
+        }, 10, 3);
+
+        $r = DRWP_License::check_now();
+        $this->assertSame('active', $r);
+        $this->assertSame('active', get_option(DRWP_License::OPT_STATUS));
+        $this->assertSame('valid', get_option(DRWP_License::OPT_SIGNATURE_VALID));
+    }
+
+    public function test_check_now_rejects_replayed_response_outside_skew_window() {
+        $keys = $this->seed_signing_keypair();
+        update_option(DRWP_License::OPT_API_URL, 'https://srv.test');
+        update_option(DRWP_License::OPT_KEY, 'LIC-REPLAY');
+
+        // Stale but otherwise valid + signed "active" response — what an
+        // attacker would get by replaying a captured payload long after
+        // the license has been revoked upstream.
+        $stale = gmdate('Y-m-d\TH:i:s\Z', time() - 2 * DRWP_License::ISSUED_AT_SKEW_SECONDS);
+        add_filter('pre_http_request', function ($pre, $args, $url) use ($keys, $stale) {
+            if (strpos($url, '/api/check') === false) return $pre;
+            return $this->signed_check_response([
+                'license_key'    => 'LIC-REPLAY',
+                'allowed_domain' => 'example.org',
+                'status'         => 'active',
+                'plan'           => 'pro',
+                'expires_at'     => '',
+                'issued_at'      => $stale,
+            ], $keys['sk']);
+        }, 10, 3);
+
+        $r = DRWP_License::check_now();
+        $this->assertWPError($r);
+        $this->assertSame('drwp_license_stale', $r->get_error_code());
+        $this->assertSame('inactive', get_option(DRWP_License::OPT_STATUS));
+        $this->assertSame('stale', get_option(DRWP_License::OPT_SIGNATURE_VALID));
+    }
+
+    public function test_check_now_fails_closed_when_public_key_unavailable() {
+        // No public key cached and the public-key fetch fails: previously
+        // check_now() would skip signature verification and accept
+        // whatever the server (or a MITM) returned. It must fail instead.
+        update_option(DRWP_License::OPT_API_URL, 'https://srv.test');
+        update_option(DRWP_License::OPT_KEY, 'LIC-NOKEY');
+        delete_option(DRWP_License::OPT_PUBLIC_KEY);
+
+        $check_called = false;
+        add_filter('pre_http_request', function ($pre, $args, $url) use (&$check_called) {
+            if (strpos($url, '/api/public-key') !== false) {
+                return ['response' => ['code' => 500], 'body' => 'boom', 'headers' => []];
+            }
+            if (strpos($url, '/api/check') !== false) {
+                $check_called = true;
+                return ['response' => ['code' => 200], 'body' => wp_json_encode([
+                    'status' => 'active', 'plan' => 'pro', 'signature' => 'whatever',
+                ]), 'headers' => []];
+            }
+            return $pre;
+        }, 10, 3);
+
+        $r = DRWP_License::check_now();
+        $this->assertWPError($r);
+        $this->assertSame('no_key', get_option(DRWP_License::OPT_SIGNATURE_VALID));
+        $this->assertSame('inactive', get_option(DRWP_License::OPT_STATUS));
+        $this->assertFalse($check_called, '/api/check must not be called when no public key is available.');
+    }
+
+    public function test_check_now_rejects_tampered_status_via_invalid_signature() {
+        $keys = $this->seed_signing_keypair();
+        update_option(DRWP_License::OPT_API_URL, 'https://srv.test');
+        update_option(DRWP_License::OPT_KEY, 'LIC-TAMPER');
+
+        $now_iso = gmdate('Y-m-d\TH:i:s\Z');
+        add_filter('pre_http_request', function ($pre, $args, $url) use ($keys, $now_iso) {
+            if (strpos($url, '/api/check') === false) return $pre;
+            // Sign the "inactive" payload, then ship a body where status
+            // has been flipped to "active" without re-signing — exactly
+            // what a MITM downgrade-to-upgrade attack looks like.
+            $signed = [
+                'license_key' => 'LIC-TAMPER',
+                'status'      => 'inactive',
+                'plan'        => '',
+                'expires_at'  => '',
+                'issued_at'   => $now_iso,
+            ];
+            $sig = base64_encode(sodium_crypto_sign_detached(
+                DRWP_License::canonical($signed), $keys['sk']
+            ));
+            $signed['status']    = 'active';
+            $signed['signature'] = $sig;
+            return ['response' => ['code' => 200], 'body' => wp_json_encode($signed), 'headers' => []];
+        }, 10, 3);
+
+        $r = DRWP_License::check_now();
+        $this->assertWPError($r);
+        $this->assertSame('drwp_license_signature_invalid', $r->get_error_code());
+        $this->assertSame('invalid', get_option(DRWP_License::OPT_SIGNATURE_VALID));
+        $this->assertSame('inactive', get_option(DRWP_License::OPT_STATUS));
     }
 
     /**

@@ -18,6 +18,17 @@ class DRWP_License {
     const GRACE_DAYS = 7;
 
     /**
+     * How far the signed `issued_at` timestamp on a /api/check response
+     * may drift from local time before we treat the response as a
+     * replay. The server signs `issued_at`, so an attacker who captured
+     * an old "active" response can't forge a fresh one — but they could
+     * replay the old bytes verbatim to keep a revoked license looking
+     * healthy. 15 minutes is wide enough to absorb realistic NTP skew
+     * and the round-trip while still cutting off replays.
+     */
+    const ISSUED_AT_SKEW_SECONDS = 900;
+
+    /**
      * License-server admin token used for /admin/* (rotate, license CRUD).
      * Prefers the DRWP_LICENSE_ADMIN_TOKEN constant (recommended for
      * production: keep secrets out of the database) and falls back to
@@ -233,6 +244,20 @@ class DRWP_License {
             return new WP_Error('drwp_license_missing', 'API URL or license key is missing');
         }
 
+        // Fail closed if we have no public key cached: without it the
+        // response can't be verified, and accepting an unsigned/forged
+        // payload would let anyone in a network position flip the
+        // status to "active". Try to fetch on demand first.
+        if ((string) get_option(self::OPT_PUBLIC_KEY, '') === '') {
+            $fetched = self::fetch_public_key();
+            if (is_wp_error($fetched)) {
+                update_option(self::OPT_STATUS, 'inactive');
+                update_option(self::OPT_LAST_MESSAGE, $fetched->get_error_message());
+                update_option(self::OPT_SIGNATURE_VALID, 'no_key');
+                return $fetched;
+            }
+        }
+
         $response = wp_remote_post($api_url . '/api/check', [
             'timeout' => 10,
             'headers' => ['Content-Type' => 'application/json'],
@@ -260,30 +285,40 @@ class DRWP_License {
         $payload = $body;
         unset($payload['signature']);
 
-        $sig_valid = 'skipped';
-        if ((string) get_option(self::OPT_PUBLIC_KEY, '') !== '') {
-            if ($signature === '') {
-                update_option(self::OPT_STATUS, 'inactive');
-                update_option(self::OPT_LAST_MESSAGE, __('応答に署名がありません。', 'drwp-daily-reports'));
-                update_option(self::OPT_SIGNATURE_VALID, 'missing');
-                return new WP_Error('drwp_license_signature_missing', 'Response has no signature');
-            }
-            $verified = self::verify_signature($payload, $signature);
-            if (is_wp_error($verified)) {
-                update_option(self::OPT_STATUS, 'inactive');
-                update_option(self::OPT_LAST_MESSAGE, $verified->get_error_message());
-                update_option(self::OPT_SIGNATURE_VALID, 'error');
-                return $verified;
-            }
-            if (!$verified) {
-                update_option(self::OPT_STATUS, 'inactive');
-                update_option(self::OPT_LAST_MESSAGE, __('署名検証に失敗しました。', 'drwp-daily-reports'));
-                update_option(self::OPT_SIGNATURE_VALID, 'invalid');
-                return new WP_Error('drwp_license_signature_invalid', 'Signature verification failed');
-            }
-            $sig_valid = 'valid';
+        if ($signature === '') {
+            update_option(self::OPT_STATUS, 'inactive');
+            update_option(self::OPT_LAST_MESSAGE, __('応答に署名がありません。', 'drwp-daily-reports'));
+            update_option(self::OPT_SIGNATURE_VALID, 'missing');
+            return new WP_Error('drwp_license_signature_missing', 'Response has no signature');
         }
-        update_option(self::OPT_SIGNATURE_VALID, $sig_valid);
+        $verified = self::verify_signature($payload, $signature);
+        if (is_wp_error($verified)) {
+            update_option(self::OPT_STATUS, 'inactive');
+            update_option(self::OPT_LAST_MESSAGE, $verified->get_error_message());
+            update_option(self::OPT_SIGNATURE_VALID, 'error');
+            return $verified;
+        }
+        if (!$verified) {
+            update_option(self::OPT_STATUS, 'inactive');
+            update_option(self::OPT_LAST_MESSAGE, __('署名検証に失敗しました。', 'drwp-daily-reports'));
+            update_option(self::OPT_SIGNATURE_VALID, 'invalid');
+            return new WP_Error('drwp_license_signature_invalid', 'Signature verification failed');
+        }
+
+        // The server includes issued_at inside the signed payload, so
+        // we can trust the value once the signature checks out. Reject
+        // anything outside the skew window — that catches captured
+        // "active" responses being replayed long after the license
+        // has been revoked or expired upstream.
+        $issued_at = (string) ($payload['issued_at'] ?? '');
+        $issued_ts = $issued_at !== '' ? strtotime($issued_at) : false;
+        if ($issued_ts === false || abs($now - $issued_ts) > self::ISSUED_AT_SKEW_SECONDS) {
+            update_option(self::OPT_STATUS, 'inactive');
+            update_option(self::OPT_LAST_MESSAGE, __('応答のタイムスタンプが許容範囲外です。', 'drwp-daily-reports'));
+            update_option(self::OPT_SIGNATURE_VALID, 'stale');
+            return new WP_Error('drwp_license_stale', 'Response timestamp outside accepted window');
+        }
+        update_option(self::OPT_SIGNATURE_VALID, 'valid');
 
         $status = sanitize_text_field($payload['status'] ?? 'inactive');
         update_option(self::OPT_STATUS, $status);
