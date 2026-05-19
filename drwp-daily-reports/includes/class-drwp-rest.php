@@ -235,6 +235,7 @@ class DRWP_REST {
 
         $wpdb->insert($table, $data);
         $id = (int) $wpdb->insert_id;
+        self::sync_photos_from_input($id, $input);
         DRWP_Audit::log('report_created', '日報を作成 (REST)', $id, ['source' => 'rest']);
 
         $response = rest_ensure_response(self::shape_report(self::find_report($id)));
@@ -259,7 +260,27 @@ class DRWP_REST {
             $wpdb->update($wpdb->prefix . 'drwp_reports', $data, ['id' => $id]);
             DRWP_Audit::log('report_updated', '日報を更新 (REST)', $id, ['source' => 'rest']);
         }
+        // Photos are an explicit replacement: only touch the link table
+        // when the caller actually sent attachment_ids, so a metadata-
+        // only PATCH doesn't wipe out the existing photo set.
+        if (array_key_exists('attachment_ids', $input)) {
+            self::sync_photos_from_input($id, $input);
+        }
         return rest_ensure_response(self::shape_report(self::find_report($id)));
+    }
+
+    private static function sync_photos_from_input($report_id, array $input) {
+        if (!array_key_exists('attachment_ids', $input)) return;
+        $ids = (array) $input['attachment_ids'];
+        $captions = (array) ($input['attachment_captions'] ?? []);
+        $rows = [];
+        foreach ($ids as $i => $att_id) {
+            $rows[] = [
+                'attachment_id' => (int) $att_id,
+                'caption'       => (string) ($captions[$i] ?? ''),
+            ];
+        }
+        DRWP_Media::sync((int) $report_id, $rows);
     }
 
     /**
