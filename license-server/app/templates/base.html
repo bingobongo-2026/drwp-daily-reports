@@ -89,15 +89,20 @@
   </dialog>
 
   <script>
-    // Close the help dialog when the backdrop is clicked.
-    document.addEventListener('click', function (e) {
+    // Close on backdrop click. Listening on the dialog itself (not on
+    // document) avoids racing with the bubble from the "?" button: the
+    // button is outside the dialog, so its click doesn't reach this
+    // handler and can't immediately close what it just opened. When
+    // the backdrop is clicked, the click's target IS the dialog
+    // element (children swallow the target as themselves), which is
+    // the standard way to detect backdrop clicks on <dialog>.
+    (function () {
       var dlg = document.getElementById('help-dialog');
-      if (!dlg || !dlg.open) return;
-      var rect = dlg.getBoundingClientRect();
-      var inside = rect.top <= e.clientY && e.clientY <= rect.bottom
-                && rect.left <= e.clientX && e.clientX <= rect.right;
-      if (!inside) dlg.close();
-    });
+      if (!dlg) return;
+      dlg.addEventListener('click', function (e) {
+        if (e.target === dlg) dlg.close();
+      });
+    })();
   </script>
 </body>
 </html>
