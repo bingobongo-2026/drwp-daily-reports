@@ -2,6 +2,10 @@
 
 Standalone license server for DRWP.
 
+操作手順 (起動・ライセンス発行・鍵ローテーション・トラブル
+シューティング) は [MANUAL.md](./MANUAL.md) を参照してください。
+こちらはエンドポイントと環境変数のリファレンスです。
+
 ## v1.9 notes
 
 - SQLite-backed license store (`DRWP_LICENSE_DB`).
