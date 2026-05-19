@@ -1,5 +1,29 @@
 {% extends "base.html" %}
 {% block title %}ライセンス — DRWP License Server{% endblock %}
+{% block help_title %}ライセンス一覧の使い方{% endblock %}
+{% block help_body %}
+<h3>この画面でできること</h3>
+<p>登録済みのライセンスを一覧表示し、新規発行・編集・削除を行えます。</p>
+
+<h3>各カラムの意味</h3>
+<ul>
+  <li><strong>キー</strong> — WordPress プラグインの「ライセンスキー」欄に入れる値です。</li>
+  <li><strong>ドメイン</strong> — このキーを使ってよいサイトのホスト名 (例 <code>example.com</code>)。プラグインから送られてくる値と完全一致する必要があります。</li>
+  <li><strong>プラン</strong> — <code>standard</code> や <code>pro</code> など任意のラベル。表示用です。</li>
+  <li><strong>状態</strong> — <span class="pill active">active</span> 以外はプラグイン側で書き込み・記事化がブロックされます。</li>
+  <li><strong>有効期限</strong> — ISO 8601 形式の日時。<code>—</code> は無期限。</li>
+</ul>
+
+<h3>操作</h3>
+<ul>
+  <li><strong>新規作成</strong> — 右上のボタンから。ライセンスキーは重複不可。</li>
+  <li><strong>編集</strong> — 行の「編集」ボタン。<code>license_key</code> は変更できません。変えたい場合は削除→作成。</li>
+  <li><strong>削除</strong> — 行の「削除」ボタン。<strong>取り消せません</strong>。一時的に止めたいだけなら、削除よりも編集で状態を <code>inactive</code> にする方が安全です。</li>
+</ul>
+
+<h3>WordPress プラグイン側との連携</h3>
+<p>新しくライセンスを作ったら、WordPress 管理画面の「DRWP Daily Reports → ライセンス」ページで、ここで作った <code>license_key</code> を入力し「公開鍵を取得」→「ライセンスをチェック」を実行してください。状態が <strong>active</strong>、署名検証が <strong>valid</strong> になれば連携完了です。</p>
+{% endblock %}
 {% block content %}
 <div class="card">
   <div class="row" style="justify-content: space-between;">

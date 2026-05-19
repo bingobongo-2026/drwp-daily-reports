@@ -7,6 +7,15 @@
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f6f7f9; color: #222; }
     header { background: #1f2937; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
     header a { color: #fff; text-decoration: none; margin-left: 16px; }
+    header nav .help-button {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; margin-left: 16px;
+      border: 1px solid #94a3b8; border-radius: 999px;
+      background: transparent; color: #fff;
+      font: inherit; font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; line-height: 1;
+    }
+    header nav .help-button:hover { background: rgba(255,255,255,.1); }
     main { max-width: 960px; margin: 24px auto; padding: 0 16px; }
     .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 16px; }
     h1 { margin: 0 0 16px; }
@@ -30,6 +39,26 @@
     .pill.inactive { background: #fee2e2; color: #991b1b; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92rem; }
     form.inline { display: inline; }
+    /* --- help modal ------------------------------------------------ */
+    dialog.help {
+      width: min(640px, calc(100vw - 32px));
+      max-height: calc(100vh - 64px);
+      border: 0; border-radius: 12px; padding: 0;
+      box-shadow: 0 12px 40px rgba(0,0,0,.25);
+    }
+    dialog.help::backdrop { background: rgba(15, 23, 42, .5); }
+    dialog.help .help-head {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 20px; border-bottom: 1px solid #e5e7eb;
+    }
+    dialog.help .help-head h2 { margin: 0; font-size: 1.05rem; }
+    dialog.help .help-body { padding: 16px 20px; overflow: auto; max-height: calc(100vh - 64px - 56px); }
+    dialog.help .help-body h3 { margin: 16px 0 6px; font-size: 1rem; }
+    dialog.help .help-body h3:first-child { margin-top: 0; }
+    dialog.help .help-body p { margin: 6px 0; line-height: 1.6; }
+    dialog.help .help-body ul { padding-left: 1.2em; margin: 6px 0; line-height: 1.6; }
+    dialog.help .help-body code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: .92rem; }
+    dialog.help .help-body .kbd { display: inline-block; padding: 1px 6px; border: 1px solid #cbd5e1; border-bottom-width: 2px; border-radius: 4px; font-size: .82rem; background: #fff; }
   </style>
 </head>
 <body>
@@ -38,11 +67,37 @@
     <nav>
       <a href="/admin/ui/licenses">ライセンス</a>
       <a href="/healthz">Health</a>
+      <button type="button" class="help-button" aria-label="このページのヘルプを開く" title="このページのヘルプ (?)" onclick="document.getElementById('help-dialog').showModal()">?</button>
     </nav>
   </header>
   <main>
     {% if flash %}<div class="flash {{ flash_class or 'ok' }}">{{ flash }}</div>{% endif %}
     {% block content %}{% endblock %}
   </main>
+
+  <dialog id="help-dialog" class="help">
+    <div class="help-head">
+      <h2>{% block help_title %}このページについて{% endblock %}</h2>
+      <button type="button" class="btn ghost" onclick="this.closest('dialog').close()">閉じる</button>
+    </div>
+    <div class="help-body">
+      {% block help_body %}
+      <p>DRWP License Server の管理画面です。ライセンスの発行・編集・失効をここから行います。</p>
+      <p>ヘッダー右上の <span class="kbd">?</span> ボタンを押すと、各ページに応じた使い方が表示されます。<span class="kbd">Esc</span> キーでも閉じられます。</p>
+      {% endblock %}
+    </div>
+  </dialog>
+
+  <script>
+    // Close the help dialog when the backdrop is clicked.
+    document.addEventListener('click', function (e) {
+      var dlg = document.getElementById('help-dialog');
+      if (!dlg || !dlg.open) return;
+      var rect = dlg.getBoundingClientRect();
+      var inside = rect.top <= e.clientY && e.clientY <= rect.bottom
+                && rect.left <= e.clientX && e.clientX <= rect.right;
+      if (!inside) dlg.close();
+    });
+  </script>
 </body>
 </html>

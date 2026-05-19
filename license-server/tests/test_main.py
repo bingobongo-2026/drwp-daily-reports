@@ -226,6 +226,33 @@ def test_ui_list_renders_html(client):
     assert "ライセンスがありません" in r.text
 
 
+def test_ui_pages_expose_contextual_help(client):
+    auth = ("admin", "test-token")
+
+    # List page: the ? button is in the header, and the dialog body
+    # talks about the columns ("キー" / "状態") that page actually shows.
+    list_page = client.get("/admin/ui/licenses", auth=auth)
+    assert 'class="help-button"' in list_page.text
+    assert 'id="help-dialog"' in list_page.text
+    assert "ライセンス一覧の使い方" in list_page.text
+    assert "各カラムの意味" in list_page.text
+
+    # New / edit pages: the help is form-field specific, so it must NOT
+    # be the list-page copy.
+    new_page = client.get("/admin/ui/licenses/new", auth=auth)
+    assert "ライセンス作成の使い方" in new_page.text
+    assert "各項目の入力ルール" in new_page.text
+    assert "各カラムの意味" not in new_page.text
+
+    client.post(
+        "/admin/ui/licenses",
+        auth=auth,
+        data={"license_key": "HELP-KEY", "domain": "ui.test"},
+    )
+    edit_page = client.get("/admin/ui/licenses/HELP-KEY/edit", auth=auth)
+    assert "ライセンス編集の使い方" in edit_page.text
+
+
 def test_ui_create_via_form(client):
     auth = ("admin", "test-token")
     r = client.post(

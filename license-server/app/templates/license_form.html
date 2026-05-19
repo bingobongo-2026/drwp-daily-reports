@@ -1,5 +1,26 @@
 {% extends "base.html" %}
 {% block title %}{{ 'ライセンス編集' if license else 'ライセンス作成' }} — DRWP License Server{% endblock %}
+{% block help_title %}{{ 'ライセンス編集の使い方' if license else 'ライセンス作成の使い方' }}{% endblock %}
+{% block help_body %}
+<h3>各項目の入力ルール</h3>
+<ul>
+  <li><strong>ライセンスキー</strong> — 任意の文字列。重複不可。人間が読める接頭辞+ランダム ID (例 <code>ACME-7F2C-9KQ4</code>) がおすすめ。{% if license %}編集時は変更できません。{% endif %}</li>
+  <li><strong>ドメイン</strong> — プラグインが動く WordPress サイトのホスト名。<code>https://</code> や末尾の <code>/</code> は付けません。プラグインは <code>wp_parse_url(home_url(), PHP_URL_HOST)</code> の結果を送るため、WP の「サイトアドレス」設定と一致させてください。<code>www.</code> の有無も完全一致である必要があります。</li>
+  <li><strong>プラン</strong> — <code>standard</code> / <code>pro</code> から選択。ロジックには使われず、画面表示用です。</li>
+  <li><strong>状態</strong> — <code>active</code> が有効、<code>inactive</code> はプラグイン側で書き込み・記事化がブロックされます。一時停止に使えます。</li>
+  <li><strong>有効期限</strong> — 空欄は無期限。日時を入れる場合は ISO 8601 形式 (<code>YYYY-MM-DDTHH:MM:SS+00:00</code>) で。タイムゾーン省略は避けてください。</li>
+</ul>
+
+<h3>こんなときは</h3>
+<ul>
+  <li><strong>失効させたい</strong> — 削除ではなく、編集で状態を <code>inactive</code> にする。履歴が残り、復活も簡単です。</li>
+  <li><strong>ドメインが変わった</strong> — 編集でドメイン欄を新しい値に更新。</li>
+  <li><strong>キーを変えたい</strong> — このフォームでは変更できないので、削除→新規作成です。</li>
+</ul>
+
+<h3>保存後にやること</h3>
+<p>WordPress 側で「ライセンスをチェック」を実行して、状態が反映されることを確認してください。古い状態がキャッシュされていることがあります。</p>
+{% endblock %}
 {% block content %}
 <div class="card">
   <h1>{{ 'ライセンス編集' if license else 'ライセンス作成' }}</h1>
