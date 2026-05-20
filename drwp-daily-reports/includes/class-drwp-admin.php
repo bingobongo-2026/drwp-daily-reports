@@ -188,6 +188,7 @@ class DRWP_Admin {
         if ($report && !self::current_user_can_edit_report($report)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         $projects = DRWP_Project::all(true);
         $photos = $report ? DRWP_Media::for_report($report->id) : [];
+        $entries = $report ? DRWP_Report_Entry::for_report($report->id) : [];
         include DRWP_PATH . 'admin/views/report-edit.php';
     }
 

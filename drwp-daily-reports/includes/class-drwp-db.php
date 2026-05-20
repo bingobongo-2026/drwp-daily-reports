@@ -83,17 +83,48 @@ class DRWP_DB {
         ) $charset;";
         dbDelta($sql4);
 
+        // entry_id is NULL for legacy report-level photos (pre-1.9
+        // single-site reports). When the report has entries, photos
+        // link to a specific entry via this column.
         $sql5 = "CREATE TABLE $photos (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             report_id BIGINT UNSIGNED NOT NULL,
+            entry_id BIGINT UNSIGNED NULL,
             attachment_id BIGINT UNSIGNED NOT NULL,
             caption VARCHAR(255) NULL,
             sort_order INT UNSIGNED NOT NULL DEFAULT 0,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
-            KEY report_id (report_id)
+            KEY report_id (report_id),
+            KEY entry_id (entry_id)
         ) $charset;";
         dbDelta($sql5);
+
+        // 1 report : N site entries. A trade where a worker visits
+        // several jobsites in a single day stores one row per visit,
+        // each carrying its own work_description / issues / next_plan
+        // and (via $photos.entry_id) its own photo set. project_id on
+        // the parent report stays for legacy single-site reports.
+        $entries = $wpdb->prefix . 'drwp_report_entries';
+        $sql6 = "CREATE TABLE $entries (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            report_id BIGINT UNSIGNED NOT NULL,
+            sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+            project_id BIGINT UNSIGNED NULL,
+            started_at TIME NULL,
+            ended_at TIME NULL,
+            work_description LONGTEXT NULL,
+            issues LONGTEXT NULL,
+            next_plan LONGTEXT NULL,
+            linked_post_id BIGINT UNSIGNED NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY report_id (report_id),
+            KEY project_id (project_id),
+            KEY linked_post_id (linked_post_id)
+        ) $charset;";
+        dbDelta($sql6);
 
         add_option('drwp_license_api_url', 'https://license.example.com');
         add_option('drwp_public_key', '');

@@ -200,6 +200,60 @@ class Test_DRWP_Post_Converter extends WP_UnitTestCase {
         $this->assertSame((int) $hand_picked, (int) get_post_thumbnail_id($linked));
     }
 
+    public function test_sync_post_with_entries_creates_one_post_per_entry() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        DRWP_Output::save_settings(['post_type' => 'post', 'auto_thumbnail' => false]);
+
+        global $wpdb;
+        $reports = $wpdb->prefix . 'drwp_reports';
+        $projects = $wpdb->prefix . 'drwp_projects';
+        $wpdb->insert($projects, ['name' => '現場A', 'status' => 'active']);
+        $proj_a = (int) $wpdb->insert_id;
+        $wpdb->insert($projects, ['name' => '現場B', 'status' => 'active']);
+        $proj_b = (int) $wpdb->insert_id;
+
+        $wpdb->insert($reports, [
+            'user_id' => 1,
+            'report_date' => '2026-04-25',
+            'review_status' => 'approved',
+            'post_status' => 'draft',
+            'post_tags' => 'tag1, tag2',
+        ]);
+        $report_id = (int) $wpdb->insert_id;
+
+        DRWP_Report_Entry::sync($report_id, [
+            [
+                'project_id' => $proj_a,
+                'work_description' => 'A での作業内容',
+                'attachment_ids' => [],
+            ],
+            [
+                'project_id' => $proj_b,
+                'work_description' => 'B での作業内容',
+                'attachment_ids' => [],
+            ],
+        ]);
+
+        $result = DRWP_Post_Converter::sync_post($report_id);
+        $this->assertIsInt($result, 'sync_post should return the first generated post id');
+
+        $entries = DRWP_Report_Entry::for_report($report_id);
+        $this->assertCount(2, $entries);
+        $this->assertNotNull($entries[0]->linked_post_id);
+        $this->assertNotNull($entries[1]->linked_post_id);
+        $this->assertNotSame($entries[0]->linked_post_id, $entries[1]->linked_post_id);
+
+        $post_a = get_post((int) $entries[0]->linked_post_id);
+        $this->assertSame('現場A - 2026-04-25', $post_a->post_title);
+        $this->assertStringContainsString('A での作業内容', $post_a->post_content);
+
+        // Re-sync uses the same post (no duplicate) for each entry.
+        DRWP_Post_Converter::sync_post($report_id, true);
+        $entries_after = DRWP_Report_Entry::for_report($report_id);
+        $this->assertSame((int) $entries[0]->linked_post_id, (int) $entries_after[0]->linked_post_id);
+        $this->assertSame((int) $entries[1]->linked_post_id, (int) $entries_after[1]->linked_post_id);
+    }
+
     public function test_auto_thumbnail_off_skips_set_post_thumbnail() {
         update_option(DRWP_License::OPT_STATUS, 'active');
         DRWP_Output::save_settings(['post_type' => 'post', 'auto_thumbnail' => false]);

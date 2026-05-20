@@ -152,7 +152,61 @@
     <?php endif; ?>
   </form>
 
-  <?php if (!empty($report)): ?>
+  <?php if (!empty($entries)): ?>
+    <h2 style="margin-top:24px;"><?php esc_html_e('現場エントリ', 'drwp-daily-reports'); ?></h2>
+    <p class="description">
+      <?php esc_html_e('この日報は複数現場を含みます。エントリはスマホフォームから登録され、記事化時は現場ごとに別記事として作成されます。', 'drwp-daily-reports'); ?>
+    </p>
+    <table class="widefat striped">
+      <thead><tr>
+        <th><?php esc_html_e('現場', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('時刻', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('作業内容', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('写真', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('生成記事', 'drwp-daily-reports'); ?></th>
+      </tr></thead>
+      <tbody>
+        <?php foreach ($entries as $entry):
+            $proj_name = '-';
+            if (!empty($entry->project_id)) {
+                $p = DRWP_Project::find((int) $entry->project_id);
+                if ($p) $proj_name = $p->name;
+            }
+            $window = '';
+            if (!empty($entry->started_at) || !empty($entry->ended_at)) {
+                $window = trim(substr((string) $entry->started_at, 0, 5) . ' - ' . substr((string) $entry->ended_at, 0, 5), ' -');
+            }
+            $entry_photos = DRWP_Media::for_entry((int) $entry->id);
+        ?>
+          <tr>
+            <td><?php echo esc_html($proj_name); ?></td>
+            <td class="mono"><?php echo esc_html($window ?: '-'); ?></td>
+            <td><?php echo wp_kses_post(wpautop((string) $entry->work_description)); ?>
+              <?php if (!empty($entry->issues)): ?>
+                <p class="description"><strong><?php esc_html_e('問題点:', 'drwp-daily-reports'); ?></strong> <?php echo esc_html((string) $entry->issues); ?></p>
+              <?php endif; ?>
+              <?php if (!empty($entry->next_plan)): ?>
+                <p class="description"><strong><?php esc_html_e('次回予定:', 'drwp-daily-reports'); ?></strong> <?php echo esc_html((string) $entry->next_plan); ?></p>
+              <?php endif; ?>
+            </td>
+            <td>
+              <?php foreach ($entry_photos as $ep): ?>
+                <?php $thumb = wp_get_attachment_image_url((int) $ep->attachment_id, 'thumbnail'); ?>
+                <?php if ($thumb): ?>
+                  <img src="<?php echo esc_url($thumb); ?>" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:4px;margin:2px;" />
+                <?php endif; ?>
+              <?php endforeach; ?>
+            </td>
+            <td>
+              <?php if (!empty($entry->linked_post_id)): ?>
+                <a href="<?php echo esc_url(get_edit_post_link((int) $entry->linked_post_id)); ?>">#<?php echo (int) $entry->linked_post_id; ?></a>
+              <?php else: ?> - <?php endif; ?>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  <?php elseif (!empty($report)): ?>
     <?php echo DRWP_Post_Converter::build_preview_html($report); ?>
   <?php else: ?>
     <div class="notice notice-info"><p><?php esc_html_e('保存するとここに公開プレビューが表示されます。', 'drwp-daily-reports'); ?></p></div>
