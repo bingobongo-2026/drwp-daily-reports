@@ -103,9 +103,18 @@ class DRWP_Post_Converter {
     public static function sync_post($report_id, $update_existing = true) {
         global $wpdb;
         $table = $wpdb->prefix . 'drwp_reports';
-        $report = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $report_id));
+        $report = $wpdb->get_row($wpdb->prepare("SELECT $table.* FROM $table WHERE id = %d", $report_id));
         if (!$report) return new WP_Error('drwp_missing', 'Report not found');
         if (!DRWP_License::can_convert()) return new WP_Error('drwp_license', 'License inactive');
+
+        // Multi-site reports fan out: one WP post per site entry. We
+        // keep this in front of the legacy single-post path so any
+        // report with entries flows through the per-entry branch even
+        // if the flat fields are still populated from before.
+        $entries = DRWP_Report_Entry::for_report($report_id);
+        if (!empty($entries)) {
+            return self::sync_posts_from_entries($report, $entries, $update_existing);
+        }
 
         $is_update = !empty($report->linked_post_id) && $update_existing;
 
@@ -169,5 +178,107 @@ class DRWP_Post_Converter {
             ['post_id' => (int) $post_id, 'post_type' => $post_type]
         );
         return $post_id;
+    }
+
+    /**
+     * Convert each site entry into its own WP post. Returns the
+     * first post id created or WP_Error if nothing converted. Every
+     * entry that succeeds gets its linked_post_id stamped so a
+     * later re-sync updates the same post instead of duplicating.
+     */
+    protected static function sync_posts_from_entries($report, array $entries, $update_existing) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'drwp_reports';
+        $first_post_id = null;
+        $tags = self::normalize_tags($report->post_tags ?? '');
+
+        foreach ($entries as $entry) {
+            $is_update = !empty($entry->linked_post_id) && $update_existing;
+            // Mirror the legacy path: keep the post_type stable across
+            // re-syncs so existing permalinks don't break.
+            if ($is_update) {
+                $existing_type = get_post_type((int) $entry->linked_post_id);
+                $post_type = $existing_type ?: DRWP_Output::post_type();
+            } else {
+                $post_type = DRWP_Output::post_type();
+            }
+
+            $post_data = [
+                'post_title'   => self::entry_post_title($report, $entry),
+                'post_content' => self::build_entry_content($entry),
+                'post_status'  => $report->post_status ?: 'draft',
+                'post_type'    => $post_type,
+            ];
+            if (!empty($report->scheduled_at) && $report->post_status === 'future') {
+                $post_data['post_date'] = $report->scheduled_at;
+                $post_data['post_date_gmt'] = get_gmt_from_date($report->scheduled_at);
+            }
+
+            if ($is_update) {
+                $post_data['ID'] = (int) $entry->linked_post_id;
+                $post_id = wp_update_post($post_data, true);
+            } else {
+                $post_id = wp_insert_post($post_data, true);
+            }
+            if (is_wp_error($post_id) || !$post_id) continue;
+
+            if (!empty($report->post_category_id)) {
+                wp_set_post_categories($post_id, [(int) $report->post_category_id], false);
+            }
+            if (!empty($tags)) {
+                wp_set_post_tags($post_id, $tags, false);
+            }
+            if (DRWP_Output::auto_thumbnail() && !has_post_thumbnail($post_id)) {
+                $photos = DRWP_Media::for_entry((int) $entry->id);
+                if (!empty($photos)) set_post_thumbnail($post_id, (int) $photos[0]->attachment_id);
+            }
+
+            DRWP_Report_Entry::set_linked_post((int) $entry->id, (int) $post_id);
+            if (!$first_post_id) $first_post_id = (int) $post_id;
+        }
+
+        if (!$first_post_id) {
+            return new WP_Error('drwp_convert_failed', 'No entry could be converted');
+        }
+
+        // Point the report row at the first generated post so the
+        // existing "記事" column on the admin list still has a useful
+        // link to click through.
+        $wpdb->update($table, ['linked_post_id' => $first_post_id], ['id' => (int) $report->id]);
+        DRWP_Audit::log(
+            'post_created_from_report',
+            '日報から記事を生成 (現場別)',
+            (int) $report->id,
+            ['post_id' => $first_post_id, 'entries' => count($entries)]
+        );
+        return $first_post_id;
+    }
+
+    protected static function entry_post_title($report, $entry) {
+        $name = '';
+        if (!empty($entry->project_id)) {
+            $p = DRWP_Project::find((int) $entry->project_id);
+            if ($p) $name = (string) $p->name;
+        }
+        $parts = [];
+        if ($name !== '') $parts[] = $name;
+        $parts[] = (string) $report->report_date;
+        return implode(' - ', $parts);
+    }
+
+    protected static function build_entry_content($entry) {
+        $html = '';
+        if (!empty($entry->work_description)) {
+            $html .= wp_kses_post(wpautop($entry->work_description));
+        }
+        $photos = DRWP_Media::for_entry((int) $entry->id);
+        if (!empty($photos)) {
+            $html .= '<div class="drwp-public-photos">';
+            foreach ($photos as $photo) {
+                $html .= DRWP_Media::render_figure($photo, 'large');
+            }
+            $html .= '</div>';
+        }
+        return $html;
     }
 }

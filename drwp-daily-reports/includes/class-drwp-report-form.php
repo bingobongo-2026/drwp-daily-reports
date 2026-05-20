@@ -9,10 +9,11 @@ if (!defined('ABSPATH')) exit;
  *
  *     [drwp_report_form]
  *
- * Place it on any published page or post. The shortcode renders a
- * mobile-first form that talks to the existing REST endpoints under
- * /wp-json/drwp/v1/. Submissions land as review_status=pending so the
- * office team picks them up in the existing review queue.
+ * The rendered form is multi-entry by design (1 day report : N
+ * jobsite visits) — workers who hit one site still just have one
+ * entry card. The form talks to /wp-json/drwp/v1/ for projects,
+ * photo uploads, and the report POST. Submissions land as
+ * review_status=pending and feed the existing review queue.
  *
  * Requirements for the visitor:
  *   - logged in (WP cookie auth supplies the REST nonce)
@@ -44,6 +45,26 @@ class DRWP_Report_Form {
             'today'       => current_time('Y-m-d'),
             'license_ok'  => DRWP_License::can_write(),
             'projects'    => $projects,
+            'i18n'        => [
+                'add_entry'    => __('現場を追加', 'drwp-daily-reports'),
+                'remove_entry' => __('この現場を削除', 'drwp-daily-reports'),
+                'entry_label'  => __('現場', 'drwp-daily-reports'),
+                'pick_project' => __('選択してください', 'drwp-daily-reports'),
+                'work'         => __('作業内容', 'drwp-daily-reports'),
+                'issues'       => __('問題点 (任意)', 'drwp-daily-reports'),
+                'next'         => __('次回予定 (任意)', 'drwp-daily-reports'),
+                'photos'       => __('写真', 'drwp-daily-reports'),
+                'pick_photos'  => __('カメラで撮影 / 端末から選択', 'drwp-daily-reports'),
+                'started'      => __('開始時刻', 'drwp-daily-reports'),
+                'ended'        => __('終了時刻', 'drwp-daily-reports'),
+                'need_project' => __('現場を選択してください。', 'drwp-daily-reports'),
+                'need_work'    => __('作業内容を入力してください。', 'drwp-daily-reports'),
+                'need_entry'   => __('現場エントリを 1 つ以上入力してください。', 'drwp-daily-reports'),
+                'uploading'    => __('写真をアップロード中…', 'drwp-daily-reports'),
+                'sending'      => __('送信中…', 'drwp-daily-reports'),
+                'sent'         => __('送信しました。レビュー待ちに入っています。', 'drwp-daily-reports'),
+                'send_failed'  => __('送信に失敗しました。', 'drwp-daily-reports'),
+            ],
         ];
 
         ob_start();
@@ -57,43 +78,15 @@ class DRWP_Report_Form {
 
             <form class="drwp-mform" id="drwp-mform" novalidate>
                 <label class="drwp-mform-row">
-                    <span class="drwp-mform-label"><?php esc_html_e('現場', 'drwp-daily-reports'); ?> <em>*</em></span>
-                    <select name="project_id" required>
-                        <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
-                        <?php foreach ($projects as $p): ?>
-                            <option value="<?php echo (int) $p['id']; ?>"><?php echo esc_html($p['name']); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </label>
-
-                <label class="drwp-mform-row">
                     <span class="drwp-mform-label"><?php esc_html_e('日付', 'drwp-daily-reports'); ?></span>
                     <input type="date" name="report_date" value="<?php echo esc_attr($config['today']); ?>" required>
                 </label>
 
-                <label class="drwp-mform-row">
-                    <span class="drwp-mform-label"><?php esc_html_e('作業内容', 'drwp-daily-reports'); ?> <em>*</em></span>
-                    <textarea name="work_description" rows="5" required placeholder="<?php esc_attr_e('例: 外壁の高圧洗浄を実施。北面と東面が完了。', 'drwp-daily-reports'); ?>"></textarea>
-                </label>
+                <div class="drwp-mform-entries" data-role="entries"></div>
 
-                <label class="drwp-mform-row">
-                    <span class="drwp-mform-label"><?php esc_html_e('問題点 (任意)', 'drwp-daily-reports'); ?></span>
-                    <textarea name="issues" rows="3" placeholder="<?php esc_attr_e('例: 雨により午後3時で中断。', 'drwp-daily-reports'); ?>"></textarea>
-                </label>
-
-                <label class="drwp-mform-row">
-                    <span class="drwp-mform-label"><?php esc_html_e('次回予定 (任意)', 'drwp-daily-reports'); ?></span>
-                    <textarea name="next_plan" rows="3" placeholder="<?php esc_attr_e('例: 明日は南面と西面を実施。', 'drwp-daily-reports'); ?>"></textarea>
-                </label>
-
-                <div class="drwp-mform-row">
-                    <span class="drwp-mform-label"><?php esc_html_e('写真', 'drwp-daily-reports'); ?></span>
-                    <label class="drwp-mform-photo-pick">
-                        <span><?php esc_html_e('カメラで撮影 / 端末から選択', 'drwp-daily-reports'); ?></span>
-                        <input type="file" name="photos" accept="image/*" capture="environment" multiple>
-                    </label>
-                    <div class="drwp-mform-photos" data-role="photo-preview"></div>
-                </div>
+                <button type="button" class="drwp-mform-add" data-role="add-entry">
+                    + <?php echo esc_html($config['i18n']['add_entry']); ?>
+                </button>
 
                 <button type="submit" class="drwp-mform-submit">
                     <?php esc_html_e('下書きとして送信', 'drwp-daily-reports'); ?>
@@ -133,12 +126,6 @@ class DRWP_Report_Form {
         return '<div class="drwp-mform-wrap">' . $inner . '</div>';
     }
 
-    /**
-     * Inline CSS. Mobile-first: a single column with large tap targets,
-     * never narrower than 16px font (otherwise iOS Safari zooms on
-     * focus). Capped at 640px on larger screens so the form stays
-     * readable on tablets / desktops too.
-     */
     private static function css() {
         return <<<CSS
 .drwp-mform-wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
@@ -148,16 +135,32 @@ class DRWP_Report_Form {
 .drwp-mform-label { font-weight: 600; font-size: 0.95rem; }
 .drwp-mform-label em { color: #b91c1c; font-style: normal; }
 .drwp-mform input[type=date],
+.drwp-mform input[type=time],
 .drwp-mform select,
 .drwp-mform textarea {
     width: 100%; box-sizing: border-box; font: inherit; font-size: 16px;
     padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff;
 }
 .drwp-mform textarea { resize: vertical; }
+.drwp-mform-entries { display: flex; flex-direction: column; gap: 14px; }
+.drwp-mform-entry {
+    border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px;
+    background: #f8fafc; display: flex; flex-direction: column; gap: 12px;
+}
+.drwp-mform-entry-head {
+    display: flex; justify-content: space-between; align-items: center;
+    font-weight: 700; font-size: 1rem; color: #0f172a;
+}
+.drwp-mform-entry-head .remove {
+    background: transparent; color: #b91c1c; border: 1px solid #fecaca;
+    padding: 6px 10px; border-radius: 8px; font: inherit; font-size: 0.85rem; cursor: pointer;
+}
+.drwp-mform-times { display: flex; gap: 8px; }
+.drwp-mform-times .col { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: #475569; }
 .drwp-mform-photo-pick {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     min-height: 56px; padding: 12px 16px; border: 2px dashed #94a3b8; border-radius: 10px;
-    background: #f8fafc; color: #475569; cursor: pointer; font-weight: 600;
+    background: #fff; color: #475569; cursor: pointer; font-weight: 600;
 }
 .drwp-mform-photo-pick input { display: none; }
 .drwp-mform-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
@@ -168,6 +171,10 @@ class DRWP_Report_Form {
     position: absolute; top: 4px; right: 4px;
     width: 28px; height: 28px; border-radius: 999px; border: 0;
     background: rgba(0,0,0,.6); color: #fff; font-size: 18px; line-height: 1; cursor: pointer;
+}
+.drwp-mform-add {
+    padding: 14px; border: 2px dashed #94a3b8; border-radius: 12px;
+    background: transparent; color: #1f2937; font-size: 1rem; font-weight: 700; cursor: pointer;
 }
 .drwp-mform-submit {
     margin-top: 6px; padding: 16px; border: 0; border-radius: 12px;
@@ -182,31 +189,107 @@ CSS;
     }
 
     /**
-     * Inline JS. No bundler, no globals. Reads `config` from the
-     * enclosing IIFE. Uploads each photo serially before posting the
-     * report — keeps the upload-photo endpoint behavior unchanged
-     * (one file per call) and the field worker sees a per-photo
-     * progress indicator instead of all-or-nothing.
+     * Inline JS. No bundler, no globals. Each entry owns its own
+     * pending photo list so uploads and the post payload stay
+     * aligned. The "+" button appends a new entry; the per-entry
+     * remove button drops it (last entry can't be removed — we
+     * always keep one card so the form doesn't go blank).
      */
     private static function js() {
         return <<<JS
 var form = document.getElementById('drwp-mform');
 if (!form) return;
 
-var status = form.querySelector('[data-role=status]');
-var preview = form.querySelector('[data-role=photo-preview]');
-var fileInput = form.querySelector('input[type=file]');
+var entriesEl = form.querySelector('[data-role=entries]');
+var status    = form.querySelector('[data-role=status]');
 var submitBtn = form.querySelector('.drwp-mform-submit');
-var pendingFiles = [];
+var addBtn    = form.querySelector('[data-role=add-entry]');
+var i18n      = config.i18n;
+var entries   = [];   // [{ data: HTMLElement, pendingFiles: File[] }]
 
 function setStatus(text, cls) {
     status.textContent = text || '';
     status.className = 'drwp-mform-status' + (cls ? ' ' + cls : '');
 }
 
-function renderPreviews() {
+function projectOptions(selected) {
+    var html = '<option value="">' + escapeHtml(i18n.pick_project) + '</option>';
+    config.projects.forEach(function (p) {
+        var sel = (selected && Number(selected) === p.id) ? ' selected' : '';
+        html += '<option value="' + p.id + '"' + sel + '>' + escapeHtml(p.name) + '</option>';
+    });
+    return html;
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
+    });
+}
+
+function addEntry() {
+    var idx = entries.length + 1;
+    var el = document.createElement('div');
+    el.className = 'drwp-mform-entry';
+    el.innerHTML =
+        '<div class="drwp-mform-entry-head">' +
+            '<span data-role="entry-title">' + escapeHtml(i18n.entry_label) + ' #' + idx + '</span>' +
+            '<button type="button" class="remove">' + escapeHtml(i18n.remove_entry) + '</button>' +
+        '</div>' +
+        '<label class="drwp-mform-row">' +
+            '<span class="drwp-mform-label">' + escapeHtml(i18n.entry_label) + ' <em>*</em></span>' +
+            '<select name="project_id" required>' + projectOptions() + '</select>' +
+        '</label>' +
+        '<div class="drwp-mform-times">' +
+            '<label class="col">' + escapeHtml(i18n.started) + '<input type="time" name="started_at"></label>' +
+            '<label class="col">' + escapeHtml(i18n.ended)   + '<input type="time" name="ended_at"></label>' +
+        '</div>' +
+        '<label class="drwp-mform-row">' +
+            '<span class="drwp-mform-label">' + escapeHtml(i18n.work) + ' <em>*</em></span>' +
+            '<textarea name="work_description" rows="4" required></textarea>' +
+        '</label>' +
+        '<label class="drwp-mform-row">' +
+            '<span class="drwp-mform-label">' + escapeHtml(i18n.issues) + '</span>' +
+            '<textarea name="issues" rows="2"></textarea>' +
+        '</label>' +
+        '<label class="drwp-mform-row">' +
+            '<span class="drwp-mform-label">' + escapeHtml(i18n.next) + '</span>' +
+            '<textarea name="next_plan" rows="2"></textarea>' +
+        '</label>' +
+        '<div class="drwp-mform-row">' +
+            '<span class="drwp-mform-label">' + escapeHtml(i18n.photos) + '</span>' +
+            '<label class="drwp-mform-photo-pick"><span>' + escapeHtml(i18n.pick_photos) + '</span>' +
+                '<input type="file" accept="image/*" capture="environment" multiple data-role="entry-photos">' +
+            '</label>' +
+            '<div class="drwp-mform-photos" data-role="entry-preview"></div>' +
+        '</div>';
+
+    entriesEl.appendChild(el);
+    var rec = { el: el, pendingFiles: [] };
+    entries.push(rec);
+
+    var fileInput = el.querySelector('[data-role=entry-photos]');
+    var preview = el.querySelector('[data-role=entry-preview]');
+
+    fileInput.addEventListener('change', function () {
+        for (var i = 0; i < fileInput.files.length; i++) rec.pendingFiles.push(fileInput.files[i]);
+        fileInput.value = '';
+        renderEntryPreview(rec, preview);
+    });
+
+    el.querySelector('.remove').addEventListener('click', function () {
+        if (entries.length === 1) return;  // always keep one
+        entries = entries.filter(function (e) { return e !== rec; });
+        el.parentNode.removeChild(el);
+        renumberEntries();
+    });
+
+    renumberEntries();
+}
+
+function renderEntryPreview(rec, preview) {
     preview.innerHTML = '';
-    pendingFiles.forEach(function (file, idx) {
+    rec.pendingFiles.forEach(function (file, idx) {
         var item = document.createElement('div');
         item.className = 'item';
         var img = document.createElement('img');
@@ -215,21 +298,24 @@ function renderPreviews() {
         var del = document.createElement('button');
         del.type = 'button';
         del.textContent = '×';
-        del.setAttribute('aria-label', '削除');
         del.onclick = function () {
-            pendingFiles.splice(idx, 1);
-            renderPreviews();
+            rec.pendingFiles.splice(idx, 1);
+            renderEntryPreview(rec, preview);
         };
         item.appendChild(del);
         preview.appendChild(item);
     });
 }
 
-fileInput.addEventListener('change', function () {
-    for (var i = 0; i < fileInput.files.length; i++) pendingFiles.push(fileInput.files[i]);
-    fileInput.value = '';
-    renderPreviews();
-});
+function renumberEntries() {
+    entries.forEach(function (rec, i) {
+        var t = rec.el.querySelector('[data-role=entry-title]');
+        t.textContent = i18n.entry_label + ' #' + (i + 1);
+    });
+}
+
+addBtn.addEventListener('click', addEntry);
+addEntry();  // start with one
 
 function uploadOne(file) {
     var body = new FormData();
@@ -241,7 +327,7 @@ function uploadOne(file) {
         body: body
     }).then(function (r) {
         return r.json().then(function (j) {
-            if (!r.ok) throw new Error((j && j.message) || ('写真アップロード失敗 HTTP ' + r.status));
+            if (!r.ok) throw new Error((j && j.message) || ('upload failed HTTP ' + r.status));
             return j.id;
         });
     });
@@ -251,40 +337,58 @@ form.addEventListener('submit', function (e) {
     e.preventDefault();
     submitBtn.disabled = true;
 
-    var payload = {
-        project_id:       Number(form.project_id.value) || null,
-        report_date:      form.report_date.value || config.today,
-        work_description: form.work_description.value || '',
-        issues:           form.issues.value || '',
-        next_plan:        form.next_plan.value || ''
-    };
-
-    if (!payload.project_id) {
-        setStatus('現場を選択してください。', 'err');
-        submitBtn.disabled = false;
-        return;
-    }
-    if (!payload.work_description.trim()) {
-        setStatus('作業内容を入力してください。', 'err');
+    if (!entries.length) {
+        setStatus(i18n.need_entry, 'err');
         submitBtn.disabled = false;
         return;
     }
 
-    var uploaded = [];
+    // Validate every entry up-front so we don't run uploads only to
+    // fail at the final POST.
+    var entryPayloads = [];
+    for (var i = 0; i < entries.length; i++) {
+        var rec = entries[i];
+        var projectId = Number(rec.el.querySelector('select[name=project_id]').value) || 0;
+        var work = rec.el.querySelector('textarea[name=work_description]').value.trim();
+        if (!projectId) {
+            setStatus('#' + (i + 1) + ' ' + i18n.need_project, 'err');
+            submitBtn.disabled = false;
+            return;
+        }
+        if (!work) {
+            setStatus('#' + (i + 1) + ' ' + i18n.need_work, 'err');
+            submitBtn.disabled = false;
+            return;
+        }
+        entryPayloads.push({
+            project_id:       projectId,
+            started_at:       rec.el.querySelector('input[name=started_at]').value || null,
+            ended_at:         rec.el.querySelector('input[name=ended_at]').value || null,
+            work_description: work,
+            issues:           rec.el.querySelector('textarea[name=issues]').value || '',
+            next_plan:        rec.el.querySelector('textarea[name=next_plan]').value || '',
+            _files:           rec.pendingFiles
+        });
+    }
+
+    var totalPhotos = entryPayloads.reduce(function (a, e) { return a + e._files.length; }, 0);
+    var uploaded = 0;
     var chain = Promise.resolve();
-    pendingFiles.forEach(function (file, i) {
-        chain = chain.then(function () {
-            setStatus('写真をアップロード中… (' + (i + 1) + '/' + pendingFiles.length + ')');
-            return uploadOne(file).then(function (id) { uploaded.push(id); });
+    entryPayloads.forEach(function (ep) {
+        ep.attachment_ids = [];
+        ep._files.forEach(function (file) {
+            chain = chain.then(function () {
+                setStatus(i18n.uploading + ' (' + (uploaded + 1) + '/' + totalPhotos + ')');
+                return uploadOne(file).then(function (id) {
+                    ep.attachment_ids.push(id);
+                    uploaded++;
+                });
+            });
         });
     });
 
     chain.then(function () {
-        if (uploaded.length) {
-            payload.attachment_ids = uploaded;
-            payload.attachment_captions = uploaded.map(function () { return ''; });
-        }
-        setStatus('送信中…');
+        setStatus(i18n.sending);
         return fetch(config.rest_root + 'reports', {
             method: 'POST',
             credentials: 'same-origin',
@@ -292,22 +396,36 @@ form.addEventListener('submit', function (e) {
                 'Content-Type': 'application/json',
                 'X-WP-Nonce': config.nonce
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                report_date: form.report_date.value || config.today,
+                entries: entryPayloads.map(function (ep) {
+                    return {
+                        project_id:       ep.project_id,
+                        started_at:       ep.started_at,
+                        ended_at:         ep.ended_at,
+                        work_description: ep.work_description,
+                        issues:           ep.issues,
+                        next_plan:        ep.next_plan,
+                        attachment_ids:   ep.attachment_ids
+                    };
+                })
+            })
         }).then(function (r) {
             return r.json().then(function (j) {
-                if (!r.ok) throw new Error((j && j.message) || ('送信失敗 HTTP ' + r.status));
+                if (!r.ok) throw new Error((j && j.message) || ('HTTP ' + r.status));
                 return j;
             });
         });
     }).then(function (report) {
-        setStatus('送信しました (#' + report.id + ')。レビュー待ちに入っています。', 'ok');
-        form.reset();
+        setStatus(i18n.sent + ' (#' + report.id + ')', 'ok');
+        // Clear all entries and start fresh with one.
+        entriesEl.innerHTML = '';
+        entries = [];
+        addEntry();
         form.report_date.value = config.today;
-        pendingFiles = [];
-        renderPreviews();
         submitBtn.disabled = false;
     }).catch(function (err) {
-        setStatus(err && err.message ? err.message : '送信に失敗しました。', 'err');
+        setStatus(err && err.message ? err.message : i18n.send_failed, 'err');
         submitBtn.disabled = false;
     });
 });
