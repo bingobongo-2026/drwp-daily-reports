@@ -37,7 +37,7 @@
     <?php submit_button(__('インポート', 'drwp-daily-reports')); ?>
   </form>
 
-  <h2><?php esc_html_e('列の仕様', 'drwp-daily-reports'); ?></h2>
+  <h2><?php esc_html_e('列の仕様 (1 行 = 1 日報)', 'drwp-daily-reports'); ?></h2>
   <table class="widefat striped" style="max-width:760px;">
     <thead><tr>
       <th><?php esc_html_e('列名', 'drwp-daily-reports'); ?></th>
@@ -62,6 +62,42 @@
           ['post_tags',         $optional, __('カンマ区切り', 'drwp-daily-reports')],
       ];
       foreach ($rows as $r) {
+          echo '<tr><td><code>' . esc_html($r[0]) . '</code></td><td>' . esc_html($r[1]) . '</td><td>' . esc_html($r[2]) . '</td></tr>';
+      }
+      ?>
+    </tbody>
+  </table>
+
+  <h2><?php esc_html_e('列の仕様 (1 行 = 1 現場エントリ・複数現場日報)', 'drwp-daily-reports'); ?></h2>
+  <p class="description">
+    <?php esc_html_e('ヘッダに entry_group 列を含めると複数現場モードに切り替わります。同じ entry_group 値を持つ行が 1 つの日報の現場エントリとしてまとまります。', 'drwp-daily-reports'); ?>
+  </p>
+  <table class="widefat striped" style="max-width:760px;">
+    <thead><tr>
+      <th><?php esc_html_e('列名', 'drwp-daily-reports'); ?></th>
+      <th><?php esc_html_e('必須', 'drwp-daily-reports'); ?></th>
+      <th><?php esc_html_e('説明', 'drwp-daily-reports'); ?></th>
+    </tr></thead>
+    <tbody>
+      <?php
+      $multi_rows = [
+          ['entry_group',         $optional, __('同じ値で 1 日報にまとめる。空欄は 1 行 = 1 エントリ', 'drwp-daily-reports')],
+          ['report_date',         $required, __('YYYY-MM-DD。グループの先頭行を採用', 'drwp-daily-reports')],
+          ['project_name',        $optional, __('エントリ単位。未登録なら自動作成', 'drwp-daily-reports')],
+          ['started_at',          $optional, 'HH:MM'],
+          ['ended_at',            $optional, 'HH:MM'],
+          ['work_description',    $required, __('エントリ単位の作業内容', 'drwp-daily-reports')],
+          ['issues',              $optional, __('エントリ単位の問題点', 'drwp-daily-reports')],
+          ['next_plan',           $optional, __('エントリ単位の次回予定', 'drwp-daily-reports')],
+          ['entry_public_title',  $optional, __('エントリ単位の公開タイトル', 'drwp-daily-reports')],
+          ['entry_public_body',   $optional, __('エントリ単位の公開本文', 'drwp-daily-reports')],
+          ['post_template',       $optional, __('レポート単位。先頭行を採用', 'drwp-daily-reports')],
+          ['post_tags',           $optional, __('レポート単位。先頭行を採用', 'drwp-daily-reports')],
+          ['post_status',         $optional, __('draft / pending / future。先頭行を採用', 'drwp-daily-reports')],
+          ['post_category_id',    $optional, __('レポート単位。先頭行を採用', 'drwp-daily-reports')],
+          ['scheduled_at',        $optional, __('レポート単位。先頭行を採用', 'drwp-daily-reports')],
+      ];
+      foreach ($multi_rows as $r) {
           echo '<tr><td><code>' . esc_html($r[0]) . '</code></td><td>' . esc_html($r[1]) . '</td><td>' . esc_html($r[2]) . '</td></tr>';
       }
       ?>
