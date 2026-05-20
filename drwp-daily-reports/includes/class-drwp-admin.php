@@ -278,6 +278,8 @@ class DRWP_Admin {
                     'work_description' => wp_kses_post(wp_unslash((string) ($e['work_description'] ?? ''))),
                     'issues'           => wp_kses_post(wp_unslash((string) ($e['issues'] ?? ''))),
                     'next_plan'        => wp_kses_post(wp_unslash((string) ($e['next_plan'] ?? ''))),
+                    'public_title'     => sanitize_text_field(wp_unslash((string) ($e['public_title'] ?? ''))),
+                    'public_body'      => wp_kses_post(wp_unslash((string) ($e['public_body'] ?? ''))),
                     'attachment_ids'      => array_map('absint', (array) ($e['attachment_ids'] ?? [])),
                     'attachment_captions' => array_map('sanitize_text_field', array_map('wp_unslash', (array) ($e['attachment_captions'] ?? []))),
                 ];

@@ -121,6 +121,28 @@ class Test_DRWP_Report_Entry extends WP_UnitTestCase {
         $this->assertNull($entries[1]->ended_at);
     }
 
+    public function test_sync_persists_public_title_and_body() {
+        $r = $this->make_report();
+        $pa = $this->make_project('A');
+
+        DRWP_Report_Entry::sync($r, [
+            [
+                'project_id'       => $pa,
+                'work_description' => 'raw notes',
+                'public_title'     => '外壁洗浄',
+                'public_body'      => '<p>本日は北面を実施。</p>',
+            ],
+        ]);
+        $entry = DRWP_Report_Entry::for_report($r)[0];
+        $this->assertSame('外壁洗浄', (string) $entry->public_title);
+        $this->assertStringContainsString('北面を実施', (string) $entry->public_body);
+
+        // Round-trip: shape() surfaces both so REST clients see them.
+        $shape = DRWP_Report_Entry::shape($entry);
+        $this->assertSame('外壁洗浄', $shape['public_title']);
+        $this->assertStringContainsString('北面を実施', $shape['public_body']);
+    }
+
     public function test_shape_includes_photos_with_urls() {
         $r = $this->make_report();
         $pa = $this->make_project('A');

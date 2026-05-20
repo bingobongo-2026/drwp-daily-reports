@@ -200,6 +200,58 @@ class Test_DRWP_Post_Converter extends WP_UnitTestCase {
         $this->assertSame((int) $hand_picked, (int) get_post_thumbnail_id($linked));
     }
 
+    public function test_entry_public_title_overrides_auto_title() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        DRWP_Output::save_settings(['post_type' => 'post', 'auto_thumbnail' => false]);
+
+        global $wpdb;
+        $wpdb->insert($wpdb->prefix . 'drwp_projects', ['name' => '現場A', 'status' => 'active']);
+        $proj = (int) $wpdb->insert_id;
+        $wpdb->insert($wpdb->prefix . 'drwp_reports', [
+            'user_id' => 1, 'report_date' => '2026-04-25', 'review_status' => 'approved',
+        ]);
+        $report_id = (int) $wpdb->insert_id;
+
+        // First entry has an office-curated public_title; second
+        // leaves it blank to exercise the fallback.
+        DRWP_Report_Entry::sync($report_id, [
+            ['project_id' => $proj, 'work_description' => 'raw', 'public_title' => '外壁洗浄レポート'],
+            ['project_id' => $proj, 'work_description' => 'raw2'],
+        ]);
+        DRWP_Post_Converter::sync_post($report_id);
+
+        $entries = DRWP_Report_Entry::for_report($report_id);
+        $this->assertSame('外壁洗浄レポート', get_post((int) $entries[0]->linked_post_id)->post_title);
+        $this->assertSame('現場A - 2026-04-25', get_post((int) $entries[1]->linked_post_id)->post_title);
+    }
+
+    public function test_entry_public_body_overrides_work_description_in_post() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        DRWP_Output::save_settings(['post_type' => 'post', 'auto_thumbnail' => false]);
+
+        global $wpdb;
+        $wpdb->insert($wpdb->prefix . 'drwp_projects', ['name' => 'A', 'status' => 'active']);
+        $proj = (int) $wpdb->insert_id;
+        $wpdb->insert($wpdb->prefix . 'drwp_reports', [
+            'user_id' => 1, 'report_date' => '2026-04-25', 'review_status' => 'approved',
+        ]);
+        $report_id = (int) $wpdb->insert_id;
+
+        DRWP_Report_Entry::sync($report_id, [
+            [
+                'project_id'       => $proj,
+                'work_description' => '内部メモ: ペンキを5L 消費',
+                'public_body'      => '外壁の高圧洗浄を実施しました。',
+            ],
+        ]);
+        DRWP_Post_Converter::sync_post($report_id);
+
+        $entry = DRWP_Report_Entry::for_report($report_id)[0];
+        $body = get_post((int) $entry->linked_post_id)->post_content;
+        $this->assertStringContainsString('高圧洗浄', $body);
+        $this->assertStringNotContainsString('ペンキを5L', $body);
+    }
+
     public function test_sync_post_with_entries_creates_one_post_per_entry() {
         update_option(DRWP_License::OPT_STATUS, 'active');
         DRWP_Output::save_settings(['post_type' => 'post', 'auto_thumbnail' => false]);

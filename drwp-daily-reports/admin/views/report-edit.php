@@ -257,6 +257,21 @@
               <th><label><?php esc_html_e('次回予定', 'drwp-daily-reports'); ?></label></th>
               <td><textarea name="entries[<?php echo (int) $idx; ?>][next_plan]" rows="2" class="large-text"><?php echo esc_textarea((string) $entry->next_plan); ?></textarea></td>
             </tr>
+            <tr><th colspan="2"><em><?php esc_html_e('公開用 (事務所側で記入)', 'drwp-daily-reports'); ?></em></th></tr>
+            <tr>
+              <th><label><?php esc_html_e('公開タイトル', 'drwp-daily-reports'); ?></label></th>
+              <td>
+                <input type="text" name="entries[<?php echo (int) $idx; ?>][public_title]" class="regular-text" value="<?php echo esc_attr((string) ($entry->public_title ?? '')); ?>" />
+                <p class="description"><?php esc_html_e('空欄なら「現場名 - 日付」が自動でタイトルになります。', 'drwp-daily-reports'); ?></p>
+              </td>
+            </tr>
+            <tr>
+              <th><label><?php esc_html_e('公開本文', 'drwp-daily-reports'); ?></label></th>
+              <td>
+                <textarea name="entries[<?php echo (int) $idx; ?>][public_body]" rows="4" class="large-text"><?php echo esc_textarea((string) ($entry->public_body ?? '')); ?></textarea>
+                <p class="description"><?php esc_html_e('空欄なら作業内容が本文に使われます。', 'drwp-daily-reports'); ?></p>
+              </td>
+            </tr>
             <tr>
               <th><label><?php esc_html_e('写真', 'drwp-daily-reports'); ?></label></th>
               <td>
@@ -333,6 +348,21 @@
         <tr>
           <th><label><?php esc_html_e('次回予定', 'drwp-daily-reports'); ?></label></th>
           <td><textarea name="entries[__IDX__][next_plan]" rows="2" class="large-text"></textarea></td>
+        </tr>
+        <tr><th colspan="2"><em><?php esc_html_e('公開用 (事務所側で記入)', 'drwp-daily-reports'); ?></em></th></tr>
+        <tr>
+          <th><label><?php esc_html_e('公開タイトル', 'drwp-daily-reports'); ?></label></th>
+          <td>
+            <input type="text" name="entries[__IDX__][public_title]" class="regular-text" value="" />
+            <p class="description"><?php esc_html_e('空欄なら「現場名 - 日付」が自動でタイトルになります。', 'drwp-daily-reports'); ?></p>
+          </td>
+        </tr>
+        <tr>
+          <th><label><?php esc_html_e('公開本文', 'drwp-daily-reports'); ?></label></th>
+          <td>
+            <textarea name="entries[__IDX__][public_body]" rows="4" class="large-text"></textarea>
+            <p class="description"><?php esc_html_e('空欄なら作業内容が本文に使われます。', 'drwp-daily-reports'); ?></p>
+          </td>
         </tr>
         <tr>
           <th><label><?php esc_html_e('写真', 'drwp-daily-reports'); ?></label></th>

@@ -254,7 +254,15 @@ class DRWP_Post_Converter {
         return $first_post_id;
     }
 
+    /**
+     * Prefer the office-curated public_title when set, otherwise fall
+     * back to "{project_name} - {report_date}" so the post still has
+     * a sensible auto-generated heading before anyone hand-edits it.
+     */
     protected static function entry_post_title($report, $entry) {
+        $public = trim((string) ($entry->public_title ?? ''));
+        if ($public !== '') return $public;
+
         $name = '';
         if (!empty($entry->project_id)) {
             $p = DRWP_Project::find((int) $entry->project_id);
@@ -266,9 +274,21 @@ class DRWP_Post_Converter {
         return implode(' - ', $parts);
     }
 
+    /**
+     * The published post body is, in priority order:
+     *   1. entry.public_body (office-curated rich text)
+     *   2. entry.work_description (field worker's raw notes)
+     * followed by the entry's photo gallery. Falling back to
+     * work_description keeps unedited submissions publishable; the
+     * office editor upgrades them by filling public_body without
+     * losing the original notes (still readable in the admin form).
+     */
     protected static function build_entry_content($entry) {
         $html = '';
-        if (!empty($entry->work_description)) {
+        $public = trim((string) ($entry->public_body ?? ''));
+        if ($public !== '') {
+            $html .= wp_kses_post(wpautop($public));
+        } elseif (!empty($entry->work_description)) {
             $html .= wp_kses_post(wpautop($entry->work_description));
         }
         $photos = DRWP_Media::for_entry((int) $entry->id);
