@@ -22,6 +22,18 @@ its responses with Ed25519 so a tampered status can't unlock features.
   `report_date` and `work_description`, optional 9 more. `project_name`
   values are auto-created in `drwp_projects`.
 
+### Mobile submission (shortcode)
+- `[drwp_report_form]` renders a mobile-first front-end form on any
+  page or post. Field workers log in once on their phone and bookmark
+  the page; the shortcode talks to the REST endpoints with a
+  `wp_rest` nonce.
+- Fields are kept short: project, date, work description, issues,
+  next plan, photos. Photo input declares `capture="environment"` so
+  the phone goes straight to the rear camera; multiple files queue up
+  with thumbnail previews and per-item delete.
+- Submissions are stored with `review_status=pending`, which means
+  they show up in the existing review queue without any extra wiring.
+
 ### Review workflow
 - Review states: `pending` / `approved` / `needs_revision`.
 - Per-report reviewer panel with optional comment.

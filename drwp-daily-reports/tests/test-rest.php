@@ -101,6 +101,53 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         $this->assertSame('更新', $patched->get_data()['public_body']);
     }
 
+    public function test_create_with_attachment_ids_links_photos() {
+        $this->make_admin();
+        $this->activate_license();
+
+        $a1 = self::factory()->attachment->create_object('photo1.jpg', 0, ['post_mime_type' => 'image/jpeg']);
+        $a2 = self::factory()->attachment->create_object('photo2.jpg', 0, ['post_mime_type' => 'image/jpeg']);
+
+        $created = $this->call('POST', '/drwp/v1/reports', [
+            'report_date' => '2026-04-25',
+            'work_description' => 'with photos',
+            'attachment_ids' => [$a1, $a2],
+            'attachment_captions' => ['一枚目', ''],
+        ]);
+        $this->assertSame(201, $created->get_status());
+        $id = $created->get_data()['id'];
+
+        $photos = DRWP_Media::for_report($id);
+        $this->assertCount(2, $photos);
+        $this->assertSame($a1, (int) $photos[0]->attachment_id);
+        $this->assertSame('一枚目', (string) $photos[0]->caption);
+        $this->assertSame($a2, (int) $photos[1]->attachment_id);
+        // Empty caption stored as NULL by DRWP_Media::sync().
+        $this->assertNull($photos[1]->caption);
+    }
+
+    public function test_patch_without_attachment_ids_does_not_clear_existing_photos() {
+        $this->make_admin();
+        $this->activate_license();
+        $a1 = self::factory()->attachment->create_object('p.jpg', 0, ['post_mime_type' => 'image/jpeg']);
+
+        $created = $this->call('POST', '/drwp/v1/reports', [
+            'report_date' => '2026-04-25',
+            'work_description' => 'x',
+            'attachment_ids' => [$a1],
+        ]);
+        $id = $created->get_data()['id'];
+        $this->assertCount(1, DRWP_Media::for_report($id));
+
+        // Metadata-only PATCH must NOT touch the photo link table.
+        $this->call('PATCH', "/drwp/v1/reports/$id", ['public_title' => '更新']);
+        $this->assertCount(1, DRWP_Media::for_report($id));
+
+        // But PATCH with an explicit empty array clears photos.
+        $this->call('PATCH', "/drwp/v1/reports/$id", ['attachment_ids' => []]);
+        $this->assertCount(0, DRWP_Media::for_report($id));
+    }
+
     public function test_review_endpoint_requires_edit_others_posts() {
         $this->make_admin();
         $this->activate_license();
