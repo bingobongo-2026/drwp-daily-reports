@@ -105,6 +105,10 @@ class DRWP_DB {
         // each carrying its own work_description / issues / next_plan
         // and (via $photos.entry_id) its own photo set. project_id on
         // the parent report stays for legacy single-site reports.
+        // public_title / public_body are office-curated, entry-level
+        // overrides used by the post converter. Field workers leave
+        // them blank; the office editor fills them when polishing the
+        // multi-entry submission for publication.
         $entries = $wpdb->prefix . 'drwp_report_entries';
         $sql6 = "CREATE TABLE $entries (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -116,6 +120,8 @@ class DRWP_DB {
             work_description LONGTEXT NULL,
             issues LONGTEXT NULL,
             next_plan LONGTEXT NULL,
+            public_title VARCHAR(255) NULL,
+            public_body LONGTEXT NULL,
             linked_post_id BIGINT UNSIGNED NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

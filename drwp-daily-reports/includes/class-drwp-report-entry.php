@@ -101,6 +101,8 @@ class DRWP_Report_Entry {
             'work_description' => (string) $entry->work_description,
             'issues'           => (string) $entry->issues,
             'next_plan'        => (string) $entry->next_plan,
+            'public_title'     => (string) ($entry->public_title ?? ''),
+            'public_body'      => (string) ($entry->public_body ?? ''),
             'linked_post_id'   => $entry->linked_post_id ? (int) $entry->linked_post_id : null,
             'photos'           => array_map(function ($p) {
                 return [
@@ -126,6 +128,8 @@ class DRWP_Report_Entry {
             'work_description' => isset($row['work_description']) ? wp_kses_post((string) $row['work_description']) : '',
             'issues'           => isset($row['issues']) ? wp_kses_post((string) $row['issues']) : '',
             'next_plan'        => isset($row['next_plan']) ? wp_kses_post((string) $row['next_plan']) : '',
+            'public_title'     => isset($row['public_title']) ? sanitize_text_field((string) $row['public_title']) : '',
+            'public_body'      => isset($row['public_body']) ? wp_kses_post((string) $row['public_body']) : '',
         ];
         return $out;
     }
