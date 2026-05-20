@@ -259,6 +259,33 @@ class DRWP_Admin {
         $saved_photos = DRWP_Media::sync($id, $photos);
         DRWP_Audit::log('photos_updated', '写真を更新', $id, ['count' => $saved_photos]);
 
+        // entries[] is submitted as an array indexed by the form's
+        // current card order. entries_submitted is the explicit
+        // "the form contains an entries section" marker — without it
+        // we'd have no way to tell "no entries" from "entries weren't
+        // edited" and clear the wrong thing.
+        if (!empty($_POST['entries_submitted'])) {
+            $raw_entries = (array) ($_POST['entries'] ?? []);
+            // Preserve form order (the user can drag-sort cards).
+            ksort($raw_entries, SORT_NUMERIC);
+            $entries_to_sync = [];
+            foreach ($raw_entries as $e) {
+                if (!is_array($e)) continue;
+                $entries_to_sync[] = [
+                    'project_id'       => absint($e['project_id'] ?? 0) ?: null,
+                    'started_at'       => sanitize_text_field((string) ($e['started_at'] ?? '')),
+                    'ended_at'         => sanitize_text_field((string) ($e['ended_at'] ?? '')),
+                    'work_description' => wp_kses_post(wp_unslash((string) ($e['work_description'] ?? ''))),
+                    'issues'           => wp_kses_post(wp_unslash((string) ($e['issues'] ?? ''))),
+                    'next_plan'        => wp_kses_post(wp_unslash((string) ($e['next_plan'] ?? ''))),
+                    'attachment_ids'      => array_map('absint', (array) ($e['attachment_ids'] ?? [])),
+                    'attachment_captions' => array_map('sanitize_text_field', array_map('wp_unslash', (array) ($e['attachment_captions'] ?? []))),
+                ];
+            }
+            $kept = DRWP_Report_Entry::sync($id, $entries_to_sync);
+            DRWP_Audit::log('entries_updated', '現場エントリを更新', $id, ['count' => $kept]);
+        }
+
         $fresh = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
         do_action('drwp_report_submitted', $id, $fresh);
 

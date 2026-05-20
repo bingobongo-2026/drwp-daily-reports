@@ -152,65 +152,198 @@
     <?php endif; ?>
   </form>
 
-  <?php if (!empty($entries)): ?>
-    <h2 style="margin-top:24px;"><?php esc_html_e('現場エントリ', 'drwp-daily-reports'); ?></h2>
-    <p class="description">
-      <?php esc_html_e('この日報は複数現場を含みます。エントリはスマホフォームから登録され、記事化時は現場ごとに別記事として作成されます。', 'drwp-daily-reports'); ?>
-    </p>
-    <table class="widefat striped">
-      <thead><tr>
-        <th><?php esc_html_e('現場', 'drwp-daily-reports'); ?></th>
-        <th><?php esc_html_e('時刻', 'drwp-daily-reports'); ?></th>
-        <th><?php esc_html_e('作業内容', 'drwp-daily-reports'); ?></th>
-        <th><?php esc_html_e('写真', 'drwp-daily-reports'); ?></th>
-        <th><?php esc_html_e('生成記事', 'drwp-daily-reports'); ?></th>
-      </tr></thead>
-      <tbody>
-        <?php foreach ($entries as $entry):
-            $proj_name = '-';
-            if (!empty($entry->project_id)) {
-                $p = DRWP_Project::find((int) $entry->project_id);
-                if ($p) $proj_name = $p->name;
-            }
-            $window = '';
-            if (!empty($entry->started_at) || !empty($entry->ended_at)) {
-                $window = trim(substr((string) $entry->started_at, 0, 5) . ' - ' . substr((string) $entry->ended_at, 0, 5), ' -');
-            }
-            $entry_photos = DRWP_Media::for_entry((int) $entry->id);
+  <?php
+    // The entries section needs to be inside the save form because we
+    // post entries[idx][...] alongside the report fields. The form is
+    // already open above (action=drwp_save_report). We render a fresh
+    // <form> only after closing the section.
+  ?>
+  <h2 style="margin-top:24px;"><?php esc_html_e('現場エントリ (複数現場の場合)', 'drwp-daily-reports'); ?></h2>
+  <p class="description">
+    <?php esc_html_e('1 日に複数現場を回った場合は、現場ごとにカードを追加してください。エントリが 1 件以上ある日報は、記事化時に現場ごと別記事として作成されます。', 'drwp-daily-reports'); ?>
+  </p>
+
+  <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" id="drwp-entries-form">
+    <?php wp_nonce_field('drwp_save_report'); ?>
+    <input type="hidden" name="action" value="drwp_save_report" />
+    <input type="hidden" name="id" value="<?php echo esc_attr($report->id ?? 0); ?>" />
+    <input type="hidden" name="entries_submitted" value="1" />
+    <?php
+      // Re-post the parent form's fields so save_report still updates
+      // the report row in one go. This dual-form layout is a UI
+      // compromise — the user fills the top form (flat fields), then
+      // hits "現場エントリも保存" below to commit entries too.
+      $repost = [
+        'project_id'      => $report->project_id ?? '',
+        'report_date'     => $report->report_date ?? current_time('Y-m-d'),
+        'work_description'=> $report->work_description ?? '',
+        'issues'          => $report->issues ?? '',
+        'next_plan'       => $report->next_plan ?? '',
+        'public_title'    => $report->public_title ?? '',
+        'public_intro'    => $report->public_intro ?? '',
+        'public_body'     => $report->public_body ?? '',
+        'public_next_plan'=> $report->public_next_plan ?? '',
+        'post_template'   => $report->post_template ?? 'standard',
+        'post_category_id'=> $report->post_category_id ?? '',
+        'post_tags'       => $report->post_tags ?? '',
+        'post_status'     => $report->post_status ?? 'draft',
+        'scheduled_at'    => !empty($report->scheduled_at) ? date('Y-m-d\TH:i', strtotime($report->scheduled_at)) : '',
+      ];
+      foreach ($repost as $k => $v):
+    ?>
+      <input type="hidden" name="<?php echo esc_attr($k); ?>" value="<?php echo esc_attr((string) $v); ?>" />
+    <?php endforeach; ?>
+
+    <div id="drwp-entries" class="drwp-entries">
+      <?php foreach ($entries as $idx => $entry): ?>
+        <?php
+          $proj_name = '';
+          if (!empty($entry->project_id)) {
+              $p = DRWP_Project::find((int) $entry->project_id);
+              if ($p) $proj_name = $p->name;
+          }
+          $entry_photos = DRWP_Media::for_entry((int) $entry->id);
         ?>
-          <tr>
-            <td><?php echo esc_html($proj_name); ?></td>
-            <td class="mono"><?php echo esc_html($window ?: '-'); ?></td>
-            <td><?php echo wp_kses_post(wpautop((string) $entry->work_description)); ?>
-              <?php if (!empty($entry->issues)): ?>
-                <p class="description"><strong><?php esc_html_e('問題点:', 'drwp-daily-reports'); ?></strong> <?php echo esc_html((string) $entry->issues); ?></p>
-              <?php endif; ?>
-              <?php if (!empty($entry->next_plan)): ?>
-                <p class="description"><strong><?php esc_html_e('次回予定:', 'drwp-daily-reports'); ?></strong> <?php echo esc_html((string) $entry->next_plan); ?></p>
-              <?php endif; ?>
-            </td>
-            <td>
-              <?php foreach ($entry_photos as $ep): ?>
-                <?php $thumb = wp_get_attachment_image_url((int) $ep->attachment_id, 'thumbnail'); ?>
-                <?php if ($thumb): ?>
-                  <img src="<?php echo esc_url($thumb); ?>" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:4px;margin:2px;" />
-                <?php endif; ?>
-              <?php endforeach; ?>
-            </td>
-            <td>
-              <?php if (!empty($entry->linked_post_id)): ?>
+        <div class="drwp-entry" data-idx="<?php echo (int) $idx; ?>">
+          <div class="drwp-entry-head">
+            <strong><?php
+              printf(
+                /* translators: %d: entry order (1-based) */
+                esc_html__('現場 #%d', 'drwp-daily-reports'),
+                $idx + 1
+              );
+            ?></strong>
+            <?php if (!empty($entry->linked_post_id)): ?>
+              <span class="description">
+                <?php esc_html_e('連携記事:', 'drwp-daily-reports'); ?>
                 <a href="<?php echo esc_url(get_edit_post_link((int) $entry->linked_post_id)); ?>">#<?php echo (int) $entry->linked_post_id; ?></a>
-              <?php else: ?> - <?php endif; ?>
-            </td>
-          </tr>
-        <?php endforeach; ?>
-      </tbody>
-    </table>
-  <?php elseif (!empty($report)): ?>
+              </span>
+            <?php endif; ?>
+            <button type="button" class="button button-link-delete drwp-entry-remove">
+              <?php esc_html_e('この現場を削除', 'drwp-daily-reports'); ?>
+            </button>
+          </div>
+          <table class="form-table" role="presentation">
+            <tr>
+              <th><label><?php esc_html_e('現場', 'drwp-daily-reports'); ?></label></th>
+              <td>
+                <select name="entries[<?php echo (int) $idx; ?>][project_id]">
+                  <option value=""><?php esc_html_e('（未設定）', 'drwp-daily-reports'); ?></option>
+                  <?php foreach (($projects ?? []) as $project): ?>
+                    <option value="<?php echo esc_attr($project->id); ?>" <?php selected((int) $entry->project_id, (int) $project->id); ?>>
+                      <?php echo esc_html($project->name); ?>
+                    </option>
+                  <?php endforeach; ?>
+                </select>
+              </td>
+            </tr>
+            <tr>
+              <th><label><?php esc_html_e('時刻', 'drwp-daily-reports'); ?></label></th>
+              <td>
+                <input type="time" name="entries[<?php echo (int) $idx; ?>][started_at]" value="<?php echo esc_attr(substr((string) $entry->started_at, 0, 5)); ?>" />
+                〜
+                <input type="time" name="entries[<?php echo (int) $idx; ?>][ended_at]" value="<?php echo esc_attr(substr((string) $entry->ended_at, 0, 5)); ?>" />
+              </td>
+            </tr>
+            <tr>
+              <th><label><?php esc_html_e('作業内容', 'drwp-daily-reports'); ?></label></th>
+              <td><textarea name="entries[<?php echo (int) $idx; ?>][work_description]" rows="4" class="large-text"><?php echo esc_textarea((string) $entry->work_description); ?></textarea></td>
+            </tr>
+            <tr>
+              <th><label><?php esc_html_e('問題点', 'drwp-daily-reports'); ?></label></th>
+              <td><textarea name="entries[<?php echo (int) $idx; ?>][issues]" rows="2" class="large-text"><?php echo esc_textarea((string) $entry->issues); ?></textarea></td>
+            </tr>
+            <tr>
+              <th><label><?php esc_html_e('次回予定', 'drwp-daily-reports'); ?></label></th>
+              <td><textarea name="entries[<?php echo (int) $idx; ?>][next_plan]" rows="2" class="large-text"><?php echo esc_textarea((string) $entry->next_plan); ?></textarea></td>
+            </tr>
+            <tr>
+              <th><label><?php esc_html_e('写真', 'drwp-daily-reports'); ?></label></th>
+              <td>
+                <button type="button" class="button drwp-entry-pick"><?php esc_html_e('メディアライブラリから追加', 'drwp-daily-reports'); ?></button>
+                <div class="drwp-entry-photos" data-role="photos">
+                  <?php foreach ($entry_photos as $photo): ?>
+                    <?php $thumb = wp_get_attachment_image_url((int) $photo->attachment_id, 'thumbnail'); ?>
+                    <div class="drwp-photo-item">
+                      <a href="#" class="drwp-photo-remove" aria-label="<?php esc_attr_e('削除', 'drwp-daily-reports'); ?>">×</a>
+                      <?php if ($thumb): ?>
+                        <img src="<?php echo esc_url($thumb); ?>" alt="" />
+                      <?php endif; ?>
+                      <input type="hidden" name="entries[<?php echo (int) $idx; ?>][attachment_ids][]" value="<?php echo (int) $photo->attachment_id; ?>" />
+                      <input type="text" name="entries[<?php echo (int) $idx; ?>][attachment_captions][]" class="drwp-photo-caption" placeholder="<?php esc_attr_e('キャプション', 'drwp-daily-reports'); ?>" value="<?php echo esc_attr((string) ($photo->caption ?? '')); ?>" />
+                    </div>
+                  <?php endforeach; ?>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </div>
+      <?php endforeach; ?>
+    </div>
+
+    <p>
+      <button type="button" class="button" id="drwp-entry-add">+ <?php esc_html_e('現場を追加', 'drwp-daily-reports'); ?></button>
+    </p>
+
+    <?php submit_button(__('現場エントリも保存', 'drwp-daily-reports'), 'primary', 'submit-entries'); ?>
+  </form>
+
+  <?php if (empty($entries) && !empty($report)): ?>
     <?php echo DRWP_Post_Converter::build_preview_html($report); ?>
-  <?php else: ?>
+  <?php elseif (empty($report)): ?>
     <div class="notice notice-info"><p><?php esc_html_e('保存するとここに公開プレビューが表示されます。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>
+
+  <template id="drwp-entry-template">
+    <div class="drwp-entry" data-idx="__IDX__">
+      <div class="drwp-entry-head">
+        <strong><?php esc_html_e('現場 #__N__', 'drwp-daily-reports'); ?></strong>
+        <button type="button" class="button button-link-delete drwp-entry-remove">
+          <?php esc_html_e('この現場を削除', 'drwp-daily-reports'); ?>
+        </button>
+      </div>
+      <table class="form-table" role="presentation">
+        <tr>
+          <th><label><?php esc_html_e('現場', 'drwp-daily-reports'); ?></label></th>
+          <td>
+            <select name="entries[__IDX__][project_id]">
+              <option value=""><?php esc_html_e('（未設定）', 'drwp-daily-reports'); ?></option>
+              <?php foreach (($projects ?? []) as $project): ?>
+                <option value="<?php echo esc_attr($project->id); ?>"><?php echo esc_html($project->name); ?></option>
+              <?php endforeach; ?>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <th><label><?php esc_html_e('時刻', 'drwp-daily-reports'); ?></label></th>
+          <td>
+            <input type="time" name="entries[__IDX__][started_at]" />
+            〜
+            <input type="time" name="entries[__IDX__][ended_at]" />
+          </td>
+        </tr>
+        <tr>
+          <th><label><?php esc_html_e('作業内容', 'drwp-daily-reports'); ?></label></th>
+          <td><textarea name="entries[__IDX__][work_description]" rows="4" class="large-text"></textarea></td>
+        </tr>
+        <tr>
+          <th><label><?php esc_html_e('問題点', 'drwp-daily-reports'); ?></label></th>
+          <td><textarea name="entries[__IDX__][issues]" rows="2" class="large-text"></textarea></td>
+        </tr>
+        <tr>
+          <th><label><?php esc_html_e('次回予定', 'drwp-daily-reports'); ?></label></th>
+          <td><textarea name="entries[__IDX__][next_plan]" rows="2" class="large-text"></textarea></td>
+        </tr>
+        <tr>
+          <th><label><?php esc_html_e('写真', 'drwp-daily-reports'); ?></label></th>
+          <td>
+            <button type="button" class="button drwp-entry-pick"><?php esc_html_e('メディアライブラリから追加', 'drwp-daily-reports'); ?></button>
+            <div class="drwp-entry-photos" data-role="photos"></div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </template>
 
   <?php if (!empty($report->id)): ?>
 
