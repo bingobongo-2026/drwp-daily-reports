@@ -15,7 +15,17 @@
  */
 (function () {
     var config = window.drwpMformConfig;
-    if (!config) return;
+    if (!config) {
+        // Surface this loudly instead of silently bailing — if you
+        // landed here, the PHP side didn't get a chance to emit the
+        // config (e.g. an aggressive page-cache stripped the inline
+        // <script> chunk). Silent return is what made the original
+        // bug invisible.
+        if (window.console && window.console.warn) {
+            window.console.warn('drwp-mform: window.drwpMformConfig is missing — config script tag did not run.');
+        }
+        return;
+    }
 
     var form = document.getElementById('drwp-mform');
     if (!form) return;
