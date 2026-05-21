@@ -1,0 +1,24 @@
+.drwp-login-wrap {
+    max-width: 420px; margin: 0 auto; padding: 24px;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+}
+.drwp-login-wrap label { display: block; margin: 14px 0 4px; font-weight: 600; }
+.drwp-login-wrap .login-username input,
+.drwp-login-wrap .login-password input {
+    width: 100%; box-sizing: border-box; font: inherit; font-size: 16px;
+    padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px;
+    background: #fff;
+}
+.drwp-login-wrap .login-remember { margin: 14px 0; font-weight: 400; }
+.drwp-login-wrap .login-remember input { margin-right: 6px; }
+.drwp-login-wrap .login-submit input,
+.drwp-login-wrap .login-submit button {
+    width: 100%; padding: 14px; border: 0; border-radius: 10px;
+    background: #111827; color: #fff; font-size: 1rem; font-weight: 700;
+    cursor: pointer;
+}
+.drwp-login-wrap .login-submit input:hover,
+.drwp-login-wrap .login-submit button:hover { background: #1f2937; }
+.drwp-login-lost { margin-top: 16px; text-align: center; font-size: 0.9rem; }
+.drwp-login-lost a { color: #475569; }
+.drwp-login-already { font-size: 1rem; }
