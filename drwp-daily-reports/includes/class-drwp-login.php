@@ -70,12 +70,22 @@ class DRWP_Login {
             );
         }
 
-        // Honour redirect_to so the user lands where they were
-        // headed when WordPress bounced them through login. Default
-        // to admin so field workers reach the dashboard.
-        $redirect_to = !empty($_GET['redirect_to'])
-            ? esc_url_raw(wp_unslash($_GET['redirect_to']))
-            : admin_url('admin.php?page=drwp_reports');
+        // redirect_to fallback chain:
+        //   1. ?redirect_to=... query (used when WP bounced the
+        //      user here from somewhere with a specific destination)
+        //   2. the current page itself (useful when this shortcode
+        //      lives on the same page as [drwp_report_form] — the
+        //      field worker logs in and stays on the form rather
+        //      than being kicked into /wp-admin)
+        //   3. the admin reports list as a generic fallback for
+        //      operators who land on the login page directly
+        if (!empty($_GET['redirect_to'])) {
+            $redirect_to = esc_url_raw(wp_unslash($_GET['redirect_to']));
+        } elseif (is_singular() && ($permalink = get_permalink())) {
+            $redirect_to = $permalink;
+        } else {
+            $redirect_to = admin_url('admin.php?page=drwp_reports');
+        }
 
         $form = wp_login_form([
             'echo'           => false,
