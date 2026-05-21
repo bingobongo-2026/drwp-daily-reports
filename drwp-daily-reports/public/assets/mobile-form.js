@@ -14,18 +14,28 @@
  * PHP-side render() call.
  */
 (function () {
-    var config = window.drwpMformConfig;
-    if (!config) {
-        // Surface this loudly instead of silently bailing — if you
-        // landed here, the PHP side didn't get a chance to emit the
-        // config (e.g. an aggressive page-cache stripped the inline
-        // <script> chunk). Silent return is what made the original
-        // bug invisible.
+    // Config rides on the wrapper element's data attribute. This
+    // sidesteps every plugin-mediated <script> transport (inline,
+    // localize, add_inline_script) that page-cache / asset-optimizer
+    // layers have been observed to strip in production. If the HTML
+    // is on the page, the config is on the page.
+    var wrap = document.querySelector('.drwp-mform-wrap[data-drwp-mform-config]');
+    if (!wrap) {
         if (window.console && window.console.warn) {
-            window.console.warn('drwp-mform: window.drwpMformConfig is missing — config script tag did not run.');
+            window.console.warn('drwp-mform: wrapper with data-drwp-mform-config not found on page.');
         }
         return;
     }
+    var config;
+    try {
+        config = JSON.parse(wrap.getAttribute('data-drwp-mform-config'));
+    } catch (e) {
+        if (window.console && window.console.error) {
+            window.console.error('drwp-mform: failed to parse config JSON:', e);
+        }
+        return;
+    }
+    if (!config) return;
 
     var form = document.getElementById('drwp-mform');
     if (!form) return;

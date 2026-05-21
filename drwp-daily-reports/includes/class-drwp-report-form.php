@@ -105,21 +105,23 @@ class DRWP_Report_Form {
 
         wp_enqueue_style(self::HANDLE);
         wp_enqueue_script(self::HANDLE);
-        // wp_localize_script emits `var drwpMformConfig = {...};` as
-        // its own <script> tag adjacent to the main one. We tried
-        // wp_add_inline_script('...','before') first, but a number of
-        // page-cache / asset-optimization plugins (Autoptimize,
-        // LiteSpeed Cache, etc.) silently drop the "before" inline
-        // chunk while still emitting the main src tag. localize_script
-        // goes through the older "extra data" code path that those
-        // plugins respect, so it lands reliably. The downside (a
-        // top-level `var`) is exactly what the mobile-form JS reads
-        // as window.drwpMformConfig anyway.
-        wp_localize_script(self::HANDLE, 'drwpMformConfig', $config);
+        // Config rides on a data-attribute on the wrapper element
+        // rather than going through wp_localize_script /
+        // wp_add_inline_script. Earlier attempts via those code
+        // paths landed in production environments where a page-cache
+        // or asset-optimization layer (LiteSpeed Cache and similar)
+        // stripped the auxiliary <script> chunk while keeping the
+        // main <script src> — config never reached the browser, the
+        // JS bailed silently, the form was dead. Embedding the JSON
+        // in the rendered HTML itself removes every plugin-mediated
+        // transport step: if the form HTML is on the page, the
+        // config is on the page.
+        $config_attr = wp_json_encode($config);
+        if ($config_attr === false) $config_attr = '{}';
 
         ob_start();
         ?>
-        <div class="drwp-mform-wrap">
+        <div class="drwp-mform-wrap" data-drwp-mform-config="<?php echo esc_attr($config_attr); ?>">
             <?php if (!$config['license_ok']) : ?>
                 <p class="drwp-mform-warn">
                     <?php esc_html_e('現在ライセンスが有効ではないため、送信しても保存されません。管理者に確認してください。', 'drwp-daily-reports'); ?>
