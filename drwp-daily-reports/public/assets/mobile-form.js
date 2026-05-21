@@ -148,9 +148,17 @@
     }
 
     function renumberEntries() {
+        // entries.length == 1 means there's nothing to remove —
+        // hiding the button (rather than disabling the click handler)
+        // makes the available action obvious at a glance, especially
+        // on the first submission where the worker hasn't yet
+        // discovered that adding a card unlocks removal.
+        var canRemove = entries.length > 1;
         entries.forEach(function (rec, i) {
             var t = rec.el.querySelector('[data-role=entry-title]');
             t.textContent = i18n.entry_label + ' #' + (i + 1);
+            var btn = rec.el.querySelector('.remove');
+            if (btn) btn.style.display = canRemove ? '' : 'none';
         });
     }
 
@@ -173,13 +181,28 @@
         });
     }
 
+    // Cache the submit button's resting label once so we can restore
+    // it after switching to a "sending…" indicator. Reading from the
+    // DOM each time would pick up the indicator text instead.
+    var submitDefaultLabel = (submitBtn.textContent || '').trim();
+
+    function startSending() {
+        submitBtn.disabled = true;
+        submitBtn.textContent = i18n.sending;
+        setStatus('');   // clear any prior success banner
+    }
+    function stopSending() {
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitDefaultLabel;
+    }
+
     form.addEventListener('submit', function (e) {
         e.preventDefault();
-        submitBtn.disabled = true;
+        startSending();
 
         if (!entries.length) {
             setStatus(i18n.need_entry, 'err');
-            submitBtn.disabled = false;
+            stopSending();
             return;
         }
 
@@ -190,12 +213,12 @@
             var work = rec.el.querySelector('textarea[name=work_description]').value.trim();
             if (!projectId) {
                 setStatus('#' + (i + 1) + ' ' + i18n.need_project, 'err');
-                submitBtn.disabled = false;
+                stopSending();
                 return;
             }
             if (!work) {
                 setStatus('#' + (i + 1) + ' ' + i18n.need_work, 'err');
-                submitBtn.disabled = false;
+                stopSending();
                 return;
             }
             entryPayloads.push({
@@ -260,10 +283,15 @@
             entries = [];
             addEntry();
             form.report_date.value = config.today;
-            submitBtn.disabled = false;
+            stopSending();
+            // After resetting the form, the success banner stays at
+            // the bottom — scroll it into view so the worker isn't
+            // left staring at an empty re-populated form wondering
+            // whether the previous submission went through.
+            status.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }).catch(function (err) {
             setStatus(err && err.message ? err.message : i18n.send_failed, 'err');
-            submitBtn.disabled = false;
+            stopSending();
         });
     });
 })();
