@@ -20,11 +20,47 @@ if (!defined('ABSPATH')) exit;
  *   - has the edit_posts capability (Contributor or higher)
  *   - the plugin's license is active or in grace, otherwise the
  *     REST POST returns 402 and we surface the message verbatim
+ *
+ * Assets:
+ *   The JS and CSS live in /public/assets/ and are loaded via
+ *   wp_enqueue_script / wp_enqueue_style. Earlier the same code
+ *   was emitted inline from the shortcode's return string and
+ *   reliably got mangled by wpautop running over the_content
+ *   (the inserted <p> / <br /> inside the <script> block produced
+ *   "Uncaught SyntaxError: Invalid or unexpected token" in the
+ *   browser and the form did nothing). Enqueueing real files
+ *   sidesteps wpautop completely.
  */
 class DRWP_Report_Form {
 
+    const HANDLE = 'drwp-mform';
+
     public static function init() {
         add_shortcode('drwp_report_form', [__CLASS__, 'render']);
+        add_action('wp_enqueue_scripts', [__CLASS__, 'register_assets']);
+    }
+
+    /**
+     * Pre-register the script/style on wp_enqueue_scripts. We don't
+     * enqueue here — only the shortcode knows whether the page
+     * actually needs the form — but registering early means
+     * render() can pull them in cleanly without needing to do its
+     * own register().
+     */
+    public static function register_assets() {
+        wp_register_style(
+            self::HANDLE,
+            DRWP_URL . 'public/assets/mobile-form.css',
+            [],
+            DRWP_VERSION
+        );
+        wp_register_script(
+            self::HANDLE,
+            DRWP_URL . 'public/assets/mobile-form.js',
+            [],
+            DRWP_VERSION,
+            true   // footer — config is attached via add_inline_script "before"
+        );
     }
 
     public static function render($atts = [], $content = '') {
@@ -67,6 +103,20 @@ class DRWP_Report_Form {
             ],
         ];
 
+        wp_enqueue_style(self::HANDLE);
+        wp_enqueue_script(self::HANDLE);
+        // Use add_inline_script (printed in a separate <script> tag
+        // adjacent to the main one) rather than localize_script — the
+        // latter requires an object name and emits a `var X = {...};`
+        // form, but routing through add_inline_script means we keep
+        // the data + behavior split clearly visible in the rendered
+        // page source.
+        wp_add_inline_script(
+            self::HANDLE,
+            'window.drwpMformConfig = ' . wp_json_encode($config) . ';',
+            'before'
+        );
+
         ob_start();
         ?>
         <div class="drwp-mform-wrap">
@@ -99,14 +149,6 @@ class DRWP_Report_Form {
                 <div class="drwp-mform-status" data-role="status" aria-live="polite"></div>
             </form>
         </div>
-
-        <style><?php echo self::css(); ?></style>
-        <script>
-            (function () {
-                var config = <?php echo wp_json_encode($config); ?>;
-                <?php echo self::js(); ?>
-            })();
-        </script>
         <?php
         return ob_get_clean();
     }
@@ -124,311 +166,5 @@ class DRWP_Report_Form {
 
     private static function wrap($inner) {
         return '<div class="drwp-mform-wrap">' . $inner . '</div>';
-    }
-
-    private static function css() {
-        return <<<CSS
-.drwp-mform-wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
-.drwp-mform-warn { background: #fef3c7; color: #92400e; padding: 10px 14px; border-radius: 8px; }
-.drwp-mform { display: flex; flex-direction: column; gap: 14px; }
-.drwp-mform-row { display: flex; flex-direction: column; gap: 6px; }
-.drwp-mform-label { font-weight: 600; font-size: 0.95rem; }
-.drwp-mform-label em { color: #b91c1c; font-style: normal; }
-.drwp-mform input[type=date],
-.drwp-mform input[type=time],
-.drwp-mform select,
-.drwp-mform textarea {
-    width: 100%; box-sizing: border-box; font: inherit; font-size: 16px;
-    padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff;
-}
-.drwp-mform textarea { resize: vertical; }
-.drwp-mform-entries { display: flex; flex-direction: column; gap: 14px; }
-.drwp-mform-entry {
-    border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px;
-    background: #f8fafc; display: flex; flex-direction: column; gap: 12px;
-}
-.drwp-mform-entry-head {
-    display: flex; justify-content: space-between; align-items: center;
-    font-weight: 700; font-size: 1rem; color: #0f172a;
-}
-.drwp-mform-entry-head .remove {
-    background: transparent; color: #b91c1c; border: 1px solid #fecaca;
-    padding: 6px 10px; border-radius: 8px; font: inherit; font-size: 0.85rem; cursor: pointer;
-}
-.drwp-mform-times { display: flex; gap: 8px; }
-.drwp-mform-times .col { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: #475569; }
-.drwp-mform-photo-pick {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    min-height: 56px; padding: 12px 16px; border: 2px dashed #94a3b8; border-radius: 10px;
-    background: #fff; color: #475569; cursor: pointer; font-weight: 600;
-}
-.drwp-mform-photo-pick input { display: none; }
-.drwp-mform-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
-.drwp-mform-photos:empty { display: none; }
-.drwp-mform-photos .item { position: relative; padding-top: 100%; border-radius: 8px; overflow: hidden; background: #e5e7eb; }
-.drwp-mform-photos .item img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.drwp-mform-photos .item button {
-    position: absolute; top: 4px; right: 4px;
-    width: 28px; height: 28px; border-radius: 999px; border: 0;
-    background: rgba(0,0,0,.6); color: #fff; font-size: 18px; line-height: 1; cursor: pointer;
-}
-.drwp-mform-add {
-    padding: 14px; border: 2px dashed #94a3b8; border-radius: 12px;
-    background: transparent; color: #1f2937; font-size: 1rem; font-weight: 700; cursor: pointer;
-}
-.drwp-mform-submit {
-    margin-top: 6px; padding: 16px; border: 0; border-radius: 12px;
-    background: #111827; color: #fff; font-size: 1.05rem; font-weight: 700; cursor: pointer;
-}
-.drwp-mform-submit:disabled { opacity: 0.6; cursor: progress; }
-.drwp-mform-help { font-size: 0.85rem; color: #64748b; }
-.drwp-mform-status { min-height: 24px; padding: 8px 0; font-size: 0.95rem; }
-.drwp-mform-status.ok { color: #166534; }
-.drwp-mform-status.err { color: #991b1b; }
-CSS;
-    }
-
-    /**
-     * Inline JS. No bundler, no globals. Each entry owns its own
-     * pending photo list so uploads and the post payload stay
-     * aligned. The "+" button appends a new entry; the per-entry
-     * remove button drops it (last entry can't be removed — we
-     * always keep one card so the form doesn't go blank).
-     */
-    private static function js() {
-        return <<<JS
-var form = document.getElementById('drwp-mform');
-if (!form) return;
-
-var entriesEl = form.querySelector('[data-role=entries]');
-var status    = form.querySelector('[data-role=status]');
-var submitBtn = form.querySelector('.drwp-mform-submit');
-var addBtn    = form.querySelector('[data-role=add-entry]');
-var i18n      = config.i18n;
-var entries   = [];   // [{ data: HTMLElement, pendingFiles: File[] }]
-
-function setStatus(text, cls) {
-    status.textContent = text || '';
-    status.className = 'drwp-mform-status' + (cls ? ' ' + cls : '');
-}
-
-function projectOptions(selected) {
-    var html = '<option value="">' + escapeHtml(i18n.pick_project) + '</option>';
-    config.projects.forEach(function (p) {
-        var sel = (selected && Number(selected) === p.id) ? ' selected' : '';
-        html += '<option value="' + p.id + '"' + sel + '>' + escapeHtml(p.name) + '</option>';
-    });
-    return html;
-}
-
-function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
-        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
-    });
-}
-
-function addEntry() {
-    var idx = entries.length + 1;
-    var el = document.createElement('div');
-    el.className = 'drwp-mform-entry';
-    el.innerHTML =
-        '<div class="drwp-mform-entry-head">' +
-            '<span data-role="entry-title">' + escapeHtml(i18n.entry_label) + ' #' + idx + '</span>' +
-            '<button type="button" class="remove">' + escapeHtml(i18n.remove_entry) + '</button>' +
-        '</div>' +
-        '<label class="drwp-mform-row">' +
-            '<span class="drwp-mform-label">' + escapeHtml(i18n.entry_label) + ' <em>*</em></span>' +
-            '<select name="project_id" required>' + projectOptions() + '</select>' +
-        '</label>' +
-        '<div class="drwp-mform-times">' +
-            '<label class="col">' + escapeHtml(i18n.started) + '<input type="time" name="started_at"></label>' +
-            '<label class="col">' + escapeHtml(i18n.ended)   + '<input type="time" name="ended_at"></label>' +
-        '</div>' +
-        '<label class="drwp-mform-row">' +
-            '<span class="drwp-mform-label">' + escapeHtml(i18n.work) + ' <em>*</em></span>' +
-            '<textarea name="work_description" rows="4" required></textarea>' +
-        '</label>' +
-        '<label class="drwp-mform-row">' +
-            '<span class="drwp-mform-label">' + escapeHtml(i18n.issues) + '</span>' +
-            '<textarea name="issues" rows="2"></textarea>' +
-        '</label>' +
-        '<label class="drwp-mform-row">' +
-            '<span class="drwp-mform-label">' + escapeHtml(i18n.next) + '</span>' +
-            '<textarea name="next_plan" rows="2"></textarea>' +
-        '</label>' +
-        '<div class="drwp-mform-row">' +
-            '<span class="drwp-mform-label">' + escapeHtml(i18n.photos) + '</span>' +
-            '<label class="drwp-mform-photo-pick"><span>' + escapeHtml(i18n.pick_photos) + '</span>' +
-                '<input type="file" accept="image/*" capture="environment" multiple data-role="entry-photos">' +
-            '</label>' +
-            '<div class="drwp-mform-photos" data-role="entry-preview"></div>' +
-        '</div>';
-
-    entriesEl.appendChild(el);
-    var rec = { el: el, pendingFiles: [] };
-    entries.push(rec);
-
-    var fileInput = el.querySelector('[data-role=entry-photos]');
-    var preview = el.querySelector('[data-role=entry-preview]');
-
-    fileInput.addEventListener('change', function () {
-        for (var i = 0; i < fileInput.files.length; i++) rec.pendingFiles.push(fileInput.files[i]);
-        fileInput.value = '';
-        renderEntryPreview(rec, preview);
-    });
-
-    el.querySelector('.remove').addEventListener('click', function () {
-        if (entries.length === 1) return;  // always keep one
-        entries = entries.filter(function (e) { return e !== rec; });
-        el.parentNode.removeChild(el);
-        renumberEntries();
-    });
-
-    renumberEntries();
-}
-
-function renderEntryPreview(rec, preview) {
-    preview.innerHTML = '';
-    rec.pendingFiles.forEach(function (file, idx) {
-        var item = document.createElement('div');
-        item.className = 'item';
-        var img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
-        item.appendChild(img);
-        var del = document.createElement('button');
-        del.type = 'button';
-        del.textContent = '×';
-        del.onclick = function () {
-            rec.pendingFiles.splice(idx, 1);
-            renderEntryPreview(rec, preview);
-        };
-        item.appendChild(del);
-        preview.appendChild(item);
-    });
-}
-
-function renumberEntries() {
-    entries.forEach(function (rec, i) {
-        var t = rec.el.querySelector('[data-role=entry-title]');
-        t.textContent = i18n.entry_label + ' #' + (i + 1);
-    });
-}
-
-addBtn.addEventListener('click', addEntry);
-addEntry();  // start with one
-
-function uploadOne(file) {
-    var body = new FormData();
-    body.append('file', file, file.name);
-    return fetch(config.rest_root + 'upload-photo', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'X-WP-Nonce': config.nonce },
-        body: body
-    }).then(function (r) {
-        return r.json().then(function (j) {
-            if (!r.ok) throw new Error((j && j.message) || ('upload failed HTTP ' + r.status));
-            return j.id;
-        });
-    });
-}
-
-form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    submitBtn.disabled = true;
-
-    if (!entries.length) {
-        setStatus(i18n.need_entry, 'err');
-        submitBtn.disabled = false;
-        return;
-    }
-
-    // Validate every entry up-front so we don't run uploads only to
-    // fail at the final POST.
-    var entryPayloads = [];
-    for (var i = 0; i < entries.length; i++) {
-        var rec = entries[i];
-        var projectId = Number(rec.el.querySelector('select[name=project_id]').value) || 0;
-        var work = rec.el.querySelector('textarea[name=work_description]').value.trim();
-        if (!projectId) {
-            setStatus('#' + (i + 1) + ' ' + i18n.need_project, 'err');
-            submitBtn.disabled = false;
-            return;
-        }
-        if (!work) {
-            setStatus('#' + (i + 1) + ' ' + i18n.need_work, 'err');
-            submitBtn.disabled = false;
-            return;
-        }
-        entryPayloads.push({
-            project_id:       projectId,
-            started_at:       rec.el.querySelector('input[name=started_at]').value || null,
-            ended_at:         rec.el.querySelector('input[name=ended_at]').value || null,
-            work_description: work,
-            issues:           rec.el.querySelector('textarea[name=issues]').value || '',
-            next_plan:        rec.el.querySelector('textarea[name=next_plan]').value || '',
-            _files:           rec.pendingFiles
-        });
-    }
-
-    var totalPhotos = entryPayloads.reduce(function (a, e) { return a + e._files.length; }, 0);
-    var uploaded = 0;
-    var chain = Promise.resolve();
-    entryPayloads.forEach(function (ep) {
-        ep.attachment_ids = [];
-        ep._files.forEach(function (file) {
-            chain = chain.then(function () {
-                setStatus(i18n.uploading + ' (' + (uploaded + 1) + '/' + totalPhotos + ')');
-                return uploadOne(file).then(function (id) {
-                    ep.attachment_ids.push(id);
-                    uploaded++;
-                });
-            });
-        });
-    });
-
-    chain.then(function () {
-        setStatus(i18n.sending);
-        return fetch(config.rest_root + 'reports', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-WP-Nonce': config.nonce
-            },
-            body: JSON.stringify({
-                report_date: form.report_date.value || config.today,
-                entries: entryPayloads.map(function (ep) {
-                    return {
-                        project_id:       ep.project_id,
-                        started_at:       ep.started_at,
-                        ended_at:         ep.ended_at,
-                        work_description: ep.work_description,
-                        issues:           ep.issues,
-                        next_plan:        ep.next_plan,
-                        attachment_ids:   ep.attachment_ids
-                    };
-                })
-            })
-        }).then(function (r) {
-            return r.json().then(function (j) {
-                if (!r.ok) throw new Error((j && j.message) || ('HTTP ' + r.status));
-                return j;
-            });
-        });
-    }).then(function (report) {
-        setStatus(i18n.sent + ' (#' + report.id + ')', 'ok');
-        // Clear all entries and start fresh with one.
-        entriesEl.innerHTML = '';
-        entries = [];
-        addEntry();
-        form.report_date.value = config.today;
-        submitBtn.disabled = false;
-    }).catch(function (err) {
-        setStatus(err && err.message ? err.message : i18n.send_failed, 'err');
-        submitBtn.disabled = false;
-    });
-});
-JS;
     }
 }
