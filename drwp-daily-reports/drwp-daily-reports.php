@@ -21,8 +21,7 @@ require_once DRWP_PATH . 'includes/class-drwp-project.php';
 require_once DRWP_PATH . 'includes/class-drwp-audit.php';
 require_once DRWP_PATH . 'includes/class-drwp-audit-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-comment.php';
-require_once DRWP_PATH . 'includes/class-drwp-review.php';
-require_once DRWP_PATH . 'includes/class-drwp-media.php';
+require_once DRWP_PATH . 'includes/class-drwp-review.php';require_once DRWP_PATH . 'includes/class-drwp-media.php';
 require_once DRWP_PATH . 'includes/class-drwp-report-entry.php';
 require_once DRWP_PATH . 'includes/class-drwp-dashboard.php';
 require_once DRWP_PATH . 'includes/class-drwp-csv-import.php';
@@ -35,6 +34,7 @@ require_once DRWP_PATH . 'includes/class-drwp-output-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-post-converter.php';
 require_once DRWP_PATH . 'includes/class-drwp-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-report-form.php';
+require_once DRWP_PATH . 'includes/class-drwp-login.php';
 
 if (defined('WP_CLI') && WP_CLI) {
     require_once DRWP_PATH . 'includes/class-drwp-cli.php';
@@ -58,4 +58,5 @@ add_action('plugins_loaded', function () {
     DRWP_Notifications_Admin::init();
     DRWP_Output_Admin::init();
     DRWP_Report_Form::init();
+    DRWP_Login::init();
 });
