@@ -59,7 +59,7 @@ class DRWP_Report_Form {
             DRWP_URL . 'public/assets/mobile-form.js',
             [],
             DRWP_VERSION,
-            true   // footer — config is attached via add_inline_script "before"
+            true   // footer — wp_localize_script emits the config tag right before the main src
         );
     }
 
@@ -105,17 +105,17 @@ class DRWP_Report_Form {
 
         wp_enqueue_style(self::HANDLE);
         wp_enqueue_script(self::HANDLE);
-        // Use add_inline_script (printed in a separate <script> tag
-        // adjacent to the main one) rather than localize_script — the
-        // latter requires an object name and emits a `var X = {...};`
-        // form, but routing through add_inline_script means we keep
-        // the data + behavior split clearly visible in the rendered
-        // page source.
-        wp_add_inline_script(
-            self::HANDLE,
-            'window.drwpMformConfig = ' . wp_json_encode($config) . ';',
-            'before'
-        );
+        // wp_localize_script emits `var drwpMformConfig = {...};` as
+        // its own <script> tag adjacent to the main one. We tried
+        // wp_add_inline_script('...','before') first, but a number of
+        // page-cache / asset-optimization plugins (Autoptimize,
+        // LiteSpeed Cache, etc.) silently drop the "before" inline
+        // chunk while still emitting the main src tag. localize_script
+        // goes through the older "extra data" code path that those
+        // plugins respect, so it lands reliably. The downside (a
+        // top-level `var`) is exactly what the mobile-form JS reads
+        // as window.drwpMformConfig anyway.
+        wp_localize_script(self::HANDLE, 'drwpMformConfig', $config);
 
         ob_start();
         ?>
