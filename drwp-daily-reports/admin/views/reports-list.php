@@ -76,9 +76,9 @@
         <option value="bulk_export_csv"><?php esc_html_e('選択した日報をCSV出力', 'drwp-daily-reports'); ?></option>
       </select>
       <select name="bulk_post_template">
-        <option value="standard">standard</option>
-        <option value="site_report">site_report</option>
-        <option value="before_after">before_after</option>
+        <?php foreach (DRWP_Labels::post_template_options() as $key => $label): ?>
+          <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option>
+        <?php endforeach; ?>
       </select>
       <?php
         wp_dropdown_categories([
