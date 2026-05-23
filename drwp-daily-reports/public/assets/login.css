@@ -22,40 +22,35 @@
 .drwp-login-lost { margin-top: 16px; text-align: center; font-size: 0.9rem; }
 .drwp-login-lost a { color: #475569; }
 
-/* Logged-in indicator bar — pinned to the top of the viewport so the
-   worker can confirm their identity at any scroll position. Sits below
-   the WP admin bar when present (default 32px desktop, 46px ≤782px). */
+/* Logged-in indicator bar — flows inline at the position where the
+   [drwp_login_form] shortcode was placed in the page. The earlier
+   version pinned this to the viewport with position:fixed so it
+   would always be visible, but on themes with their own site
+   header that fixed bar slid behind / on top of the header and
+   looked broken. Keeping it in normal document flow trades "always
+   visible while scrolling" for "fits inside whatever the theme's
+   content column is." The operator places the shortcode at the
+   top of the page in the editor so the bar appears above the
+   report form. */
 .drwp-login-bar {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 100;
     display: flex; gap: 12px; justify-content: flex-end; align-items: center;
-    padding: 8px 16px;
+    padding: 10px 16px;
+    margin: 0 auto 16px;
+    max-width: 640px;
     background: #fff;
-    border-bottom: 1px solid #e2e8f0;
-    font-size: 0.9rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 0.95rem;
     color: #334155;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 .drwp-login-bar-text { font-weight: 600; }
 .drwp-login-bar-logout {
     color: #1f2937;
     text-decoration: none;
-    padding: 4px 10px;
+    padding: 4px 12px;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
     font-size: 0.85rem;
 }
 .drwp-login-bar-logout:hover { background: #f8fafc; }
-body.admin-bar .drwp-login-bar { top: 32px; }
-@media (max-width: 782px) {
-    body.admin-bar .drwp-login-bar { top: 46px; }
-}
-/* Reserve space at the top of the document so the fixed bar doesn't
-   cover the first paragraph of page content. The bar's intrinsic
-   height is ~37px; round up for breathing room. */
-body:has(.drwp-login-bar) { padding-top: 44px; }
-body.admin-bar:has(.drwp-login-bar) { padding-top: 76px; }
-@media (max-width: 782px) {
-    body.admin-bar:has(.drwp-login-bar) { padding-top: 90px; }
-}
