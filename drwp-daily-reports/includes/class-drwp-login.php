@@ -31,9 +31,10 @@ if (!defined('ABSPATH')) exit;
  */
 class DRWP_Login {
 
-    const OPT_PAGE     = 'drwp_login_page_id';
-    const OPT_ENABLED  = 'drwp_login_redirect_enabled';
-    const HANDLE       = 'drwp-login';
+    const OPT_PAGE         = 'drwp_login_page_id';
+    const OPT_ENABLED      = 'drwp_login_redirect_enabled';
+    const OPT_LOSTPASS_PAGE = 'drwp_login_lostpass_page_id';
+    const HANDLE           = 'drwp-login';
 
     public static function init() {
         add_shortcode('drwp_login_form', [__CLASS__, 'shortcode']);
@@ -57,17 +58,26 @@ class DRWP_Login {
 
         if (is_user_logged_in()) {
             $user = wp_get_current_user();
-            return self::wrap(
-                '<p class="drwp-login-already">'
+            // Render the logged-in indicator as a fixed top-of-page
+            // bar instead of inline where the shortcode sits. The
+            // operator's preferred layout puts the shortcode below
+            // the report form, but the "you are signed in as X"
+            // status is something the worker wants to see at a
+            // glance, not after scrolling to the bottom. Positioning
+            // is done in CSS (.drwp-login-bar) so the markup stays
+            // semantic.
+            return '<div class="drwp-login-bar">'
+                . '<span class="drwp-login-bar-text">'
                 . sprintf(
                     /* translators: 1: display name */
-                    esc_html__('%s さんとしてログイン中です。', 'drwp-daily-reports'),
+                    esc_html__('%s さんとしてログイン中', 'drwp-daily-reports'),
                     esc_html($user->display_name)
                 )
-                . ' <a href="' . esc_url(wp_logout_url(home_url('/'))) . '">'
+                . '</span> '
+                . '<a class="drwp-login-bar-logout" href="' . esc_url(wp_logout_url(home_url('/'))) . '">'
                 . esc_html__('ログアウト', 'drwp-daily-reports')
-                . '</a></p>'
-            );
+                . '</a>'
+                . '</div>';
         }
 
         // redirect_to fallback chain:
@@ -96,9 +106,20 @@ class DRWP_Login {
             'label_log_in'   => __('ログイン', 'drwp-daily-reports'),
         ]);
 
+        // Lost-password link: if the operator has set a front-side
+        // page in settings, point at it (so visitors never see
+        // /wp-login.php for the recovery flow). Otherwise fall back
+        // to WP's standard wp_lostpassword_url() which lives on
+        // /wp-login.php.
+        $lost_page_id = (int) get_option(self::OPT_LOSTPASS_PAGE);
+        if ($lost_page_id && ($lost_url = get_permalink($lost_page_id))) {
+            $lost_href = $lost_url;
+        } else {
+            $lost_href = wp_lostpassword_url($redirect_to);
+        }
         $lost = sprintf(
             '<p class="drwp-login-lost"><a href="%s">%s</a></p>',
-            esc_url(wp_lostpassword_url($redirect_to)),
+            esc_url($lost_href),
             esc_html__('パスワードをお忘れですか?', 'drwp-daily-reports')
         );
 
@@ -151,8 +172,9 @@ class DRWP_Login {
     }
 
     public static function register_settings() {
-        register_setting('drwp_login', self::OPT_PAGE,    ['type' => 'integer', 'default' => 0]);
-        register_setting('drwp_login', self::OPT_ENABLED, ['type' => 'boolean', 'default' => false]);
+        register_setting('drwp_login', self::OPT_PAGE,          ['type' => 'integer', 'default' => 0]);
+        register_setting('drwp_login', self::OPT_ENABLED,       ['type' => 'boolean', 'default' => false]);
+        register_setting('drwp_login', self::OPT_LOSTPASS_PAGE, ['type' => 'integer', 'default' => 0]);
     }
 
     public static function render_settings_page() {
@@ -160,6 +182,7 @@ class DRWP_Login {
 
         $pages = get_pages(['post_status' => 'publish']);
         $current_page = (int) get_option(self::OPT_PAGE);
+        $current_lost_page = (int) get_option(self::OPT_LOSTPASS_PAGE);
         $enabled = (bool) get_option(self::OPT_ENABLED);
         $two_factor_active = class_exists('Two_Factor_Core');
         ?>
@@ -196,6 +219,22 @@ class DRWP_Login {
                                 <?php esc_html_e('対象ページの本文に', 'drwp-daily-reports'); ?>
                                 <code>[drwp_login_form]</code>
                                 <?php esc_html_e('を入れてください。', 'drwp-daily-reports'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('パスワード再設定の案内ページ', 'drwp-daily-reports'); ?></th>
+                        <td>
+                            <select name="<?php echo esc_attr(self::OPT_LOSTPASS_PAGE); ?>">
+                                <option value="0"><?php esc_html_e('（未設定: /wp-login.php?action=lostpassword を使う）', 'drwp-daily-reports'); ?></option>
+                                <?php foreach ($pages as $page): ?>
+                                    <option value="<?php echo esc_attr($page->ID); ?>" <?php selected($current_lost_page, $page->ID); ?>>
+                                        <?php echo esc_html($page->post_title); ?> (#<?php echo (int) $page->ID; ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description">
+                                <?php esc_html_e('「パスワードをお忘れですか?」リンク先のフロント側固定ページ。未設定なら WordPress 標準の /wp-login.php の再設定 UI に飛びます。設定する場合、そのページに案内文(例: 「管理者にお問い合わせください」)や独自のパスワード再設定 UI を用意してください。', 'drwp-daily-reports'); ?>
                             </p>
                         </td>
                     </tr>
