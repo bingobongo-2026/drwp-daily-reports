@@ -29,6 +29,14 @@ class DRWP_Project {
     public static function render_page() {
         if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         $projects = self::all();
+        // Edit mode: pre-fill the form from ?edit_id=N. The form's
+        // hidden id input is what flips save() between INSERT (no
+        // id) and UPDATE (id present) — the back-end already
+        // handles both, this just surfaces the UI for it.
+        $edit_project = null;
+        if (!empty($_GET['edit_id'])) {
+            $edit_project = self::find(absint($_GET['edit_id']));
+        }
         include DRWP_PATH . 'admin/views/projects-page.php';
     }
 

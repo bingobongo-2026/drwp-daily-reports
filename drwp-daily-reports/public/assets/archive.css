@@ -116,7 +116,7 @@
 }
 .drwp-archive-status.status-pending { background: #d97706; }
 .drwp-archive-status.status-approved { background: #059669; }
-.drwp-archive-status.status-revision_requested { background: #dc2626; }
+.drwp-archive-status.status-needs_revision { background: #dc2626; }
 .drwp-archive-item-body { color: #1e293b; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
 .drwp-archive-project { font-weight: 600; }
 .drwp-archive-entry-count { font-size: 0.85rem; color: #64748b; }

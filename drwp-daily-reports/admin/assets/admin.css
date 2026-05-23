@@ -13,7 +13,80 @@
 .drwp-public-photos img { width:100%; height:auto; display:block; }
 .drwp-public-photos figcaption { font-size:.9rem; color:#50575e; margin-top:4px; }
 .drwp-entries { display:flex; flex-direction:column; gap:12px; margin-top:8px; }
-.drwp-entry { background:#fff; border:1px solid #c3c4c7; border-left:4px solid #2271b1; padding:12px 16px; }
+.drwp-entry { background:#fff; border:1px solid #c3c4c7; border-left:4px solid #2271b1; padding:12px 16px; border-radius:4px; }
 .drwp-entry-head { display:flex; gap:12px; align-items:center; justify-content:space-between; }
 .drwp-entry-photos { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:8px; margin-top:8px; }
 .drwp-entry-photos .drwp-photo-item img { width:100%; height:auto; display:block; }
+
+/* Report edit page: section cards + status banner -------------- */
+.drwp-report-edit .drwp-section {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 8px;
+    padding: 12px 20px 18px;
+    margin-bottom: 16px;
+}
+.drwp-report-edit .drwp-section > h2 {
+    margin-top: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 1.15em;
+}
+.drwp-report-edit .drwp-section .form-table { margin-top: 0; }
+
+/* Legacy / advanced section folded by default when entries exist */
+details.drwp-section-legacy {
+    background: #f6f7f7;
+    padding: 8px 16px;
+}
+details.drwp-section-legacy[open] {
+    background: #fff;
+    padding: 12px 20px 18px;
+}
+details.drwp-section-legacy > summary {
+    cursor: pointer;
+    padding: 6px 0;
+    list-style: none;
+}
+details.drwp-section-legacy > summary::-webkit-details-marker { display: none; }
+details.drwp-section-legacy > summary::before {
+    content: "▸ ";
+    color: #50575e;
+}
+details.drwp-section-legacy[open] > summary::before {
+    content: "▾ ";
+}
+
+/* Header meta line: status badge + author + linked post --------- */
+.drwp-report-edit .drwp-meta-line {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 6px;
+    padding: 8px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin: 8px 0 16px;
+    font-size: 0.95em;
+}
+.drwp-report-edit .drwp-meta-line .separator { color: #c3c4c7; }
+.drwp-report-edit .drwp-meta-line .drwp-status {
+    padding: 2px 10px;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 0.85em;
+    font-weight: 600;
+    background: #64748b;
+}
+.drwp-report-edit .drwp-meta-line .drwp-status.status-pending { background: #d97706; }
+.drwp-report-edit .drwp-meta-line .drwp-status.status-approved { background: #059669; }
+.drwp-report-edit .drwp-meta-line .drwp-status.status-needs_revision { background: #dc2626; }
+
+.drwp-report-edit .drwp-form-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 16px 0;
+}
