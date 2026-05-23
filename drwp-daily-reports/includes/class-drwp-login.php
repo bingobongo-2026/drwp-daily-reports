@@ -31,17 +31,41 @@ if (!defined('ABSPATH')) exit;
  */
 class DRWP_Login {
 
-    const OPT_PAGE         = 'drwp_login_page_id';
-    const OPT_ENABLED      = 'drwp_login_redirect_enabled';
-    const OPT_LOSTPASS_PAGE = 'drwp_login_lostpass_page_id';
-    const HANDLE           = 'drwp-login';
+    const OPT_PAGE           = 'drwp_login_page_id';
+    const OPT_ENABLED        = 'drwp_login_redirect_enabled';
+    const OPT_LOSTPASS_PAGE  = 'drwp_login_lostpass_page_id';
+    const OPT_ADMIN_LOCKDOWN = 'drwp_login_admin_lockdown';
+    const HANDLE             = 'drwp-login';
+    const HANDLE_WP_LOGIN    = 'drwp-wp-login';
 
     public static function init() {
         add_shortcode('drwp_login_form', [__CLASS__, 'shortcode']);
+        add_shortcode('drwp_lostpassword_form', [__CLASS__, 'lostpassword_shortcode']);
         add_action('login_init', [__CLASS__, 'maybe_redirect']);
         add_action('admin_menu', [__CLASS__, 'register_admin'], 20);
         add_action('admin_init', [__CLASS__, 'register_settings']);
         add_action('wp_enqueue_scripts', [__CLASS__, 'register_assets']);
+
+        // Frontend password reset: rewrite the URL embedded in the
+        // recovery email so it points at the operator's lost-password
+        // page, and process form POSTs on template_redirect (which
+        // fires before output, so wp_safe_redirect still works).
+        add_filter('retrieve_password_message', [__CLASS__, 'filter_retrieve_password_message'], 10, 4);
+        add_action('template_redirect', [__CLASS__, 'handle_lostpassword_post']);
+
+        // wp-login.php branding: a small CSS file matching the
+        // front-end look. Two Factor's TOTP challenge screen also
+        // lives on wp-login.php, so this picks it up too.
+        add_action('login_enqueue_scripts', [__CLASS__, 'enqueue_wp_login_styles']);
+        add_filter('login_headerurl',  [__CLASS__, 'filter_login_header_url']);
+        add_filter('login_headertext', [__CLASS__, 'filter_login_header_text']);
+
+        // Admin lockdown: keep contributors (and anyone without
+        // edit_others_posts) out of /wp-admin/ entirely, with a
+        // tight whitelist for their own profile (TOTP setup) and
+        // the admin-ajax / admin-post endpoints (form submissions).
+        add_action('admin_init', [__CLASS__, 'maybe_lockdown_admin'], 1);
+        add_filter('show_admin_bar', [__CLASS__, 'maybe_hide_admin_bar']);
     }
 
     public static function register_assets() {
@@ -172,18 +196,309 @@ class DRWP_Login {
     }
 
     public static function register_settings() {
-        register_setting('drwp_login', self::OPT_PAGE,          ['type' => 'integer', 'default' => 0]);
-        register_setting('drwp_login', self::OPT_ENABLED,       ['type' => 'boolean', 'default' => false]);
-        register_setting('drwp_login', self::OPT_LOSTPASS_PAGE, ['type' => 'integer', 'default' => 0]);
+        register_setting('drwp_login', self::OPT_PAGE,           ['type' => 'integer', 'default' => 0]);
+        register_setting('drwp_login', self::OPT_ENABLED,        ['type' => 'boolean', 'default' => false]);
+        register_setting('drwp_login', self::OPT_LOSTPASS_PAGE,  ['type' => 'integer', 'default' => 0]);
+        register_setting('drwp_login', self::OPT_ADMIN_LOCKDOWN, ['type' => 'boolean', 'default' => false]);
+    }
+
+    /* ------------------------------------------------------------
+     * Frontend password reset
+     * ------------------------------------------------------------ */
+
+    /**
+     * Replace the wp-login.php URL inside the password-reset email
+     * with the operator's frontend page URL. WP composes the email
+     * via retrieve_password_message; we pattern-match the embedded
+     * URL rather than rewriting the whole message so any
+     * translations or admin customizations of the body text survive.
+     */
+    public static function filter_retrieve_password_message($message, $key, $user_login, $user_data) {
+        $page_id = (int) get_option(self::OPT_LOSTPASS_PAGE);
+        if (!$page_id) return $message;
+        $page_url = get_permalink($page_id);
+        if (!$page_url) return $message;
+        $new_url = add_query_arg([
+            'key'   => $key,
+            'login' => rawurlencode($user_login),
+        ], $page_url);
+        return preg_replace(
+            '#https?://\S+wp-login\.php\S*#',
+            $new_url,
+            (string) $message
+        );
+    }
+
+    /**
+     * Lost-password shortcode. Single shortcode that handles both
+     * stages of the WP password reset flow based on URL state:
+     *
+     *   no params              → "Enter your email" request form
+     *   ?lpw=sent              → "Check your email" confirmation
+     *   ?key=...&login=...     → "Set new password" form
+     *   ?lpw=success           → "Password updated, please log in"
+     *   ?lpw=invalid_key       → "This link is invalid or expired"
+     *
+     * POST handling is done separately in handle_lostpassword_post()
+     * on the template_redirect hook so we can wp_safe_redirect after
+     * processing without "headers already sent" errors.
+     */
+    public static function lostpassword_shortcode($atts = []) {
+        wp_enqueue_style(self::HANDLE);
+
+        $flash = isset($_GET['lpw']) ? sanitize_key((string) $_GET['lpw']) : '';
+        $key   = isset($_GET['key']) ? sanitize_text_field((string) wp_unslash($_GET['key'])) : '';
+        $login = isset($_GET['login']) ? sanitize_text_field((string) wp_unslash($_GET['login'])) : '';
+
+        if ($flash === 'success') {
+            $login_page = (int) get_option(self::OPT_PAGE);
+            $login_url = $login_page ? get_permalink($login_page) : wp_login_url();
+            return self::wrap(
+                '<p class="drwp-login-flash ok">'
+                . esc_html__('パスワードを更新しました。新しいパスワードでログインしてください。', 'drwp-daily-reports')
+                . '</p><p class="drwp-login-lost"><a href="' . esc_url($login_url) . '">'
+                . esc_html__('ログインページへ', 'drwp-daily-reports')
+                . '</a></p>'
+            );
+        }
+        if ($flash === 'sent') {
+            return self::wrap(
+                '<p class="drwp-login-flash ok">'
+                . esc_html__('再設定リンクをメールでお送りしました。受信ボックスをご確認ください(数分かかる場合があります)。', 'drwp-daily-reports')
+                . '</p>'
+            );
+        }
+        if ($flash === 'invalid_key') {
+            return self::wrap(
+                '<p class="drwp-login-flash err">'
+                . esc_html__('リンクが無効または期限切れです。もう一度メール送信からやり直してください。', 'drwp-daily-reports')
+                . '</p>' . self::lostpassword_request_form('')
+            );
+        }
+        if ($flash === 'mismatch') {
+            // Fall through to render the new-password form again
+            // with an error notice on top.
+            return self::wrap(
+                '<p class="drwp-login-flash err">'
+                . esc_html__('パスワードが一致しません。もう一度入力してください。', 'drwp-daily-reports')
+                . '</p>' . self::lostpassword_set_new_form($key, $login)
+            );
+        }
+        if ($flash === 'weak') {
+            return self::wrap(
+                '<p class="drwp-login-flash err">'
+                . esc_html__('パスワードは 8 文字以上で入力してください。', 'drwp-daily-reports')
+                . '</p>' . self::lostpassword_set_new_form($key, $login)
+            );
+        }
+        if ($flash === 'not_found') {
+            return self::wrap(
+                '<p class="drwp-login-flash err">'
+                . esc_html__('該当するユーザーが見つかりませんでした。入力を確認してください。', 'drwp-daily-reports')
+                . '</p>' . self::lostpassword_request_form('')
+            );
+        }
+
+        // Reset-link state — validate the key before showing the
+        // set-new-password form so we don't accept anything that's
+        // already been used or expired.
+        if ($key !== '' && $login !== '') {
+            $user = check_password_reset_key($key, $login);
+            if (is_wp_error($user)) {
+                return self::wrap(
+                    '<p class="drwp-login-flash err">'
+                    . esc_html__('リンクが無効または期限切れです。もう一度メール送信からやり直してください。', 'drwp-daily-reports')
+                    . '</p>' . self::lostpassword_request_form('')
+                );
+            }
+            return self::wrap(self::lostpassword_set_new_form($key, $login));
+        }
+
+        // Default: blank request form.
+        return self::wrap(self::lostpassword_request_form(''));
+    }
+
+    private static function lostpassword_request_form($user_login) {
+        $action = esc_url(get_permalink());
+        ob_start();
+        ?>
+        <form method="post" action="<?php echo $action; ?>" class="drwp-lostpass-form">
+            <?php wp_nonce_field('drwp_lpw_request'); ?>
+            <input type="hidden" name="_drwp_lpw_request" value="1" />
+            <p>
+                <label for="drwp-lpw-user"><?php esc_html_e('ユーザー名 / メールアドレス', 'drwp-daily-reports'); ?></label>
+                <input type="text" id="drwp-lpw-user" name="user_login" autocomplete="username"
+                       value="<?php echo esc_attr($user_login); ?>" required />
+            </p>
+            <p>
+                <button type="submit" class="drwp-lostpass-submit">
+                    <?php esc_html_e('再設定リンクをメールで受け取る', 'drwp-daily-reports'); ?>
+                </button>
+            </p>
+        </form>
+        <?php
+        return ob_get_clean();
+    }
+
+    private static function lostpassword_set_new_form($key, $login) {
+        $action = esc_url(get_permalink());
+        ob_start();
+        ?>
+        <form method="post" action="<?php echo $action; ?>" class="drwp-lostpass-form">
+            <?php wp_nonce_field('drwp_lpw_reset'); ?>
+            <input type="hidden" name="_drwp_lpw_reset" value="1" />
+            <input type="hidden" name="key"   value="<?php echo esc_attr($key); ?>" />
+            <input type="hidden" name="login" value="<?php echo esc_attr($login); ?>" />
+            <p>
+                <label for="drwp-lpw-p1"><?php esc_html_e('新しいパスワード', 'drwp-daily-reports'); ?></label>
+                <input type="password" id="drwp-lpw-p1" name="pass1" autocomplete="new-password" minlength="8" required />
+            </p>
+            <p>
+                <label for="drwp-lpw-p2"><?php esc_html_e('新しいパスワード(確認)', 'drwp-daily-reports'); ?></label>
+                <input type="password" id="drwp-lpw-p2" name="pass2" autocomplete="new-password" minlength="8" required />
+            </p>
+            <p>
+                <button type="submit" class="drwp-lostpass-submit">
+                    <?php esc_html_e('パスワードを更新する', 'drwp-daily-reports'); ?>
+                </button>
+            </p>
+        </form>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * Handle both lost-password form POSTs. Runs on template_redirect
+     * so we're before output and can wp_safe_redirect to a flash URL.
+     * Each branch self-redirects so the user can refresh / share the
+     * URL without re-triggering the action (PRG pattern).
+     */
+    public static function handle_lostpassword_post() {
+        $page_id = (int) get_option(self::OPT_LOSTPASS_PAGE);
+        if (!$page_id || !is_page($page_id)) return;
+        if (empty($_POST)) return;
+
+        $page_url = get_permalink($page_id);
+
+        if (!empty($_POST['_drwp_lpw_request'])) {
+            check_admin_referer('drwp_lpw_request');
+            $user_login = sanitize_text_field(wp_unslash((string) ($_POST['user_login'] ?? '')));
+            if ($user_login === '') {
+                wp_safe_redirect(add_query_arg('lpw', 'not_found', $page_url));
+                exit;
+            }
+            // retrieve_password() reads $_POST['user_login'] in older
+            // WordPress versions; new versions take an arg. Set both
+            // so we don't depend on a specific WP version's signature.
+            $_POST['user_login'] = $user_login;
+            $result = retrieve_password();
+            if (is_wp_error($result)) {
+                wp_safe_redirect(add_query_arg('lpw', 'not_found', $page_url));
+                exit;
+            }
+            wp_safe_redirect(add_query_arg('lpw', 'sent', $page_url));
+            exit;
+        }
+
+        if (!empty($_POST['_drwp_lpw_reset'])) {
+            check_admin_referer('drwp_lpw_reset');
+            $key   = sanitize_text_field(wp_unslash((string) ($_POST['key'] ?? '')));
+            $login = sanitize_text_field(wp_unslash((string) ($_POST['login'] ?? '')));
+            $pass1 = (string) ($_POST['pass1'] ?? '');
+            $pass2 = (string) ($_POST['pass2'] ?? '');
+            $back  = add_query_arg(['key' => $key, 'login' => rawurlencode($login)], $page_url);
+
+            $user = check_password_reset_key($key, $login);
+            if (is_wp_error($user)) {
+                wp_safe_redirect(add_query_arg('lpw', 'invalid_key', $page_url));
+                exit;
+            }
+            if ($pass1 === '' || $pass1 !== $pass2) {
+                wp_safe_redirect(add_query_arg('lpw', 'mismatch', $back));
+                exit;
+            }
+            if (strlen($pass1) < 8) {
+                wp_safe_redirect(add_query_arg('lpw', 'weak', $back));
+                exit;
+            }
+            reset_password($user, $pass1);
+            wp_safe_redirect(add_query_arg('lpw', 'success', $page_url));
+            exit;
+        }
+    }
+
+    /* ------------------------------------------------------------
+     * wp-login.php branding
+     * ------------------------------------------------------------ */
+
+    public static function enqueue_wp_login_styles() {
+        wp_enqueue_style(
+            self::HANDLE_WP_LOGIN,
+            DRWP_URL . 'public/assets/wp-login.css',
+            [],
+            DRWP_VERSION
+        );
+    }
+
+    /** Logo above the login form links here instead of wordpress.org. */
+    public static function filter_login_header_url() {
+        return home_url('/');
+    }
+
+    /** Title/alt on the same logo. */
+    public static function filter_login_header_text() {
+        return get_bloginfo('name');
+    }
+
+    /* ------------------------------------------------------------
+     * Admin lockdown
+     * ------------------------------------------------------------ */
+
+    /**
+     * For users below Editor (no edit_others_posts), redirect any
+     * /wp-admin/ visit to the front-end login page (or home). The
+     * whitelist below covers the few admin endpoints those users
+     * legitimately need: their own profile (Two Factor TOTP setup,
+     * password change), and the form-handler endpoints that
+     * shortcodes POST to.
+     */
+    public static function maybe_lockdown_admin() {
+        if (!get_option(self::OPT_ADMIN_LOCKDOWN)) return;
+        if (wp_doing_ajax()) return;
+        if (defined('DOING_CRON') && DOING_CRON) return;
+        if (!is_user_logged_in()) return;
+        if (current_user_can('edit_others_posts')) return;
+
+        $pagenow = isset($GLOBALS['pagenow']) ? (string) $GLOBALS['pagenow'] : '';
+        $allowed = ['profile.php', 'admin-post.php', 'admin-ajax.php'];
+        if (in_array($pagenow, $allowed, true)) return;
+
+        $page_id = (int) get_option(self::OPT_PAGE);
+        $target  = $page_id ? get_permalink($page_id) : home_url('/');
+        wp_safe_redirect($target ?: home_url('/'));
+        exit;
+    }
+
+    /**
+     * Hide the WP admin bar on the front end for the same users we
+     * lock out of /wp-admin/. Otherwise they'd see a bar of admin
+     * links that all bounce them back here, which is confusing.
+     */
+    public static function maybe_hide_admin_bar($show) {
+        if (!get_option(self::OPT_ADMIN_LOCKDOWN)) return $show;
+        if (!is_user_logged_in()) return $show;
+        if (current_user_can('edit_others_posts')) return $show;
+        return false;
     }
 
     public static function render_settings_page() {
         if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
 
         $pages = get_pages(['post_status' => 'publish']);
-        $current_page = (int) get_option(self::OPT_PAGE);
+        $current_page      = (int) get_option(self::OPT_PAGE);
         $current_lost_page = (int) get_option(self::OPT_LOSTPASS_PAGE);
-        $enabled = (bool) get_option(self::OPT_ENABLED);
+        $enabled           = (bool) get_option(self::OPT_ENABLED);
+        $admin_lockdown    = (bool) get_option(self::OPT_ADMIN_LOCKDOWN);
         $two_factor_active = class_exists('Two_Factor_Core');
         ?>
         <div class="wrap">
@@ -223,7 +538,7 @@ class DRWP_Login {
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row"><?php esc_html_e('パスワード再設定の案内ページ', 'drwp-daily-reports'); ?></th>
+                        <th scope="row"><?php esc_html_e('パスワード再設定ページ', 'drwp-daily-reports'); ?></th>
                         <td>
                             <select name="<?php echo esc_attr(self::OPT_LOSTPASS_PAGE); ?>">
                                 <option value="0"><?php esc_html_e('（未設定: /wp-login.php?action=lostpassword を使う）', 'drwp-daily-reports'); ?></option>
@@ -234,7 +549,21 @@ class DRWP_Login {
                                 <?php endforeach; ?>
                             </select>
                             <p class="description">
-                                <?php esc_html_e('「パスワードをお忘れですか?」リンク先のフロント側固定ページ。未設定なら WordPress 標準の /wp-login.php の再設定 UI に飛びます。設定する場合、そのページに案内文(例: 「管理者にお問い合わせください」)や独自のパスワード再設定 UI を用意してください。', 'drwp-daily-reports'); ?>
+                                <?php esc_html_e('対象ページの本文に', 'drwp-daily-reports'); ?>
+                                <code>[drwp_lostpassword_form]</code>
+                                <?php esc_html_e('を入れてください。1 つのショートコードで「再設定リクエスト → メール送信 → 新パスワード入力 → 完了」までフロントで完結します。再設定リンクを含むメールの URL も自動でこのページに差し替わります。', 'drwp-daily-reports'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('管理画面ロックダウン', 'drwp-daily-reports'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="<?php echo esc_attr(self::OPT_ADMIN_LOCKDOWN); ?>" value="1" <?php checked($admin_lockdown); ?>>
+                                <?php esc_html_e('編集者未満のユーザー(寄稿者・投稿者等)が /wp-admin/ にアクセスしたらフロントに戻す', 'drwp-daily-reports'); ?>
+                            </label>
+                            <p class="description">
+                                <?php esc_html_e('例外: 自分のプロフィール画面 (profile.php) は通します(Two Factor の TOTP 登録のため)。admin-ajax.php / admin-post.php(フォーム送信先)も通します。フロント側ヘッダーの管理バーも同じ条件で非表示にします。Editor 以上(edit_others_posts 保有)はロックダウン対象外。', 'drwp-daily-reports'); ?>
                             </p>
                         </td>
                     </tr>

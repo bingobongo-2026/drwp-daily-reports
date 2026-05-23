@@ -1,0 +1,73 @@
+/* Branding for /wp-login.php — applies to the bare login screen as
+   well as the Two Factor (TOTP) challenge step that lives on the
+   same page. The goal is "looks like part of the same site," not
+   a full theme. WP core controls the markup, so we only override
+   colors, the body background, and the form chrome. */
+
+body.login {
+    background: #f8fafc;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Segoe UI", sans-serif;
+}
+
+/* Header logo: WP renders a default WordPress logo. We don't ship
+   a logo asset, so we just neutralize the wordpress.org link target
+   via login_headerurl/login_headertext filters and keep the slot
+   visually consistent. */
+.login h1 a {
+    background-size: contain !important;
+    background-position: center !important;
+    width: auto !important;
+    max-width: 320px;
+    height: 56px;
+}
+
+/* The login form card */
+.login form {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+/* Buttons — match the frontend brand color (#111827). */
+.wp-core-ui .button-primary,
+.wp-core-ui .button-primary:focus {
+    background: #111827;
+    border-color: #111827;
+    color: #fff;
+    text-shadow: none;
+    box-shadow: none;
+}
+.wp-core-ui .button-primary:hover {
+    background: #1f2937;
+    border-color: #1f2937;
+}
+.wp-core-ui .button-primary:focus {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+/* Inputs */
+.login input[type=text],
+.login input[type=password],
+.login input[type=email] {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 16px;
+}
+.login input[type=text]:focus,
+.login input[type=password]:focus,
+.login input[type=email]:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Footer links: "← Site name" and language switcher */
+.login #backtoblog a,
+.login #nav a {
+    color: #475569;
+}
+.login #backtoblog a:hover,
+.login #nav a:hover {
+    color: #1e293b;
+}

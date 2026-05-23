@@ -22,6 +22,35 @@
 .drwp-login-lost { margin-top: 16px; text-align: center; font-size: 0.9rem; }
 .drwp-login-lost a { color: #475569; }
 
+/* Lost-password shortcode: shares the wrap card. */
+.drwp-lostpass-form label { display: block; margin: 14px 0 4px; font-weight: 600; }
+.drwp-lostpass-form input[type=text],
+.drwp-lostpass-form input[type=password] {
+    width: 100%; box-sizing: border-box; font: inherit; font-size: 16px;
+    padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px;
+    background: #fff;
+}
+.drwp-lostpass-submit {
+    width: 100%; padding: 14px; border: 0; border-radius: 10px;
+    background: #111827; color: #fff; font-size: 1rem; font-weight: 700;
+    cursor: pointer; margin-top: 16px;
+}
+.drwp-lostpass-submit:hover { background: #1f2937; }
+
+/* Flash messages shown by [drwp_lostpassword_form] after a PRG. */
+.drwp-login-flash {
+    padding: 12px 16px; border-radius: 10px;
+    font-weight: 600; line-height: 1.5; margin-bottom: 14px;
+}
+.drwp-login-flash.ok {
+    background: #ecfdf5; color: #065f46;
+    border: 1px solid #6ee7b7; border-left: 4px solid #059669;
+}
+.drwp-login-flash.err {
+    background: #fef2f2; color: #991b1b;
+    border: 1px solid #fecaca; border-left: 4px solid #dc2626;
+}
+
 /* Logged-in indicator bar — flows inline at the position where the
    [drwp_login_form] shortcode was placed in the page. The earlier
    version pinned this to the viewport with position:fixed so it
