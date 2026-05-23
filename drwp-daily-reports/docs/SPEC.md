@@ -75,7 +75,7 @@
 | `user_id` | BIGINT NOT NULL | 投稿した作業員の WP ユーザー ID |
 | `report_date` | DATE NOT NULL | 日報の対象日 |
 | `work_description` / `issues` / `next_plan` | LONGTEXT NULL | レガシー: 作業内容 / 問題点 / 次回予定 |
-| `review_status` | VARCHAR(32) default `pending` | `pending` / `approved` / `revision_requested` |
+| `review_status` | VARCHAR(32) default `pending` | `pending` / `approved` / `needs_revision` |
 | `public_title` / `public_intro` / `public_body` / `public_next_plan` | VARCHAR(255) / LONGTEXT NULL | レガシー時の公開項目(事務所側で記入) |
 | `post_template` | VARCHAR(64) default `standard` | `standard` / `site_report` / `before_after` |
 | `post_category_id` | BIGINT NULL | 投稿時に付与するカテゴリ |
@@ -264,7 +264,7 @@ POST 処理は `template_redirect` フックで実行(出力前に `wp_safe_redi
 - キーワード (`drwp_q`): フリーテキスト LIKE。レポート本体の `work_description` と、各エントリの `work_description` の両方を検索(EXISTS サブクエリ)
 - 作成者 (`drwp_author`): 日報を書いたことのあるユーザーのドロップダウン
 - 期間 (`drwp_from` / `drwp_to`): `report_date` の YYYY-MM-DD 範囲
-- ステータス (`drwp_status`): `pending` / `approved` / `revision_requested` / すべて
+- ステータス (`drwp_status`): `pending` / `approved` / `needs_revision` / すべて
 - 表示件数 (`drwp_per`): 10 / 20 / 50 / 100、不正値は 20 にクランプ
 
 **ページネーション**: `drwp_p` クエリ、先頭・末尾固定 + 現在±2 を表示。
@@ -273,7 +273,7 @@ POST 処理は `template_redirect` フックで実行(出力前に `wp_safe_redi
 
 **自分の pending を編集** (`?drwp_id=N&drwp_edit=1`): 自分が作成した `pending` 状態の日報のみフロントから編集可能。日付・現場・時刻・作業内容・問題点・次回予定・写真(追加削除)を編集できる。`DRWP_Report_Entry::sync()` で wholesale 置換、`template_redirect` 上の POST ハンドラで PRG パターン。承認済み・差戻し・他人の日報は直接 URL を叩いてもサーバ側で拒否(defense in depth)。
 
-**ラベル翻訳**: ステータス値 (`pending` / `approved` / `revision_requested` / `draft` / `publish` / `active` 等)は DB には英語識別子で保管、UI 出力は `DRWP_Labels::review_status()` / `post_status()` / `project_status()` で日本語ラベルに変換。マッピング一覧は `includes/class-drwp-labels.php` に集約。
+**ラベル翻訳**: ステータス値 (`pending` / `approved` / `needs_revision` / `draft` / `publish` / `active` 等)は DB には英語識別子で保管、UI 出力は `DRWP_Labels::review_status()` / `post_status()` / `project_status()` で日本語ラベルに変換。マッピング一覧は `includes/class-drwp-labels.php` に集約。
 
 ### 6.5 `/wp-login.php` のリダイレクト
 

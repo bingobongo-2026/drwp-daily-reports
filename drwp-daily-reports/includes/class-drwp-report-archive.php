@@ -126,7 +126,7 @@ class DRWP_Report_Archive {
             $where[] = 'r.user_id = %d';
             $args[]  = $author;
         }
-        if ($status && in_array($status, ['pending', 'approved', 'revision_requested'], true)) {
+        if ($status && in_array($status, ['pending', 'approved', 'needs_revision'], true)) {
             $where[] = 'r.review_status = %s';
             $args[]  = $status;
         }
@@ -193,7 +193,7 @@ class DRWP_Report_Archive {
             ''                   => __('すべて', 'drwp-daily-reports'),
             'pending'            => DRWP_Labels::review_status('pending'),
             'approved'           => DRWP_Labels::review_status('approved'),
-            'revision_requested' => DRWP_Labels::review_status('revision_requested'),
+            'needs_revision' => DRWP_Labels::review_status('needs_revision'),
         ];
         ob_start();
         ?>
