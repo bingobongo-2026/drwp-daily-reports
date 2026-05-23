@@ -1,0 +1,233 @@
+/* [drwp_report_archive] — list + filter + single read-only view */
+
+.drwp-archive-wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 16px;
+    font: inherit;
+}
+.drwp-archive-title { margin: 0 0 16px; font-size: 1.5rem; }
+.drwp-archive-message { padding: 24px; text-align: center; color: #475569; }
+.drwp-archive-empty { padding: 24px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 10px; }
+
+/* ---- Filter form ---- */
+.drwp-archive-filter {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.drwp-archive-filter-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+.drwp-archive-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 140px;
+}
+.drwp-archive-field.grow { flex: 1; min-width: 200px; }
+.drwp-archive-field > span {
+    font-size: 0.8rem;
+    color: #475569;
+    font-weight: 600;
+}
+.drwp-archive-field input,
+.drwp-archive-field select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    font: inherit;
+    font-size: 0.95rem;
+}
+.drwp-archive-submit {
+    padding: 10px 20px;
+    border: 0;
+    border-radius: 8px;
+    background: #111827;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+.drwp-archive-submit:hover { background: #1f2937; }
+.drwp-archive-reset {
+    align-self: center;
+    color: #64748b;
+    font-size: 0.9rem;
+    text-decoration: underline;
+}
+
+/* ---- Summary line ---- */
+.drwp-archive-summary {
+    margin: 10px 0;
+    font-size: 0.9rem;
+    color: #64748b;
+}
+
+/* ---- List ---- */
+.drwp-archive-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.drwp-archive-item {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.drwp-archive-item:hover {
+    border-color: #94a3b8;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+.drwp-archive-item-link {
+    display: block;
+    padding: 14px 16px;
+    color: inherit;
+    text-decoration: none;
+}
+.drwp-archive-item-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.drwp-archive-date { font-weight: 700; font-size: 1rem; color: #0f172a; }
+.drwp-archive-status {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #fff;
+    background: #64748b;
+}
+.drwp-archive-status.status-pending { background: #d97706; }
+.drwp-archive-status.status-approved { background: #059669; }
+.drwp-archive-status.status-revision_requested { background: #dc2626; }
+.drwp-archive-item-body { color: #1e293b; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.drwp-archive-project { font-weight: 600; }
+.drwp-archive-entry-count { font-size: 0.85rem; color: #64748b; }
+.drwp-archive-snippet { color: #475569; flex: 1 1 100%; font-size: 0.95rem; }
+.drwp-archive-item-meta {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+/* ---- Pagination ---- */
+.drwp-archive-pagination {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin: 20px 0 0;
+    flex-wrap: wrap;
+}
+.drwp-archive-page {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    color: #1e293b;
+    text-decoration: none;
+    font-size: 0.95rem;
+    background: #fff;
+}
+.drwp-archive-page:hover { background: #f1f5f9; }
+.drwp-archive-page.current {
+    background: #111827;
+    border-color: #111827;
+    color: #fff;
+}
+.drwp-archive-page-gap { color: #94a3b8; padding: 0 4px; align-self: center; }
+
+/* ---- Single view ---- */
+.drwp-archive-back { margin-bottom: 8px; }
+.drwp-archive-back a { color: #475569; text-decoration: none; }
+.drwp-archive-back a:hover { color: #0f172a; }
+.drwp-archive-single-head { margin: 8px 0 16px; }
+.drwp-archive-single-head h2 {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 6px;
+}
+.drwp-archive-meta { color: #475569; font-size: 0.9rem; margin: 0; }
+.drwp-archive-edit-cta {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid #fde68a;
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+.drwp-archive-edit-cta em { font-style: normal; opacity: 0.75; }
+
+.drwp-archive-section {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+}
+.drwp-archive-section h3 {
+    margin: 0 0 12px;
+    font-size: 1.1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+}
+.drwp-archive-entry-num {
+    color: #2271b1;
+    font-size: 0.85rem;
+    font-weight: 700;
+    background: #dbeafe;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+.drwp-archive-time { color: #64748b; font-size: 0.85rem; font-weight: 400; }
+.drwp-archive-block { margin-bottom: 10px; }
+.drwp-archive-block h4 {
+    margin: 0 0 4px;
+    font-size: 0.85rem;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.drwp-archive-block p { margin: 0 0 6px; }
+
+.drwp-archive-photos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+}
+.drwp-archive-photo { margin: 0; }
+.drwp-archive-photo img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+}
+.drwp-archive-photo figcaption {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 4px;
+}
