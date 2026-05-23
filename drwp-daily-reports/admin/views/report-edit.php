@@ -11,7 +11,7 @@
     <div class="notice notice-success"><p><?php esc_html_e('コメントを追加しました。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>
   <?php if (!empty($report->id)): ?>
-    <p><?php esc_html_e('現在のレビュー状態:', 'drwp-daily-reports'); ?> <strong><?php echo esc_html($report->review_status ?: 'pending'); ?></strong></p>
+    <p><?php esc_html_e('現在のレビュー状態:', 'drwp-daily-reports'); ?> <strong><?php echo esc_html(DRWP_Labels::review_status((string) ($report->review_status ?: 'pending'))); ?></strong></p>
   <?php endif; ?>
   <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
     <?php wp_nonce_field('drwp_save_report'); ?>

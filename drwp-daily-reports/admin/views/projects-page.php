@@ -46,7 +46,7 @@
         <tr>
           <td><?php echo (int) $project->id; ?></td>
           <td><?php echo esc_html($project->name); ?></td>
-          <td><?php echo esc_html($project->status); ?></td>
+          <td><?php echo esc_html(DRWP_Labels::project_status((string) $project->status)); ?></td>
           <td><?php echo esc_html($project->updated_at); ?></td>
         </tr>
       <?php endforeach; endif; ?>

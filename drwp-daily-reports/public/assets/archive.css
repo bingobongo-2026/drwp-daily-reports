@@ -231,3 +231,144 @@
     color: #64748b;
     margin-top: 4px;
 }
+
+/* ---- Edit view (Phase B) ---- */
+.drwp-archive-edit-link {
+    margin-left: 8px;
+    color: #1d4ed8;
+    text-decoration: underline;
+    font-weight: 600;
+}
+.drwp-archive-flash {
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-weight: 600;
+    margin: 10px 0;
+}
+.drwp-archive-flash.ok {
+    background: #ecfdf5; color: #065f46;
+    border: 1px solid #6ee7b7; border-left: 4px solid #059669;
+}
+.drwp-archive-flash.err {
+    background: #fef2f2; color: #991b1b;
+    border: 1px solid #fecaca; border-left: 4px solid #dc2626;
+}
+.drwp-archive-edit-form {
+    display: flex; flex-direction: column; gap: 14px;
+}
+.drwp-archive-edit-field { display: flex; flex-direction: column; gap: 4px; }
+.drwp-archive-edit-field > span,
+.drwp-archive-edit-field-label {
+    font-size: 0.85rem; color: #475569; font-weight: 600;
+}
+.drwp-archive-edit-field input,
+.drwp-archive-edit-field select,
+.drwp-archive-edit-field textarea {
+    width: 100%; box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    font: inherit;
+    font-size: 1rem;
+}
+.drwp-archive-edit-field textarea { min-height: 80px; resize: vertical; }
+.drwp-archive-edit-times { display: flex; gap: 12px; }
+.drwp-archive-edit-times .drwp-archive-edit-field { flex: 1; }
+.drwp-archive-edit-entries {
+    display: flex; flex-direction: column; gap: 14px;
+}
+.drwp-archive-edit-entry {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #2271b1;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.drwp-archive-edit-entry-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 4px;
+}
+.drwp-archive-edit-entry-head strong { color: #0f172a; }
+.drwp-archive-edit-remove {
+    background: transparent; color: #b91c1c;
+    border: 1px solid #fecaca;
+    padding: 6px 10px; border-radius: 8px;
+    font-size: 0.85rem; cursor: pointer;
+}
+.drwp-archive-edit-remove:hover { background: #fef2f2; }
+
+.drwp-archive-edit-photo-block { display: flex; flex-direction: column; gap: 8px; }
+.drwp-archive-edit-photos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+}
+.drwp-archive-edit-photo-item {
+    position: relative;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px;
+    display: flex; flex-direction: column; gap: 6px;
+}
+.drwp-archive-edit-photo-item img {
+    width: 100%; height: auto; display: block;
+    border-radius: 4px;
+}
+.drwp-archive-edit-photo-item input[type=text] {
+    width: 100%; box-sizing: border-box;
+    padding: 4px 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font: inherit; font-size: 0.85rem;
+}
+.drwp-archive-edit-photo-remove {
+    position: absolute; top: 4px; right: 4px;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 0;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: 16px; line-height: 1;
+    cursor: pointer;
+}
+.drwp-archive-edit-photo-pick {
+    display: inline-block;
+    padding: 10px 14px;
+    border: 2px dashed #94a3b8;
+    border-radius: 8px;
+    color: #1f2937;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+}
+.drwp-archive-edit-photo-pick input { display: none; }
+.drwp-archive-edit-photo-status { font-size: 0.85rem; color: #475569; margin: 0; min-height: 1.2em; }
+
+.drwp-archive-edit-add {
+    padding: 12px;
+    border: 2px dashed #94a3b8;
+    border-radius: 10px;
+    background: transparent;
+    width: 100%;
+    font-weight: 700; cursor: pointer;
+}
+.drwp-archive-edit-add:hover { background: #f8fafc; }
+
+.drwp-archive-edit-actions {
+    display: flex; gap: 12px; align-items: center;
+    margin-top: 10px;
+}
+.drwp-archive-edit-submit {
+    flex: 1;
+    padding: 14px;
+    background: #111827;
+    color: #fff;
+    border: 0; border-radius: 10px;
+    font-size: 1rem; font-weight: 700;
+    cursor: pointer;
+}
+.drwp-archive-edit-submit:hover { background: #1f2937; }
+.drwp-archive-edit-cancel { color: #64748b; text-decoration: underline; }

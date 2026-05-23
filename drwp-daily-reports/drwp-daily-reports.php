@@ -14,6 +14,7 @@ define('DRWP_VERSION', '1.10.0');
 define('DRWP_PATH', plugin_dir_path(__FILE__));
 define('DRWP_URL', plugin_dir_url(__FILE__));
 
+require_once DRWP_PATH . 'includes/class-drwp-labels.php';
 require_once DRWP_PATH . 'includes/class-drwp-db.php';
 require_once DRWP_PATH . 'includes/class-drwp-license.php';
 require_once DRWP_PATH . 'includes/class-drwp-license-admin.php';
