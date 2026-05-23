@@ -156,14 +156,12 @@ class DRWP_Report_Form {
     }
 
     private static function login_prompt() {
-        $current_url = is_singular() ? get_permalink() : home_url(add_query_arg(null, null));
-        $login_url = wp_login_url($current_url);
-        return sprintf(
-            '<p>%s <a href="%s">%s</a></p>',
-            esc_html__('日報を投稿するにはログインしてください。', 'drwp-daily-reports'),
-            esc_url($login_url),
-            esc_html__('ログイン画面へ', 'drwp-daily-reports')
-        );
+        // No "ログイン画面へ" link here on purpose — the recommended
+        // page layout has [drwp_login_form] right above this on the
+        // same page, so the visitor already sees the actual login
+        // form. A second link would compete for attention with the
+        // form itself.
+        return '<p>' . esc_html__('日報を投稿するにはログインしてください。', 'drwp-daily-reports') . '</p>';
     }
 
     private static function wrap($inner) {
