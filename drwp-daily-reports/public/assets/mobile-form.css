@@ -55,3 +55,107 @@
     padding: 12px 16px; border-radius: 10px;
     font-weight: 600; font-size: 1rem;
 }
+
+/* ---- My-reports list (default view of [drwp_report_form]) ---- */
+.drwp-mform-list-wrap { display: flex; flex-direction: column; gap: 14px; }
+.drwp-mform-list-actions { margin: 0; }
+.drwp-mform-new-btn {
+    display: inline-block;
+    padding: 14px 20px;
+    background: #111827; color: #fff;
+    border-radius: 12px;
+    font-weight: 700; font-size: 1rem;
+    text-decoration: none;
+}
+.drwp-mform-new-btn:hover { background: #1f2937; color: #fff; }
+
+.drwp-mform-filter {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 8px;
+}
+.drwp-mform-filter-row {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+}
+.drwp-mform-filter label {
+    display: flex; flex-direction: column; gap: 3px;
+    min-width: 130px;
+}
+.drwp-mform-filter label.grow { flex: 1; min-width: 180px; }
+.drwp-mform-filter label > span {
+    font-size: 0.8rem; color: #475569; font-weight: 600;
+}
+.drwp-mform-filter input[type=search],
+.drwp-mform-filter input[type=date],
+.drwp-mform-filter select {
+    width: 100%; box-sizing: border-box;
+    padding: 8px 10px; border: 1px solid #cbd5e1;
+    border-radius: 8px; background: #fff;
+    font: inherit; font-size: 0.95rem;
+}
+.drwp-mform-filter-submit {
+    padding: 9px 18px; border: 0; border-radius: 8px;
+    background: #111827; color: #fff; font-weight: 700; cursor: pointer;
+}
+.drwp-mform-filter-submit:hover { background: #1f2937; }
+.drwp-mform-filter-reset {
+    align-self: center; color: #64748b; font-size: 0.85rem;
+    text-decoration: underline;
+}
+
+.drwp-mform-list-summary { font-size: 0.85rem; color: #64748b; margin: 0; }
+.drwp-mform-list-empty {
+    padding: 24px; text-align: center; color: #64748b;
+    background: #f8fafc; border-radius: 10px;
+}
+.drwp-mform-list {
+    list-style: none; padding: 0; margin: 0;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.drwp-mform-list-item {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 6px;
+}
+.drwp-mform-list-item .head {
+    display: flex; justify-content: space-between; align-items: center;
+}
+.drwp-mform-list-item .date { font-weight: 700; color: #0f172a; }
+.drwp-mform-list-item .status {
+    padding: 2px 10px; border-radius: 999px;
+    color: #fff; font-size: 0.8rem; font-weight: 600;
+    background: #64748b;
+}
+.drwp-mform-list-item .status.status-pending { background: #d97706; }
+.drwp-mform-list-item .status.status-approved { background: #059669; }
+.drwp-mform-list-item .status.status-needs_revision { background: #dc2626; }
+.drwp-mform-list-item .body {
+    display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline;
+}
+.drwp-mform-list-item .project { font-weight: 600; color: #1e293b; }
+.drwp-mform-list-item .time { color: #475569; font-size: 0.9rem; }
+.drwp-mform-list-item .snippet { color: #475569; font-size: 0.95rem; margin: 0; }
+
+.drwp-mform-pagination {
+    display: flex; justify-content: center; align-items: center;
+    gap: 14px; margin: 4px 0 8px;
+}
+.drwp-mform-pagination a,
+.drwp-mform-pagination span {
+    padding: 6px 14px;
+    border: 1px solid #cbd5e1; border-radius: 8px;
+    color: #1e293b; text-decoration: none; font-size: 0.95rem;
+    background: #fff;
+}
+.drwp-mform-pagination span.disabled { color: #94a3b8; background: #f8fafc; }
+.drwp-mform-pagination span.indicator {
+    border: 0; background: transparent; color: #475569; padding: 0;
+}
+
+.drwp-mform-back { margin: 0 0 8px; font-size: 0.95rem; }
+.drwp-mform-back a { color: #475569; text-decoration: none; }
+.drwp-mform-back a:hover { color: #0f172a; }

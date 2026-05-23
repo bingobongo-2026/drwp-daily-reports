@@ -196,23 +196,42 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 ## 6. フロント機能
 
-### 6.1 `[drwp_report_form]` — 日報入力フォーム
+### 6.1 `[drwp_report_form]` — 自分の日報ハブ + 入力フォーム
 
-`class-drwp-report-form.php`。field worker 向けスマホフォーム。
+`class-drwp-report-form.php`。field worker 向けスマホ向けハブ。1 つのショートコードが URL 状態で 2 つのビューに切り替わる:
+
+- パラメータなし: **自分の日報リスト** + 検索フィルタ + 上部に「+ 日報を書く」ボタン
+- `?drwp_new=1`: **入力フォーム** + 「← 一覧に戻る」リンク
+
+#### 共通の前提
 
 - 未ログインなら「日報を投稿するにはログインしてください。」と表示
 - `edit_posts` がなければ「権限がありません」と表示
-- 1 フォーム = 1 現場 = 1 日報。**カード追加機能は無し**(複数現場の日はフォームを連続投稿)
-- 入力項目: 日付、現場、開始時刻、終了時刻、作業内容、問題点、次回予定、写真
-- 写真は撮影 / 端末選択を兼ねた `<input type="file" accept="image/*" capture="environment" multiple>`
-- 送信時に **写真先行アップロード** → 完了後に `POST /reports` で本体を送る
-- 完了後は緑バナーでメッセージ表示 + 自動スクロール、フォームはリセットされて再投稿可
+
+#### 自分の日報リスト (default)
+
+current_user_id() でスコープを固定。他人の日報は出ない(チーム横断は `[drwp_report_archive]` を使う)。
+
+絞り込み:
+- キーワード (`drwp_q`): `work_description` の LIKE
+- 現場 (`drwp_project`): ドロップダウン。自分が書いたことのある現場のみ表示(短く保つため)
+- 期間 (`drwp_from` / `drwp_to`): `report_date` の YYYY-MM-DD 範囲
+- ステータス (`drwp_status`): `pending` / `approved` / `needs_revision` / すべて
+- 表示件数 (`drwp_per`): 10 / 20 / 50
+
+各リスト行: 日付 / ステータスバッジ / 現場名 / 時刻 / 作業内容 80 字スニペット。
+
+ページネーション: prev / next + 「N / 総ページ数」インジケータ。
+
+#### 入力フォーム (`?drwp_new=1`)
+
+1 フォーム = 1 現場 = 1 日報。**カード追加機能は無し**(複数現場の日はフォームを連続投稿)。
+
+入力項目: 日付、現場、開始時刻、終了時刻、作業内容、問題点、次回予定、写真。写真は撮影 / 端末選択を兼ねた `<input type="file" accept="image/*" capture="environment" multiple>`。送信時に **写真先行アップロード** → 完了後に `POST /reports` で本体を送る。完了後は緑バナーでメッセージ表示 + 自動スクロール、フォームはリセットされて連続投稿可能(ハブの一覧に戻りたい場合は上部の「← 一覧に戻る」)。
 
 **JS への config 引き渡し**: フォーム wrapper の `data-drwp-mform-config` 属性に JSON を埋め込み、JS が `getAttribute → JSON.parse` で受け取る(ホストのページキャッシュや最適化プラグインが補助 `<script>` チャンクを剥がす環境への対策)。
 
-#### 設定 (PHP → JS) のキー
-
-`rest_root`, `nonce`, `today`, `license_ok`, `projects[]`, `i18n{ pick_project, need_project, need_work, uploading, sending, sent, send_failed }`
+config キー: `rest_root`, `nonce`, `today`, `license_ok`, `projects[]`, `i18n{ pick_project, need_project, need_work, uploading, sending, sent, send_failed }`
 
 ### 6.2 `[drwp_login_form]` — ログインフォーム
 
