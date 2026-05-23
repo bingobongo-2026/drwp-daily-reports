@@ -1,22 +1,14 @@
 /**
- * Frontend edit form for own pending reports. Driven by the
- * data-drwp-edit-config JSON on the <form>. Handles three dynamic
- * interactions; everything else (entry pre-fill, project options,
- * existing photo rows) is rendered server-side, so a page with JS
- * disabled still shows the right data — just without add / remove
- * controls.
+ * Frontend edit form for own pending reports. The form posts a
+ * single flat report (no entry cards) — JS handles only:
  *
- *   - "+ 現場を追加": clone the <template> with __IDX__ swapped for
- *     the next free index, append it.
- *   - "この現場を削除": detach the card.
- *   - "+ 写真を追加": file picker → REST /upload-photo → append a
- *     thumbnail card with the returned attachment_id baked into a
- *     hidden input so the form submits the new IDs alongside the
- *     existing ones.
+ *   - "× 削除" on each existing photo card
+ *   - "+ 写真を追加" file picker → REST /upload-photo → append
+ *     a thumbnail card with hidden inputs the form submits
  *
- * Config lives on a data attribute (same pattern as mobile-form.js)
- * to survive aggressive page-cache / asset-optimizer stacks that
- * strip auxiliary <script> chunks.
+ * Config rides on the form's data attribute, same pattern as
+ * mobile-form.js (page-cache stacks have been observed to strip
+ * wp_localize_script / wp_add_inline_script payloads).
  */
 (function () {
     var form = document.querySelector('form.drwp-archive-edit-form[data-drwp-edit-config]');
@@ -33,83 +25,52 @@
     }
     if (!config) return;
 
-    var entriesEl = form.querySelector('[data-role=entries]');
-    var addBtn    = form.querySelector('[data-role=add-entry]');
-    var template  = document.getElementById('drwp-archive-edit-template');
-    var i18n      = config.i18n || {};
+    var photosDiv = form.querySelector('[data-role=photos]');
+    var photoInput = form.querySelector('[data-role=photo-input]');
+    var status     = form.querySelector('[data-role=photo-status]');
+    var i18n       = config.i18n || {};
 
-    var nextIdx = entriesEl.querySelectorAll('.drwp-archive-edit-entry').length;
-
-    /* -- Add entry --------------------------------------------- */
-    if (addBtn && template) {
-        addBtn.addEventListener('click', function () {
-            var html = template.innerHTML
-                .replace(/__IDX__/g, String(nextIdx))
-                .replace(/__N__/g, String(nextIdx + 1));
-            var holder = document.createElement('div');
-            holder.innerHTML = html;
-            var card = holder.firstElementChild;
-            if (card) entriesEl.appendChild(card);
-            nextIdx++;
+    // -- Photo "×" removal (event delegation) -----------------
+    if (photosDiv) {
+        photosDiv.addEventListener('click', function (e) {
+            var t = e.target;
+            if (!(t instanceof Element)) return;
+            if (!t.matches('[data-role=remove-photo]')) return;
+            var item = t.closest('.drwp-archive-edit-photo-item');
+            if (item) item.remove();
         });
     }
 
-    /* -- Remove entry / remove photo (event delegation) -------- */
-    entriesEl.addEventListener('click', function (e) {
-        var t = e.target;
-        if (!(t instanceof Element)) return;
-        if (t.matches('[data-role=remove-entry]')) {
-            var card = t.closest('.drwp-archive-edit-entry');
-            if (card && entriesEl.querySelectorAll('.drwp-archive-edit-entry').length > 1) {
-                card.remove();
-            }
-            // If only one card remains we silently ignore — a
-            // report must have ≥ 1 entry (server enforces).
-        } else if (t.matches('[data-role=remove-photo]')) {
-            var item = t.closest('.drwp-archive-edit-photo-item');
-            if (item) item.remove();
-        }
-    });
+    // -- Photo upload -----------------------------------------
+    if (photoInput) {
+        photoInput.addEventListener('change', function () {
+            var files = Array.from(photoInput.files || []);
+            if (!files.length) return;
 
-    /* -- Photo upload (event delegation on change) ------------- */
-    entriesEl.addEventListener('change', function (e) {
-        var t = e.target;
-        if (!(t instanceof HTMLInputElement)) return;
-        if (!t.matches('[data-role=photo-input]')) return;
+            var done = 0;
+            var total = files.length;
+            var chain = Promise.resolve();
+            if (status) status.textContent = (i18n.uploading || 'Uploading…') + ' (0/' + total + ')';
 
-        var card = t.closest('.drwp-archive-edit-entry');
-        if (!card) return;
-        var idx = card.getAttribute('data-idx');
-        var photosDiv = card.querySelector('[data-role=photos]');
-        var status = card.querySelector('[data-role=photo-status]');
-        var files = Array.from(t.files || []);
-        if (!files.length) return;
-
-        var done = 0;
-        var total = files.length;
-        var chain = Promise.resolve();
-        if (status) status.textContent = (i18n.uploading || 'Uploading…') + ' (0/' + total + ')';
-
-        files.forEach(function (file) {
-            chain = chain.then(function () {
-                return uploadOne(file).then(function (att) {
-                    appendPhotoCard(photosDiv, idx, att);
-                    done++;
-                    if (status) status.textContent = (i18n.uploading || 'Uploading…') + ' (' + done + '/' + total + ')';
+            files.forEach(function (file) {
+                chain = chain.then(function () {
+                    return uploadOne(file).then(function (att) {
+                        appendPhotoCard(att);
+                        done++;
+                        if (status) status.textContent = (i18n.uploading || 'Uploading…') + ' (' + done + '/' + total + ')';
+                    });
+                }).catch(function (err) {
+                    if (status) status.textContent = (i18n.upload_failed || 'Upload failed') + ': ' + (err && err.message ? err.message : err);
                 });
-            }).catch(function (err) {
-                if (status) status.textContent = (i18n.upload_failed || 'Upload failed') + ': ' + (err && err.message ? err.message : err);
+            });
+            chain.then(function () {
+                photoInput.value = '';
+                if (status && done === total) {
+                    setTimeout(function () { status.textContent = ''; }, 1500);
+                }
             });
         });
-        chain.then(function () {
-            // Reset the input so picking the same file again still
-            // fires a change event. Status clears after a moment.
-            t.value = '';
-            if (status && done === total) {
-                setTimeout(function () { status.textContent = ''; }, 1500);
-            }
-        });
-    });
+    }
 
     function uploadOne(file) {
         var body = new FormData();
@@ -127,7 +88,7 @@
         });
     }
 
-    function appendPhotoCard(photosDiv, idx, att) {
+    function appendPhotoCard(att) {
         if (!photosDiv) return;
         var div = document.createElement('div');
         div.className = 'drwp-archive-edit-photo-item';
@@ -141,13 +102,13 @@
 
         var hidId = document.createElement('input');
         hidId.type = 'hidden';
-        hidId.name = 'entries[' + idx + '][attachment_ids][]';
+        hidId.name = 'attachment_ids[]';
         hidId.value = String(att.id);
         div.appendChild(hidId);
 
         var capInput = document.createElement('input');
         capInput.type = 'text';
-        capInput.name = 'entries[' + idx + '][attachment_captions][]';
+        capInput.name = 'attachment_captions[]';
         capInput.placeholder = 'キャプション';
         capInput.value = '';
         div.appendChild(capInput);

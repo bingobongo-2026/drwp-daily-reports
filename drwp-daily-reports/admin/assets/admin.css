@@ -12,12 +12,6 @@
 .drwp-public-photos figure { margin:0; }
 .drwp-public-photos img { width:100%; height:auto; display:block; }
 .drwp-public-photos figcaption { font-size:.9rem; color:#50575e; margin-top:4px; }
-.drwp-entries { display:flex; flex-direction:column; gap:12px; margin-top:8px; }
-.drwp-entry { background:#fff; border:1px solid #c3c4c7; border-left:4px solid #2271b1; padding:12px 16px; border-radius:4px; }
-.drwp-entry-head { display:flex; gap:12px; align-items:center; justify-content:space-between; }
-.drwp-entry-photos { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:8px; margin-top:8px; }
-.drwp-entry-photos .drwp-photo-item img { width:100%; height:auto; display:block; }
-
 /* Report edit page: section cards + status banner -------------- */
 .drwp-report-edit .drwp-section {
     background: #fff;

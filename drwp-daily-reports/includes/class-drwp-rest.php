@@ -134,12 +134,13 @@ class DRWP_REST {
 
     private static function shape_report($r) {
         if (!$r) return null;
-        $entries = array_map(['DRWP_Report_Entry', 'shape'], DRWP_Report_Entry::for_report((int) $r->id));
         return [
             'id'                => (int) $r->id,
             'project_id'        => $r->project_id ? (int) $r->project_id : null,
             'user_id'           => (int) $r->user_id,
             'report_date'       => (string) $r->report_date,
+            'started_at'        => $r->started_at ?: null,
+            'ended_at'          => $r->ended_at ?: null,
             'review_status'     => (string) $r->review_status,
             'work_description'  => (string) $r->work_description,
             'issues'            => (string) $r->issues,
@@ -154,7 +155,6 @@ class DRWP_REST {
             'post_status'       => (string) $r->post_status,
             'scheduled_at'      => $r->scheduled_at ?: null,
             'linked_post_id'    => $r->linked_post_id ? (int) $r->linked_post_id : null,
-            'entries'           => $entries,
             'created_at'        => (string) $r->created_at,
             'updated_at'        => (string) $r->updated_at,
         ];
@@ -237,16 +237,7 @@ class DRWP_REST {
 
         $wpdb->insert($table, $data);
         $id = (int) $wpdb->insert_id;
-        // entries[] is the multi-site shape (1 report : N jobsite
-        // visits). When the caller sends it we treat it as the source
-        // of truth and rebuild the entry + photo set from scratch;
-        // legacy report-level attachment_ids only run when entries[]
-        // is absent.
-        if (array_key_exists('entries', $input)) {
-            DRWP_Report_Entry::sync($id, (array) $input['entries']);
-        } else {
-            self::sync_photos_from_input($id, $input);
-        }
+        self::sync_photos_from_input($id, $input);
         DRWP_Audit::log('report_created', '日報を作成 (REST)', $id, ['source' => 'rest']);
 
         $response = rest_ensure_response(self::shape_report(self::find_report($id)));
@@ -271,12 +262,10 @@ class DRWP_REST {
             $wpdb->update($wpdb->prefix . 'drwp_reports', $data, ['id' => $id]);
             DRWP_Audit::log('report_updated', '日報を更新 (REST)', $id, ['source' => 'rest']);
         }
-        // Photos / entries are explicit replacements: only touch the
-        // link tables when the caller actually sent them, so a
-        // metadata-only PATCH doesn't wipe out the existing set.
-        if (array_key_exists('entries', $input)) {
-            DRWP_Report_Entry::sync($id, (array) $input['entries']);
-        } elseif (array_key_exists('attachment_ids', $input)) {
+        // Photos are an explicit replacement: only touch the link
+        // table when the caller actually sent attachment_ids, so a
+        // metadata-only PATCH doesn't wipe out the existing photo set.
+        if (array_key_exists('attachment_ids', $input)) {
             self::sync_photos_from_input($id, $input);
         }
         return rest_ensure_response(self::shape_report(self::find_report($id)));
@@ -356,6 +345,19 @@ class DRWP_REST {
         }
         if (isset($input['scheduled_at'])) {
             $out['scheduled_at'] = sanitize_text_field((string) $input['scheduled_at']) ?: null;
+        }
+        // started_at / ended_at: accept HH:MM or HH:MM:SS, store as
+        // HH:MM:SS (MySQL TIME column). Anything else becomes NULL so
+        // garbage doesn't end up in the column.
+        foreach (['started_at', 'ended_at'] as $tk) {
+            if (!array_key_exists($tk, $input)) continue;
+            $raw = trim((string) $input[$tk]);
+            if ($raw === '') { $out[$tk] = null; continue; }
+            if (preg_match('/^(\d{2}):(\d{2})(?::(\d{2}))?$/', $raw, $m)) {
+                $out[$tk] = sprintf('%02d:%02d:%02d', (int) $m[1], (int) $m[2], (int) ($m[3] ?? 0));
+            } else {
+                $out[$tk] = null;
+            }
         }
         return $out;
     }

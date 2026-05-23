@@ -9,11 +9,11 @@ if (!defined('ABSPATH')) exit;
  *
  *     [drwp_report_form]
  *
- * The rendered form is multi-entry by design (1 day report : N
- * jobsite visits) — workers who hit one site still just have one
- * entry card. The form talks to /wp-json/drwp/v1/ for projects,
- * photo uploads, and the report POST. Submissions land as
- * review_status=pending and feed the existing review queue.
+ * Each rendered form = one site visit. A worker who goes to two
+ * sites in a day files two reports. The "+ 現場を追加" UI that
+ * grouped multiple sites under one report was removed in v1.11 —
+ * the per-visit started_at / ended_at fields stay on the form
+ * since they're useful regardless of structure.
  *
  * Requirements for the visitor:
  *   - logged in (WP cookie auth supplies the REST nonce)
@@ -23,13 +23,11 @@ if (!defined('ABSPATH')) exit;
  *
  * Assets:
  *   The JS and CSS live in /public/assets/ and are loaded via
- *   wp_enqueue_script / wp_enqueue_style. Earlier the same code
- *   was emitted inline from the shortcode's return string and
- *   reliably got mangled by wpautop running over the_content
- *   (the inserted <p> / <br /> inside the <script> block produced
- *   "Uncaught SyntaxError: Invalid or unexpected token" in the
- *   browser and the form did nothing). Enqueueing real files
- *   sidesteps wpautop completely.
+ *   wp_enqueue_script / wp_enqueue_style; the per-page config is
+ *   embedded into the wrapper element's data-drwp-mform-config
+ *   attribute (page-cache stacks have been observed to strip
+ *   auxiliary <script> chunks from wp_add_inline_script and
+ *   wp_localize_script in production).
  */
 class DRWP_Report_Form {
 
@@ -40,13 +38,6 @@ class DRWP_Report_Form {
         add_action('wp_enqueue_scripts', [__CLASS__, 'register_assets']);
     }
 
-    /**
-     * Pre-register the script/style on wp_enqueue_scripts. We don't
-     * enqueue here — only the shortcode knows whether the page
-     * actually needs the form — but registering early means
-     * render() can pull them in cleanly without needing to do its
-     * own register().
-     */
     public static function register_assets() {
         wp_register_style(
             self::HANDLE,
@@ -59,7 +50,7 @@ class DRWP_Report_Form {
             DRWP_URL . 'public/assets/mobile-form.js',
             [],
             DRWP_VERSION,
-            true   // footer — wp_localize_script emits the config tag right before the main src
+            true
         );
     }
 
@@ -82,20 +73,9 @@ class DRWP_Report_Form {
             'license_ok'  => DRWP_License::can_write(),
             'projects'    => $projects,
             'i18n'        => [
-                'add_entry'    => __('現場を追加', 'drwp-daily-reports'),
-                'remove_entry' => __('この現場を削除', 'drwp-daily-reports'),
-                'entry_label'  => __('現場', 'drwp-daily-reports'),
                 'pick_project' => __('選択してください', 'drwp-daily-reports'),
-                'work'         => __('作業内容', 'drwp-daily-reports'),
-                'issues'       => __('問題点 (任意)', 'drwp-daily-reports'),
-                'next'         => __('次回予定 (任意)', 'drwp-daily-reports'),
-                'photos'       => __('写真', 'drwp-daily-reports'),
-                'pick_photos'  => __('カメラで撮影 / 端末から選択', 'drwp-daily-reports'),
-                'started'      => __('開始時刻', 'drwp-daily-reports'),
-                'ended'        => __('終了時刻', 'drwp-daily-reports'),
                 'need_project' => __('現場を選択してください。', 'drwp-daily-reports'),
                 'need_work'    => __('作業内容を入力してください。', 'drwp-daily-reports'),
-                'need_entry'   => __('現場エントリを 1 つ以上入力してください。', 'drwp-daily-reports'),
                 'uploading'    => __('写真をアップロード中…', 'drwp-daily-reports'),
                 'sending'      => __('送信中…', 'drwp-daily-reports'),
                 'sent'         => __('送信しました。レビュー待ちに入っています。', 'drwp-daily-reports'),
@@ -105,17 +85,7 @@ class DRWP_Report_Form {
 
         wp_enqueue_style(self::HANDLE);
         wp_enqueue_script(self::HANDLE);
-        // Config rides on a data-attribute on the wrapper element
-        // rather than going through wp_localize_script /
-        // wp_add_inline_script. Earlier attempts via those code
-        // paths landed in production environments where a page-cache
-        // or asset-optimization layer (LiteSpeed Cache and similar)
-        // stripped the auxiliary <script> chunk while keeping the
-        // main <script src> — config never reached the browser, the
-        // JS bailed silently, the form was dead. Embedding the JSON
-        // in the rendered HTML itself removes every plugin-mediated
-        // transport step: if the form HTML is on the page, the
-        // config is on the page.
+
         $config_attr = wp_json_encode($config);
         if ($config_attr === false) $config_attr = '{}';
 
@@ -134,11 +104,54 @@ class DRWP_Report_Form {
                     <input type="date" name="report_date" value="<?php echo esc_attr($config['today']); ?>" required>
                 </label>
 
-                <div class="drwp-mform-entries" data-role="entries"></div>
+                <label class="drwp-mform-row">
+                    <span class="drwp-mform-label">
+                        <?php esc_html_e('現場', 'drwp-daily-reports'); ?> <em>*</em>
+                    </span>
+                    <select name="project_id" required>
+                        <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
+                        <?php foreach ($projects as $p): ?>
+                            <option value="<?php echo (int) $p['id']; ?>"><?php echo esc_html($p['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
 
-                <button type="button" class="drwp-mform-add" data-role="add-entry">
-                    + <?php echo esc_html($config['i18n']['add_entry']); ?>
-                </button>
+                <div class="drwp-mform-times">
+                    <label class="col">
+                        <?php esc_html_e('開始時刻', 'drwp-daily-reports'); ?>
+                        <input type="time" name="started_at">
+                    </label>
+                    <label class="col">
+                        <?php esc_html_e('終了時刻', 'drwp-daily-reports'); ?>
+                        <input type="time" name="ended_at">
+                    </label>
+                </div>
+
+                <label class="drwp-mform-row">
+                    <span class="drwp-mform-label">
+                        <?php esc_html_e('作業内容', 'drwp-daily-reports'); ?> <em>*</em>
+                    </span>
+                    <textarea name="work_description" rows="4" required></textarea>
+                </label>
+
+                <label class="drwp-mform-row">
+                    <span class="drwp-mform-label"><?php esc_html_e('問題点 (任意)', 'drwp-daily-reports'); ?></span>
+                    <textarea name="issues" rows="2"></textarea>
+                </label>
+
+                <label class="drwp-mform-row">
+                    <span class="drwp-mform-label"><?php esc_html_e('次回予定 (任意)', 'drwp-daily-reports'); ?></span>
+                    <textarea name="next_plan" rows="2"></textarea>
+                </label>
+
+                <div class="drwp-mform-row">
+                    <span class="drwp-mform-label"><?php esc_html_e('写真', 'drwp-daily-reports'); ?></span>
+                    <label class="drwp-mform-photo-pick">
+                        <span><?php esc_html_e('カメラで撮影 / 端末から選択', 'drwp-daily-reports'); ?></span>
+                        <input type="file" accept="image/*" capture="environment" multiple data-role="photo-input">
+                    </label>
+                    <div class="drwp-mform-photos" data-role="photo-preview"></div>
+                </div>
 
                 <button type="submit" class="drwp-mform-submit">
                     <?php esc_html_e('下書きとして送信', 'drwp-daily-reports'); ?>
@@ -156,11 +169,6 @@ class DRWP_Report_Form {
     }
 
     private static function login_prompt() {
-        // No "ログイン画面へ" link here on purpose — the recommended
-        // page layout has [drwp_login_form] right above this on the
-        // same page, so the visitor already sees the actual login
-        // form. A second link would compete for attention with the
-        // form itself.
         return '<p class="drwp-mform-login-required">'
             . esc_html__('日報を投稿するにはログインしてください。', 'drwp-daily-reports')
             . '</p>';

@@ -4,29 +4,25 @@ if (!defined('ABSPATH')) exit;
 /**
  * CSV importer for daily reports.
  *
- * Two modes, selected by header columns:
+ * 1 row = 1 report. Each row creates one row in drwp_reports.
+ * Required columns: report_date, work_description.
+ * Optional columns: project_name (auto-created if missing),
+ * started_at, ended_at, issues, next_plan, public_*, post_*.
  *
- *   1. Legacy (1 row : 1 report). The default — header has no
- *      `entry_group` column. Each row becomes one flat report.
- *      Existing CSVs from before the multi-site work keep importing
- *      unchanged.
+ * Photos are not imported via CSV — they're attachments, not text.
  *
- *   2. Multi-entry (1 row : 1 site entry). Triggered by the presence
- *      of `entry_group` in the header. Rows sharing the same
- *      non-empty `entry_group` value collapse into one report with
- *      N entries. Report-level fields (date, post status, tags,
- *      category, schedule, post template) are read from the first
- *      row of each group; entry-level fields (project, time window,
- *      work, issues, next plan, public_*) come from each individual
- *      row. Rows with an empty entry_group become 1-entry reports —
- *      they still flow through DRWP_Report_Entry::sync so the data
- *      shape stays uniform within the file.
+ * The earlier "entry_group multi-entry" mode that allowed N rows
+ * to collapse into one report's entries[] was removed in v1.11
+ * alongside the underlying schema. CSVs that still ship an
+ * entry_group column simply have it ignored.
  */
 class DRWP_CSV_Import {
 
     const LEGACY_COLUMNS = [
         'report_date',
         'project_name',
+        'started_at',
+        'ended_at',
         'work_description',
         'issues',
         'next_plan',
@@ -108,10 +104,7 @@ class DRWP_CSV_Import {
             ];
         }
 
-        $multi_mode = in_array('entry_group', $header, true);
-        return $multi_mode
-            ? self::import_multi($rows, (int) $user_id)
-            : self::import_legacy($rows, (int) $user_id);
+        return self::import_rows($rows, (int) $user_id);
     }
 
     private static function parse_csv($raw) {
@@ -138,7 +131,7 @@ class DRWP_CSV_Import {
         return ['header' => $header, 'rows' => $rows];
     }
 
-    private static function import_legacy(array $rows, $user_id) {
+    private static function import_rows(array $rows, $user_id) {
         global $wpdb;
         $table = $wpdb->prefix . 'drwp_reports';
         $project_cache = [];
@@ -173,117 +166,14 @@ class DRWP_CSV_Import {
         return self::ok_payload($created, $errors);
     }
 
-    private static function import_multi(array $rows, $user_id) {
-        global $wpdb;
-        $table = $wpdb->prefix . 'drwp_reports';
-        $project_cache = [];
-        $created = 0;
-        $errors = [];
-
-        // Group rows by entry_group value. Rows without one each get
-        // their own synthetic group so they still flow through the
-        // entry-based path (1-row groups = 1-entry reports). Group
-        // order respects file order so the office editor's mental
-        // mapping from spreadsheet to admin list isn't shuffled.
-        $groups = [];
-        $synthetic = 0;
-        foreach ($rows as $r) {
-            $g = trim((string) ($r['data']['entry_group'] ?? ''));
-            if ($g === '') $g = '__row_' . (++$synthetic);
-            if (!isset($groups[$g])) $groups[$g] = [];
-            $groups[$g][] = $r;
-        }
-
-        foreach ($groups as $group_key => $group_rows) {
-            $first = $group_rows[0];
-            $first_line = $first['line'];
-            $first_data = $first['data'];
-            $report_date = sanitize_text_field((string) ($first_data['report_date'] ?? ''));
-            if (!self::is_iso_date($report_date)) {
-                $errors[] = self::line_error($first_line, sprintf(
-                    /* translators: 1: entry_group key, 2: invalid date string */
-                    __('グループ %1$s の report_date が不正 (\'%2$s\')', 'drwp-daily-reports'),
-                    $group_key,
-                    $report_date
-                ));
-                continue;
-            }
-
-            // Report row holds metadata only; entry rows carry the
-            // narrative. project_id stays NULL on the parent — the
-            // entries are the source of truth.
-            $report_row = [
-                'user_id'        => $user_id,
-                'report_date'    => $report_date,
-                'review_status'  => 'pending',
-                'post_template'  => sanitize_text_field((string) ($first_data['post_template'] ?? 'standard')),
-                'post_tags'      => sanitize_text_field((string) ($first_data['post_tags'] ?? '')),
-                'post_status'    => sanitize_text_field((string) ($first_data['post_status'] ?? 'draft')),
-                'post_category_id' => isset($first_data['post_category_id']) && $first_data['post_category_id'] !== ''
-                    ? (int) $first_data['post_category_id'] : null,
-                'scheduled_at'   => isset($first_data['scheduled_at']) && trim((string) $first_data['scheduled_at']) !== ''
-                    ? sanitize_text_field((string) $first_data['scheduled_at']) : null,
-            ];
-            $wpdb->insert($table, $report_row);
-            $report_id = (int) $wpdb->insert_id;
-            if (!$report_id) {
-                $errors[] = self::line_error($first_line, __('DB insert に失敗 (report)', 'drwp-daily-reports'));
-                continue;
-            }
-
-            $entry_inputs = [];
-            $skipped_rows = [];
-            foreach ($group_rows as $er) {
-                $ed = $er['data'];
-                $work = (string) ($ed['work_description'] ?? '');
-                if (trim($work) === '') {
-                    $skipped_rows[] = $er['line'];
-                    continue;
-                }
-                $project_id = self::resolve_project($ed['project_name'] ?? '', $project_cache);
-                $entry_inputs[] = [
-                    'project_id'       => $project_id,
-                    'started_at'       => (string) ($ed['started_at'] ?? ''),
-                    'ended_at'         => (string) ($ed['ended_at'] ?? ''),
-                    'work_description' => $work,
-                    'issues'           => (string) ($ed['issues'] ?? ''),
-                    'next_plan'        => (string) ($ed['next_plan'] ?? ''),
-                    'public_title'     => (string) ($ed['entry_public_title'] ?? ''),
-                    'public_body'      => (string) ($ed['entry_public_body'] ?? ''),
-                ];
-            }
-            if (empty($entry_inputs)) {
-                // Roll the empty report back rather than leaving a
-                // ghost record with no narrative.
-                $wpdb->delete($table, ['id' => $report_id]);
-                $errors[] = self::line_error($first_line, sprintf(
-                    /* translators: %s: entry_group key */
-                    __('グループ %s に有効なエントリ行がありませんでした', 'drwp-daily-reports'),
-                    $group_key
-                ));
-                continue;
-            }
-            DRWP_Report_Entry::sync($report_id, $entry_inputs);
-            foreach ($skipped_rows as $line) {
-                $errors[] = self::line_error($line, __('work_description が空のためスキップ', 'drwp-daily-reports'));
-            }
-            DRWP_Audit::log('report_imported', 'CSV インポートで作成 (multi-entry)', $report_id, [
-                'line'    => $first_line,
-                'entries' => count($entry_inputs),
-                'group'   => $group_key,
-            ]);
-            $created++;
-        }
-
-        return self::ok_payload($created, $errors);
-    }
-
     private static function flat_report_row(array $data, $user_id, $report_date, array &$project_cache) {
         $project_id = self::resolve_project($data['project_name'] ?? '', $project_cache);
         return [
             'project_id'       => $project_id,
             'user_id'          => $user_id,
             'report_date'      => $report_date,
+            'started_at'       => self::sanitize_time($data['started_at'] ?? ''),
+            'ended_at'         => self::sanitize_time($data['ended_at'] ?? ''),
             'work_description' => wp_kses_post((string) ($data['work_description'] ?? '')),
             'issues'           => wp_kses_post((string) ($data['issues'] ?? '')),
             'next_plan'        => wp_kses_post((string) ($data['next_plan'] ?? '')),
@@ -308,6 +198,16 @@ class DRWP_CSV_Import {
 
     private static function is_iso_date($s) {
         return (bool) preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $s);
+    }
+
+    /** Accept HH:MM or HH:MM:SS; anything else stores NULL. */
+    private static function sanitize_time($v) {
+        $v = trim((string) $v);
+        if ($v === '') return null;
+        if (preg_match('/^(\d{2}):(\d{2})(?::(\d{2}))?$/', $v, $m)) {
+            return sprintf('%02d:%02d:%02d', (int) $m[1], (int) $m[2], (int) ($m[3] ?? 0));
+        }
+        return null;
     }
 
     private static function line_error($line_no, $message) {
