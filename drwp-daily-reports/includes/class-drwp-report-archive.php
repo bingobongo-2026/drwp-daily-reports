@@ -31,13 +31,19 @@ if (!defined('ABSPATH')) exit;
  */
 class DRWP_Report_Archive {
 
-    const HANDLE = 'drwp-archive';
+    const HANDLE      = 'drwp-archive';
+    const HANDLE_EDIT = 'drwp-archive-edit';
     const PER_PAGE_DEFAULT = 20;
     const PER_PAGE_OPTIONS = [10, 20, 50, 100];
 
     public static function init() {
         add_shortcode('drwp_report_archive', [__CLASS__, 'shortcode']);
         add_action('wp_enqueue_scripts', [__CLASS__, 'register_assets']);
+        // Phase B: own-pending edit POST handler runs on
+        // template_redirect so we can wp_safe_redirect after a
+        // successful save (PRG pattern, same as the lost-password
+        // flow). Output hasn't started yet at this hook.
+        add_action('template_redirect', [__CLASS__, 'handle_edit_post']);
     }
 
     public static function register_assets() {
@@ -46,6 +52,13 @@ class DRWP_Report_Archive {
             DRWP_URL . 'public/assets/archive.css',
             [],
             DRWP_VERSION
+        );
+        wp_register_script(
+            self::HANDLE_EDIT,
+            DRWP_URL . 'public/assets/archive-edit.js',
+            [],
+            DRWP_VERSION,
+            true
         );
     }
 
@@ -64,7 +77,11 @@ class DRWP_Report_Archive {
         }
 
         $id = absint($_GET['drwp_id'] ?? 0);
-        if ($id) return self::render_single($id);
+        if ($id) {
+            $edit = !empty($_GET['drwp_edit']);
+            if ($edit) return self::render_edit($id);
+            return self::render_single($id);
+        }
         return self::render_list();
     }
 
@@ -173,10 +190,10 @@ class DRWP_Report_Archive {
     private static function render_filter_form($q, $author, $from, $to, $status, $per, $authors) {
         $action = esc_url(get_permalink());
         $statuses = [
-            ''                  => __('すべて', 'drwp-daily-reports'),
-            'pending'           => __('レビュー待ち', 'drwp-daily-reports'),
-            'approved'          => __('承認済み', 'drwp-daily-reports'),
-            'revision_requested'=> __('差戻し', 'drwp-daily-reports'),
+            ''                   => __('すべて', 'drwp-daily-reports'),
+            'pending'            => DRWP_Labels::review_status('pending'),
+            'approved'           => DRWP_Labels::review_status('approved'),
+            'revision_requested' => DRWP_Labels::review_status('revision_requested'),
         ];
         ob_start();
         ?>
@@ -264,7 +281,7 @@ class DRWP_Report_Archive {
         if (mb_strlen($snippet) > 80) $snippet = mb_substr($snippet, 0, 80) . '…';
 
         $href = esc_url(add_query_arg('drwp_id', (int) $r->id, get_permalink()));
-        $status_label = self::status_label((string) $r->review_status);
+        $status_label = DRWP_Labels::review_status((string) $r->review_status);
 
         ob_start();
         ?>
@@ -375,7 +392,7 @@ class DRWP_Report_Archive {
                 <h2>
                     <?php echo esc_html((string) $report->report_date); ?>
                     <span class="drwp-archive-status status-<?php echo esc_attr((string) $report->review_status); ?>">
-                        <?php echo esc_html(self::status_label((string) $report->review_status)); ?>
+                        <?php echo esc_html(DRWP_Labels::review_status((string) $report->review_status)); ?>
                     </span>
                 </h2>
                 <p class="drwp-archive-meta">
@@ -385,7 +402,14 @@ class DRWP_Report_Archive {
                 <?php if ($is_own_pending): ?>
                     <p class="drwp-archive-edit-cta">
                         <?php esc_html_e('この日報はあなたのレビュー待ち日報です。', 'drwp-daily-reports'); ?>
-                        <em><?php esc_html_e('（フロントからの編集機能は次回リリースで提供予定）', 'drwp-daily-reports'); ?></em>
+                        <a class="drwp-archive-edit-link" href="<?php echo esc_url(add_query_arg('drwp_edit', '1')); ?>">
+                            <?php esc_html_e('フロントから編集する', 'drwp-daily-reports'); ?>
+                        </a>
+                    </p>
+                <?php endif; ?>
+                <?php if (isset($_GET['drwp_saved'])): ?>
+                    <p class="drwp-archive-flash ok">
+                        <?php esc_html_e('保存しました。', 'drwp-daily-reports'); ?>
                     </p>
                 <?php endif; ?>
             </header>
@@ -519,6 +543,364 @@ class DRWP_Report_Archive {
     }
 
     /* ------------------------------------------------------------
+     * Edit view (Phase B) — own pending reports only
+     * ------------------------------------------------------------ */
+
+    private static function render_edit($id) {
+        global $wpdb;
+        $report = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM " . $wpdb->prefix . "drwp_reports WHERE id = %d", $id
+        ));
+        if (!$report) {
+            return self::wrap('<p class="drwp-archive-message">'
+                . esc_html__('該当する日報が見つかりません。', 'drwp-daily-reports')
+                . '</p>');
+        }
+        if ((int) $report->user_id !== get_current_user_id()
+            || $report->review_status !== 'pending') {
+            // Permission check, defense in depth — JS link won't be
+            // shown for non-own / non-pending, but a direct URL hit
+            // still needs to be rejected.
+            $back = esc_url(remove_query_arg('drwp_edit'));
+            return self::wrap('<p class="drwp-archive-message">'
+                . esc_html__('この日報はフロントから編集できません(自分の レビュー待ち の日報のみ編集可能です)。', 'drwp-daily-reports')
+                . '</p><p class="drwp-archive-back"><a href="' . $back . '">&laquo; '
+                . esc_html__('一覧に戻る', 'drwp-daily-reports')
+                . '</a></p>');
+        }
+
+        wp_enqueue_script(self::HANDLE_EDIT);
+
+        $entries  = DRWP_Report_Entry::for_report((int) $report->id);
+        $projects = DRWP_Project::all();
+        $back     = esc_url(remove_query_arg('drwp_edit'));
+        $action   = esc_url(get_permalink());
+
+        // Pre-render existing entries as cards. The cloned template
+        // for "+ 現場を追加" lives below — JS swaps __IDX__ for the
+        // next available index when the user appends a fresh card.
+        ob_start();
+        ?>
+        <div class="drwp-archive-wrap drwp-archive-edit">
+            <p class="drwp-archive-back">
+                <a href="<?php echo $back; ?>">&laquo; <?php esc_html_e('閲覧に戻る', 'drwp-daily-reports'); ?></a>
+            </p>
+            <h2><?php esc_html_e('日報を編集', 'drwp-daily-reports'); ?></h2>
+
+            <?php
+            $flash = isset($_GET['drwp_err']) ? sanitize_key((string) $_GET['drwp_err']) : '';
+            if ($flash === 'noentry') echo '<p class="drwp-archive-flash err">' . esc_html__('現場エントリを 1 つ以上入力してください。', 'drwp-daily-reports') . '</p>';
+            if ($flash === 'noproject') echo '<p class="drwp-archive-flash err">' . esc_html__('現場が選択されていないエントリがあります。', 'drwp-daily-reports') . '</p>';
+            if ($flash === 'nowork') echo '<p class="drwp-archive-flash err">' . esc_html__('作業内容が空のエントリがあります。', 'drwp-daily-reports') . '</p>';
+            if ($flash === 'license') echo '<p class="drwp-archive-flash err">' . esc_html__('現在保存できない状態です(ライセンス未有効など)。', 'drwp-daily-reports') . '</p>';
+            ?>
+
+            <form method="post" action="<?php echo $action; ?>"
+                  class="drwp-archive-edit-form"
+                  data-drwp-edit-config="<?php echo esc_attr(wp_json_encode([
+                      'rest_root' => esc_url_raw(rest_url('drwp/v1/')),
+                      'nonce'     => wp_create_nonce('wp_rest'),
+                      'i18n'      => [
+                          'pick_project' => __('選択してください', 'drwp-daily-reports'),
+                          'entry_label'  => __('現場', 'drwp-daily-reports'),
+                          'remove_entry' => __('この現場を削除', 'drwp-daily-reports'),
+                          'started'      => __('開始時刻', 'drwp-daily-reports'),
+                          'ended'        => __('終了時刻', 'drwp-daily-reports'),
+                          'work'         => __('作業内容', 'drwp-daily-reports'),
+                          'issues'       => __('問題点 (任意)', 'drwp-daily-reports'),
+                          'next'         => __('次回予定 (任意)', 'drwp-daily-reports'),
+                          'photos'       => __('写真', 'drwp-daily-reports'),
+                          'pick_photos'  => __('+ 写真を追加', 'drwp-daily-reports'),
+                          'uploading'    => __('アップロード中…', 'drwp-daily-reports'),
+                          'upload_failed'=> __('アップロード失敗', 'drwp-daily-reports'),
+                      ],
+                      'projects' => array_map(function ($p) {
+                          return ['id' => (int) $p->id, 'name' => (string) $p->name];
+                      }, $projects),
+                  ])); ?>">
+                <?php wp_nonce_field('drwp_archive_edit_' . $id); ?>
+                <input type="hidden" name="_drwp_archive_edit" value="1" />
+                <input type="hidden" name="drwp_id" value="<?php echo (int) $id; ?>" />
+
+                <label class="drwp-archive-edit-field">
+                    <span><?php esc_html_e('日付', 'drwp-daily-reports'); ?></span>
+                    <input type="date" name="report_date"
+                           value="<?php echo esc_attr((string) $report->report_date); ?>" required />
+                </label>
+
+                <div class="drwp-archive-edit-entries" data-role="entries">
+                    <?php if (empty($entries)): ?>
+                        <?php echo self::render_edit_entry(0, null, $projects); ?>
+                    <?php else: ?>
+                        <?php foreach ($entries as $idx => $entry): ?>
+                            <?php echo self::render_edit_entry((int) $idx, $entry, $projects); ?>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+
+                <p>
+                    <button type="button" class="drwp-archive-edit-add" data-role="add-entry">
+                        + <?php esc_html_e('現場を追加', 'drwp-daily-reports'); ?>
+                    </button>
+                </p>
+
+                <div class="drwp-archive-edit-actions">
+                    <button type="submit" class="drwp-archive-edit-submit">
+                        <?php esc_html_e('保存する', 'drwp-daily-reports'); ?>
+                    </button>
+                    <a class="drwp-archive-edit-cancel" href="<?php echo $back; ?>">
+                        <?php esc_html_e('キャンセル', 'drwp-daily-reports'); ?>
+                    </a>
+                </div>
+            </form>
+
+            <template id="drwp-archive-edit-template">
+                <?php echo self::render_edit_entry_template($projects); ?>
+            </template>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    private static function render_edit_entry($idx, $entry, $projects) {
+        $project_id    = $entry ? (int) $entry->project_id : 0;
+        $started_at    = $entry ? (string) $entry->started_at : '';
+        $ended_at      = $entry ? (string) $entry->ended_at   : '';
+        $work          = $entry ? (string) $entry->work_description : '';
+        $issues        = $entry ? (string) $entry->issues : '';
+        $next_plan     = $entry ? (string) $entry->next_plan : '';
+        $entry_id      = $entry ? (int) $entry->id : 0;
+        $photos        = $entry_id ? DRWP_Media::for_entry($entry_id) : [];
+
+        ob_start();
+        ?>
+        <div class="drwp-archive-edit-entry" data-idx="<?php echo (int) $idx; ?>">
+            <header class="drwp-archive-edit-entry-head">
+                <strong>
+                    <?php printf(
+                        /* translators: %d: entry order (1-based) */
+                        esc_html__('現場 #%d', 'drwp-daily-reports'),
+                        (int) $idx + 1
+                    ); ?>
+                </strong>
+                <button type="button" class="drwp-archive-edit-remove" data-role="remove-entry">
+                    <?php esc_html_e('この現場を削除', 'drwp-daily-reports'); ?>
+                </button>
+            </header>
+            <label class="drwp-archive-edit-field">
+                <span><?php esc_html_e('現場', 'drwp-daily-reports'); ?></span>
+                <select name="entries[<?php echo (int) $idx; ?>][project_id]" required>
+                    <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
+                    <?php foreach ($projects as $p): ?>
+                        <option value="<?php echo (int) $p->id; ?>" <?php selected($project_id, (int) $p->id); ?>>
+                            <?php echo esc_html($p->name); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <div class="drwp-archive-edit-times">
+                <label class="drwp-archive-edit-field">
+                    <span><?php esc_html_e('開始時刻', 'drwp-daily-reports'); ?></span>
+                    <input type="time" name="entries[<?php echo (int) $idx; ?>][started_at]"
+                           value="<?php echo esc_attr(substr($started_at, 0, 5)); ?>" />
+                </label>
+                <label class="drwp-archive-edit-field">
+                    <span><?php esc_html_e('終了時刻', 'drwp-daily-reports'); ?></span>
+                    <input type="time" name="entries[<?php echo (int) $idx; ?>][ended_at]"
+                           value="<?php echo esc_attr(substr($ended_at, 0, 5)); ?>" />
+                </label>
+            </div>
+            <label class="drwp-archive-edit-field">
+                <span><?php esc_html_e('作業内容', 'drwp-daily-reports'); ?></span>
+                <textarea name="entries[<?php echo (int) $idx; ?>][work_description]" rows="4" required><?php echo esc_textarea($work); ?></textarea>
+            </label>
+            <label class="drwp-archive-edit-field">
+                <span><?php esc_html_e('問題点 (任意)', 'drwp-daily-reports'); ?></span>
+                <textarea name="entries[<?php echo (int) $idx; ?>][issues]" rows="2"><?php echo esc_textarea($issues); ?></textarea>
+            </label>
+            <label class="drwp-archive-edit-field">
+                <span><?php esc_html_e('次回予定 (任意)', 'drwp-daily-reports'); ?></span>
+                <textarea name="entries[<?php echo (int) $idx; ?>][next_plan]" rows="2"><?php echo esc_textarea($next_plan); ?></textarea>
+            </label>
+
+            <div class="drwp-archive-edit-photo-block">
+                <span class="drwp-archive-edit-field-label"><?php esc_html_e('写真', 'drwp-daily-reports'); ?></span>
+                <div class="drwp-archive-edit-photos" data-role="photos">
+                    <?php foreach ($photos as $photo): ?>
+                        <?php $thumb = wp_get_attachment_image_url((int) $photo->attachment_id, 'medium'); ?>
+                        <div class="drwp-archive-edit-photo-item">
+                            <?php if ($thumb): ?>
+                                <img src="<?php echo esc_url($thumb); ?>" alt="" />
+                            <?php endif; ?>
+                            <input type="hidden" name="entries[<?php echo (int) $idx; ?>][attachment_ids][]"
+                                   value="<?php echo (int) $photo->attachment_id; ?>" />
+                            <input type="text"
+                                   name="entries[<?php echo (int) $idx; ?>][attachment_captions][]"
+                                   placeholder="<?php esc_attr_e('キャプション', 'drwp-daily-reports'); ?>"
+                                   value="<?php echo esc_attr((string) $photo->caption); ?>" />
+                            <button type="button" class="drwp-archive-edit-photo-remove" data-role="remove-photo">×</button>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <label class="drwp-archive-edit-photo-pick">
+                    + <?php esc_html_e('写真を追加', 'drwp-daily-reports'); ?>
+                    <input type="file" accept="image/*" multiple data-role="photo-input" />
+                </label>
+                <p class="drwp-archive-edit-photo-status" data-role="photo-status"></p>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * Cloned by JS when "+ 現場を追加" is pressed. Has __IDX__
+     * placeholder in every `entries[N][...]` name so the JS can
+     * swap in the next available index.
+     */
+    private static function render_edit_entry_template($projects) {
+        ob_start();
+        ?>
+        <div class="drwp-archive-edit-entry" data-idx="__IDX__">
+            <header class="drwp-archive-edit-entry-head">
+                <strong>
+                    <?php printf(
+                        /* translators: %s: placeholder, replaced by JS */
+                        esc_html__('現場 #%s', 'drwp-daily-reports'),
+                        '__N__'
+                    ); ?>
+                </strong>
+                <button type="button" class="drwp-archive-edit-remove" data-role="remove-entry">
+                    <?php esc_html_e('この現場を削除', 'drwp-daily-reports'); ?>
+                </button>
+            </header>
+            <label class="drwp-archive-edit-field">
+                <span><?php esc_html_e('現場', 'drwp-daily-reports'); ?></span>
+                <select name="entries[__IDX__][project_id]" required>
+                    <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
+                    <?php foreach ($projects as $p): ?>
+                        <option value="<?php echo (int) $p->id; ?>"><?php echo esc_html($p->name); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <div class="drwp-archive-edit-times">
+                <label class="drwp-archive-edit-field">
+                    <span><?php esc_html_e('開始時刻', 'drwp-daily-reports'); ?></span>
+                    <input type="time" name="entries[__IDX__][started_at]" />
+                </label>
+                <label class="drwp-archive-edit-field">
+                    <span><?php esc_html_e('終了時刻', 'drwp-daily-reports'); ?></span>
+                    <input type="time" name="entries[__IDX__][ended_at]" />
+                </label>
+            </div>
+            <label class="drwp-archive-edit-field">
+                <span><?php esc_html_e('作業内容', 'drwp-daily-reports'); ?></span>
+                <textarea name="entries[__IDX__][work_description]" rows="4" required></textarea>
+            </label>
+            <label class="drwp-archive-edit-field">
+                <span><?php esc_html_e('問題点 (任意)', 'drwp-daily-reports'); ?></span>
+                <textarea name="entries[__IDX__][issues]" rows="2"></textarea>
+            </label>
+            <label class="drwp-archive-edit-field">
+                <span><?php esc_html_e('次回予定 (任意)', 'drwp-daily-reports'); ?></span>
+                <textarea name="entries[__IDX__][next_plan]" rows="2"></textarea>
+            </label>
+            <div class="drwp-archive-edit-photo-block">
+                <span class="drwp-archive-edit-field-label"><?php esc_html_e('写真', 'drwp-daily-reports'); ?></span>
+                <div class="drwp-archive-edit-photos" data-role="photos"></div>
+                <label class="drwp-archive-edit-photo-pick">
+                    + <?php esc_html_e('写真を追加', 'drwp-daily-reports'); ?>
+                    <input type="file" accept="image/*" multiple data-role="photo-input" />
+                </label>
+                <p class="drwp-archive-edit-photo-status" data-role="photo-status"></p>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * Form POST handler for the edit view. Runs on template_redirect
+     * before any output. Re-checks ownership + pending status as
+     * defense in depth (the UI link is gated, but a direct POST
+     * could still arrive). On success, DRWP_Report_Entry::sync()
+     * replaces the entry set wholesale — additions, deletions, and
+     * reorderings are all handled by that single call. The report's
+     * report_date is updated separately.
+     */
+    public static function handle_edit_post() {
+        if (empty($_POST['_drwp_archive_edit'])) return;
+        if (!is_user_logged_in()) return;
+        if (!current_user_can('edit_posts')) return;
+
+        $id = absint($_POST['drwp_id'] ?? 0);
+        if (!$id) return;
+        check_admin_referer('drwp_archive_edit_' . $id);
+
+        global $wpdb;
+        $reports_t = $wpdb->prefix . 'drwp_reports';
+        $report = $wpdb->get_row($wpdb->prepare("SELECT * FROM $reports_t WHERE id = %d", $id));
+        if (!$report) return;
+        if ((int) $report->user_id !== get_current_user_id()) return;
+        if ($report->review_status !== 'pending') return;
+
+        if (!DRWP_License::can_write()) {
+            wp_safe_redirect(add_query_arg(['drwp_id' => $id, 'drwp_edit' => 1, 'drwp_err' => 'license'], get_permalink()));
+            exit;
+        }
+
+        $entries_in = isset($_POST['entries']) && is_array($_POST['entries'])
+            ? $_POST['entries'] : [];
+        // Preserve form order; the user may have re-arranged via JS.
+        ksort($entries_in, SORT_NUMERIC);
+
+        $entries_to_sync = [];
+        foreach ($entries_in as $e) {
+            if (!is_array($e)) continue;
+            $project_id = absint($e['project_id'] ?? 0);
+            $work       = trim((string) wp_unslash($e['work_description'] ?? ''));
+            if (!$project_id) {
+                wp_safe_redirect(add_query_arg(['drwp_id' => $id, 'drwp_edit' => 1, 'drwp_err' => 'noproject'], get_permalink()));
+                exit;
+            }
+            if ($work === '') {
+                wp_safe_redirect(add_query_arg(['drwp_id' => $id, 'drwp_edit' => 1, 'drwp_err' => 'nowork'], get_permalink()));
+                exit;
+            }
+            $entries_to_sync[] = [
+                'project_id'          => $project_id,
+                'started_at'          => sanitize_text_field((string) wp_unslash($e['started_at'] ?? '')),
+                'ended_at'            => sanitize_text_field((string) wp_unslash($e['ended_at'] ?? '')),
+                'work_description'    => wp_kses_post(wp_unslash($work)),
+                'issues'              => wp_kses_post(wp_unslash((string) ($e['issues'] ?? ''))),
+                'next_plan'           => wp_kses_post(wp_unslash((string) ($e['next_plan'] ?? ''))),
+                'attachment_ids'      => array_map('absint', (array) ($e['attachment_ids'] ?? [])),
+                'attachment_captions' => array_map(
+                    'sanitize_text_field',
+                    array_map('wp_unslash', (array) ($e['attachment_captions'] ?? []))
+                ),
+            ];
+        }
+        if (empty($entries_to_sync)) {
+            wp_safe_redirect(add_query_arg(['drwp_id' => $id, 'drwp_edit' => 1, 'drwp_err' => 'noentry'], get_permalink()));
+            exit;
+        }
+
+        $report_date = sanitize_text_field((string) wp_unslash($_POST['report_date'] ?? ''));
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $report_date)) {
+            $wpdb->update($reports_t, ['report_date' => $report_date], ['id' => $id]);
+        }
+
+        DRWP_Report_Entry::sync($id, $entries_to_sync);
+        DRWP_Audit::log('report_edited_frontend', __('日報をフロントから編集', 'drwp-daily-reports'), $id, [
+            'entries' => count($entries_to_sync),
+        ]);
+
+        wp_safe_redirect(add_query_arg(['drwp_id' => $id, 'drwp_saved' => 1], get_permalink()));
+        exit;
+    }
+
+    /* ------------------------------------------------------------
      * Helpers
      * ------------------------------------------------------------ */
 
@@ -539,12 +921,4 @@ class DRWP_Report_Archive {
         return $users;
     }
 
-    private static function status_label($status) {
-        $map = [
-            'pending'            => __('レビュー待ち', 'drwp-daily-reports'),
-            'approved'           => __('承認済み', 'drwp-daily-reports'),
-            'revision_requested' => __('差戻し', 'drwp-daily-reports'),
-        ];
-        return $map[$status] ?? $status;
-    }
 }

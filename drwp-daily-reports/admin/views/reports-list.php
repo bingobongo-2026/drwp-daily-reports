@@ -133,7 +133,7 @@
               echo esc_html($project_name);
             ?></td>
             <td><?php echo esc_html($report->public_title ?: __('（未設定）', 'drwp-daily-reports')); ?></td>
-            <td><?php echo esc_html($report->review_status); ?></td>
+            <td><?php echo esc_html(DRWP_Labels::review_status((string) $report->review_status)); ?></td>
             <td><?php
               $cat_name = '-';
               if (!empty($report->post_category_id)) {
@@ -143,7 +143,7 @@
               echo esc_html($cat_name);
             ?></td>
             <td><?php echo esc_html($report->post_tags ?: '-'); ?></td>
-            <td><?php echo esc_html($report->post_status ?: 'draft'); ?></td>
+            <td><?php echo esc_html(DRWP_Labels::post_status((string) ($report->post_status ?: 'draft'))); ?></td>
             <td><?php echo $report->linked_post_id ? '<a href="' . esc_url(get_edit_post_link((int) $report->linked_post_id)) . '">#' . esc_html($report->linked_post_id) . '</a>' : '-'; ?></td>
             <td>
               <a class="button button-small" href="<?php echo esc_url(admin_url('admin.php?page=drwp_report_edit&id=' . (int) $report->id)); ?>"><?php esc_html_e('編集', 'drwp-daily-reports'); ?></a>

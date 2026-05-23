@@ -60,9 +60,9 @@ class DRWP_Post_Converter {
             <p style="color:#50575e;">
                 <?php
                   printf(
-                      /* translators: %s: post status string (draft / pending / future) */
+                      /* translators: %s: post status label (下書き / 保留中 / 予約) */
                       esc_html__('状態: %s', 'drwp-daily-reports'),
-                      esc_html($report->post_status ?: 'draft')
+                      esc_html(DRWP_Labels::post_status((string) ($report->post_status ?: 'draft')))
                   );
                 ?>
                 <?php if (!empty($category_name)): ?>

@@ -84,7 +84,7 @@ class DRWP_Dashboard {
                   <a href="<?php echo esc_url(admin_url('admin.php?page=drwp_report_edit&id=' . (int) $r->id)); ?>">
                     <?php echo esc_html($r->report_date); ?> — <?php echo esc_html($r->public_title ?: __('（未設定）', 'drwp-daily-reports')); ?>
                   </a>
-                  <span style="float:right;color:#50575e;font-size:.85em;"><?php echo esc_html($r->review_status); ?></span>
+                  <span style="float:right;color:#50575e;font-size:.85em;"><?php echo esc_html(DRWP_Labels::review_status((string) $r->review_status)); ?></span>
                 </li>
               <?php endforeach; ?>
             </ul>
