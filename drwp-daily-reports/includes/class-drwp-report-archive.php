@@ -96,7 +96,6 @@ class DRWP_Report_Archive {
     private static function render_list() {
         global $wpdb;
         $reports_t = $wpdb->prefix . 'drwp_reports';
-        $entries_t = $wpdb->prefix . 'drwp_report_entries';
 
         $q       = isset($_GET['drwp_q']) ? sanitize_text_field(wp_unslash((string) $_GET['drwp_q'])) : '';
         $author  = isset($_GET['drwp_author']) ? absint($_GET['drwp_author']) : 0;
@@ -132,9 +131,7 @@ class DRWP_Report_Archive {
         }
         if ($q !== '') {
             $like = '%' . $wpdb->esc_like($q) . '%';
-            $where[] = '(r.work_description LIKE %s OR EXISTS '
-                . '(SELECT 1 FROM ' . $entries_t . ' e WHERE e.report_id = r.id AND e.work_description LIKE %s))';
-            $args[] = $like;
+            $where[] = 'r.work_description LIKE %s';
             $args[] = $like;
         }
         $where_sql = implode(' AND ', $where);
@@ -263,22 +260,12 @@ class DRWP_Report_Archive {
         $author = get_userdata((int) $r->user_id);
         $author_name = $author ? $author->display_name : '-';
 
-        // Snippet picks the most informative work_description: prefer
-        // the first entry's text (multi-entry case), fall back to the
-        // report-level field (legacy flat reports).
-        $entries = DRWP_Report_Entry::for_report((int) $r->id);
-        $entry_count = count($entries);
-        if ($entry_count > 0) {
-            $snippet_source = (string) $entries[0]->work_description;
-            $project = $entries[0]->project_id ? DRWP_Project::find((int) $entries[0]->project_id) : null;
-            $first_project_name = $project ? $project->name : '';
-        } else {
-            $snippet_source = (string) $r->work_description;
-            $project = $r->project_id ? DRWP_Project::find((int) $r->project_id) : null;
-            $first_project_name = $project ? $project->name : '';
-        }
-        $snippet = wp_strip_all_tags($snippet_source);
+        $project = $r->project_id ? DRWP_Project::find((int) $r->project_id) : null;
+        $project_name = $project ? $project->name : '';
+        $snippet = wp_strip_all_tags((string) $r->work_description);
         if (mb_strlen($snippet) > 80) $snippet = mb_substr($snippet, 0, 80) . '…';
+
+        $time_window = self::format_time_window($r->started_at ?? '', $r->ended_at ?? '');
 
         $href = esc_url(add_query_arg('drwp_id', (int) $r->id, get_permalink()));
         $status_label = DRWP_Labels::review_status((string) $r->review_status);
@@ -294,17 +281,11 @@ class DRWP_Report_Archive {
                     </span>
                 </div>
                 <div class="drwp-archive-item-body">
-                    <?php if ($first_project_name !== ''): ?>
-                        <span class="drwp-archive-project"><?php echo esc_html($first_project_name); ?></span>
-                        <?php if ($entry_count > 1): ?>
-                            <span class="drwp-archive-entry-count">
-                                <?php printf(
-                                    /* translators: %d: total entry count */
-                                    esc_html__('他 %d 現場', 'drwp-daily-reports'),
-                                    $entry_count - 1
-                                ); ?>
-                            </span>
-                        <?php endif; ?>
+                    <?php if ($project_name !== ''): ?>
+                        <span class="drwp-archive-project"><?php echo esc_html($project_name); ?></span>
+                    <?php endif; ?>
+                    <?php if ($time_window !== ''): ?>
+                        <span class="drwp-archive-time"><?php echo esc_html($time_window); ?></span>
                     <?php endif; ?>
                     <span class="drwp-archive-snippet"><?php echo esc_html($snippet); ?></span>
                 </div>
@@ -315,6 +296,13 @@ class DRWP_Report_Archive {
         </li>
         <?php
         return ob_get_clean();
+    }
+
+    private static function format_time_window($started_at, $ended_at) {
+        $s = substr((string) $started_at, 0, 5);
+        $e = substr((string) $ended_at, 0, 5);
+        if ($s === '' && $e === '') return '';
+        return trim($s . ' - ' . $e, ' -');
     }
 
     private static function render_pagination($total_pages, $page) {
@@ -374,12 +362,16 @@ class DRWP_Report_Archive {
                 . '</p>');
         }
 
-        $entries = DRWP_Report_Entry::for_report((int) $report->id);
         $author = get_userdata((int) $report->user_id);
         $author_name = $author ? $author->display_name : '-';
         $back_url = esc_url(remove_query_arg('drwp_id'));
         $is_own_pending = ((int) $report->user_id === get_current_user_id())
                           && $report->review_status === 'pending';
+
+        $project = $report->project_id ? DRWP_Project::find((int) $report->project_id) : null;
+        $project_name = $project ? $project->name : '';
+        $time_window = self::format_time_window($report->started_at ?? '', $report->ended_at ?? '');
+        $photos = DRWP_Media::for_report((int) $report->id);
 
         ob_start();
         ?>
@@ -391,6 +383,9 @@ class DRWP_Report_Archive {
             <header class="drwp-archive-single-head">
                 <h2>
                     <?php echo esc_html((string) $report->report_date); ?>
+                    <?php if ($project_name !== ''): ?>
+                        <span class="drwp-archive-project-inline"><?php echo esc_html($project_name); ?></span>
+                    <?php endif; ?>
                     <span class="drwp-archive-status status-<?php echo esc_attr((string) $report->review_status); ?>">
                         <?php echo esc_html(DRWP_Labels::review_status((string) $report->review_status)); ?>
                     </span>
@@ -398,6 +393,10 @@ class DRWP_Report_Archive {
                 <p class="drwp-archive-meta">
                     <?php esc_html_e('作成者:', 'drwp-daily-reports'); ?>
                     <strong><?php echo esc_html($author_name); ?></strong>
+                    <?php if ($time_window !== ''): ?>
+                        <span class="separator">·</span>
+                        <span><?php esc_html_e('時刻:', 'drwp-daily-reports'); ?> <?php echo esc_html($time_window); ?></span>
+                    <?php endif; ?>
                 </p>
                 <?php if ($is_own_pending): ?>
                     <p class="drwp-archive-edit-cta">
@@ -414,105 +413,28 @@ class DRWP_Report_Archive {
                 <?php endif; ?>
             </header>
 
-            <?php if (empty($entries)): ?>
-                <?php echo self::render_legacy_body($report); ?>
-            <?php else: ?>
-                <?php foreach ($entries as $idx => $entry): ?>
-                    <?php echo self::render_entry($idx, $entry); ?>
-                <?php endforeach; ?>
-            <?php endif; ?>
-        </div>
-        <?php
-        return ob_get_clean();
-    }
-
-    private static function render_legacy_body($report) {
-        // Legacy flat report (no entries[]). Surface project, work,
-        // issues, next_plan, photos. Public fields are intentionally
-        // not shown here — they're the office-curated wording for
-        // published posts, not the worker's reference view.
-        $project = $report->project_id ? DRWP_Project::find((int) $report->project_id) : null;
-        $photos = DRWP_Media::for_report((int) $report->id);
-
-        ob_start();
-        ?>
-        <section class="drwp-archive-section">
-            <?php if ($project): ?>
-                <h3><?php echo esc_html($project->name); ?></h3>
-            <?php endif; ?>
-            <?php if (!empty($report->work_description)): ?>
-                <div class="drwp-archive-block">
-                    <h4><?php esc_html_e('作業内容', 'drwp-daily-reports'); ?></h4>
-                    <?php echo wp_kses_post(wpautop((string) $report->work_description)); ?>
-                </div>
-            <?php endif; ?>
-            <?php if (!empty($report->issues)): ?>
-                <div class="drwp-archive-block">
-                    <h4><?php esc_html_e('問題点', 'drwp-daily-reports'); ?></h4>
-                    <?php echo wp_kses_post(wpautop((string) $report->issues)); ?>
-                </div>
-            <?php endif; ?>
-            <?php if (!empty($report->next_plan)): ?>
-                <div class="drwp-archive-block">
-                    <h4><?php esc_html_e('次回予定', 'drwp-daily-reports'); ?></h4>
-                    <?php echo wp_kses_post(wpautop((string) $report->next_plan)); ?>
-                </div>
-            <?php endif; ?>
-            <?php echo self::render_photo_grid($photos); ?>
-        </section>
-        <?php
-        return ob_get_clean();
-    }
-
-    private static function render_entry($idx, $entry) {
-        $project = $entry->project_id ? DRWP_Project::find((int) $entry->project_id) : null;
-        $project_name = $project ? $project->name : __('（現場未設定）', 'drwp-daily-reports');
-        $time_window = trim(
-            substr((string) $entry->started_at, 0, 5)
-            . ' - '
-            . substr((string) $entry->ended_at, 0, 5),
-            ' -'
-        );
-        $photos = DRWP_Media::for_entry((int) $entry->id);
-
-        ob_start();
-        ?>
-        <section class="drwp-archive-section">
-            <h3>
-                <span class="drwp-archive-entry-num">
-                    <?php
-                    printf(
-                        /* translators: %d: entry order (1-based) */
-                        esc_html__('現場 #%d', 'drwp-daily-reports'),
-                        (int) $idx + 1
-                    );
-                    ?>
-                </span>
-                <?php echo esc_html($project_name); ?>
-                <?php if ($time_window !== ''): ?>
-                    <small class="drwp-archive-time"><?php echo esc_html($time_window); ?></small>
+            <section class="drwp-archive-section">
+                <?php if (!empty($report->work_description)): ?>
+                    <div class="drwp-archive-block">
+                        <h4><?php esc_html_e('作業内容', 'drwp-daily-reports'); ?></h4>
+                        <?php echo wp_kses_post(wpautop((string) $report->work_description)); ?>
+                    </div>
                 <?php endif; ?>
-            </h3>
-            <?php if (!empty($entry->work_description)): ?>
-                <div class="drwp-archive-block">
-                    <h4><?php esc_html_e('作業内容', 'drwp-daily-reports'); ?></h4>
-                    <?php echo wp_kses_post(wpautop((string) $entry->work_description)); ?>
-                </div>
-            <?php endif; ?>
-            <?php if (!empty($entry->issues)): ?>
-                <div class="drwp-archive-block">
-                    <h4><?php esc_html_e('問題点', 'drwp-daily-reports'); ?></h4>
-                    <?php echo wp_kses_post(wpautop((string) $entry->issues)); ?>
-                </div>
-            <?php endif; ?>
-            <?php if (!empty($entry->next_plan)): ?>
-                <div class="drwp-archive-block">
-                    <h4><?php esc_html_e('次回予定', 'drwp-daily-reports'); ?></h4>
-                    <?php echo wp_kses_post(wpautop((string) $entry->next_plan)); ?>
-                </div>
-            <?php endif; ?>
-            <?php echo self::render_photo_grid($photos); ?>
-        </section>
+                <?php if (!empty($report->issues)): ?>
+                    <div class="drwp-archive-block">
+                        <h4><?php esc_html_e('問題点', 'drwp-daily-reports'); ?></h4>
+                        <?php echo wp_kses_post(wpautop((string) $report->issues)); ?>
+                    </div>
+                <?php endif; ?>
+                <?php if (!empty($report->next_plan)): ?>
+                    <div class="drwp-archive-block">
+                        <h4><?php esc_html_e('次回予定', 'drwp-daily-reports'); ?></h4>
+                        <?php echo wp_kses_post(wpautop((string) $report->next_plan)); ?>
+                    </div>
+                <?php endif; ?>
+                <?php echo self::render_photo_grid($photos); ?>
+            </section>
+        </div>
         <?php
         return ob_get_clean();
     }
@@ -571,14 +493,11 @@ class DRWP_Report_Archive {
 
         wp_enqueue_script(self::HANDLE_EDIT);
 
-        $entries  = DRWP_Report_Entry::for_report((int) $report->id);
-        $projects = DRWP_Project::all();
-        $back     = esc_url(remove_query_arg('drwp_edit'));
-        $action   = esc_url(get_permalink());
+        $projects     = DRWP_Project::all();
+        $report_photos = DRWP_Media::for_report((int) $report->id);
+        $back         = esc_url(remove_query_arg('drwp_edit'));
+        $action       = esc_url(get_permalink());
 
-        // Pre-render existing entries as cards. The cloned template
-        // for "+ 現場を追加" lives below — JS swaps __IDX__ for the
-        // next available index when the user appends a fresh card.
         ob_start();
         ?>
         <div class="drwp-archive-wrap drwp-archive-edit">
@@ -589,10 +508,9 @@ class DRWP_Report_Archive {
 
             <?php
             $flash = isset($_GET['drwp_err']) ? sanitize_key((string) $_GET['drwp_err']) : '';
-            if ($flash === 'noentry') echo '<p class="drwp-archive-flash err">' . esc_html__('現場エントリを 1 つ以上入力してください。', 'drwp-daily-reports') . '</p>';
-            if ($flash === 'noproject') echo '<p class="drwp-archive-flash err">' . esc_html__('現場が選択されていないエントリがあります。', 'drwp-daily-reports') . '</p>';
-            if ($flash === 'nowork') echo '<p class="drwp-archive-flash err">' . esc_html__('作業内容が空のエントリがあります。', 'drwp-daily-reports') . '</p>';
-            if ($flash === 'license') echo '<p class="drwp-archive-flash err">' . esc_html__('現在保存できない状態です(ライセンス未有効など)。', 'drwp-daily-reports') . '</p>';
+            if ($flash === 'noproject') echo '<p class="drwp-archive-flash err">' . esc_html__('現場を選択してください。', 'drwp-daily-reports') . '</p>';
+            if ($flash === 'nowork')    echo '<p class="drwp-archive-flash err">' . esc_html__('作業内容を入力してください。', 'drwp-daily-reports') . '</p>';
+            if ($flash === 'license')   echo '<p class="drwp-archive-flash err">' . esc_html__('現在保存できない状態です(ライセンス未有効など)。', 'drwp-daily-reports') . '</p>';
             ?>
 
             <form method="post" action="<?php echo $action; ?>"
@@ -601,22 +519,9 @@ class DRWP_Report_Archive {
                       'rest_root' => esc_url_raw(rest_url('drwp/v1/')),
                       'nonce'     => wp_create_nonce('wp_rest'),
                       'i18n'      => [
-                          'pick_project' => __('選択してください', 'drwp-daily-reports'),
-                          'entry_label'  => __('現場', 'drwp-daily-reports'),
-                          'remove_entry' => __('この現場を削除', 'drwp-daily-reports'),
-                          'started'      => __('開始時刻', 'drwp-daily-reports'),
-                          'ended'        => __('終了時刻', 'drwp-daily-reports'),
-                          'work'         => __('作業内容', 'drwp-daily-reports'),
-                          'issues'       => __('問題点 (任意)', 'drwp-daily-reports'),
-                          'next'         => __('次回予定 (任意)', 'drwp-daily-reports'),
-                          'photos'       => __('写真', 'drwp-daily-reports'),
-                          'pick_photos'  => __('+ 写真を追加', 'drwp-daily-reports'),
                           'uploading'    => __('アップロード中…', 'drwp-daily-reports'),
                           'upload_failed'=> __('アップロード失敗', 'drwp-daily-reports'),
                       ],
-                      'projects' => array_map(function ($p) {
-                          return ['id' => (int) $p->id, 'name' => (string) $p->name];
-                      }, $projects),
                   ])); ?>">
                 <?php wp_nonce_field('drwp_archive_edit_' . $id); ?>
                 <input type="hidden" name="_drwp_archive_edit" value="1" />
@@ -627,22 +532,66 @@ class DRWP_Report_Archive {
                     <input type="date" name="report_date"
                            value="<?php echo esc_attr((string) $report->report_date); ?>" required />
                 </label>
-
-                <div class="drwp-archive-edit-entries" data-role="entries">
-                    <?php if (empty($entries)): ?>
-                        <?php echo self::render_edit_entry(0, null, $projects); ?>
-                    <?php else: ?>
-                        <?php foreach ($entries as $idx => $entry): ?>
-                            <?php echo self::render_edit_entry((int) $idx, $entry, $projects); ?>
+                <label class="drwp-archive-edit-field">
+                    <span><?php esc_html_e('現場', 'drwp-daily-reports'); ?></span>
+                    <select name="project_id" required>
+                        <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
+                        <?php foreach ($projects as $p): ?>
+                            <option value="<?php echo (int) $p->id; ?>" <?php selected((int) $report->project_id, (int) $p->id); ?>>
+                                <?php echo esc_html($p->name); ?>
+                            </option>
                         <?php endforeach; ?>
-                    <?php endif; ?>
+                    </select>
+                </label>
+                <div class="drwp-archive-edit-times">
+                    <label class="drwp-archive-edit-field">
+                        <span><?php esc_html_e('開始時刻', 'drwp-daily-reports'); ?></span>
+                        <input type="time" name="started_at"
+                               value="<?php echo esc_attr(substr((string) ($report->started_at ?? ''), 0, 5)); ?>" />
+                    </label>
+                    <label class="drwp-archive-edit-field">
+                        <span><?php esc_html_e('終了時刻', 'drwp-daily-reports'); ?></span>
+                        <input type="time" name="ended_at"
+                               value="<?php echo esc_attr(substr((string) ($report->ended_at ?? ''), 0, 5)); ?>" />
+                    </label>
                 </div>
+                <label class="drwp-archive-edit-field">
+                    <span><?php esc_html_e('作業内容', 'drwp-daily-reports'); ?></span>
+                    <textarea name="work_description" rows="4" required><?php echo esc_textarea((string) $report->work_description); ?></textarea>
+                </label>
+                <label class="drwp-archive-edit-field">
+                    <span><?php esc_html_e('問題点 (任意)', 'drwp-daily-reports'); ?></span>
+                    <textarea name="issues" rows="2"><?php echo esc_textarea((string) $report->issues); ?></textarea>
+                </label>
+                <label class="drwp-archive-edit-field">
+                    <span><?php esc_html_e('次回予定 (任意)', 'drwp-daily-reports'); ?></span>
+                    <textarea name="next_plan" rows="2"><?php echo esc_textarea((string) $report->next_plan); ?></textarea>
+                </label>
 
-                <p>
-                    <button type="button" class="drwp-archive-edit-add" data-role="add-entry">
-                        + <?php esc_html_e('現場を追加', 'drwp-daily-reports'); ?>
-                    </button>
-                </p>
+                <div class="drwp-archive-edit-photo-block">
+                    <span class="drwp-archive-edit-field-label"><?php esc_html_e('写真', 'drwp-daily-reports'); ?></span>
+                    <div class="drwp-archive-edit-photos" data-role="photos">
+                        <?php foreach ($report_photos as $photo): ?>
+                            <?php $thumb = wp_get_attachment_image_url((int) $photo->attachment_id, 'medium'); ?>
+                            <div class="drwp-archive-edit-photo-item">
+                                <?php if ($thumb): ?>
+                                    <img src="<?php echo esc_url($thumb); ?>" alt="" />
+                                <?php endif; ?>
+                                <input type="hidden" name="attachment_ids[]"
+                                       value="<?php echo (int) $photo->attachment_id; ?>" />
+                                <input type="text" name="attachment_captions[]"
+                                       placeholder="<?php esc_attr_e('キャプション', 'drwp-daily-reports'); ?>"
+                                       value="<?php echo esc_attr((string) $photo->caption); ?>" />
+                                <button type="button" class="drwp-archive-edit-photo-remove" data-role="remove-photo">×</button>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <label class="drwp-archive-edit-photo-pick">
+                        + <?php esc_html_e('写真を追加', 'drwp-daily-reports'); ?>
+                        <input type="file" accept="image/*" multiple data-role="photo-input" />
+                    </label>
+                    <p class="drwp-archive-edit-photo-status" data-role="photo-status"></p>
+                </div>
 
                 <div class="drwp-archive-edit-actions">
                     <button type="submit" class="drwp-archive-edit-submit">
@@ -653,167 +602,6 @@ class DRWP_Report_Archive {
                     </a>
                 </div>
             </form>
-
-            <template id="drwp-archive-edit-template">
-                <?php echo self::render_edit_entry_template($projects); ?>
-            </template>
-        </div>
-        <?php
-        return ob_get_clean();
-    }
-
-    private static function render_edit_entry($idx, $entry, $projects) {
-        $project_id    = $entry ? (int) $entry->project_id : 0;
-        $started_at    = $entry ? (string) $entry->started_at : '';
-        $ended_at      = $entry ? (string) $entry->ended_at   : '';
-        $work          = $entry ? (string) $entry->work_description : '';
-        $issues        = $entry ? (string) $entry->issues : '';
-        $next_plan     = $entry ? (string) $entry->next_plan : '';
-        $entry_id      = $entry ? (int) $entry->id : 0;
-        $photos        = $entry_id ? DRWP_Media::for_entry($entry_id) : [];
-
-        ob_start();
-        ?>
-        <div class="drwp-archive-edit-entry" data-idx="<?php echo (int) $idx; ?>">
-            <header class="drwp-archive-edit-entry-head">
-                <strong>
-                    <?php printf(
-                        /* translators: %d: entry order (1-based) */
-                        esc_html__('現場 #%d', 'drwp-daily-reports'),
-                        (int) $idx + 1
-                    ); ?>
-                </strong>
-                <button type="button" class="drwp-archive-edit-remove" data-role="remove-entry">
-                    <?php esc_html_e('この現場を削除', 'drwp-daily-reports'); ?>
-                </button>
-            </header>
-            <label class="drwp-archive-edit-field">
-                <span><?php esc_html_e('現場', 'drwp-daily-reports'); ?></span>
-                <select name="entries[<?php echo (int) $idx; ?>][project_id]" required>
-                    <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
-                    <?php foreach ($projects as $p): ?>
-                        <option value="<?php echo (int) $p->id; ?>" <?php selected($project_id, (int) $p->id); ?>>
-                            <?php echo esc_html($p->name); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <div class="drwp-archive-edit-times">
-                <label class="drwp-archive-edit-field">
-                    <span><?php esc_html_e('開始時刻', 'drwp-daily-reports'); ?></span>
-                    <input type="time" name="entries[<?php echo (int) $idx; ?>][started_at]"
-                           value="<?php echo esc_attr(substr($started_at, 0, 5)); ?>" />
-                </label>
-                <label class="drwp-archive-edit-field">
-                    <span><?php esc_html_e('終了時刻', 'drwp-daily-reports'); ?></span>
-                    <input type="time" name="entries[<?php echo (int) $idx; ?>][ended_at]"
-                           value="<?php echo esc_attr(substr($ended_at, 0, 5)); ?>" />
-                </label>
-            </div>
-            <label class="drwp-archive-edit-field">
-                <span><?php esc_html_e('作業内容', 'drwp-daily-reports'); ?></span>
-                <textarea name="entries[<?php echo (int) $idx; ?>][work_description]" rows="4" required><?php echo esc_textarea($work); ?></textarea>
-            </label>
-            <label class="drwp-archive-edit-field">
-                <span><?php esc_html_e('問題点 (任意)', 'drwp-daily-reports'); ?></span>
-                <textarea name="entries[<?php echo (int) $idx; ?>][issues]" rows="2"><?php echo esc_textarea($issues); ?></textarea>
-            </label>
-            <label class="drwp-archive-edit-field">
-                <span><?php esc_html_e('次回予定 (任意)', 'drwp-daily-reports'); ?></span>
-                <textarea name="entries[<?php echo (int) $idx; ?>][next_plan]" rows="2"><?php echo esc_textarea($next_plan); ?></textarea>
-            </label>
-
-            <div class="drwp-archive-edit-photo-block">
-                <span class="drwp-archive-edit-field-label"><?php esc_html_e('写真', 'drwp-daily-reports'); ?></span>
-                <div class="drwp-archive-edit-photos" data-role="photos">
-                    <?php foreach ($photos as $photo): ?>
-                        <?php $thumb = wp_get_attachment_image_url((int) $photo->attachment_id, 'medium'); ?>
-                        <div class="drwp-archive-edit-photo-item">
-                            <?php if ($thumb): ?>
-                                <img src="<?php echo esc_url($thumb); ?>" alt="" />
-                            <?php endif; ?>
-                            <input type="hidden" name="entries[<?php echo (int) $idx; ?>][attachment_ids][]"
-                                   value="<?php echo (int) $photo->attachment_id; ?>" />
-                            <input type="text"
-                                   name="entries[<?php echo (int) $idx; ?>][attachment_captions][]"
-                                   placeholder="<?php esc_attr_e('キャプション', 'drwp-daily-reports'); ?>"
-                                   value="<?php echo esc_attr((string) $photo->caption); ?>" />
-                            <button type="button" class="drwp-archive-edit-photo-remove" data-role="remove-photo">×</button>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-                <label class="drwp-archive-edit-photo-pick">
-                    + <?php esc_html_e('写真を追加', 'drwp-daily-reports'); ?>
-                    <input type="file" accept="image/*" multiple data-role="photo-input" />
-                </label>
-                <p class="drwp-archive-edit-photo-status" data-role="photo-status"></p>
-            </div>
-        </div>
-        <?php
-        return ob_get_clean();
-    }
-
-    /**
-     * Cloned by JS when "+ 現場を追加" is pressed. Has __IDX__
-     * placeholder in every `entries[N][...]` name so the JS can
-     * swap in the next available index.
-     */
-    private static function render_edit_entry_template($projects) {
-        ob_start();
-        ?>
-        <div class="drwp-archive-edit-entry" data-idx="__IDX__">
-            <header class="drwp-archive-edit-entry-head">
-                <strong>
-                    <?php printf(
-                        /* translators: %s: placeholder, replaced by JS */
-                        esc_html__('現場 #%s', 'drwp-daily-reports'),
-                        '__N__'
-                    ); ?>
-                </strong>
-                <button type="button" class="drwp-archive-edit-remove" data-role="remove-entry">
-                    <?php esc_html_e('この現場を削除', 'drwp-daily-reports'); ?>
-                </button>
-            </header>
-            <label class="drwp-archive-edit-field">
-                <span><?php esc_html_e('現場', 'drwp-daily-reports'); ?></span>
-                <select name="entries[__IDX__][project_id]" required>
-                    <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
-                    <?php foreach ($projects as $p): ?>
-                        <option value="<?php echo (int) $p->id; ?>"><?php echo esc_html($p->name); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <div class="drwp-archive-edit-times">
-                <label class="drwp-archive-edit-field">
-                    <span><?php esc_html_e('開始時刻', 'drwp-daily-reports'); ?></span>
-                    <input type="time" name="entries[__IDX__][started_at]" />
-                </label>
-                <label class="drwp-archive-edit-field">
-                    <span><?php esc_html_e('終了時刻', 'drwp-daily-reports'); ?></span>
-                    <input type="time" name="entries[__IDX__][ended_at]" />
-                </label>
-            </div>
-            <label class="drwp-archive-edit-field">
-                <span><?php esc_html_e('作業内容', 'drwp-daily-reports'); ?></span>
-                <textarea name="entries[__IDX__][work_description]" rows="4" required></textarea>
-            </label>
-            <label class="drwp-archive-edit-field">
-                <span><?php esc_html_e('問題点 (任意)', 'drwp-daily-reports'); ?></span>
-                <textarea name="entries[__IDX__][issues]" rows="2"></textarea>
-            </label>
-            <label class="drwp-archive-edit-field">
-                <span><?php esc_html_e('次回予定 (任意)', 'drwp-daily-reports'); ?></span>
-                <textarea name="entries[__IDX__][next_plan]" rows="2"></textarea>
-            </label>
-            <div class="drwp-archive-edit-photo-block">
-                <span class="drwp-archive-edit-field-label"><?php esc_html_e('写真', 'drwp-daily-reports'); ?></span>
-                <div class="drwp-archive-edit-photos" data-role="photos"></div>
-                <label class="drwp-archive-edit-photo-pick">
-                    + <?php esc_html_e('写真を追加', 'drwp-daily-reports'); ?>
-                    <input type="file" accept="image/*" multiple data-role="photo-input" />
-                </label>
-                <p class="drwp-archive-edit-photo-status" data-role="photo-status"></p>
-            </div>
         </div>
         <?php
         return ob_get_clean();
@@ -822,11 +610,9 @@ class DRWP_Report_Archive {
     /**
      * Form POST handler for the edit view. Runs on template_redirect
      * before any output. Re-checks ownership + pending status as
-     * defense in depth (the UI link is gated, but a direct POST
-     * could still arrive). On success, DRWP_Report_Entry::sync()
-     * replaces the entry set wholesale — additions, deletions, and
-     * reorderings are all handled by that single call. The report's
-     * report_date is updated separately.
+     * defense in depth (the UI link is gated, but a direct POST could
+     * still arrive). PRG: every branch redirects so a refresh doesn't
+     * re-fire the action.
      */
     public static function handle_edit_post() {
         if (empty($_POST['_drwp_archive_edit'])) return;
@@ -844,60 +630,59 @@ class DRWP_Report_Archive {
         if ((int) $report->user_id !== get_current_user_id()) return;
         if ($report->review_status !== 'pending') return;
 
+        $back_to_edit = function ($err) use ($id) {
+            return add_query_arg(['drwp_id' => $id, 'drwp_edit' => 1, 'drwp_err' => $err], get_permalink());
+        };
+
         if (!DRWP_License::can_write()) {
-            wp_safe_redirect(add_query_arg(['drwp_id' => $id, 'drwp_edit' => 1, 'drwp_err' => 'license'], get_permalink()));
+            wp_safe_redirect($back_to_edit('license'));
             exit;
         }
 
-        $entries_in = isset($_POST['entries']) && is_array($_POST['entries'])
-            ? $_POST['entries'] : [];
-        // Preserve form order; the user may have re-arranged via JS.
-        ksort($entries_in, SORT_NUMERIC);
-
-        $entries_to_sync = [];
-        foreach ($entries_in as $e) {
-            if (!is_array($e)) continue;
-            $project_id = absint($e['project_id'] ?? 0);
-            $work       = trim((string) wp_unslash($e['work_description'] ?? ''));
-            if (!$project_id) {
-                wp_safe_redirect(add_query_arg(['drwp_id' => $id, 'drwp_edit' => 1, 'drwp_err' => 'noproject'], get_permalink()));
-                exit;
-            }
-            if ($work === '') {
-                wp_safe_redirect(add_query_arg(['drwp_id' => $id, 'drwp_edit' => 1, 'drwp_err' => 'nowork'], get_permalink()));
-                exit;
-            }
-            $entries_to_sync[] = [
-                'project_id'          => $project_id,
-                'started_at'          => sanitize_text_field((string) wp_unslash($e['started_at'] ?? '')),
-                'ended_at'            => sanitize_text_field((string) wp_unslash($e['ended_at'] ?? '')),
-                'work_description'    => wp_kses_post(wp_unslash($work)),
-                'issues'              => wp_kses_post(wp_unslash((string) ($e['issues'] ?? ''))),
-                'next_plan'           => wp_kses_post(wp_unslash((string) ($e['next_plan'] ?? ''))),
-                'attachment_ids'      => array_map('absint', (array) ($e['attachment_ids'] ?? [])),
-                'attachment_captions' => array_map(
-                    'sanitize_text_field',
-                    array_map('wp_unslash', (array) ($e['attachment_captions'] ?? []))
-                ),
-            ];
-        }
-        if (empty($entries_to_sync)) {
-            wp_safe_redirect(add_query_arg(['drwp_id' => $id, 'drwp_edit' => 1, 'drwp_err' => 'noentry'], get_permalink()));
-            exit;
-        }
+        $project_id = absint($_POST['project_id'] ?? 0);
+        $work = trim((string) wp_unslash($_POST['work_description'] ?? ''));
+        if (!$project_id) { wp_safe_redirect($back_to_edit('noproject')); exit; }
+        if ($work === '') { wp_safe_redirect($back_to_edit('nowork')); exit; }
 
         $report_date = sanitize_text_field((string) wp_unslash($_POST['report_date'] ?? ''));
+        $update = [
+            'project_id'       => $project_id,
+            'started_at'       => self::sanitize_time_input($_POST['started_at'] ?? ''),
+            'ended_at'         => self::sanitize_time_input($_POST['ended_at'] ?? ''),
+            'work_description' => wp_kses_post(wp_unslash($work)),
+            'issues'           => wp_kses_post(wp_unslash((string) ($_POST['issues'] ?? ''))),
+            'next_plan'        => wp_kses_post(wp_unslash((string) ($_POST['next_plan'] ?? ''))),
+        ];
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $report_date)) {
-            $wpdb->update($reports_t, ['report_date' => $report_date], ['id' => $id]);
+            $update['report_date'] = $report_date;
         }
+        $wpdb->update($reports_t, $update, ['id' => $id]);
 
-        DRWP_Report_Entry::sync($id, $entries_to_sync);
-        DRWP_Audit::log('report_edited_frontend', __('日報をフロントから編集', 'drwp-daily-reports'), $id, [
-            'entries' => count($entries_to_sync),
-        ]);
+        // Photos: wholesale replace with the set in the submitted form
+        // (existing items survive because their hidden inputs are
+        // re-posted; deleted items don't appear).
+        $att_ids = array_map('absint', (array) ($_POST['attachment_ids'] ?? []));
+        $captions = array_map('sanitize_text_field', array_map('wp_unslash', (array) ($_POST['attachment_captions'] ?? [])));
+        $rows = [];
+        foreach ($att_ids as $i => $aid) {
+            if (!$aid) continue;
+            $rows[] = ['attachment_id' => $aid, 'caption' => (string) ($captions[$i] ?? '')];
+        }
+        DRWP_Media::sync($id, $rows);
+
+        DRWP_Audit::log('report_edited_frontend', __('日報をフロントから編集', 'drwp-daily-reports'), $id, []);
 
         wp_safe_redirect(add_query_arg(['drwp_id' => $id, 'drwp_saved' => 1], get_permalink()));
         exit;
+    }
+
+    private static function sanitize_time_input($v) {
+        $v = trim((string) $v);
+        if ($v === '') return null;
+        if (preg_match('/^(\d{2}):(\d{2})(?::(\d{2}))?$/', $v, $m)) {
+            return sprintf('%02d:%02d:%02d', (int) $m[1], (int) $m[2], (int) ($m[3] ?? 0));
+        }
+        return null;
     }
 
     /* ------------------------------------------------------------

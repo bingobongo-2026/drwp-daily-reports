@@ -32,13 +32,12 @@ class DRWP_Media {
             if (get_post_type($attachment_id) !== 'attachment') continue;
 
             $caption = isset($row['caption']) ? sanitize_text_field(wp_unslash($row['caption'])) : '';
-            // entry_id binds the photo to one site visit on a
-            // multi-entry report. NULL == legacy report-level photo.
-            $entry_id = isset($row['entry_id']) && $row['entry_id'] ? (int) $row['entry_id'] : null;
 
+            // entry_id is a legacy column from the v1.9–1.10
+            // multi-entry model; new rows always write NULL.
             $wpdb->insert(self::table(), [
                 'report_id'     => $report_id,
-                'entry_id'      => $entry_id,
+                'entry_id'      => null,
                 'attachment_id' => $attachment_id,
                 'caption'       => $caption !== '' ? $caption : null,
                 'sort_order'    => $order++,
@@ -46,16 +45,6 @@ class DRWP_Media {
             $saved++;
         }
         return $saved;
-    }
-
-    public static function for_entry($entry_id) {
-        global $wpdb;
-        $entry_id = (int) $entry_id;
-        if (!$entry_id) return [];
-        return $wpdb->get_results($wpdb->prepare(
-            'SELECT * FROM ' . self::table() . ' WHERE entry_id = %d ORDER BY sort_order ASC, id ASC',
-            $entry_id
-        ));
     }
 
     public static function render_figure($photo, $size = 'large') {

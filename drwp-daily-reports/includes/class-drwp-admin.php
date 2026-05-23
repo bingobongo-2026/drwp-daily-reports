@@ -105,6 +105,20 @@ class DRWP_Admin {
         return $wpdb->prefix . 'drwp_reports';
     }
 
+    /**
+     * Accept HH:MM or HH:MM:SS for the report's started_at /
+     * ended_at TIME columns; anything else (empty, junk) becomes
+     * NULL so we don't push garbage into MySQL.
+     */
+    private static function sanitize_time_input($v) {
+        $v = trim((string) $v);
+        if ($v === '') return null;
+        if (preg_match('/^(\d{2}):(\d{2})(?::(\d{2}))?$/', $v, $m)) {
+            return sprintf('%02d:%02d:%02d', (int) $m[1], (int) $m[2], (int) ($m[3] ?? 0));
+        }
+        return null;
+    }
+
     private static function current_user_can_edit_report($report) {
         if (current_user_can(self::CAP_REVIEW)) return true;
         if (!current_user_can(self::CAP_EDIT)) return false;
@@ -188,7 +202,6 @@ class DRWP_Admin {
         if ($report && !self::current_user_can_edit_report($report)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         $projects = DRWP_Project::all(true);
         $photos = $report ? DRWP_Media::for_report($report->id) : [];
-        $entries = $report ? DRWP_Report_Entry::for_report($report->id) : [];
         include DRWP_PATH . 'admin/views/report-edit.php';
     }
 
@@ -224,6 +237,8 @@ class DRWP_Admin {
         $data = [
             'project_id' => $project_id ?: null,
             'report_date' => sanitize_text_field($_POST['report_date'] ?? current_time('Y-m-d')),
+            'started_at' => self::sanitize_time_input($_POST['started_at'] ?? ''),
+            'ended_at'   => self::sanitize_time_input($_POST['ended_at'] ?? ''),
             'work_description' => wp_kses_post(wp_unslash($_POST['work_description'] ?? '')),
             'issues' => wp_kses_post(wp_unslash($_POST['issues'] ?? '')),
             'next_plan' => wp_kses_post(wp_unslash($_POST['next_plan'] ?? '')),
@@ -258,35 +273,6 @@ class DRWP_Admin {
         }
         $saved_photos = DRWP_Media::sync($id, $photos);
         DRWP_Audit::log('photos_updated', '写真を更新', $id, ['count' => $saved_photos]);
-
-        // entries[] is submitted as an array indexed by the form's
-        // current card order. entries_submitted is the explicit
-        // "the form contains an entries section" marker — without it
-        // we'd have no way to tell "no entries" from "entries weren't
-        // edited" and clear the wrong thing.
-        if (!empty($_POST['entries_submitted'])) {
-            $raw_entries = (array) ($_POST['entries'] ?? []);
-            // Preserve form order (the user can drag-sort cards).
-            ksort($raw_entries, SORT_NUMERIC);
-            $entries_to_sync = [];
-            foreach ($raw_entries as $e) {
-                if (!is_array($e)) continue;
-                $entries_to_sync[] = [
-                    'project_id'       => absint($e['project_id'] ?? 0) ?: null,
-                    'started_at'       => sanitize_text_field((string) ($e['started_at'] ?? '')),
-                    'ended_at'         => sanitize_text_field((string) ($e['ended_at'] ?? '')),
-                    'work_description' => wp_kses_post(wp_unslash((string) ($e['work_description'] ?? ''))),
-                    'issues'           => wp_kses_post(wp_unslash((string) ($e['issues'] ?? ''))),
-                    'next_plan'        => wp_kses_post(wp_unslash((string) ($e['next_plan'] ?? ''))),
-                    'public_title'     => sanitize_text_field(wp_unslash((string) ($e['public_title'] ?? ''))),
-                    'public_body'      => wp_kses_post(wp_unslash((string) ($e['public_body'] ?? ''))),
-                    'attachment_ids'      => array_map('absint', (array) ($e['attachment_ids'] ?? [])),
-                    'attachment_captions' => array_map('sanitize_text_field', array_map('wp_unslash', (array) ($e['attachment_captions'] ?? []))),
-                ];
-            }
-            $kept = DRWP_Report_Entry::sync($id, $entries_to_sync);
-            DRWP_Audit::log('entries_updated', '現場エントリを更新', $id, ['count' => $kept]);
-        }
 
         $fresh = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
         do_action('drwp_report_submitted', $id, $fresh);

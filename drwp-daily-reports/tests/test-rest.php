@@ -48,7 +48,6 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         $wpdb->query('DELETE FROM ' . $wpdb->prefix . 'drwp_reports');
         $wpdb->query('DELETE FROM ' . $wpdb->prefix . 'drwp_comments');
         $wpdb->query('DELETE FROM ' . $wpdb->prefix . 'drwp_audit_logs');
-        $wpdb->query('DELETE FROM ' . $wpdb->prefix . 'drwp_report_entries');
         $wpdb->query('DELETE FROM ' . $wpdb->prefix . 'drwp_report_photos');
         $wpdb->query('DELETE FROM ' . $wpdb->prefix . 'drwp_projects');
         $this->deactivate_license();
@@ -157,62 +156,23 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         $this->assertCount(0, DRWP_Media::for_report($id));
     }
 
-    public function test_create_with_entries_stores_entries_and_per_entry_photos() {
+    public function test_create_stores_started_and_ended_times() {
         $this->make_admin();
         $this->activate_license();
-        $project1 = $this->make_project('A');
-        $project2 = $this->make_project('B');
-        $a1 = self::factory()->attachment->create_object('a.jpg', 0, ['post_mime_type' => 'image/jpeg']);
-        $a2 = self::factory()->attachment->create_object('b.jpg', 0, ['post_mime_type' => 'image/jpeg']);
-        $a3 = self::factory()->attachment->create_object('c.jpg', 0, ['post_mime_type' => 'image/jpeg']);
+        $project = $this->make_project('A');
 
         $resp = $this->call('POST', '/drwp/v1/reports', [
-            'report_date' => '2026-04-25',
-            'entries' => [
-                [
-                    'project_id' => $project1,
-                    'started_at' => '08:00',
-                    'ended_at'   => '10:30',
-                    'work_description' => '現場A の作業',
-                    'attachment_ids' => [$a1, $a2],
-                ],
-                [
-                    'project_id' => $project2,
-                    'work_description' => '現場B の作業',
-                    'issues' => '雨で中断',
-                    'attachment_ids' => [$a3],
-                ],
-            ],
+            'report_date'      => '2026-04-25',
+            'project_id'       => $project,
+            'started_at'       => '08:00',
+            'ended_at'         => '10:30',
+            'work_description' => 'A での作業',
         ]);
         $this->assertSame(201, $resp->get_status());
         $body = $resp->get_data();
-        $this->assertCount(2, $body['entries']);
-        $this->assertSame($project1, $body['entries'][0]['project_id']);
-        $this->assertSame('08:00:00', $body['entries'][0]['started_at']);
-        $this->assertCount(2, $body['entries'][0]['photos']);
-        $this->assertSame($a1, $body['entries'][0]['photos'][0]['attachment_id']);
-        $this->assertCount(1, $body['entries'][1]['photos']);
-        $this->assertSame($a3, $body['entries'][1]['photos'][0]['attachment_id']);
-    }
-
-    public function test_patch_without_entries_does_not_clear_existing_entries() {
-        $this->make_admin();
-        $this->activate_license();
-        $project = $this->make_project('X');
-        $created = $this->call('POST', '/drwp/v1/reports', [
-            'report_date' => '2026-04-25',
-            'entries' => [['project_id' => $project, 'work_description' => 'w']],
-        ]);
-        $id = $created->get_data()['id'];
-        $this->assertCount(1, DRWP_Report_Entry::for_report($id));
-
-        // Metadata-only PATCH must not touch entries.
-        $this->call('PATCH', "/drwp/v1/reports/$id", ['post_status' => 'pending']);
-        $this->assertCount(1, DRWP_Report_Entry::for_report($id));
-
-        // Explicit empty array clears them.
-        $this->call('PATCH', "/drwp/v1/reports/$id", ['entries' => []]);
-        $this->assertCount(0, DRWP_Report_Entry::for_report($id));
+        // HH:MM input becomes HH:MM:SS in storage.
+        $this->assertSame('08:00:00', $body['started_at']);
+        $this->assertSame('10:30:00', $body['ended_at']);
     }
 
     public function test_review_endpoint_requires_edit_others_posts() {

@@ -12,19 +12,6 @@
     padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff;
 }
 .drwp-mform textarea { resize: vertical; }
-.drwp-mform-entries { display: flex; flex-direction: column; gap: 14px; }
-.drwp-mform-entry {
-    border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px;
-    background: #f8fafc; display: flex; flex-direction: column; gap: 12px;
-}
-.drwp-mform-entry-head {
-    display: flex; justify-content: space-between; align-items: center;
-    font-weight: 700; font-size: 1rem; color: #0f172a;
-}
-.drwp-mform-entry-head .remove {
-    background: transparent; color: #b91c1c; border: 1px solid #fecaca;
-    padding: 6px 10px; border-radius: 8px; font: inherit; font-size: 0.85rem; cursor: pointer;
-}
 .drwp-mform-times { display: flex; gap: 8px; }
 .drwp-mform-times .col { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: #475569; }
 .drwp-mform-photo-pick {
@@ -41,10 +28,6 @@
     position: absolute; top: 4px; right: 4px;
     width: 28px; height: 28px; border-radius: 999px; border: 0;
     background: rgba(0,0,0,.6); color: #fff; font-size: 18px; line-height: 1; cursor: pointer;
-}
-.drwp-mform-add {
-    padding: 14px; border: 2px dashed #94a3b8; border-radius: 12px;
-    background: transparent; color: #1f2937; font-size: 1rem; font-weight: 700; cursor: pointer;
 }
 .drwp-mform-submit {
     margin-top: 6px; padding: 16px; border: 0; border-radius: 12px;
