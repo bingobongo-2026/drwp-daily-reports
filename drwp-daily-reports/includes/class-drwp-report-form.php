@@ -161,7 +161,9 @@ class DRWP_Report_Form {
         // same page, so the visitor already sees the actual login
         // form. A second link would compete for attention with the
         // form itself.
-        return '<p>' . esc_html__('日報を投稿するにはログインしてください。', 'drwp-daily-reports') . '</p>';
+        return '<p class="drwp-mform-login-required">'
+            . esc_html__('日報を投稿するにはログインしてください。', 'drwp-daily-reports')
+            . '</p>';
     }
 
     private static function wrap($inner) {
