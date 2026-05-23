@@ -69,8 +69,8 @@
         <th><label><?php esc_html_e('テンプレート', 'drwp-daily-reports'); ?></label></th>
         <td>
           <select name="post_template">
-            <?php foreach (['standard','site_report','before_after'] as $tpl): ?>
-              <option value="<?php echo esc_attr($tpl); ?>" <?php selected($report->post_template ?? 'standard', $tpl); ?>><?php echo esc_html($tpl); ?></option>
+            <?php foreach (DRWP_Labels::post_template_options() as $tpl_key => $tpl_label): ?>
+              <option value="<?php echo esc_attr($tpl_key); ?>" <?php selected($report->post_template ?? 'standard', $tpl_key); ?>><?php echo esc_html($tpl_label); ?></option>
             <?php endforeach; ?>
           </select>
         </td>

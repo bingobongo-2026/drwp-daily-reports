@@ -54,4 +54,30 @@ class DRWP_Labels {
         ];
         return $map[(string) $value] ?? (string) $value;
     }
+
+    /** drwp_reports.post_template column (display name for the post template). */
+    public static function post_template($value) {
+        $map = [
+            'standard'     => __('標準', 'drwp-daily-reports'),
+            'site_report'  => __('現場レポート', 'drwp-daily-reports'),
+            'before_after' => __('ビフォーアフター', 'drwp-daily-reports'),
+        ];
+        return $map[(string) $value] ?? (string) $value;
+    }
+
+    /**
+     * Available post templates as id → 日本語ラベル.
+     *
+     * Returned in display order so an `option` loop / `select` can
+     * iterate without having to know the underlying keys. Useful
+     * for the edit page and the bulk-action dropdown where the
+     * template choices need to be presented as a list.
+     */
+    public static function post_template_options() {
+        return [
+            'standard'     => self::post_template('standard'),
+            'site_report'  => self::post_template('site_report'),
+            'before_after' => self::post_template('before_after'),
+        ];
+    }
 }
