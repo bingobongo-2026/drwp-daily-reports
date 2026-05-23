@@ -34,6 +34,7 @@ require_once DRWP_PATH . 'includes/class-drwp-output-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-post-converter.php';
 require_once DRWP_PATH . 'includes/class-drwp-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-report-form.php';
+require_once DRWP_PATH . 'includes/class-drwp-report-archive.php';
 require_once DRWP_PATH . 'includes/class-drwp-login.php';
 
 if (defined('WP_CLI') && WP_CLI) {
@@ -58,5 +59,6 @@ add_action('plugins_loaded', function () {
     DRWP_Notifications_Admin::init();
     DRWP_Output_Admin::init();
     DRWP_Report_Form::init();
+    DRWP_Report_Archive::init();
     DRWP_Login::init();
 });
