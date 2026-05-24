@@ -109,6 +109,18 @@ class DRWP_Post_Converter {
 
         $is_update = !empty($report->linked_post_id) && $update_existing;
 
+        // If the linked post was deleted (trashed or permanently
+        // removed), clear the stale reference and fall through to
+        // the insert path. Without this check wp_update_post would
+        // silently fail or error on a non-existent ID.
+        if ($is_update && !get_post((int) $report->linked_post_id)) {
+            $wpdb->update($table, ['linked_post_id' => null], ['id' => $report_id]);
+            $is_update = false;
+            DRWP_Audit::log('linked_post_cleared', '連携記事が存在しないためリンクを解除', $report_id, [
+                'old_post_id' => (int) $report->linked_post_id,
+            ]);
+        }
+
         // For updates, keep the original post_type so existing
         // permalinks / taxonomies don't break when an admin flips the
         // output setting later. Only new conversions honor the
