@@ -70,9 +70,17 @@ class DRWP_Admin {
         wp_enqueue_style('drwp-admin', DRWP_URL . 'admin/assets/admin.css', [], DRWP_VERSION);
         wp_enqueue_script('drwp-admin', DRWP_URL . 'admin/assets/admin.js', ['jquery'], DRWP_VERSION, true);
         wp_localize_script('drwp-admin', 'drwpRest', [
-            'url'          => esc_url_raw(rest_url('drwp/v1')),
-            'nonce'        => wp_create_nonce('wp_rest'),
-            'i18n'         => [
+            'url'            => esc_url_raw(rest_url('drwp/v1')),
+            'nonce'          => wp_create_nonce('wp_rest'),
+            'admin_edit_url' => admin_url('admin.php?page=drwp_report_edit&id=__ID__'),
+            'projects'       => self::project_map(),
+            'labels'         => [
+                'pending'        => DRWP_Labels::review_status('pending'),
+                'approved'       => DRWP_Labels::review_status('approved'),
+                'needs_revision' => DRWP_Labels::review_status('needs_revision'),
+                'edit_requested' => DRWP_Labels::review_status('edit_requested'),
+            ],
+            'i18n'           => [
                 'uploading' => __('アップロード中…', 'drwp-daily-reports'),
                 'failed'    => __('アップロードに失敗しました', 'drwp-daily-reports'),
             ],
@@ -98,6 +106,13 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $output, $output, 'manage_options', 'drwp_output', ['DRWP_Output_Admin', 'render_page']);
         $prev = __('公開プレビュー', 'drwp-daily-reports');
         add_submenu_page(null, $prev, $prev, self::CAP_EDIT, 'drwp_report_preview', [__CLASS__, 'report_preview_page']);
+    }
+
+    private static function project_map() {
+        $all = DRWP_Project::all();
+        $map = [];
+        foreach ($all as $p) $map[(int) $p->id] = (string) $p->name;
+        return (object) $map;
     }
 
     private static function reports_table() {
