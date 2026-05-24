@@ -11,6 +11,7 @@ class DRWP_Admin {
         add_action('admin_menu', [__CLASS__, 'menu']);
         add_action('admin_post_drwp_save_report', [__CLASS__, 'save_report']);
         add_action('admin_post_drwp_bulk_reports', [__CLASS__, 'bulk_reports']);
+        add_action('admin_post_drwp_convert_single', [__CLASS__, 'convert_single']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue']);
         add_action('admin_notices', [__CLASS__, 'license_notice']);
     }
@@ -297,6 +298,19 @@ class DRWP_Admin {
         do_action('drwp_report_submitted', $id, $fresh);
 
         wp_safe_redirect(admin_url('admin.php?page=drwp_report_edit&id=' . $id . '&saved=1'));
+        exit;
+    }
+
+    public static function convert_single() {
+        if (!current_user_can('publish_posts')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        check_admin_referer('drwp_convert_single');
+        $id = absint($_POST['id'] ?? 0);
+        if (!$id) wp_die(esc_html__('ID が指定されていません。', 'drwp-daily-reports'));
+        $result = DRWP_Post_Converter::sync_post($id, true);
+        if (is_wp_error($result)) {
+            wp_die(esc_html($result->get_error_message()));
+        }
+        wp_safe_redirect(admin_url('admin.php?page=drwp_report_edit&id=' . $id . '&converted=1'));
         exit;
     }
 
