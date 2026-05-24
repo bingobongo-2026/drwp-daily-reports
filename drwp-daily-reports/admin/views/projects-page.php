@@ -20,25 +20,39 @@
       <tr>
         <th>ID</th>
         <th><?php esc_html_e('現場名', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('顧客名', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('住所', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('仕事内容', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('状態', 'drwp-daily-reports'); ?></th>
-        <th><?php esc_html_e('更新日時', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('操作', 'drwp-daily-reports'); ?></th>
       </tr>
     </thead>
     <tbody>
       <?php if (empty($projects)): ?>
-        <tr><td colspan="5"><?php esc_html_e('まだ現場がありません。', 'drwp-daily-reports'); ?></td></tr>
+        <tr><td colspan="7"><?php esc_html_e('まだ現場がありません。', 'drwp-daily-reports'); ?></td></tr>
       <?php else: foreach ($projects as $project): ?>
         <tr>
           <td><?php echo (int) $project->id; ?></td>
           <td><?php echo esc_html($project->name); ?></td>
+          <td><?php echo esc_html($project->client_name ?: '-'); ?></td>
+          <td><?php echo esc_html($project->address ?: '-'); ?></td>
+          <td><?php
+            $jd = (string) ($project->job_description ?? '');
+            echo esc_html(mb_strlen($jd) > 30 ? mb_substr($jd, 0, 30) . '…' : ($jd ?: '-'));
+          ?></td>
           <td><?php echo esc_html(DRWP_Labels::project_status((string) $project->status)); ?></td>
-          <td><?php echo esc_html($project->updated_at); ?></td>
           <td>
             <button type="button" class="button button-small drwp-project-edit-btn"
                     data-id="<?php echo (int) $project->id; ?>"
                     data-name="<?php echo esc_attr($project->name); ?>"
-                    data-status="<?php echo esc_attr($project->status); ?>">
+                    data-status="<?php echo esc_attr($project->status); ?>"
+                    data-postal_code="<?php echo esc_attr($project->postal_code ?? ''); ?>"
+                    data-address="<?php echo esc_attr($project->address ?? ''); ?>"
+                    data-phone="<?php echo esc_attr($project->phone ?? ''); ?>"
+                    data-job_description="<?php echo esc_attr($project->job_description ?? ''); ?>"
+                    data-client_name="<?php echo esc_attr($project->client_name ?? ''); ?>"
+                    data-contact_person="<?php echo esc_attr($project->contact_person ?? ''); ?>"
+                    data-notes="<?php echo esc_attr($project->notes ?? ''); ?>">
               <?php esc_html_e('編集', 'drwp-daily-reports'); ?>
             </button>
           </td>
@@ -52,23 +66,54 @@
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
       <?php wp_nonce_field('drwp_save_project'); ?>
       <input type="hidden" name="action" value="drwp_save_project" />
-      <input type="hidden" name="id" id="drwp-project-modal-id" value="0" />
+      <input type="hidden" name="id" id="drwp-pm-id" value="0" />
 
       <div class="drwp-project-modal-header">
-        <h2 id="drwp-project-modal-title"><?php esc_html_e('新しい現場を追加', 'drwp-daily-reports'); ?></h2>
+        <h2 id="drwp-pm-title"><?php esc_html_e('新しい現場を追加', 'drwp-daily-reports'); ?></h2>
         <button type="button" class="drwp-project-modal-close">&times;</button>
       </div>
 
       <div class="drwp-project-modal-body">
         <table class="form-table">
           <tr>
-            <th><label for="drwp-project-modal-name"><?php esc_html_e('現場名', 'drwp-daily-reports'); ?></label></th>
-            <td><input type="text" id="drwp-project-modal-name" name="name" class="regular-text" required /></td>
+            <th><label for="drwp-pm-name"><?php esc_html_e('現場名', 'drwp-daily-reports'); ?> <em style="color:#b91c1c;">*</em></label></th>
+            <td><input type="text" id="drwp-pm-name" name="name" class="regular-text" required /></td>
           </tr>
           <tr>
-            <th><label for="drwp-project-modal-status"><?php esc_html_e('状態', 'drwp-daily-reports'); ?></label></th>
+            <th><label for="drwp-pm-client"><?php esc_html_e('顧客名', 'drwp-daily-reports'); ?></label></th>
+            <td><input type="text" id="drwp-pm-client" name="client_name" class="regular-text" /></td>
+          </tr>
+          <tr>
+            <th><label for="drwp-pm-contact"><?php esc_html_e('担当者名', 'drwp-daily-reports'); ?></label></th>
+            <td><input type="text" id="drwp-pm-contact" name="contact_person" class="regular-text" /></td>
+          </tr>
+          <tr>
+            <th><label for="drwp-pm-postal"><?php esc_html_e('郵便番号', 'drwp-daily-reports'); ?></label></th>
+            <td><input type="text" id="drwp-pm-postal" name="postal_code" class="small-text" placeholder="123-4567" /></td>
+          </tr>
+          <tr>
+            <th><label for="drwp-pm-address"><?php esc_html_e('住所', 'drwp-daily-reports'); ?></label></th>
+            <td><input type="text" id="drwp-pm-address" name="address" class="large-text" /></td>
+          </tr>
+          <tr>
+            <th><label for="drwp-pm-phone"><?php esc_html_e('電話番号', 'drwp-daily-reports'); ?></label></th>
+            <td><input type="tel" id="drwp-pm-phone" name="phone" class="regular-text" /></td>
+          </tr>
+          <tr>
+            <th><label for="drwp-pm-job"><?php esc_html_e('仕事内容', 'drwp-daily-reports'); ?></label></th>
+            <td><textarea id="drwp-pm-job" name="job_description" rows="3" class="large-text"></textarea></td>
+          </tr>
+          <tr>
+            <th><label for="drwp-pm-notes"><?php esc_html_e('備考', 'drwp-daily-reports'); ?></label></th>
             <td>
-              <select name="status" id="drwp-project-modal-status">
+              <textarea id="drwp-pm-notes" name="notes" rows="2" class="large-text"></textarea>
+              <p class="description"><?php esc_html_e('駐車場情報、入場方法など', 'drwp-daily-reports'); ?></p>
+            </td>
+          </tr>
+          <tr>
+            <th><label for="drwp-pm-status"><?php esc_html_e('状態', 'drwp-daily-reports'); ?></label></th>
+            <td>
+              <select name="status" id="drwp-pm-status">
                 <option value="active"><?php echo esc_html(DRWP_Labels::project_status('active')); ?></option>
                 <option value="inactive"><?php echo esc_html(DRWP_Labels::project_status('inactive')); ?></option>
               </select>
@@ -78,7 +123,7 @@
       </div>
 
       <div class="drwp-project-modal-footer">
-        <button type="submit" class="button button-primary" id="drwp-project-modal-submit">
+        <button type="submit" class="button button-primary" id="drwp-pm-submit">
           <?php esc_html_e('保存', 'drwp-daily-reports'); ?>
         </button>
         <button type="button" class="button drwp-project-modal-close">
@@ -90,14 +135,14 @@
 </div>
 
 <style>
-.drwp-project-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:520px;width:90vw}
+.drwp-project-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:640px;width:90vw}
 .drwp-project-modal::backdrop{background:rgba(0,0,0,.45)}
 .drwp-project-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e5e7eb}
 .drwp-project-modal-header h2{margin:0;font-size:1.1em}
 .drwp-project-modal-close{background:transparent;border:0;font-size:1.6em;cursor:pointer;color:#50575e;line-height:1;padding:0 4px}
-.drwp-project-modal-body{padding:16px 20px}
-.drwp-project-modal-body .form-table th{width:80px;padding:8px 0}
-.drwp-project-modal-body .form-table td{padding:8px 0}
+.drwp-project-modal-body{padding:16px 20px;max-height:65vh;overflow-y:auto}
+.drwp-project-modal-body .form-table th{width:90px;padding:6px 0;vertical-align:top}
+.drwp-project-modal-body .form-table td{padding:6px 0}
 .drwp-project-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
 </style>
 
@@ -106,42 +151,51 @@
   var dlg = document.getElementById('drwp-project-dialog');
   if (!dlg) return;
 
-  var titleEl  = document.getElementById('drwp-project-modal-title');
-  var idEl     = document.getElementById('drwp-project-modal-id');
-  var nameEl   = document.getElementById('drwp-project-modal-name');
-  var statusEl = document.getElementById('drwp-project-modal-status');
-  var submitEl = document.getElementById('drwp-project-modal-submit');
+  var fields = ['name','client','contact','postal','address','phone','job','notes','status','id'];
+  var map = {};
+  fields.forEach(function(f){ map[f] = document.getElementById('drwp-pm-' + f); });
+  var titleEl  = document.getElementById('drwp-pm-title');
+  var submitEl = document.getElementById('drwp-pm-submit');
 
   var addTitle  = <?php echo wp_json_encode(__('新しい現場を追加', 'drwp-daily-reports')); ?>;
   var editTitle = <?php echo wp_json_encode(__('現場を編集', 'drwp-daily-reports')); ?>;
   var addLabel  = <?php echo wp_json_encode(__('追加', 'drwp-daily-reports')); ?>;
   var saveLabel = <?php echo wp_json_encode(__('更新', 'drwp-daily-reports')); ?>;
 
-  // Add button
+  function clearForm(){
+    fields.forEach(function(f){ if(map[f]) map[f].value = ''; });
+    if(map.status) map.status.value = 'active';
+    if(map.id) map.id.value = '0';
+  }
+
   document.getElementById('drwp-project-add-btn').addEventListener('click', function(){
+    clearForm();
     titleEl.textContent = addTitle;
     submitEl.textContent = addLabel;
-    idEl.value = '0';
-    nameEl.value = '';
-    statusEl.value = 'active';
     dlg.showModal();
-    nameEl.focus();
+    map.name.focus();
   });
 
-  // Edit buttons (event delegation)
   document.addEventListener('click', function(e){
     var btn = e.target.closest('.drwp-project-edit-btn');
     if (!btn) return;
-    titleEl.textContent = editTitle + ' (#' + btn.dataset.id + ')';
+    var d = btn.dataset;
+    titleEl.textContent = editTitle + ' (#' + d.id + ')';
     submitEl.textContent = saveLabel;
-    idEl.value = btn.dataset.id;
-    nameEl.value = btn.dataset.name;
-    statusEl.value = btn.dataset.status;
+    map.id.value     = d.id;
+    map.name.value   = d.name;
+    map.status.value = d.status;
+    map.postal.value = d.postal_code || '';
+    map.address.value= d.address || '';
+    map.phone.value  = d.phone || '';
+    map.job.value    = d.job_description || '';
+    map.client.value = d.client_name || '';
+    map.contact.value= d.contact_person || '';
+    map.notes.value  = d.notes || '';
     dlg.showModal();
-    nameEl.focus();
+    map.name.focus();
   });
 
-  // Close
   dlg.addEventListener('click', function(e){
     if (e.target.classList.contains('drwp-project-modal-close')) dlg.close();
     if (e.target === dlg) dlg.close();

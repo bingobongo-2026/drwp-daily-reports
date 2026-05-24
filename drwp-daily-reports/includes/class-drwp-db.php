@@ -48,6 +48,13 @@ class DRWP_DB {
         $sql1 = "CREATE TABLE $projects (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             name VARCHAR(255) NOT NULL,
+            postal_code VARCHAR(10) NULL,
+            address VARCHAR(500) NULL,
+            phone VARCHAR(30) NULL,
+            job_description TEXT NULL,
+            client_name VARCHAR(255) NULL,
+            contact_person VARCHAR(255) NULL,
+            notes TEXT NULL,
             status VARCHAR(32) NOT NULL DEFAULT 'active',
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

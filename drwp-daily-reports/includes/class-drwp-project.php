@@ -54,10 +54,22 @@ class DRWP_Project {
         $allowed_status = ['active', 'inactive'];
         if (!in_array($status, $allowed_status, true)) $status = 'active';
 
+        $data = [
+            'name'           => $name,
+            'status'         => $status,
+            'postal_code'    => sanitize_text_field(wp_unslash($_POST['postal_code'] ?? '')),
+            'address'        => sanitize_text_field(wp_unslash($_POST['address'] ?? '')),
+            'phone'          => sanitize_text_field(wp_unslash($_POST['phone'] ?? '')),
+            'job_description'=> wp_kses_post(wp_unslash($_POST['job_description'] ?? '')),
+            'client_name'    => sanitize_text_field(wp_unslash($_POST['client_name'] ?? '')),
+            'contact_person' => sanitize_text_field(wp_unslash($_POST['contact_person'] ?? '')),
+            'notes'          => wp_kses_post(wp_unslash($_POST['notes'] ?? '')),
+        ];
+
         if ($id) {
-            $wpdb->update(self::table(), ['name' => $name, 'status' => $status], ['id' => $id]);
+            $wpdb->update(self::table(), $data, ['id' => $id]);
         } else {
-            $wpdb->insert(self::table(), ['name' => $name, 'status' => $status]);
+            $wpdb->insert(self::table(), $data);
         }
         wp_safe_redirect(admin_url('admin.php?page=drwp_projects&saved=1'));
         exit;
