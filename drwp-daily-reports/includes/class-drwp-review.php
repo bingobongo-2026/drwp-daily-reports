@@ -2,7 +2,7 @@
 if (!defined('ABSPATH')) exit;
 
 class DRWP_Review {
-    const ALLOWED_STATUSES = ['pending', 'approved', 'needs_revision'];
+    const ALLOWED_STATUSES = ['pending', 'approved', 'needs_revision', 'edit_requested'];
 
     public static function init() {
         add_action('admin_post_drwp_review_report', [__CLASS__, 'handle']);

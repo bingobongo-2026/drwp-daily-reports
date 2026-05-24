@@ -133,12 +133,34 @@
 .drwp-mform-list-item .status.status-pending { background: #d97706; }
 .drwp-mform-list-item .status.status-approved { background: #059669; }
 .drwp-mform-list-item .status.status-needs_revision { background: #dc2626; }
+.drwp-mform-list-item .status.status-edit_requested { background: #2563eb; }
 .drwp-mform-list-item .body {
     display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline;
 }
 .drwp-mform-list-item .project { font-weight: 600; color: #1e293b; }
 .drwp-mform-list-item .time { color: #475569; font-size: 0.9rem; }
 .drwp-mform-list-item .snippet { color: #475569; font-size: 0.95rem; margin: 0; }
+.drwp-mform-list-item .actions {
+    display: flex; gap: 8px; align-items: center; margin-top: 6px;
+}
+.drwp-mform-edit-link {
+    padding: 5px 14px; border: 1px solid #2563eb; border-radius: 8px;
+    color: #2563eb; font-size: 0.85rem; font-weight: 600; text-decoration: none;
+}
+.drwp-mform-edit-link:hover { background: #eff6ff; }
+.drwp-mform-inline-form { display: inline; }
+.drwp-mform-request-btn {
+    padding: 5px 14px; border: 1px solid #d97706; border-radius: 8px;
+    background: transparent; color: #d97706;
+    font-size: 0.85rem; font-weight: 600; cursor: pointer;
+}
+.drwp-mform-request-btn:hover { background: #fffbeb; }
+.drwp-mform-waiting { font-size: 0.85rem; color: #2563eb; font-weight: 600; }
+
+.drwp-mform-edit-wrap { display: flex; flex-direction: column; gap: 12px; }
+.drwp-mform-edit-title { margin: 0; font-size: 1.2rem; }
+.drwp-mform-edit-actions { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
+.drwp-mform-edit-cancel { color: #64748b; text-decoration: underline; font-size: 0.95rem; }
 
 .drwp-mform-pagination {
     display: flex; justify-content: center; align-items: center;

@@ -28,7 +28,7 @@ class DRWP_Dashboard {
              WHERE 1=1 $scope_sql
              GROUP BY review_status"
         );
-        $counts = ['pending' => 0, 'needs_revision' => 0, 'approved' => 0];
+        $counts = ['pending' => 0, 'needs_revision' => 0, 'approved' => 0, 'edit_requested' => 0];
         foreach ($by_status as $row) {
             $counts[(string) $row->review_status] = (int) $row->c;
         }
@@ -70,6 +70,12 @@ class DRWP_Dashboard {
               <div style="color:#166534;font-size:.85em;"><?php esc_html_e('承認済み', 'drwp-daily-reports'); ?></div>
               <a href="<?php echo esc_url(add_query_arg('review_status', 'approved', $list_url)); ?>" style="text-decoration:none;color:inherit;">
                 <strong style="font-size:1.4em;"><?php echo (int) $counts['approved']; ?></strong>
+              </a>
+            </li>
+            <li style="background:#dbeafe;padding:10px;border-radius:6px;">
+              <div style="color:#1e40af;font-size:.85em;"><?php esc_html_e('編集依頼中', 'drwp-daily-reports'); ?></div>
+              <a href="<?php echo esc_url(add_query_arg('review_status', 'edit_requested', $list_url)); ?>" style="text-decoration:none;color:inherit;">
+                <strong style="font-size:1.4em;"><?php echo (int) $counts['edit_requested']; ?></strong>
               </a>
             </li>
           </ul>

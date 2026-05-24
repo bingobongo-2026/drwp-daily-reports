@@ -125,7 +125,7 @@ class DRWP_Report_Archive {
             $where[] = 'r.user_id = %d';
             $args[]  = $author;
         }
-        if ($status && in_array($status, ['pending', 'approved', 'needs_revision'], true)) {
+        if ($status && in_array($status, ['pending', 'approved', 'needs_revision', 'edit_requested'], true)) {
             $where[] = 'r.review_status = %s';
             $args[]  = $status;
         }

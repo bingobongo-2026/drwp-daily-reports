@@ -25,11 +25,8 @@ class DRWP_Labels {
         $map = [
             'pending'            => __('レビュー待ち', 'drwp-daily-reports'),
             'approved'           => __('承認済み', 'drwp-daily-reports'),
-            'revision_requested' => __('差戻し', 'drwp-daily-reports'),
-            // Some older code paths used `needs_revision` — alias
-            // it to the same Japanese label so legacy rows render
-            // consistently with the current `revision_requested`.
             'needs_revision'     => __('差戻し', 'drwp-daily-reports'),
+            'edit_requested'     => __('編集依頼中', 'drwp-daily-reports'),
         ];
         return $map[(string) $value] ?? (string) $value;
     }
