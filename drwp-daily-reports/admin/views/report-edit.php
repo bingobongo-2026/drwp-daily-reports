@@ -34,11 +34,19 @@ if (!empty($report->user_id)) {
         <span class="separator">·</span>
         <span><?php esc_html_e('作成者:', 'drwp-daily-reports'); ?> <strong><?php echo esc_html($author_name); ?></strong></span>
       <?php endif; ?>
-      <?php if (!empty($report->linked_post_id)): ?>
-        <span class="separator">·</span>
-        <a href="<?php echo esc_url(get_edit_post_link((int) $report->linked_post_id)); ?>">
-          <?php printf(esc_html__('連携記事 #%d', 'drwp-daily-reports'), (int) $report->linked_post_id); ?>
-        </a>
+      <?php if (!empty($report->linked_post_id)):
+          $linked_post = get_post((int) $report->linked_post_id);
+          if ($linked_post): ?>
+            <span class="separator">·</span>
+            <a href="<?php echo esc_url(get_edit_post_link((int) $report->linked_post_id)); ?>">
+              <?php printf(esc_html__('連携記事 #%d', 'drwp-daily-reports'), (int) $report->linked_post_id); ?>
+            </a>
+          <?php else: ?>
+            <span class="separator">·</span>
+            <span style="color:#991b1b;">
+              <?php printf(esc_html__('連携記事 #%d は削除されています', 'drwp-daily-reports'), (int) $report->linked_post_id); ?>
+            </span>
+          <?php endif; ?>
       <?php endif; ?>
     </p>
   <?php endif; ?>
@@ -245,9 +253,21 @@ if (!empty($report->user_id)) {
     <?php if (current_user_can('publish_posts')): ?>
       <div class="drwp-section">
         <h3><?php esc_html_e('記事を作成/更新', 'drwp-daily-reports'); ?></h3>
+        <?php
+          $has_valid_linked = !empty($report->linked_post_id) && get_post((int) $report->linked_post_id);
+          if (!empty($report->linked_post_id) && !$has_valid_linked): ?>
+            <div class="notice notice-warning inline" style="margin:0 0 12px;">
+              <p>
+                <?php printf(
+                    esc_html__('連携記事 #%d は削除されています。「記事を作成」を押すと新しい投稿が作成され、リンクが更新されます。', 'drwp-daily-reports'),
+                    (int) $report->linked_post_id
+                ); ?>
+              </p>
+            </div>
+          <?php endif; ?>
         <p class="description">
           <?php esc_html_e('上の公開設定の内容をもとに WordPress の投稿を作成（または既存の連携記事を更新）します。', 'drwp-daily-reports'); ?>
-          <?php if (!empty($report->linked_post_id)): ?>
+          <?php if ($has_valid_linked): ?>
             <?php printf(esc_html__('現在の連携記事: #%d', 'drwp-daily-reports'), (int) $report->linked_post_id); ?>
           <?php endif; ?>
         </p>
@@ -257,7 +277,7 @@ if (!empty($report->user_id)) {
           <input type="hidden" name="id" value="<?php echo (int) $report_id; ?>" />
           <p>
             <button type="submit" class="button button-primary button-hero">
-              <?php echo esc_html(!empty($report->linked_post_id) ? __('連携記事を更新', 'drwp-daily-reports') : __('記事を作成', 'drwp-daily-reports')); ?>
+              <?php echo esc_html($has_valid_linked ? __('連携記事を更新', 'drwp-daily-reports') : __('記事を作成', 'drwp-daily-reports')); ?>
             </button>
           </p>
         </form>
