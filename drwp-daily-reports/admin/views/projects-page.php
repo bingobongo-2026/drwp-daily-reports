@@ -1,13 +1,4 @@
 <?php if (!defined('ABSPATH')) exit; ?>
-<?php
-$is_edit = !empty($edit_project);
-$form_name   = $is_edit ? (string) $edit_project->name   : '';
-$form_status = $is_edit ? (string) $edit_project->status : 'active';
-$status_options = [
-    'active'   => DRWP_Labels::project_status('active'),
-    'inactive' => DRWP_Labels::project_status('inactive'),
-];
-?>
 <div class="wrap">
   <h1><?php esc_html_e('現場', 'drwp-daily-reports'); ?></h1>
 
@@ -18,57 +9,12 @@ $status_options = [
     <div class="notice notice-error"><p><?php esc_html_e('現場名は必須です。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>
 
-  <h2>
-    <?php
-    echo esc_html($is_edit
-        ? sprintf(
-            /* translators: %d: project ID */
-            __('現場を編集 (#%d)', 'drwp-daily-reports'),
-            (int) $edit_project->id
-        )
-        : __('新しい現場を追加', 'drwp-daily-reports')
-    );
-    ?>
-  </h2>
+  <p>
+    <button type="button" class="button button-primary" id="drwp-project-add-btn">
+      + <?php esc_html_e('新しい現場を追加', 'drwp-daily-reports'); ?>
+    </button>
+  </p>
 
-  <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="background:#fff;padding:16px;margin-top:8px;border:1px solid #c3c4c7;border-radius:6px;">
-    <?php wp_nonce_field('drwp_save_project'); ?>
-    <input type="hidden" name="action" value="drwp_save_project" />
-    <?php if ($is_edit): ?>
-      <input type="hidden" name="id" value="<?php echo (int) $edit_project->id; ?>" />
-    <?php endif; ?>
-    <table class="form-table">
-      <tr>
-        <th><label for="drwp-project-name"><?php esc_html_e('現場名', 'drwp-daily-reports'); ?></label></th>
-        <td><input type="text" id="drwp-project-name" class="regular-text" name="name"
-                   value="<?php echo esc_attr($form_name); ?>" required /></td>
-      </tr>
-      <tr>
-        <th><label for="drwp-project-status"><?php esc_html_e('状態', 'drwp-daily-reports'); ?></label></th>
-        <td>
-          <select name="status" id="drwp-project-status">
-            <?php foreach ($status_options as $val => $label): ?>
-              <option value="<?php echo esc_attr($val); ?>" <?php selected($form_status, $val); ?>>
-                <?php echo esc_html($label); ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
-        </td>
-      </tr>
-    </table>
-    <p>
-      <button type="submit" class="button button-primary">
-        <?php echo esc_html($is_edit ? __('現場を更新', 'drwp-daily-reports') : __('現場を追加', 'drwp-daily-reports')); ?>
-      </button>
-      <?php if ($is_edit): ?>
-        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_projects')); ?>">
-          <?php esc_html_e('新規追加に戻る', 'drwp-daily-reports'); ?>
-        </a>
-      <?php endif; ?>
-    </p>
-  </form>
-
-  <h2 style="margin-top:24px;"><?php esc_html_e('登録済みの現場', 'drwp-daily-reports'); ?></h2>
   <table class="widefat striped" style="margin-top:8px;">
     <thead>
       <tr>
@@ -83,18 +29,122 @@ $status_options = [
       <?php if (empty($projects)): ?>
         <tr><td colspan="5"><?php esc_html_e('まだ現場がありません。', 'drwp-daily-reports'); ?></td></tr>
       <?php else: foreach ($projects as $project): ?>
-        <tr <?php echo ($is_edit && (int) $edit_project->id === (int) $project->id) ? 'style="background:#fef3c7;"' : ''; ?>>
+        <tr>
           <td><?php echo (int) $project->id; ?></td>
           <td><?php echo esc_html($project->name); ?></td>
           <td><?php echo esc_html(DRWP_Labels::project_status((string) $project->status)); ?></td>
           <td><?php echo esc_html($project->updated_at); ?></td>
           <td>
-            <a class="button button-small" href="<?php echo esc_url(admin_url('admin.php?page=drwp_projects&edit_id=' . (int) $project->id)); ?>">
+            <button type="button" class="button button-small drwp-project-edit-btn"
+                    data-id="<?php echo (int) $project->id; ?>"
+                    data-name="<?php echo esc_attr($project->name); ?>"
+                    data-status="<?php echo esc_attr($project->status); ?>">
               <?php esc_html_e('編集', 'drwp-daily-reports'); ?>
-            </a>
+            </button>
           </td>
         </tr>
       <?php endforeach; endif; ?>
     </tbody>
   </table>
+
+  <!-- Modal for add / edit -->
+  <dialog id="drwp-project-dialog" class="drwp-project-modal">
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+      <?php wp_nonce_field('drwp_save_project'); ?>
+      <input type="hidden" name="action" value="drwp_save_project" />
+      <input type="hidden" name="id" id="drwp-project-modal-id" value="0" />
+
+      <div class="drwp-project-modal-header">
+        <h2 id="drwp-project-modal-title"><?php esc_html_e('新しい現場を追加', 'drwp-daily-reports'); ?></h2>
+        <button type="button" class="drwp-project-modal-close">&times;</button>
+      </div>
+
+      <div class="drwp-project-modal-body">
+        <table class="form-table">
+          <tr>
+            <th><label for="drwp-project-modal-name"><?php esc_html_e('現場名', 'drwp-daily-reports'); ?></label></th>
+            <td><input type="text" id="drwp-project-modal-name" name="name" class="regular-text" required /></td>
+          </tr>
+          <tr>
+            <th><label for="drwp-project-modal-status"><?php esc_html_e('状態', 'drwp-daily-reports'); ?></label></th>
+            <td>
+              <select name="status" id="drwp-project-modal-status">
+                <option value="active"><?php echo esc_html(DRWP_Labels::project_status('active')); ?></option>
+                <option value="inactive"><?php echo esc_html(DRWP_Labels::project_status('inactive')); ?></option>
+              </select>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="drwp-project-modal-footer">
+        <button type="submit" class="button button-primary" id="drwp-project-modal-submit">
+          <?php esc_html_e('保存', 'drwp-daily-reports'); ?>
+        </button>
+        <button type="button" class="button drwp-project-modal-close">
+          <?php esc_html_e('キャンセル', 'drwp-daily-reports'); ?>
+        </button>
+      </div>
+    </form>
+  </dialog>
 </div>
+
+<style>
+.drwp-project-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:520px;width:90vw}
+.drwp-project-modal::backdrop{background:rgba(0,0,0,.45)}
+.drwp-project-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e5e7eb}
+.drwp-project-modal-header h2{margin:0;font-size:1.1em}
+.drwp-project-modal-close{background:transparent;border:0;font-size:1.6em;cursor:pointer;color:#50575e;line-height:1;padding:0 4px}
+.drwp-project-modal-body{padding:16px 20px}
+.drwp-project-modal-body .form-table th{width:80px;padding:8px 0}
+.drwp-project-modal-body .form-table td{padding:8px 0}
+.drwp-project-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
+</style>
+
+<script>
+(function(){
+  var dlg = document.getElementById('drwp-project-dialog');
+  if (!dlg) return;
+
+  var titleEl  = document.getElementById('drwp-project-modal-title');
+  var idEl     = document.getElementById('drwp-project-modal-id');
+  var nameEl   = document.getElementById('drwp-project-modal-name');
+  var statusEl = document.getElementById('drwp-project-modal-status');
+  var submitEl = document.getElementById('drwp-project-modal-submit');
+
+  var addTitle  = <?php echo wp_json_encode(__('新しい現場を追加', 'drwp-daily-reports')); ?>;
+  var editTitle = <?php echo wp_json_encode(__('現場を編集', 'drwp-daily-reports')); ?>;
+  var addLabel  = <?php echo wp_json_encode(__('追加', 'drwp-daily-reports')); ?>;
+  var saveLabel = <?php echo wp_json_encode(__('更新', 'drwp-daily-reports')); ?>;
+
+  // Add button
+  document.getElementById('drwp-project-add-btn').addEventListener('click', function(){
+    titleEl.textContent = addTitle;
+    submitEl.textContent = addLabel;
+    idEl.value = '0';
+    nameEl.value = '';
+    statusEl.value = 'active';
+    dlg.showModal();
+    nameEl.focus();
+  });
+
+  // Edit buttons (event delegation)
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.drwp-project-edit-btn');
+    if (!btn) return;
+    titleEl.textContent = editTitle + ' (#' + btn.dataset.id + ')';
+    submitEl.textContent = saveLabel;
+    idEl.value = btn.dataset.id;
+    nameEl.value = btn.dataset.name;
+    statusEl.value = btn.dataset.status;
+    dlg.showModal();
+    nameEl.focus();
+  });
+
+  // Close
+  dlg.addEventListener('click', function(e){
+    if (e.target.classList.contains('drwp-project-modal-close')) dlg.close();
+    if (e.target === dlg) dlg.close();
+  });
+})();
+</script>
