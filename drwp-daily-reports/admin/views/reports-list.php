@@ -123,6 +123,7 @@
           <th><input type="checkbox" onclick="document.querySelectorAll('.drwp-check').forEach(cb => cb.checked = this.checked)" /></th>
           <th>ID</th>
           <th><?php esc_html_e('日付', 'drwp-daily-reports'); ?></th>
+          <th><?php esc_html_e('作成者', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('現場', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('公開タイトル', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('レビュー', 'drwp-daily-reports'); ?></th>
@@ -133,12 +134,16 @@
       </thead>
       <tbody>
         <?php if (empty($reports)): ?>
-          <tr><td colspan="9"><?php esc_html_e('データがありません。', 'drwp-daily-reports'); ?></td></tr>
+          <tr><td colspan="10"><?php esc_html_e('データがありません。', 'drwp-daily-reports'); ?></td></tr>
         <?php else: foreach ($reports as $report): ?>
           <tr>
             <td><input class="drwp-check" type="checkbox" name="report_ids[]" value="<?php echo esc_attr($report->id); ?>" /></td>
             <td><?php echo esc_html($report->id); ?></td>
             <td><?php echo esc_html(date_i18n('Y年n月j日', strtotime((string) $report->report_date))); ?></td>
+            <td><?php
+              $author = get_userdata((int) $report->user_id);
+              echo esc_html($author ? $author->display_name : ('#' . (int) $report->user_id));
+            ?></td>
             <td><?php
               $project_name = '-';
               if (!empty($report->project_id)) {
