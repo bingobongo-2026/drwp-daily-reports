@@ -35,6 +35,7 @@ class DRWP_Login {
     const OPT_ENABLED        = 'drwp_login_redirect_enabled';
     const OPT_LOSTPASS_PAGE  = 'drwp_login_lostpass_page_id';
     const OPT_ADMIN_LOCKDOWN = 'drwp_login_admin_lockdown';
+    const OPT_LOGIN_LOGO     = 'drwp_login_logo_url';
     const HANDLE             = 'drwp-login';
     const HANDLE_WP_LOGIN    = 'drwp-wp-login';
 
@@ -57,6 +58,7 @@ class DRWP_Login {
         // front-end look. Two Factor's TOTP challenge screen also
         // lives on wp-login.php, so this picks it up too.
         add_action('login_enqueue_scripts', [__CLASS__, 'enqueue_wp_login_styles']);
+        add_action('login_head', [__CLASS__, 'inject_login_logo_css']);
         add_filter('login_headerurl',  [__CLASS__, 'filter_login_header_url']);
         add_filter('login_headertext', [__CLASS__, 'filter_login_header_text']);
 
@@ -200,6 +202,7 @@ class DRWP_Login {
         register_setting('drwp_login', self::OPT_ENABLED,        ['type' => 'boolean', 'default' => false]);
         register_setting('drwp_login', self::OPT_LOSTPASS_PAGE,  ['type' => 'integer', 'default' => 0]);
         register_setting('drwp_login', self::OPT_ADMIN_LOCKDOWN, ['type' => 'boolean', 'default' => false]);
+        register_setting('drwp_login', self::OPT_LOGIN_LOGO,     ['type' => 'string',  'default' => '']);
     }
 
     /* ------------------------------------------------------------
@@ -440,6 +443,25 @@ class DRWP_Login {
         );
     }
 
+    /**
+     * When the operator has set a custom logo URL, override the WP
+     * logo's CSS background-image via inline <style> in login_head.
+     * This runs on wp-login.php (including the Two Factor TOTP
+     * challenge screen), so the brand is consistent.
+     */
+    public static function inject_login_logo_css() {
+        $logo = trim((string) get_option(self::OPT_LOGIN_LOGO, ''));
+        if ($logo === '') return;
+        echo '<style>#login h1 a, .login h1 a { '
+            . 'background-image: url(' . esc_url($logo) . ') !important; '
+            . 'background-size: contain !important; '
+            . 'background-position: center !important; '
+            . 'width: 100% !important; '
+            . 'max-width: 320px !important; '
+            . 'height: 80px !important; '
+            . '}</style>';
+    }
+
     /** Logo above the login form links here instead of wordpress.org. */
     public static function filter_login_header_url() {
         return home_url('/');
@@ -552,6 +574,17 @@ class DRWP_Login {
                                 <?php esc_html_e('対象ページの本文に', 'drwp-daily-reports'); ?>
                                 <code>[drwp_lostpassword_form]</code>
                                 <?php esc_html_e('を入れてください。1 つのショートコードで「再設定リクエスト → メール送信 → 新パスワード入力 → 完了」までフロントで完結します。再設定リンクを含むメールの URL も自動でこのページに差し替わります。', 'drwp-daily-reports'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('ログイン画面のロゴ', 'drwp-daily-reports'); ?></th>
+                        <td>
+                            <input type="url" name="<?php echo esc_attr(self::OPT_LOGIN_LOGO); ?>" class="regular-text"
+                                   value="<?php echo esc_attr(get_option(self::OPT_LOGIN_LOGO, '')); ?>"
+                                   placeholder="https://example.com/logo.png" />
+                            <p class="description">
+                                <?php esc_html_e('wp-login.php の WordPress ロゴを差し替える画像 URL。空欄なら WordPress の標準ロゴのまま。認証コード入力画面(Two Factor)にも適用されます。', 'drwp-daily-reports'); ?>
                             </p>
                         </td>
                     </tr>

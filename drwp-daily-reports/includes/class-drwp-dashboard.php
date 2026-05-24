@@ -39,7 +39,7 @@ class DRWP_Dashboard {
         ));
 
         $recent = $wpdb->get_results(
-            "SELECT id, report_date, public_title, review_status
+            "SELECT id, report_date, project_id, public_title, review_status
              FROM $table
              WHERE 1=1 $scope_sql
              ORDER BY id DESC
@@ -79,10 +79,19 @@ class DRWP_Dashboard {
             <p style="color:#50575e;"><?php esc_html_e('まだ日報がありません。', 'drwp-daily-reports'); ?></p>
           <?php else: ?>
             <ul style="margin:0;padding:0;list-style:none;">
-              <?php foreach ($recent as $r): ?>
+              <?php foreach ($recent as $r):
+                  $proj = $r->project_id ? DRWP_Project::find((int) $r->project_id) : null;
+                  $proj_name = $proj ? $proj->name : __('（未設定）', 'drwp-daily-reports');
+                  $title = $r->public_title ?: '-';
+                  $date_label = date_i18n('Y年n月j日', strtotime((string) $r->report_date));
+              ?>
                 <li style="padding:6px 0;border-bottom:1px solid #f0f0f1;">
-                  <a href="<?php echo esc_url(admin_url('admin.php?page=drwp_report_edit&id=' . (int) $r->id)); ?>">
-                    <?php echo esc_html($r->report_date); ?> — <?php echo esc_html($r->public_title ?: __('（未設定）', 'drwp-daily-reports')); ?>
+                  <a href="<?php echo esc_url(admin_url('admin.php?page=drwp_report_edit&id=' . (int) $r->id)); ?>" style="text-decoration:none;color:inherit;">
+                    <strong><?php echo esc_html($date_label); ?></strong>
+                    <span style="color:#50575e;margin:0 4px;">—</span>
+                    <span><?php echo esc_html($proj_name); ?></span>
+                    <span style="color:#94a3b8;margin:0 4px;">|</span>
+                    <span style="color:#475569;"><?php echo esc_html($title); ?></span>
                   </a>
                   <span style="float:right;color:#50575e;font-size:.85em;"><?php echo esc_html(DRWP_Labels::review_status((string) $r->review_status)); ?></span>
                 </li>

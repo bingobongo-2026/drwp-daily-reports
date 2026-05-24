@@ -55,11 +55,8 @@ class DRWP_Report_Form {
     }
 
     public static function render($atts = [], $content = '') {
-        if (!is_user_logged_in()) {
-            return self::wrap(self::login_prompt());
-        }
-        if (!current_user_can('edit_posts')) {
-            return self::wrap('<p>' . esc_html__('日報を投稿する権限がありません。管理者にお問い合わせください。', 'drwp-daily-reports') . '</p>');
+        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
+            return '';
         }
         wp_enqueue_style(self::HANDLE);
 
@@ -259,7 +256,7 @@ class DRWP_Report_Form {
         ?>
         <li class="drwp-mform-list-item">
             <div class="head">
-                <span class="date"><?php echo esc_html((string) $r->report_date); ?></span>
+                <span class="date"><?php echo esc_html(date_i18n('Y年n月j日', strtotime((string) $r->report_date))); ?></span>
                 <span class="status status-<?php echo esc_attr($status); ?>">
                     <?php echo esc_html(DRWP_Labels::review_status($status)); ?>
                 </span>
@@ -422,12 +419,6 @@ class DRWP_Report_Form {
         </div>
         <?php
         return ob_get_clean();
-    }
-
-    private static function login_prompt() {
-        return '<p class="drwp-mform-login-required">'
-            . esc_html__('日報を投稿するにはログインしてください。', 'drwp-daily-reports')
-            . '</p>';
     }
 
     private static function wrap($inner) {
