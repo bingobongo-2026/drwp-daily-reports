@@ -83,7 +83,7 @@
     <div class="drwp-list-card drwp-list-bulk">
       <h2><?php esc_html_e('一括操作', 'drwp-daily-reports'); ?></h2>
       <div class="drwp-list-bulk-row">
-        <select name="bulk_action">
+        <select name="bulk_action" id="drwp-bulk-action-select">
           <option value=""><?php esc_html_e('操作を選択', 'drwp-daily-reports'); ?></option>
           <option value="bulk_approve"><?php esc_html_e('一括承認', 'drwp-daily-reports'); ?></option>
           <option value="bulk_revision"><?php esc_html_e('一括差し戻し', 'drwp-daily-reports'); ?></option>
@@ -91,29 +91,50 @@
           <option value="bulk_update_publish"><?php esc_html_e('一括で公開設定を更新', 'drwp-daily-reports'); ?></option>
           <option value="bulk_export_csv"><?php esc_html_e('選択した日報をCSV出力', 'drwp-daily-reports'); ?></option>
         </select>
-        <select name="bulk_post_template">
-          <?php foreach (DRWP_Labels::post_template_options() as $key => $label): ?>
-            <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option>
-          <?php endforeach; ?>
-        </select>
-        <?php
-          wp_dropdown_categories([
-            'show_option_all' => __('カテゴリを選択', 'drwp-daily-reports'),
-            'hide_empty'      => 0,
-            'name'            => 'bulk_post_category_id',
-            'selected'        => 0,
-            'taxonomy'        => 'category',
-            'value_field'     => 'term_id',
-          ]);
-        ?>
-        <input type="text" name="bulk_post_tags" placeholder="<?php esc_attr_e('タグ（カンマ区切り）', 'drwp-daily-reports'); ?>" />
-        <select name="bulk_post_status">
-          <option value="draft"><?php echo esc_html(DRWP_Labels::post_status('draft')); ?></option>
-          <option value="pending"><?php echo esc_html(DRWP_Labels::post_status('pending')); ?></option>
-          <option value="future"><?php echo esc_html(DRWP_Labels::post_status('future')); ?></option>
-        </select>
-        <input type="datetime-local" name="bulk_scheduled_at" />
         <button class="button button-primary"><?php esc_html_e('実行', 'drwp-daily-reports'); ?></button>
+      </div>
+
+      <div id="drwp-bulk-publish-opts" class="drwp-list-bulk-sub" style="display:none;">
+        <p class="drwp-bulk-sub-label"><?php esc_html_e('記事作成/公開設定に使う値:', 'drwp-daily-reports'); ?></p>
+        <div class="drwp-list-bulk-row">
+          <label>
+            <span><?php esc_html_e('テンプレート', 'drwp-daily-reports'); ?></span>
+            <select name="bulk_post_template">
+              <?php foreach (DRWP_Labels::post_template_options() as $key => $label): ?>
+                <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option>
+              <?php endforeach; ?>
+            </select>
+          </label>
+          <label>
+            <span><?php esc_html_e('カテゴリ', 'drwp-daily-reports'); ?></span>
+            <?php
+              wp_dropdown_categories([
+                'show_option_all' => __('カテゴリを選択', 'drwp-daily-reports'),
+                'hide_empty'      => 0,
+                'name'            => 'bulk_post_category_id',
+                'selected'        => 0,
+                'taxonomy'        => 'category',
+                'value_field'     => 'term_id',
+              ]);
+            ?>
+          </label>
+          <label>
+            <span><?php esc_html_e('タグ', 'drwp-daily-reports'); ?></span>
+            <input type="text" name="bulk_post_tags" placeholder="<?php esc_attr_e('カンマ区切り', 'drwp-daily-reports'); ?>" />
+          </label>
+          <label>
+            <span><?php esc_html_e('投稿状態', 'drwp-daily-reports'); ?></span>
+            <select name="bulk_post_status">
+              <option value="draft"><?php echo esc_html(DRWP_Labels::post_status('draft')); ?></option>
+              <option value="pending"><?php echo esc_html(DRWP_Labels::post_status('pending')); ?></option>
+              <option value="future"><?php echo esc_html(DRWP_Labels::post_status('future')); ?></option>
+            </select>
+          </label>
+          <label>
+            <span><?php esc_html_e('予約日時', 'drwp-daily-reports'); ?></span>
+            <input type="datetime-local" name="bulk_scheduled_at" />
+          </label>
+        </div>
       </div>
     </div>
 
@@ -281,7 +302,11 @@
   .drwp-list-card>h2{margin:0 0 8px;font-size:.95em;color:#1d2327;border-bottom:1px solid #e5e7eb;padding-bottom:6px}
   .drwp-list-search{background:#f0f6fc;border-left:4px solid #2271b1}
   .drwp-list-bulk{background:#fefce8;border-left:4px solid #d97706}
-  .drwp-list-search-form,.drwp-list-bulk-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .drwp-list-search-form,.drwp-list-bulk-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+  .drwp-list-bulk-sub{margin-top:10px;padding-top:10px;border-top:1px dashed #d97706}
+  .drwp-bulk-sub-label{margin:0 0 6px;font-size:.85em;color:#92400e;font-weight:600}
+  .drwp-list-bulk-row label{display:flex;flex-direction:column;gap:2px;min-width:120px}
+  .drwp-list-bulk-row label>span{font-size:.8em;color:#50575e;font-weight:600}
   .drwp-list-search-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%}
   .drwp-list-search-input{min-width:200px;flex:1}
   .drwp-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:640px;width:90vw}
@@ -296,6 +321,21 @@
   .drwp-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
   .drwp-view-text{white-space:pre-wrap}
   </style>
+
+  <!-- Bulk action toggle: show publish settings only for relevant actions -->
+  <script>
+  (function(){
+    var sel=document.getElementById('drwp-bulk-action-select');
+    var opts=document.getElementById('drwp-bulk-publish-opts');
+    if(!sel||!opts)return;
+    function toggle(){
+      var v=sel.value;
+      opts.style.display=(v==='bulk_convert'||v==='bulk_update_publish')?'':'none';
+    }
+    sel.addEventListener('change',toggle);
+    toggle();
+  })();
+  </script>
 
   <!-- Inline modal JS: REST config is embedded directly from PHP
        rather than relying on wp_localize_script (which the host's
