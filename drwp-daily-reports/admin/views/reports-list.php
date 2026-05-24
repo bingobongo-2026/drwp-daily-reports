@@ -297,12 +297,25 @@
   .drwp-view-text{white-space:pre-wrap}
   </style>
 
-  <!-- Inline modal JS: same bypass rationale as the <style> above. -->
+  <!-- Inline modal JS: REST config is embedded directly from PHP
+       rather than relying on wp_localize_script (which the host's
+       cache layer strips from the page). -->
   <script>
   (function(){
+    var rest = <?php echo wp_json_encode([
+        'url'            => esc_url_raw(rest_url('drwp/v1')),
+        'nonce'          => wp_create_nonce('wp_rest'),
+        'admin_edit_url' => admin_url('admin.php?page=drwp_report_edit&id=__ID__'),
+        'projects'       => (object) DRWP_Admin::project_map_public(),
+        'labels'         => [
+            'pending'        => DRWP_Labels::review_status('pending'),
+            'approved'       => DRWP_Labels::review_status('approved'),
+            'needs_revision' => DRWP_Labels::review_status('needs_revision'),
+            'edit_requested' => DRWP_Labels::review_status('edit_requested'),
+        ],
+    ]); ?>;
     var table=document.getElementById('drwp-reports-table');
-    if(!table||!window.drwpRest)return;
-    var rest=window.drwpRest;
+    if(!table)return;
     var viewDlg=document.getElementById('drwp-view-dialog');
     var editDlg=document.getElementById('drwp-edit-dialog');
     if(!viewDlg||!editDlg)return;

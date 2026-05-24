@@ -108,6 +108,10 @@ class DRWP_Admin {
         add_submenu_page(null, $prev, $prev, self::CAP_EDIT, 'drwp_report_preview', [__CLASS__, 'report_preview_page']);
     }
 
+    public static function project_map_public() {
+        return self::project_map();
+    }
+
     private static function project_map() {
         $all = DRWP_Project::all();
         $map = [];
