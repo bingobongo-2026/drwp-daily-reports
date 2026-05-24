@@ -248,6 +248,7 @@ if (!empty($report->user_id)) {
                     'pending'        => DRWP_Labels::review_status('pending'),
                     'approved'       => DRWP_Labels::review_status('approved'),
                     'needs_revision' => DRWP_Labels::review_status('needs_revision'),
+                    'edit_requested' => DRWP_Labels::review_status('edit_requested'),
                 ];
                 foreach ($review_options as $val => $label): ?>
                   <option value="<?php echo esc_attr($val); ?>" <?php selected($report->review_status, $val); ?>><?php echo esc_html($label); ?></option>
