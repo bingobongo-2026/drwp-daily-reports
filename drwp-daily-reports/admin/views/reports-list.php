@@ -273,4 +273,126 @@
       <span id="drwp-edit-status" style="margin-left:12px;"></span>
     </div>
   </dialog>
+
+  <!-- Inline styles: bypasses server-side static-file caching that
+       was preventing admin.css updates from reaching the browser. -->
+  <style>
+  .drwp-list-card{border:1px solid #c3c4c7;border-radius:8px;padding:12px 16px;margin-bottom:12px}
+  .drwp-list-card>h2{margin:0 0 8px;font-size:.95em;color:#1d2327;border-bottom:1px solid #e5e7eb;padding-bottom:6px}
+  .drwp-list-search{background:#f0f6fc;border-left:4px solid #2271b1}
+  .drwp-list-bulk{background:#fefce8;border-left:4px solid #d97706}
+  .drwp-list-search-form,.drwp-list-bulk-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .drwp-list-search-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%}
+  .drwp-list-search-input{min-width:200px;flex:1}
+  .drwp-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:640px;width:90vw}
+  .drwp-modal-wide{max-width:780px}
+  .drwp-modal::backdrop{background:rgba(0,0,0,.45)}
+  .drwp-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e5e7eb}
+  .drwp-modal-header h2{margin:0;font-size:1.1em}
+  .drwp-modal-close{background:transparent;border:0;font-size:1.6em;cursor:pointer;color:#50575e;line-height:1;padding:0 4px}
+  .drwp-modal-body{padding:16px 20px;max-height:65vh;overflow-y:auto}
+  .drwp-modal-body .form-table th{width:100px;padding:6px 0}
+  .drwp-modal-body .form-table td{padding:6px 0}
+  .drwp-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
+  .drwp-view-text{white-space:pre-wrap}
+  </style>
+
+  <!-- Inline modal JS: same bypass rationale as the <style> above. -->
+  <script>
+  (function(){
+    var table=document.getElementById('drwp-reports-table');
+    if(!table||!window.drwpRest)return;
+    var rest=window.drwpRest;
+    var viewDlg=document.getElementById('drwp-view-dialog');
+    var editDlg=document.getElementById('drwp-edit-dialog');
+    if(!viewDlg||!editDlg)return;
+
+    function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+    function api(path,opts){
+      opts=opts||{};opts.credentials='same-origin';
+      opts.headers=Object.assign({'X-WP-Nonce':rest.nonce},opts.headers||{});
+      return fetch(rest.url+path,opts).then(function(r){
+        return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'HTTP '+r.status);return j;});
+      });
+    }
+
+    [viewDlg,editDlg].forEach(function(dlg){
+      dlg.addEventListener('click',function(e){
+        if(e.target.classList.contains('drwp-modal-close')||e.target.classList.contains('drwp-modal-cancel'))dlg.close();
+        if(e.target===dlg)dlg.close();
+      });
+    });
+
+    table.addEventListener('click',function(e){
+      var vb=e.target.closest('.drwp-view-btn');
+      if(!vb)return;
+      var id=vb.dataset.id;
+      var body=document.getElementById('drwp-view-body');
+      body.innerHTML='<p>読み込み中…</p>';
+      viewDlg.showModal();
+      api('/reports/'+id).then(function(d){
+        var time='';
+        if(d.started_at)time+=d.started_at.substring(0,5);
+        if(d.started_at&&d.ended_at)time+=' - ';
+        if(d.ended_at)time+=d.ended_at.substring(0,5);
+        var h='<table class="form-table drwp-view-table">';
+        h+='<tr><th>日付</th><td>'+esc(d.report_date)+'</td></tr>';
+        h+='<tr><th>現場</th><td>'+esc(d.project_id?(rest.projects&&rest.projects[d.project_id]||'#'+d.project_id):'（未設定）')+'</td></tr>';
+        if(time)h+='<tr><th>時刻</th><td>'+esc(time)+'</td></tr>';
+        h+='<tr><th>レビュー</th><td>'+esc(rest.labels&&rest.labels[d.review_status]||d.review_status)+'</td></tr>';
+        h+='<tr><th>作業内容</th><td class="drwp-view-text">'+esc(d.work_description||'')+'</td></tr>';
+        if(d.issues)h+='<tr><th>問題点</th><td class="drwp-view-text">'+esc(d.issues)+'</td></tr>';
+        if(d.next_plan)h+='<tr><th>次回予定</th><td class="drwp-view-text">'+esc(d.next_plan)+'</td></tr>';
+        if(d.public_title)h+='<tr><th>公開タイトル</th><td>'+esc(d.public_title)+'</td></tr>';
+        h+='</table>';
+        body.innerHTML=h;
+      }).catch(function(err){body.innerHTML='<p style="color:#991b1b;">'+esc(err.message)+'</p>';});
+    });
+
+    table.addEventListener('click',function(e){
+      var eb=e.target.closest('.drwp-edit-btn');
+      if(!eb)return;
+      var id=eb.dataset.id;
+      document.getElementById('drwp-edit-id').value=id;
+      document.getElementById('drwp-edit-fullpage').href=rest.admin_edit_url.replace('__ID__',id);
+      document.getElementById('drwp-edit-status').textContent='';
+      ['drwp-edit-date','drwp-edit-started','drwp-edit-ended','drwp-edit-title'].forEach(function(k){document.getElementById(k).value='';});
+      ['drwp-edit-work','drwp-edit-issues','drwp-edit-next'].forEach(function(k){document.getElementById(k).value='';});
+      document.getElementById('drwp-edit-project').value='';
+      editDlg.showModal();
+      api('/reports/'+id).then(function(d){
+        document.getElementById('drwp-edit-date').value=d.report_date||'';
+        document.getElementById('drwp-edit-project').value=d.project_id||'';
+        document.getElementById('drwp-edit-started').value=(d.started_at||'').substring(0,5);
+        document.getElementById('drwp-edit-ended').value=(d.ended_at||'').substring(0,5);
+        document.getElementById('drwp-edit-work').value=d.work_description||'';
+        document.getElementById('drwp-edit-issues').value=d.issues||'';
+        document.getElementById('drwp-edit-next').value=d.next_plan||'';
+        document.getElementById('drwp-edit-title').value=d.public_title||'';
+      }).catch(function(err){document.getElementById('drwp-edit-status').textContent=err.message;});
+    });
+
+    document.getElementById('drwp-edit-save').addEventListener('click',function(){
+      var id=document.getElementById('drwp-edit-id').value;
+      var st=document.getElementById('drwp-edit-status');
+      st.textContent='保存中…';this.disabled=true;var self=this;
+      api('/reports/'+id,{
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          report_date:document.getElementById('drwp-edit-date').value,
+          project_id:Number(document.getElementById('drwp-edit-project').value)||null,
+          started_at:document.getElementById('drwp-edit-started').value||null,
+          ended_at:document.getElementById('drwp-edit-ended').value||null,
+          work_description:document.getElementById('drwp-edit-work').value,
+          issues:document.getElementById('drwp-edit-issues').value,
+          next_plan:document.getElementById('drwp-edit-next').value,
+          public_title:document.getElementById('drwp-edit-title').value
+        })
+      }).then(function(){editDlg.close();location.reload();})
+        .catch(function(err){st.textContent=err.message;self.disabled=false;});
+    });
+  })();
+  </script>
+
 </div>
