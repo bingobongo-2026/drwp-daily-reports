@@ -4,27 +4,22 @@
 {% block help_body %}
 <h3>各項目の入力ルール</h3>
 <ul>
-  <li><strong>ライセンスキー</strong> — 任意の文字列。重複不可。人間が読める接頭辞+ランダム ID (例 <code>ACME-7F2C-9KQ4</code>) がおすすめ。{% if license %}編集時は変更できません。{% endif %}</li>
-  <li><strong>ドメイン</strong> — プラグインが動く WordPress サイトのホスト名。<code>https://</code> や末尾の <code>/</code> は付けません。プラグインは <code>wp_parse_url(home_url(), PHP_URL_HOST)</code> の結果を送るため、WP の「サイトアドレス」設定と一致させてください。<code>www.</code> の有無も完全一致である必要があります。</li>
-  <li><strong>プラン</strong> — <code>standard</code> / <code>pro</code> から選択。ロジックには使われず、画面表示用です。</li>
-  <li><strong>状態</strong> — <code>active</code> が有効、<code>inactive</code> はプラグイン側で書き込み・記事化がブロックされます。一時停止に使えます。</li>
-  <li><strong>有効期限</strong> — 空欄は無期限。日時を入れる場合は ISO 8601 形式 (<code>YYYY-MM-DDTHH:MM:SS+00:00</code>) で。タイムゾーン省略は避けてください。</li>
+  <li><strong>ライセンスキー</strong> — 任意の文字列。重複不可。{% if license %}編集時は変更できません。{% endif %}</li>
+  <li><strong>ドメイン</strong> — プラグインが動く WordPress サイトのホスト名。<code>https://</code> や末尾の <code>/</code> は付けません。</li>
+  <li><strong>プラン</strong> — <code>standard</code> / <code>pro</code> から選択。</li>
+  <li><strong>状態</strong> — <code>active</code> が有効、<code>inactive</code> はブロック。</li>
+  <li><strong>有効期限</strong> — 空欄は無期限。ISO 8601 形式。</li>
 </ul>
-
-<h3>こんなときは</h3>
-<ul>
-  <li><strong>失効させたい</strong> — 削除ではなく、編集で状態を <code>inactive</code> にする。履歴が残り、復活も簡単です。</li>
-  <li><strong>ドメインが変わった</strong> — 編集でドメイン欄を新しい値に更新。</li>
-  <li><strong>キーを変えたい</strong> — このフォームでは変更できないので、削除→新規作成です。</li>
-</ul>
-
-<h3>保存後にやること</h3>
-<p>WordPress 側で「ライセンスをチェック」を実行して、状態が反映されることを確認してください。古い状態がキャッシュされていることがあります。</p>
+<h3>ユーザー情報</h3>
+<p>ユーザー名・住所・電話番号などはライセンスの管理用メモです。プラグイン側には送信されません。</p>
 {% endblock %}
 {% block content %}
 <div class="card">
   <h1>{{ 'ライセンス編集' if license else 'ライセンス作成' }}</h1>
   <form method="post" action="{{ action_url }}">
+
+    <h2 style="margin:16px 0 8px; font-size:1em; color:#374151; border-bottom:1px solid #e5e7eb; padding-bottom:6px;">ライセンス情報</h2>
+
     <label for="license_key">ライセンスキー</label>
     <input type="text" id="license_key" name="license_key"
            value="{{ license.license_key if license else '' }}"
@@ -52,6 +47,36 @@
     <input type="text" id="expires_at" name="expires_at"
            value="{{ license.expires_at if license and license.expires_at else '' }}"
            placeholder="2099-12-31T23:59:59+00:00">
+
+    <h2 style="margin:24px 0 8px; font-size:1em; color:#374151; border-bottom:1px solid #e5e7eb; padding-bottom:6px;">ユーザー情報</h2>
+
+    <label for="user_name">ユーザー名（会社名 / 個人名）</label>
+    <input type="text" id="user_name" name="user_name"
+           value="{{ license.user_name if license else '' }}">
+
+    <label for="postal_code">郵便番号</label>
+    <input type="text" id="postal_code" name="postal_code"
+           value="{{ license.postal_code if license else '' }}"
+           placeholder="123-4567">
+
+    <label for="address">住所</label>
+    <input type="text" id="address" name="address"
+           value="{{ license.address if license else '' }}">
+
+    <label for="company_phone">代表電話番号</label>
+    <input type="tel" id="company_phone" name="company_phone"
+           value="{{ license.company_phone if license else '' }}">
+
+    <label for="contact_person">担当者名</label>
+    <input type="text" id="contact_person" name="contact_person"
+           value="{{ license.contact_person if license else '' }}">
+
+    <label for="contact_phone">担当者電話番号</label>
+    <input type="tel" id="contact_phone" name="contact_phone"
+           value="{{ license.contact_phone if license else '' }}">
+
+    <label for="notes">備考</label>
+    <textarea id="notes" name="notes" rows="3">{{ license.notes if license else '' }}</textarea>
 
     <div class="row" style="margin-top: 16px;">
       <button class="btn" type="submit">{{ '更新' if license else '作成' }}</button>
