@@ -8,21 +8,14 @@
 <h3>各カラムの意味</h3>
 <ul>
   <li><strong>キー</strong> — WordPress プラグインの「ライセンスキー」欄に入れる値です。</li>
-  <li><strong>ドメイン</strong> — このキーを使ってよいサイトのホスト名 (例 <code>example.com</code>)。プラグインから送られてくる値と完全一致する必要があります。</li>
-  <li><strong>プラン</strong> — <code>standard</code> や <code>pro</code> など任意のラベル。表示用です。</li>
+  <li><strong>ドメイン</strong> — このキーを使ってよいサイトのホスト名 (例 <code>example.com</code>)。</li>
+  <li><strong>ユーザー名</strong> — ライセンスの利用者(会社名・個人名)。</li>
+  <li><strong>プラン</strong> — <code>standard</code> や <code>pro</code> など任意のラベル。</li>
   <li><strong>状態</strong> — <span class="pill active">active</span> 以外はプラグイン側で書き込み・記事化がブロックされます。</li>
-  <li><strong>有効期限</strong> — ISO 8601 形式の日時。<code>—</code> は無期限。</li>
 </ul>
 
-<h3>操作</h3>
-<ul>
-  <li><strong>新規作成</strong> — 右上のボタンから。ライセンスキーは重複不可。</li>
-  <li><strong>編集</strong> — 行の「編集」ボタン。<code>license_key</code> は変更できません。変えたい場合は削除→作成。</li>
-  <li><strong>削除</strong> — 行の「削除」ボタン。<strong>取り消せません</strong>。一時的に止めたいだけなら、削除よりも編集で状態を <code>inactive</code> にする方が安全です。</li>
-</ul>
-
-<h3>WordPress プラグイン側との連携</h3>
-<p>新しくライセンスを作ったら、WordPress 管理画面の「DRWP Daily Reports → ライセンス」ページで、ここで作った <code>license_key</code> を入力し「公開鍵を取得」→「ライセンスをチェック」を実行してください。状態が <strong>active</strong>、署名検証が <strong>valid</strong> になれば連携完了です。</p>
+<h3>検索</h3>
+<p>検索ボックスにキーワードを入力すると、キー・ドメイン・ユーザー名・住所・担当者名・備考を横断で検索します。</p>
 {% endblock %}
 {% block content %}
 <div class="card">
@@ -30,31 +23,43 @@
     <h1>ライセンス</h1>
     <a class="btn" href="/admin/ui/licenses/new">新規作成</a>
   </div>
-  <p class="muted">合計 {{ items|length }} 件</p>
+
+  <form method="get" action="/admin/ui/licenses" class="row" style="margin: 12px 0; gap: 8px;">
+    <input type="search" name="q" value="{{ search }}" placeholder="キー・ドメイン・ユーザー名・住所で検索"
+           style="flex:1; padding:8px 12px; border:1px solid #d1d5db; border-radius:8px;">
+    <button class="btn" type="submit">検索</button>
+    {% if search %}
+      <a class="btn ghost" href="/admin/ui/licenses">クリア</a>
+    {% endif %}
+  </form>
+
+  <p class="muted">{{ '検索結果: ' if search else '' }}合計 {{ items|length }} 件</p>
   <table>
     <thead>
       <tr>
         <th>キー</th>
         <th>ドメイン</th>
+        <th>ユーザー名</th>
+        <th>担当者</th>
         <th>プラン</th>
         <th>状態</th>
         <th>有効期限</th>
-        <th>更新日時</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       {% if not items %}
-        <tr><td colspan="7" class="muted">ライセンスがありません。</td></tr>
+        <tr><td colspan="8" class="muted">ライセンスがありません。</td></tr>
       {% endif %}
       {% for it in items %}
       <tr>
         <td class="mono">{{ it.license_key }}</td>
         <td>{{ it.domain }}</td>
+        <td>{{ it.user_name or '—' }}</td>
+        <td>{{ it.contact_person or '—' }}</td>
         <td>{{ it.plan }}</td>
         <td><span class="pill {{ 'active' if it.status == 'active' else 'inactive' }}">{{ it.status }}</span></td>
         <td class="mono">{{ it.expires_at or '—' }}</td>
-        <td class="mono">{{ it.updated_at }}</td>
         <td class="row">
           <a class="btn ghost" href="/admin/ui/licenses/{{ it.license_key }}/edit">編集</a>
           <form class="inline" method="post" action="/admin/ui/licenses/{{ it.license_key }}/delete" onsubmit="return confirm('削除しますか？');">
