@@ -91,8 +91,6 @@ class DRWP_Admin {
     public static function menu() {
         $reports = __('日報管理', 'drwp-daily-reports');
         add_menu_page($reports, $reports, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page'], 'dashicons-media-spreadsheet');
-        $edit = __('日報編集', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $edit, $edit, self::CAP_EDIT, 'drwp_report_edit', [__CLASS__, 'report_edit_page']);
         $proj = __('現場', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $proj, $proj, 'manage_options', 'drwp_projects', ['DRWP_Project', 'render_page']);
         $lic = __('ライセンス', 'drwp-daily-reports');
@@ -297,7 +295,7 @@ class DRWP_Admin {
         $fresh = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
         do_action('drwp_report_submitted', $id, $fresh);
 
-        wp_safe_redirect(admin_url('admin.php?page=drwp_report_edit&id=' . $id . '&saved=1'));
+        wp_safe_redirect(admin_url('admin.php?page=drwp_reports&updated=1'));
         exit;
     }
 
@@ -310,7 +308,7 @@ class DRWP_Admin {
         if (is_wp_error($result)) {
             wp_die(esc_html($result->get_error_message()));
         }
-        wp_safe_redirect(admin_url('admin.php?page=drwp_report_edit&id=' . $id . '&converted=1'));
+        wp_safe_redirect(admin_url('admin.php?page=drwp_reports&updated=1'));
         exit;
     }
 

@@ -89,6 +89,12 @@ class DRWP_REST {
             'callback'            => [__CLASS__, 'upload_photo'],
             'permission_callback' => [__CLASS__, 'can_edit'],
         ]);
+
+        register_rest_route(self::NS, '/reports/(?P<id>\d+)/convert', [
+            'methods'             => 'POST',
+            'callback'            => [__CLASS__, 'convert_report'],
+            'permission_callback' => [__CLASS__, 'can_convert'],
+        ]);
     }
 
     private static function list_args() {
@@ -123,6 +129,11 @@ class DRWP_REST {
     }
 
     public static function can_edit_one(WP_REST_Request $request) {
+        return self::can_view_one($request);
+    }
+
+    public static function can_convert(WP_REST_Request $request) {
+        if (!current_user_can('publish_posts')) return false;
         return self::can_view_one($request);
     }
 
@@ -267,6 +278,35 @@ class DRWP_REST {
         // metadata-only PATCH doesn't wipe out the existing photo set.
         if (array_key_exists('attachment_ids', $input)) {
             self::sync_photos_from_input($id, $input);
+        }
+        return rest_ensure_response(self::shape_report(self::find_report($id)));
+    }
+
+    public static function convert_report(WP_REST_Request $request) {
+        if (!DRWP_License::can_write()) {
+            return self::license_error();
+        }
+        $id = (int) $request['id'];
+        $report = self::find_report($id);
+        if (!$report) return new WP_Error('drwp_not_found', 'Report not found', ['status' => 404]);
+
+        $input = $request->get_json_params() ?: [];
+        $publish_fields = [];
+        $allowed = ['post_template', 'post_category_id', 'post_tags', 'post_status', 'scheduled_at',
+                     'public_title', 'public_intro', 'public_body', 'public_next_plan'];
+        foreach ($allowed as $key) {
+            if (array_key_exists($key, $input)) {
+                $publish_fields[$key] = sanitize_text_field((string) $input[$key]);
+            }
+        }
+        if (!empty($publish_fields)) {
+            global $wpdb;
+            $wpdb->update($wpdb->prefix . 'drwp_reports', $publish_fields, ['id' => $id]);
+        }
+
+        $result = DRWP_Post_Converter::sync_post($id, true);
+        if (is_wp_error($result)) {
+            return $result;
         }
         return rest_ensure_response(self::shape_report(self::find_report($id)));
     }
