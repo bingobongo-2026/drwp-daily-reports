@@ -65,6 +65,13 @@ class LicenseIn(BaseModel):
     plan: str = "standard"
     status: str = "active"
     expires_at: Optional[str] = None
+    user_name: str = ""
+    postal_code: str = ""
+    address: str = ""
+    company_phone: str = ""
+    contact_person: str = ""
+    contact_phone: str = ""
+    notes: str = ""
 
 
 class LicenseUpdate(BaseModel):
@@ -72,10 +79,26 @@ class LicenseUpdate(BaseModel):
     plan: Optional[str] = None
     status: Optional[str] = None
     expires_at: Optional[str] = None
+    user_name: Optional[str] = None
+    postal_code: Optional[str] = None
+    address: Optional[str] = None
+    company_phone: Optional[str] = None
+    contact_person: Optional[str] = None
+    contact_phone: Optional[str] = None
+    notes: Optional[str] = None
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _normalize_expires(raw: Optional[str]) -> Optional[str]:
+    val = (raw or "").strip()
+    if not val:
+        return None
+    if "+" not in val and "Z" not in val:
+        val += "+00:00"
+    return val
 
 
 def _sign_response(body: dict) -> dict:
@@ -154,8 +177,8 @@ def check_license(payload: CheckRequest):
 
 
 @app.get("/admin/licenses")
-def admin_list(_: str = Depends(require_admin)):
-    return {"items": db.list_licenses()}
+def admin_list(search: str = "", _: str = Depends(require_admin)):
+    return {"items": db.list_licenses(search=search)}
 
 
 @app.post("/admin/licenses", status_code=status.HTTP_201_CREATED)
@@ -200,11 +223,11 @@ def ui_root(_: str = Depends(require_admin)):
 
 
 @app.get("/admin/ui/licenses", response_class=HTMLResponse, include_in_schema=False)
-def ui_list(request: Request, msg: Optional[str] = None, _: str = Depends(require_admin)):
+def ui_list(request: Request, msg: Optional[str] = None, q: str = "", _: str = Depends(require_admin)):
     return templates.TemplateResponse(
         request,
         "licenses.html",
-        {"items": db.list_licenses(), **_flash_ctx(msg)},
+        {"items": db.list_licenses(search=q), "search": q, **_flash_ctx(msg)},
     )
 
 
@@ -228,6 +251,13 @@ def ui_create(
     plan: str = Form("standard"),
     status_: str = Form("active", alias="status"),
     expires_at: Optional[str] = Form(None),
+    user_name: str = Form(""),
+    postal_code: str = Form(""),
+    address: str = Form(""),
+    company_phone: str = Form(""),
+    contact_person: str = Form(""),
+    contact_phone: str = Form(""),
+    notes: str = Form(""),
     _: str = Depends(require_admin),
 ):
     key = license_key.strip()
@@ -241,7 +271,14 @@ def ui_create(
         domain=domain.strip(),
         plan=plan.strip() or "standard",
         status=status_.strip() or "active",
-        expires_at=(expires_at or "").strip() or None,
+        expires_at=_normalize_expires(expires_at),
+        user_name=user_name.strip(),
+        postal_code=postal_code.strip(),
+        address=address.strip(),
+        company_phone=company_phone.strip(),
+        contact_person=contact_person.strip(),
+        contact_phone=contact_phone.strip(),
+        notes=notes.strip(),
     )
     return RedirectResponse(
         "/admin/ui/licenses?msg=created",
@@ -284,17 +321,28 @@ def ui_update(
     plan: str = Form("standard"),
     status_: str = Form("active", alias="status"),
     expires_at: Optional[str] = Form(None),
+    user_name: str = Form(""),
+    postal_code: str = Form(""),
+    address: str = Form(""),
+    company_phone: str = Form(""),
+    contact_person: str = Form(""),
+    contact_phone: str = Form(""),
+    notes: str = Form(""),
     _: str = Depends(require_admin),
 ):
-    # For expires_at, an empty form value means "clear"; pass it through as
-    # an empty string so update_license writes it. Only missing (None) would
-    # skip the column.
     updated = db.update_license(
         license_key,
         domain=domain.strip(),
         plan=plan.strip() or "standard",
         status=status_.strip() or "active",
-        expires_at=(expires_at or "").strip(),
+        expires_at=_normalize_expires(expires_at) or "",
+        user_name=user_name.strip(),
+        postal_code=postal_code.strip(),
+        address=address.strip(),
+        company_phone=company_phone.strip(),
+        contact_person=contact_person.strip(),
+        contact_phone=contact_phone.strip(),
+        notes=notes.strip(),
     )
     if updated is None:
         return RedirectResponse(

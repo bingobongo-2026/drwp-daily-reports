@@ -6,31 +6,43 @@
     <h1>ライセンス</h1>
     <a class="btn" href="/admin/ui/licenses/new">新規作成</a>
   </div>
-  <p class="muted">合計 {{ items|length }} 件</p>
+
+  <form method="get" action="/admin/ui/licenses" class="row" style="margin: 12px 0; gap: 8px;">
+    <input type="search" name="q" value="{{ search }}" placeholder="キー・ドメイン・ユーザー名・住所で検索"
+           style="flex:1; padding:8px 12px; border:1px solid #d1d5db; border-radius:8px;">
+    <button class="btn" type="submit">検索</button>
+    {% if search %}
+      <a class="btn ghost" href="/admin/ui/licenses">クリア</a>
+    {% endif %}
+  </form>
+
+  <p class="muted">{{ '検索結果: ' if search else '' }}合計 {{ items|length }} 件</p>
   <table>
     <thead>
       <tr>
         <th>キー</th>
         <th>ドメイン</th>
+        <th>ユーザー名</th>
+        <th>担当者</th>
         <th>プラン</th>
         <th>状態</th>
         <th>有効期限</th>
-        <th>更新日時</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       {% if not items %}
-        <tr><td colspan="7" class="muted">ライセンスがありません。</td></tr>
+        <tr><td colspan="8" class="muted">ライセンスがありません。</td></tr>
       {% endif %}
       {% for it in items %}
       <tr>
         <td class="mono">{{ it.license_key }}</td>
         <td>{{ it.domain }}</td>
+        <td>{{ it.user_name or '—' }}</td>
+        <td>{{ it.contact_person or '—' }}</td>
         <td>{{ it.plan }}</td>
         <td><span class="pill {{ 'active' if it.status == 'active' else 'inactive' }}">{{ it.status }}</span></td>
         <td class="mono">{{ it.expires_at or '—' }}</td>
-        <td class="mono">{{ it.updated_at }}</td>
         <td class="row">
           <a class="btn ghost" href="/admin/ui/licenses/{{ it.license_key }}/edit">編集</a>
           <form class="inline" method="post" action="/admin/ui/licenses/{{ it.license_key }}/delete" onsubmit="return confirm('削除しますか？');">

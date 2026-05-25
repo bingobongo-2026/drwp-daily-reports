@@ -27,10 +27,9 @@
       {% endfor %}
     </select>
 
-    <label for="expires_at">有効期限 (ISO 8601, 任意)</label>
-    <input type="text" id="expires_at" name="expires_at"
-           value="{{ license.expires_at if license and license.expires_at else '' }}"
-           placeholder="2099-12-31T23:59:59+00:00">
+    <label for="expires_at">有効期限 (空欄 = 無期限)</label>
+    <input type="datetime-local" id="expires_at" name="expires_at"
+           value="{{ license.expires_at[:16] if license and license.expires_at else '' }}">
 
     <div class="row" style="margin-top: 16px;">
       <button class="btn" type="submit">{{ '更新' if license else '作成' }}</button>
