@@ -234,7 +234,35 @@
       <h2><?php esc_html_e('日報 内容確認', 'drwp-daily-reports'); ?></h2>
       <button type="button" class="drwp-modal-close">&times;</button>
     </div>
-    <div class="drwp-modal-body" id="drwp-view-body"><p>読み込み中…</p></div>
+    <div class="drwp-modal-body">
+      <input type="hidden" id="drwp-view-id" />
+      <div id="drwp-view-body"><p>読み込み中…</p></div>
+
+      <?php if (current_user_can('edit_others_posts')): ?>
+      <div class="drwp-view-section" id="drwp-view-review-section" style="display:none;">
+        <h3><?php esc_html_e('レビュー操作', 'drwp-daily-reports'); ?></h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <select id="drwp-view-review-status">
+            <?php foreach ($review_labels as $k => $v): ?>
+              <option value="<?php echo esc_attr($k); ?>"><?php echo esc_html($v); ?></option>
+            <?php endforeach; ?>
+          </select>
+          <input type="text" id="drwp-view-review-comment" placeholder="<?php esc_attr_e('コメント（任意）', 'drwp-daily-reports'); ?>" style="flex:1;min-width:150px;" />
+          <button type="button" class="button button-primary" id="drwp-view-review-submit"><?php esc_html_e('レビュー送信', 'drwp-daily-reports'); ?></button>
+          <span id="drwp-view-review-status-msg" style="color:#166534;"></span>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <div class="drwp-view-section" id="drwp-view-comments-section" style="display:none;">
+        <h3><?php esc_html_e('コメント', 'drwp-daily-reports'); ?></h3>
+        <div id="drwp-view-comments-list"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <textarea id="drwp-view-comment-body" rows="2" class="large-text" placeholder="<?php esc_attr_e('コメントを入力…', 'drwp-daily-reports'); ?>"></textarea>
+          <button type="button" class="button" id="drwp-view-comment-submit" style="white-space:nowrap;"><?php esc_html_e('送信', 'drwp-daily-reports'); ?></button>
+        </div>
+      </div>
+    </div>
     <div class="drwp-modal-footer">
       <button type="button" class="button drwp-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
     </div>
@@ -283,10 +311,6 @@
         <tr>
           <th><?php esc_html_e('次回予定', 'drwp-daily-reports'); ?></th>
           <td><textarea id="drwp-edit-next" rows="2" class="large-text"></textarea></td>
-        </tr>
-        <tr>
-          <th><?php esc_html_e('公開タイトル', 'drwp-daily-reports'); ?></th>
-          <td><input type="text" id="drwp-edit-title" class="regular-text" /></td>
         </tr>
       </table>
     </div>
@@ -391,6 +415,11 @@
   .drwp-view-text{white-space:pre-wrap}
   .drwp-view-photos{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
   .drwp-view-photos img{width:100px;height:100px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb}
+  .drwp-view-section{margin-top:16px;padding-top:16px;border-top:1px solid #e5e7eb}
+  .drwp-view-section h3{margin:0 0 8px;font-size:.95em;color:#1d2327}
+  .drwp-comment-item{padding:8px 0;border-bottom:1px solid #f0f0f0}
+  .drwp-comment-meta{font-size:.8em;color:#64748b;margin-bottom:2px}
+  .drwp-comment-body{white-space:pre-wrap;font-size:.92em}
   </style>
 
   <script>
@@ -444,12 +473,33 @@
     });
 
     /* ---- 内容確認モーダル ---- */
+    function loadComments(id){
+      var list=document.getElementById('drwp-view-comments-list');
+      if(!list)return;
+      list.innerHTML='';
+      api('/reports/'+id+'/comments').then(function(r){
+        var items=r.items||[];
+        if(!items.length){list.innerHTML='<p class="description">コメントはありません。</p>';return;}
+        items.forEach(function(c){
+          var el=document.createElement('div');el.className='drwp-comment-item';
+          el.innerHTML='<div class="drwp-comment-meta">'+esc(c.display_name||'#'+c.user_id)+' — '+esc(c.created_at)+'</div>'
+            +'<div class="drwp-comment-body">'+esc(c.body)+'</div>';
+          list.appendChild(el);
+        });
+      });
+    }
+
     table.addEventListener('click',function(e){
       var vb=e.target.closest('.drwp-view-btn');
       if(!vb)return;
       var id=vb.dataset.id;
+      document.getElementById('drwp-view-id').value=id;
       var body=document.getElementById('drwp-view-body');
       body.innerHTML='<p>読み込み中…</p>';
+      var reviewSection=document.getElementById('drwp-view-review-section');
+      var commentsSection=document.getElementById('drwp-view-comments-section');
+      if(reviewSection){reviewSection.style.display='none';document.getElementById('drwp-view-review-status-msg').textContent='';}
+      if(commentsSection)commentsSection.style.display='none';
       viewDlg.showModal();
       api('/reports/'+id).then(function(d){
         var time='';
@@ -467,8 +517,59 @@
         if(d.public_title)h+='<tr><th>公開タイトル</th><td>'+esc(d.public_title)+'</td></tr>';
         h+='</table>';
         body.innerHTML=h;
+        if(reviewSection){
+          reviewSection.style.display='';
+          document.getElementById('drwp-view-review-status').value=d.review_status||'pending';
+        }
+        if(commentsSection){
+          commentsSection.style.display='';
+          document.getElementById('drwp-view-comment-body').value='';
+          loadComments(id);
+        }
       }).catch(function(err){body.innerHTML='<p style="color:#991b1b;">'+esc(err.message)+'</p>';});
     });
+
+    /* ---- レビュー送信 ---- */
+    var reviewBtn=document.getElementById('drwp-view-review-submit');
+    if(reviewBtn){
+      reviewBtn.addEventListener('click',function(){
+        var id=document.getElementById('drwp-view-id').value;
+        var msg=document.getElementById('drwp-view-review-status-msg');
+        msg.textContent='送信中…';msg.style.color='';this.disabled=true;var self=this;
+        api('/reports/'+id+'/review',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            review_status:document.getElementById('drwp-view-review-status').value,
+            comment:document.getElementById('drwp-view-review-comment').value
+          })
+        }).then(function(){
+          msg.textContent='送信しました';msg.style.color='#166534';self.disabled=false;
+          document.getElementById('drwp-view-review-comment').value='';
+          loadComments(id);
+        }).catch(function(err){msg.textContent=err.message;msg.style.color='#991b1b';self.disabled=false;});
+      });
+    }
+
+    /* ---- コメント送信 ---- */
+    var commentBtn=document.getElementById('drwp-view-comment-submit');
+    if(commentBtn){
+      commentBtn.addEventListener('click',function(){
+        var id=document.getElementById('drwp-view-id').value;
+        var bodyEl=document.getElementById('drwp-view-comment-body');
+        var text=bodyEl.value.trim();
+        if(!text)return;
+        this.disabled=true;var self=this;
+        api('/reports/'+id+'/comments',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({body:text})
+        }).then(function(){
+          bodyEl.value='';self.disabled=false;
+          loadComments(id);
+        }).catch(function(){self.disabled=false;});
+      });
+    }
 
     /* ---- 編集モーダル ---- */
     table.addEventListener('click',function(e){
@@ -477,7 +578,7 @@
       var id=eb.dataset.id;
       document.getElementById('drwp-edit-id').value=id;
       document.getElementById('drwp-edit-status').textContent='';
-      ['drwp-edit-date','drwp-edit-started','drwp-edit-ended','drwp-edit-title'].forEach(function(k){document.getElementById(k).value='';});
+      ['drwp-edit-date','drwp-edit-started','drwp-edit-ended'].forEach(function(k){document.getElementById(k).value='';});
       ['drwp-edit-work','drwp-edit-issues','drwp-edit-next'].forEach(function(k){document.getElementById(k).value='';});
       document.getElementById('drwp-edit-project').value='';
       editDlg.showModal();
@@ -489,7 +590,6 @@
         document.getElementById('drwp-edit-work').value=d.work_description||'';
         document.getElementById('drwp-edit-issues').value=d.issues||'';
         document.getElementById('drwp-edit-next').value=d.next_plan||'';
-        document.getElementById('drwp-edit-title').value=d.public_title||'';
       }).catch(function(err){document.getElementById('drwp-edit-status').textContent=err.message;});
     });
 
@@ -507,8 +607,7 @@
           ended_at:document.getElementById('drwp-edit-ended').value||null,
           work_description:document.getElementById('drwp-edit-work').value,
           issues:document.getElementById('drwp-edit-issues').value,
-          next_plan:document.getElementById('drwp-edit-next').value,
-          public_title:document.getElementById('drwp-edit-title').value
+          next_plan:document.getElementById('drwp-edit-next').value
         })
       }).then(function(){editDlg.close();location.reload();})
         .catch(function(err){st.textContent=err.message;self.disabled=false;});
