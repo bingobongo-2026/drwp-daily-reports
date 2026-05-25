@@ -178,7 +178,6 @@
             <td><?php echo esc_html(DRWP_Labels::post_status((string) ($report->post_status ?: 'draft'))); ?></td>
             <td><?php echo $report->linked_post_id ? '<a href="' . esc_url(get_edit_post_link((int) $report->linked_post_id)) . '">#' . esc_html($report->linked_post_id) . '</a>' : '-'; ?></td>
             <td>
-              <button type="button" class="button button-small drwp-view-btn" data-id="<?php echo (int) $report->id; ?>"><?php esc_html_e('詳細', 'drwp-daily-reports'); ?></button>
               <button type="button" class="button button-small drwp-edit-btn" data-id="<?php echo (int) $report->id; ?>"><?php esc_html_e('編集', 'drwp-daily-reports'); ?></button>
             </td>
           </tr>
@@ -222,20 +221,6 @@
       </div>
     </div>
   <?php endif; ?>
-
-  <!-- ============================================================
-       ② 詳細モーダル — read-only view
-       ============================================================ -->
-  <dialog id="drwp-view-dialog" class="drwp-modal">
-    <div class="drwp-modal-header">
-      <h2><?php esc_html_e('日報詳細', 'drwp-daily-reports'); ?></h2>
-      <button type="button" class="drwp-modal-close">&times;</button>
-    </div>
-    <div class="drwp-modal-body" id="drwp-view-body"></div>
-    <div class="drwp-modal-footer">
-      <button type="button" class="button drwp-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
-    </div>
-  </dialog>
 
   <!-- ============================================================
        ① 編集モーダル — quick edit via REST PATCH
@@ -356,9 +341,8 @@
     ]); ?>;
     var table=document.getElementById('drwp-reports-table');
     if(!table)return;
-    var viewDlg=document.getElementById('drwp-view-dialog');
     var editDlg=document.getElementById('drwp-edit-dialog');
-    if(!viewDlg||!editDlg)return;
+    if(!editDlg)return;
 
     function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
     function api(path,opts){
@@ -369,37 +353,9 @@
       });
     }
 
-    [viewDlg,editDlg].forEach(function(dlg){
-      dlg.addEventListener('click',function(e){
-        if(e.target.classList.contains('drwp-modal-close')||e.target.classList.contains('drwp-modal-cancel'))dlg.close();
-        if(e.target===dlg)dlg.close();
-      });
-    });
-
-    table.addEventListener('click',function(e){
-      var vb=e.target.closest('.drwp-view-btn');
-      if(!vb)return;
-      var id=vb.dataset.id;
-      var body=document.getElementById('drwp-view-body');
-      body.innerHTML='<p>読み込み中…</p>';
-      viewDlg.showModal();
-      api('/reports/'+id).then(function(d){
-        var time='';
-        if(d.started_at)time+=d.started_at.substring(0,5);
-        if(d.started_at&&d.ended_at)time+=' - ';
-        if(d.ended_at)time+=d.ended_at.substring(0,5);
-        var h='<table class="form-table drwp-view-table">';
-        h+='<tr><th>日付</th><td>'+esc(d.report_date)+'</td></tr>';
-        h+='<tr><th>現場</th><td>'+esc(d.project_id?(rest.projects&&rest.projects[d.project_id]||'#'+d.project_id):'（未設定）')+'</td></tr>';
-        if(time)h+='<tr><th>時刻</th><td>'+esc(time)+'</td></tr>';
-        h+='<tr><th>レビュー</th><td>'+esc(rest.labels&&rest.labels[d.review_status]||d.review_status)+'</td></tr>';
-        h+='<tr><th>作業内容</th><td class="drwp-view-text">'+esc(d.work_description||'')+'</td></tr>';
-        if(d.issues)h+='<tr><th>問題点</th><td class="drwp-view-text">'+esc(d.issues)+'</td></tr>';
-        if(d.next_plan)h+='<tr><th>次回予定</th><td class="drwp-view-text">'+esc(d.next_plan)+'</td></tr>';
-        if(d.public_title)h+='<tr><th>公開タイトル</th><td>'+esc(d.public_title)+'</td></tr>';
-        h+='</table>';
-        body.innerHTML=h;
-      }).catch(function(err){body.innerHTML='<p style="color:#991b1b;">'+esc(err.message)+'</p>';});
+    editDlg.addEventListener('click',function(e){
+      if(e.target.classList.contains('drwp-modal-close')||e.target.classList.contains('drwp-modal-cancel'))editDlg.close();
+      if(e.target===editDlg)editDlg.close();
     });
 
     table.addEventListener('click',function(e){
