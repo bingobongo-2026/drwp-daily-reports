@@ -92,6 +92,15 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _normalize_expires(raw: Optional[str]) -> Optional[str]:
+    val = (raw or "").strip()
+    if not val:
+        return None
+    if "+" not in val and "Z" not in val:
+        val += "+00:00"
+    return val
+
+
 def _sign_response(body: dict) -> dict:
     payload = {k: v for k, v in body.items() if k != "signature"}
     body["signature"] = signing.sign(payload)
@@ -262,7 +271,7 @@ def ui_create(
         domain=domain.strip(),
         plan=plan.strip() or "standard",
         status=status_.strip() or "active",
-        expires_at=(expires_at or "").strip() or None,
+        expires_at=_normalize_expires(expires_at),
         user_name=user_name.strip(),
         postal_code=postal_code.strip(),
         address=address.strip(),
@@ -326,7 +335,7 @@ def ui_update(
         domain=domain.strip(),
         plan=plan.strip() or "standard",
         status=status_.strip() or "active",
-        expires_at=(expires_at or "").strip(),
+        expires_at=_normalize_expires(expires_at) or "",
         user_name=user_name.strip(),
         postal_code=postal_code.strip(),
         address=address.strip(),
