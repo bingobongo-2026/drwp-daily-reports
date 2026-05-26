@@ -327,6 +327,8 @@ class DRWP_License {
         update_option(self::OPT_LAST_MESSAGE, '');
         if ($status === 'active') {
             update_option(self::OPT_LAST_VALID_AT, $now);
+        } else {
+            delete_option(self::OPT_LAST_VALID_AT);
         }
         return $status;
     }

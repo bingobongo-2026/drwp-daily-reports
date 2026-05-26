@@ -325,6 +325,31 @@ class Test_DRWP_License extends WP_UnitTestCase {
         $this->assertFalse($check_called, '/api/check must not be called when no public key is available.');
     }
 
+    public function test_check_now_clears_grace_when_server_confirms_inactive() {
+        $keys = $this->seed_signing_keypair();
+        update_option(DRWP_License::OPT_API_URL, 'https://srv.test');
+        update_option(DRWP_License::OPT_KEY, 'LIC-DEACT');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time() - DAY_IN_SECONDS);
+
+        $now_iso = gmdate('Y-m-d\TH:i:s\Z');
+        add_filter('pre_http_request', function ($pre, $args, $url) use ($keys, $now_iso) {
+            if (strpos($url, '/api/check') === false) return $pre;
+            return $this->signed_check_response([
+                'license_key'    => 'LIC-DEACT',
+                'allowed_domain' => 'example.org',
+                'status'         => 'inactive',
+                'plan'           => 'pro',
+                'expires_at'     => '2026-05-25T00:00:00+00:00',
+                'issued_at'      => $now_iso,
+            ], $keys['sk']);
+        }, 10, 3);
+
+        $r = DRWP_License::check_now();
+        $this->assertSame('inactive', $r);
+        $this->assertSame('inactive', DRWP_License::status());
+        $this->assertFalse(DRWP_License::can_write());
+    }
+
     public function test_check_now_rejects_tampered_status_via_invalid_signature() {
         $keys = $this->seed_signing_keypair();
         update_option(DRWP_License::OPT_API_URL, 'https://srv.test');
