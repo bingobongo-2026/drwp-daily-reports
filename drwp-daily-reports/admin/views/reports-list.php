@@ -175,7 +175,16 @@
             ?></td>
             <td><?php echo esc_html($report->public_title ?: __('（未設定）', 'drwp-daily-reports')); ?></td>
             <td><?php echo esc_html(DRWP_Labels::review_status((string) $report->review_status)); ?></td>
-            <td><?php echo esc_html(DRWP_Labels::post_status((string) ($report->post_status ?: 'draft'))); ?></td>
+            <td><?php
+              $display_post_status = $report->post_status ?: 'draft';
+              if ($report->linked_post_id) {
+                  $linked = get_post((int) $report->linked_post_id);
+                  if ($linked) {
+                      $display_post_status = $linked->post_status;
+                  }
+              }
+              echo esc_html(DRWP_Labels::post_status((string) $display_post_status));
+            ?></td>
             <td><?php echo $report->linked_post_id ? '<a href="' . esc_url(get_edit_post_link((int) $report->linked_post_id)) . '">#' . esc_html($report->linked_post_id) . '</a>' : '-'; ?></td>
             <td style="white-space:nowrap;">
               <button type="button" class="button button-small drwp-view-btn" data-id="<?php echo (int) $report->id; ?>"><?php esc_html_e('内容確認', 'drwp-daily-reports'); ?></button>
