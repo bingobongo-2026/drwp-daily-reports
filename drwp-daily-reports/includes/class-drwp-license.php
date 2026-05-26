@@ -16,6 +16,7 @@ class DRWP_License {
     const OPT_ADMIN_TOKEN     = 'drwp_license_admin_token';
 
     const GRACE_DAYS = 7;
+    const CRON_HOOK = 'drwp_license_check';
 
     /**
      * How far the signed `issued_at` timestamp on a /api/check response
@@ -34,6 +35,16 @@ class DRWP_License {
      * production: keep secrets out of the database) and falls back to
      * the option set on the license page.
      */
+    public static function schedule_cron() {
+        if (!wp_next_scheduled(self::CRON_HOOK)) {
+            wp_schedule_event(time(), 'twicedaily', self::CRON_HOOK);
+        }
+    }
+
+    public static function clear_cron() {
+        wp_unschedule_hook(self::CRON_HOOK);
+    }
+
     public static function admin_token() {
         if (defined('DRWP_LICENSE_ADMIN_TOKEN') && DRWP_LICENSE_ADMIN_TOKEN !== '') {
             return (string) DRWP_LICENSE_ADMIN_TOKEN;

@@ -19,6 +19,8 @@ foreach ($tables as $table) {
     $wpdb->query("DROP TABLE IF EXISTS $table");
 }
 
+wp_unschedule_hook('drwp_license_check');
+
 $options = [
     'drwp_schema_version',
     // License client state
