@@ -42,6 +42,8 @@ if (defined('WP_CLI') && WP_CLI) {
 }
 
 register_activation_hook(__FILE__, ['DRWP_DB', 'activate']);
+register_activation_hook(__FILE__, ['DRWP_License', 'schedule_cron']);
+register_deactivation_hook(__FILE__, ['DRWP_License', 'clear_cron']);
 
 add_action('plugins_loaded', function () {
     load_plugin_textdomain('drwp-daily-reports', false, dirname(plugin_basename(__FILE__)) . '/languages');
@@ -61,4 +63,7 @@ add_action('plugins_loaded', function () {
     DRWP_Report_Form::init();
     DRWP_Report_Archive::init();
     DRWP_Login::init();
+
+    add_action(DRWP_License::CRON_HOOK, ['DRWP_License', 'check_now']);
+    DRWP_License::schedule_cron();
 });

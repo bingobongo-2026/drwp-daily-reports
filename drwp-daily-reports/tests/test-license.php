@@ -144,6 +144,15 @@ class Test_DRWP_License extends WP_UnitTestCase {
         $this->assertSame('drwp_license_no_key', $result->get_error_code());
     }
 
+    public function test_schedule_cron_registers_twicedaily_event() {
+        wp_unschedule_hook(DRWP_License::CRON_HOOK);
+        $this->assertFalse(wp_next_scheduled(DRWP_License::CRON_HOOK));
+        DRWP_License::schedule_cron();
+        $this->assertNotFalse(wp_next_scheduled(DRWP_License::CRON_HOOK));
+        DRWP_License::clear_cron();
+        $this->assertFalse(wp_next_scheduled(DRWP_License::CRON_HOOK));
+    }
+
     public function test_blocked_message_contains_settings_link() {
         $msg = DRWP_License::blocked_message('テスト');
         $this->assertStringContainsString('テスト', $msg);
