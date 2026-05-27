@@ -173,8 +173,7 @@
             ?></td>
             <td><?php echo $report->linked_post_id ? '<a href="' . esc_url(get_edit_post_link((int) $report->linked_post_id)) . '">#' . esc_html($report->linked_post_id) . '</a>' : '-'; ?></td>
             <td style="white-space:nowrap;">
-              <button type="button" class="button button-small drwp-view-btn" data-id="<?php echo (int) $report->id; ?>"><?php esc_html_e('内容確認', 'drwp-daily-reports'); ?></button>
-              <button type="button" class="button button-small drwp-convert-btn" data-id="<?php echo (int) $report->id; ?>"><?php echo $report->linked_post_id ? esc_html__('記事更新', 'drwp-daily-reports') : esc_html__('投稿', 'drwp-daily-reports'); ?></button>
+              <button type="button" class="button button-small drwp-article-btn" data-id="<?php echo (int) $report->id; ?>"><?php echo $report->linked_post_id ? esc_html__('記事更新', 'drwp-daily-reports') : esc_html__('記事作成', 'drwp-daily-reports'); ?></button>
             </td>
           </tr>
         <?php endforeach; endif; ?>
@@ -218,82 +217,93 @@
   <?php endif; ?>
 
   <!-- ============================================================
-       内容確認モーダル — read-only view (簡易版)
+       記事作成モーダル — view + content editor + publish settings
        ============================================================ -->
-  <dialog id="drwp-view-dialog" class="drwp-modal drwp-modal-wide">
-    <div class="drwp-modal-header">
-      <h2><?php esc_html_e('日報 内容確認', 'drwp-daily-reports'); ?></h2>
-      <button type="button" class="drwp-modal-close">&times;</button>
-    </div>
-    <div class="drwp-modal-body">
-      <div id="drwp-view-body"><p>読み込み中…</p></div>
-    </div>
-    <div class="drwp-modal-footer">
-      <button type="button" class="button drwp-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
-    </div>
-  </dialog>
-
-  <!-- ============================================================
-       投稿モーダル — publish settings + convert
-       ============================================================ -->
-  <dialog id="drwp-convert-dialog" class="drwp-modal drwp-modal-wide">
+  <dialog id="drwp-article-dialog" class="drwp-modal drwp-modal-wide">
     <div class="drwp-modal-header">
       <h2><?php esc_html_e('記事を作成 / 更新', 'drwp-daily-reports'); ?></h2>
       <button type="button" class="drwp-modal-close">&times;</button>
     </div>
     <div class="drwp-modal-body">
       <input type="hidden" id="drwp-conv-id" />
-      <table class="form-table" role="presentation">
-        <tr>
-          <th><?php esc_html_e('公開タイトル', 'drwp-daily-reports'); ?></th>
-          <td><input type="text" id="drwp-conv-title" class="regular-text" /></td>
-        </tr>
-        <tr>
-          <th><?php esc_html_e('テンプレート', 'drwp-daily-reports'); ?></th>
-          <td>
-            <select id="drwp-conv-template">
-              <?php foreach (DRWP_Labels::post_template_options() as $key => $label): ?>
-                <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option>
-              <?php endforeach; ?>
-            </select>
-          </td>
-        </tr>
-        <tr>
-          <th><?php esc_html_e('カテゴリ', 'drwp-daily-reports'); ?></th>
-          <td>
-            <?php
-              wp_dropdown_categories([
-                'show_option_all' => __('カテゴリを選択', 'drwp-daily-reports'),
-                'hide_empty'      => 0,
-                'name'            => 'conv_post_category_id',
-                'id'              => 'drwp-conv-category',
-                'selected'        => 0,
-                'taxonomy'        => 'category',
-                'value_field'     => 'term_id',
-              ]);
-            ?>
-          </td>
-        </tr>
-        <tr>
-          <th><?php esc_html_e('タグ', 'drwp-daily-reports'); ?></th>
-          <td><input type="text" id="drwp-conv-tags" class="regular-text" placeholder="<?php esc_attr_e('カンマ区切り', 'drwp-daily-reports'); ?>" /></td>
-        </tr>
-        <tr>
-          <th><?php esc_html_e('投稿状態', 'drwp-daily-reports'); ?></th>
-          <td>
-            <select id="drwp-conv-post-status">
-              <option value="draft"><?php echo esc_html(DRWP_Labels::post_status('draft')); ?></option>
-              <option value="pending"><?php echo esc_html(DRWP_Labels::post_status('pending')); ?></option>
-              <option value="future"><?php echo esc_html(DRWP_Labels::post_status('future')); ?></option>
-            </select>
-          </td>
-        </tr>
-        <tr>
-          <th><?php esc_html_e('予約日時', 'drwp-daily-reports'); ?></th>
-          <td><input type="datetime-local" id="drwp-conv-scheduled" /></td>
-        </tr>
-      </table>
-      <p id="drwp-conv-linked" class="description" style="display:none;"></p>
+
+      <div class="drwp-article-section">
+        <h3><?php esc_html_e('日報の内容', 'drwp-daily-reports'); ?></h3>
+        <div id="drwp-view-body"><p>読み込み中…</p></div>
+      </div>
+
+      <div class="drwp-article-section">
+        <h3><?php esc_html_e('記事の本文', 'drwp-daily-reports'); ?></h3>
+        <table class="form-table" role="presentation">
+          <tr>
+            <th><?php esc_html_e('公開タイトル', 'drwp-daily-reports'); ?></th>
+            <td><input type="text" id="drwp-conv-title" class="large-text" /></td>
+          </tr>
+          <tr>
+            <th><?php esc_html_e('導入文', 'drwp-daily-reports'); ?></th>
+            <td><textarea id="drwp-conv-intro" rows="3" class="large-text"></textarea></td>
+          </tr>
+          <tr>
+            <th><?php esc_html_e('本文', 'drwp-daily-reports'); ?></th>
+            <td><textarea id="drwp-conv-body" rows="6" class="large-text"></textarea></td>
+          </tr>
+          <tr>
+            <th><?php esc_html_e('今後の予定', 'drwp-daily-reports'); ?></th>
+            <td><textarea id="drwp-conv-next-plan" rows="3" class="large-text"></textarea></td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="drwp-article-section">
+        <h3><?php esc_html_e('投稿設定', 'drwp-daily-reports'); ?></h3>
+        <table class="form-table" role="presentation">
+          <tr>
+            <th><?php esc_html_e('テンプレート', 'drwp-daily-reports'); ?></th>
+            <td>
+              <select id="drwp-conv-template">
+                <?php foreach (DRWP_Labels::post_template_options() as $key => $label): ?>
+                  <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <th><?php esc_html_e('カテゴリ', 'drwp-daily-reports'); ?></th>
+            <td>
+              <?php
+                wp_dropdown_categories([
+                  'show_option_all' => __('カテゴリを選択', 'drwp-daily-reports'),
+                  'hide_empty'      => 0,
+                  'name'            => 'conv_post_category_id',
+                  'id'              => 'drwp-conv-category',
+                  'selected'        => 0,
+                  'taxonomy'        => 'category',
+                  'value_field'     => 'term_id',
+                ]);
+              ?>
+            </td>
+          </tr>
+          <tr>
+            <th><?php esc_html_e('タグ', 'drwp-daily-reports'); ?></th>
+            <td><input type="text" id="drwp-conv-tags" class="regular-text" placeholder="<?php esc_attr_e('カンマ区切り', 'drwp-daily-reports'); ?>" /></td>
+          </tr>
+          <tr>
+            <th><?php esc_html_e('投稿状態', 'drwp-daily-reports'); ?></th>
+            <td>
+              <select id="drwp-conv-post-status">
+                <option value="draft"><?php echo esc_html(DRWP_Labels::post_status('draft')); ?></option>
+                <option value="pending"><?php echo esc_html(DRWP_Labels::post_status('pending')); ?></option>
+                <option value="future"><?php echo esc_html(DRWP_Labels::post_status('future')); ?></option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <th><?php esc_html_e('予約日時', 'drwp-daily-reports'); ?></th>
+            <td><input type="datetime-local" id="drwp-conv-scheduled" /></td>
+          </tr>
+        </table>
+        <p id="drwp-conv-linked" class="description" style="display:none;"></p>
+      </div>
     </div>
     <div class="drwp-modal-footer">
       <button type="button" class="button button-primary" id="drwp-conv-submit"><?php esc_html_e('記事を作成', 'drwp-daily-reports'); ?></button>
@@ -327,6 +337,11 @@
   .drwp-view-text{white-space:pre-wrap}
   .drwp-view-photos{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
   .drwp-view-photos img{width:100px;height:100px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb}
+  .drwp-article-section{margin-bottom:16px;padding-bottom:4px;border-bottom:1px solid #e5e7eb}
+  .drwp-article-section:last-child{border-bottom:0;margin-bottom:0}
+  .drwp-article-section>h3{margin:0 0 8px;font-size:.95em;color:#1d2327}
+  .drwp-article-section .drwp-ref-table th{font-weight:600;color:#50575e;font-size:.85em;padding:3px 8px 3px 0;vertical-align:top;white-space:nowrap}
+  .drwp-article-section .drwp-ref-table td{padding:3px 0;font-size:.9em}
   </style>
 
   <script>
@@ -352,8 +367,7 @@
     ]); ?>;
     var table=document.getElementById('drwp-articles-table');
     if(!table)return;
-    var viewDlg=document.getElementById('drwp-view-dialog');
-    var convDlg=document.getElementById('drwp-convert-dialog');
+    var dlg=document.getElementById('drwp-article-dialog');
 
     function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
     function api(path,opts){
@@ -364,59 +378,52 @@
       });
     }
 
-    [viewDlg,convDlg].forEach(function(dlg){
-      if(!dlg)return;
+    if(dlg){
       dlg.addEventListener('click',function(e){
         if(e.target.classList.contains('drwp-modal-close'))dlg.close();
         if(e.target===dlg)dlg.close();
       });
-    });
+    }
 
-    /* ---- 内容確認モーダル ---- */
+    /* ---- モーダルを開く ---- */
     table.addEventListener('click',function(e){
-      var vb=e.target.closest('.drwp-view-btn');
-      if(!vb)return;
-      var id=vb.dataset.id;
-      var body=document.getElementById('drwp-view-body');
-      body.innerHTML='<p>読み込み中…</p>';
-      viewDlg.showModal();
-      api('/reports/'+id).then(function(d){
-        var time='';
-        if(d.started_at)time+=d.started_at.substring(0,5);
-        if(d.started_at&&d.ended_at)time+=' — ';
-        if(d.ended_at)time+=d.ended_at.substring(0,5);
-        var h='<table class="form-table drwp-view-table">';
-        h+='<tr><th>日付</th><td>'+esc(d.report_date)+'</td></tr>';
-        h+='<tr><th>現場</th><td>'+esc(d.project_id?(rest.projects&&rest.projects[d.project_id]||'#'+d.project_id):'（未設定）')+'</td></tr>';
-        if(time)h+='<tr><th>時刻</th><td>'+esc(time)+'</td></tr>';
-        h+='<tr><th>作業内容</th><td class="drwp-view-text">'+esc(d.work_description||'')+'</td></tr>';
-        if(d.issues)h+='<tr><th>問題点</th><td class="drwp-view-text">'+esc(d.issues)+'</td></tr>';
-        if(d.next_plan)h+='<tr><th>次回予定</th><td class="drwp-view-text">'+esc(d.next_plan)+'</td></tr>';
-        if(d.public_title)h+='<tr><th>公開タイトル</th><td>'+esc(d.public_title)+'</td></tr>';
-        if(d.public_body)h+='<tr><th>公開本文</th><td class="drwp-view-text">'+esc(d.public_body)+'</td></tr>';
-        h+='</table>';
-        body.innerHTML=h;
-      }).catch(function(err){body.innerHTML='<p style="color:#991b1b;">'+esc(err.message)+'</p>';});
-    });
-
-    /* ---- 投稿モーダル ---- */
-    table.addEventListener('click',function(e){
-      var cb=e.target.closest('.drwp-convert-btn');
-      if(!cb)return;
-      var id=cb.dataset.id;
+      var btn=e.target.closest('.drwp-article-btn');
+      if(!btn)return;
+      var id=btn.dataset.id;
       document.getElementById('drwp-conv-id').value=id;
       document.getElementById('drwp-conv-status').textContent='';
       document.getElementById('drwp-conv-submit').disabled=false;
       document.getElementById('drwp-conv-title').value='';
+      document.getElementById('drwp-conv-intro').value='';
+      document.getElementById('drwp-conv-body').value='';
+      document.getElementById('drwp-conv-next-plan').value='';
       document.getElementById('drwp-conv-tags').value='';
       document.getElementById('drwp-conv-template').value='standard';
       document.getElementById('drwp-conv-category').value='0';
       document.getElementById('drwp-conv-post-status').value='draft';
       document.getElementById('drwp-conv-scheduled').value='';
       document.getElementById('drwp-conv-linked').style.display='none';
-      convDlg.showModal();
+      var viewBody=document.getElementById('drwp-view-body');
+      viewBody.innerHTML='<p>読み込み中…</p>';
+      dlg.showModal();
       api('/reports/'+id).then(function(d){
+        var time='';
+        if(d.started_at)time+=d.started_at.substring(0,5);
+        if(d.started_at&&d.ended_at)time+=' — ';
+        if(d.ended_at)time+=d.ended_at.substring(0,5);
+        var h='<table class="drwp-ref-table">';
+        h+='<tr><th>日付</th><td>'+esc(d.report_date)+'</td></tr>';
+        h+='<tr><th>現場</th><td>'+esc(d.project_id?(rest.projects&&rest.projects[d.project_id]||'#'+d.project_id):'（未設定）')+'</td></tr>';
+        if(time)h+='<tr><th>時刻</th><td>'+esc(time)+'</td></tr>';
+        h+='<tr><th>作業内容</th><td class="drwp-view-text">'+esc(d.work_description||'')+'</td></tr>';
+        if(d.issues)h+='<tr><th>問題点</th><td class="drwp-view-text">'+esc(d.issues)+'</td></tr>';
+        if(d.next_plan)h+='<tr><th>次回予定</th><td class="drwp-view-text">'+esc(d.next_plan)+'</td></tr>';
+        h+='</table>';
+        viewBody.innerHTML=h;
         document.getElementById('drwp-conv-title').value=d.public_title||'';
+        document.getElementById('drwp-conv-intro').value=d.public_intro||'';
+        document.getElementById('drwp-conv-body').value=d.public_body||'';
+        document.getElementById('drwp-conv-next-plan').value=d.public_next_plan||'';
         document.getElementById('drwp-conv-tags').value=d.post_tags||'';
         if(d.post_template)document.getElementById('drwp-conv-template').value=d.post_template;
         if(d.post_category_id)document.getElementById('drwp-conv-category').value=d.post_category_id;
@@ -430,26 +437,30 @@
         } else {
           document.getElementById('drwp-conv-submit').textContent='記事を作成';
         }
-      }).catch(function(err){document.getElementById('drwp-conv-status').textContent=err.message;});
+      }).catch(function(err){viewBody.innerHTML='<p style="color:#991b1b;">'+esc(err.message)+'</p>';});
     });
 
+    /* ---- 記事作成/更新 ---- */
     document.getElementById('drwp-conv-submit').addEventListener('click',function(){
       var id=document.getElementById('drwp-conv-id').value;
       var st=document.getElementById('drwp-conv-status');
-      st.textContent='処理中…';this.disabled=true;var self=this;
+      st.textContent='処理中…';st.style.color='';this.disabled=true;var self=this;
       api('/reports/'+id+'/convert',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
           public_title:document.getElementById('drwp-conv-title').value,
+          public_intro:document.getElementById('drwp-conv-intro').value,
+          public_body:document.getElementById('drwp-conv-body').value,
+          public_next_plan:document.getElementById('drwp-conv-next-plan').value,
           post_template:document.getElementById('drwp-conv-template').value,
           post_category_id:document.getElementById('drwp-conv-category').value,
           post_tags:document.getElementById('drwp-conv-tags').value,
           post_status:document.getElementById('drwp-conv-post-status').value,
           scheduled_at:document.getElementById('drwp-conv-scheduled').value||null
         })
-      }).then(function(){convDlg.close();location.reload();})
-        .catch(function(err){st.textContent=err.message;self.disabled=false;});
+      }).then(function(){dlg.close();location.reload();})
+        .catch(function(err){st.textContent=err.message;st.style.color='#991b1b';self.disabled=false;});
     });
   })();
   </script>
