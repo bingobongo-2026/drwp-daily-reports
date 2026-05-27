@@ -117,8 +117,7 @@
             <td><?php echo esc_html($report->public_title ?: __('（未設定）', 'drwp-daily-reports')); ?></td>
             <td><?php echo esc_html(DRWP_Labels::review_status((string) $report->review_status)); ?></td>
             <td style="white-space:nowrap;">
-              <button type="button" class="button button-small drwp-view-btn" data-id="<?php echo (int) $report->id; ?>"><?php esc_html_e('内容確認', 'drwp-daily-reports'); ?></button>
-              <button type="button" class="button button-small drwp-edit-btn" data-id="<?php echo (int) $report->id; ?>"><?php esc_html_e('編集', 'drwp-daily-reports'); ?></button>
+              <button type="button" class="button button-small drwp-detail-btn" data-id="<?php echo (int) $report->id; ?>"><?php esc_html_e('確認・編集', 'drwp-daily-reports'); ?></button>
             </td>
           </tr>
         <?php endforeach; endif; ?>
@@ -162,53 +161,11 @@
   <?php endif; ?>
 
   <!-- ============================================================
-       内容確認モーダル — read-only view
+       確認・編集モーダル — edit + review in one dialog
        ============================================================ -->
-  <dialog id="drwp-view-dialog" class="drwp-modal drwp-modal-wide">
+  <dialog id="drwp-detail-dialog" class="drwp-modal drwp-modal-wide">
     <div class="drwp-modal-header">
-      <h2><?php esc_html_e('日報 内容確認', 'drwp-daily-reports'); ?></h2>
-      <button type="button" class="drwp-modal-close">&times;</button>
-    </div>
-    <div class="drwp-modal-body">
-      <input type="hidden" id="drwp-view-id" />
-      <div id="drwp-view-body"><p>読み込み中…</p></div>
-
-      <?php if (current_user_can('edit_others_posts')): ?>
-      <div class="drwp-view-section" id="drwp-view-review-section" style="display:none;">
-        <h3><?php esc_html_e('レビュー操作', 'drwp-daily-reports'); ?></h3>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <select id="drwp-view-review-status">
-            <?php foreach ($review_labels as $k => $v): ?>
-              <option value="<?php echo esc_attr($k); ?>"><?php echo esc_html($v); ?></option>
-            <?php endforeach; ?>
-          </select>
-          <input type="text" id="drwp-view-review-comment" placeholder="<?php esc_attr_e('コメント（任意）', 'drwp-daily-reports'); ?>" style="flex:1;min-width:150px;" />
-          <button type="button" class="button button-primary" id="drwp-view-review-submit"><?php esc_html_e('レビュー送信', 'drwp-daily-reports'); ?></button>
-          <span id="drwp-view-review-status-msg" style="color:#166534;"></span>
-        </div>
-      </div>
-      <?php endif; ?>
-
-      <div class="drwp-view-section" id="drwp-view-comments-section" style="display:none;">
-        <h3><?php esc_html_e('コメント', 'drwp-daily-reports'); ?></h3>
-        <div id="drwp-view-comments-list"></div>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <textarea id="drwp-view-comment-body" rows="2" class="large-text" placeholder="<?php esc_attr_e('コメントを入力…', 'drwp-daily-reports'); ?>"></textarea>
-          <button type="button" class="button" id="drwp-view-comment-submit" style="white-space:nowrap;"><?php esc_html_e('送信', 'drwp-daily-reports'); ?></button>
-        </div>
-      </div>
-    </div>
-    <div class="drwp-modal-footer">
-      <button type="button" class="button drwp-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
-    </div>
-  </dialog>
-
-  <!-- ============================================================
-       編集モーダル — quick edit via REST PATCH
-       ============================================================ -->
-  <dialog id="drwp-edit-dialog" class="drwp-modal drwp-modal-wide">
-    <div class="drwp-modal-header">
-      <h2><?php esc_html_e('日報を編集', 'drwp-daily-reports'); ?></h2>
+      <h2><?php esc_html_e('日報 確認・編集', 'drwp-daily-reports'); ?></h2>
       <button type="button" class="drwp-modal-close">&times;</button>
     </div>
     <div class="drwp-modal-body">
@@ -248,11 +205,38 @@
           <td><textarea id="drwp-edit-next" rows="2" class="large-text"></textarea></td>
         </tr>
       </table>
+      <div class="drwp-detail-save-row">
+        <button type="button" class="button button-primary" id="drwp-edit-save"><?php esc_html_e('保存', 'drwp-daily-reports'); ?></button>
+        <span id="drwp-edit-status"></span>
+      </div>
+
+      <?php if (current_user_can('edit_others_posts')): ?>
+      <div class="drwp-view-section" id="drwp-view-review-section" style="display:none;">
+        <h3><?php esc_html_e('レビュー操作', 'drwp-daily-reports'); ?></h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <select id="drwp-view-review-status">
+            <?php foreach ($review_labels as $k => $v): ?>
+              <option value="<?php echo esc_attr($k); ?>"><?php echo esc_html($v); ?></option>
+            <?php endforeach; ?>
+          </select>
+          <input type="text" id="drwp-view-review-comment" placeholder="<?php esc_attr_e('コメント（任意）', 'drwp-daily-reports'); ?>" style="flex:1;min-width:150px;" />
+          <button type="button" class="button button-primary" id="drwp-view-review-submit"><?php esc_html_e('レビュー送信', 'drwp-daily-reports'); ?></button>
+          <span id="drwp-view-review-status-msg" style="color:#166534;"></span>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <div class="drwp-view-section" id="drwp-view-comments-section" style="display:none;">
+        <h3><?php esc_html_e('コメント', 'drwp-daily-reports'); ?></h3>
+        <div id="drwp-view-comments-list"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <textarea id="drwp-view-comment-body" rows="2" class="large-text" placeholder="<?php esc_attr_e('コメントを入力…', 'drwp-daily-reports'); ?>"></textarea>
+          <button type="button" class="button" id="drwp-view-comment-submit" style="white-space:nowrap;"><?php esc_html_e('送信', 'drwp-daily-reports'); ?></button>
+        </div>
+      </div>
     </div>
     <div class="drwp-modal-footer">
-      <button type="button" class="button button-primary" id="drwp-edit-save"><?php esc_html_e('保存', 'drwp-daily-reports'); ?></button>
-      <button type="button" class="button drwp-modal-close"><?php esc_html_e('キャンセル', 'drwp-daily-reports'); ?></button>
-      <span id="drwp-edit-status" style="margin-left:12px;"></span>
+      <button type="button" class="button drwp-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
     </div>
   </dialog>
 
@@ -281,6 +265,7 @@
   .drwp-view-text{white-space:pre-wrap}
   .drwp-view-photos{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
   .drwp-view-photos img{width:100px;height:100px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb}
+  .drwp-detail-save-row{display:flex;gap:8px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb}
   .drwp-view-section{margin-top:16px;padding-top:16px;border-top:1px solid #e5e7eb}
   .drwp-view-section h3{margin:0 0 8px;font-size:.95em;color:#1d2327}
   .drwp-comment-item{padding:8px 0;border-bottom:1px solid #f0f0f0}
@@ -303,8 +288,7 @@
     ]); ?>;
     var table=document.getElementById('drwp-reports-table');
     if(!table)return;
-    var viewDlg=document.getElementById('drwp-view-dialog');
-    var editDlg=document.getElementById('drwp-edit-dialog');
+    var dlg=document.getElementById('drwp-detail-dialog');
 
     function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
     function api(path,opts){
@@ -315,15 +299,14 @@
       });
     }
 
-    [viewDlg,editDlg].forEach(function(dlg){
-      if(!dlg)return;
+    if(dlg){
       dlg.addEventListener('click',function(e){
         if(e.target.classList.contains('drwp-modal-close'))dlg.close();
         if(e.target===dlg)dlg.close();
       });
-    });
+    }
 
-    /* ---- 内容確認モーダル ---- */
+    /* ---- コメント読み込み ---- */
     function loadComments(id){
       var list=document.getElementById('drwp-view-comments-list');
       if(!list)return;
@@ -340,34 +323,29 @@
       });
     }
 
+    /* ---- 確認・編集モーダルを開く ---- */
     table.addEventListener('click',function(e){
-      var vb=e.target.closest('.drwp-view-btn');
-      if(!vb)return;
-      var id=vb.dataset.id;
-      document.getElementById('drwp-view-id').value=id;
-      var body=document.getElementById('drwp-view-body');
-      body.innerHTML='<p>読み込み中…</p>';
+      var btn=e.target.closest('.drwp-detail-btn');
+      if(!btn)return;
+      var id=btn.dataset.id;
+      document.getElementById('drwp-edit-id').value=id;
+      document.getElementById('drwp-edit-status').textContent='';
+      ['drwp-edit-date','drwp-edit-started','drwp-edit-ended'].forEach(function(k){document.getElementById(k).value='';});
+      ['drwp-edit-work','drwp-edit-issues','drwp-edit-next'].forEach(function(k){document.getElementById(k).value='';});
+      document.getElementById('drwp-edit-project').value='';
       var reviewSection=document.getElementById('drwp-view-review-section');
       var commentsSection=document.getElementById('drwp-view-comments-section');
       if(reviewSection){reviewSection.style.display='none';document.getElementById('drwp-view-review-status-msg').textContent='';}
       if(commentsSection)commentsSection.style.display='none';
-      viewDlg.showModal();
+      dlg.showModal();
       api('/reports/'+id).then(function(d){
-        var time='';
-        if(d.started_at)time+=d.started_at.substring(0,5);
-        if(d.started_at&&d.ended_at)time+=' — ';
-        if(d.ended_at)time+=d.ended_at.substring(0,5);
-        var h='<table class="form-table drwp-view-table">';
-        h+='<tr><th>日付</th><td>'+esc(d.report_date)+'</td></tr>';
-        h+='<tr><th>現場</th><td>'+esc(d.project_id?(rest.projects&&rest.projects[d.project_id]||'#'+d.project_id):'（未設定）')+'</td></tr>';
-        if(time)h+='<tr><th>時刻</th><td>'+esc(time)+'</td></tr>';
-        h+='<tr><th>レビュー</th><td>'+esc(rest.labels&&rest.labels[d.review_status]||d.review_status)+'</td></tr>';
-        h+='<tr><th>作業内容</th><td class="drwp-view-text">'+esc(d.work_description||'')+'</td></tr>';
-        if(d.issues)h+='<tr><th>問題点</th><td class="drwp-view-text">'+esc(d.issues)+'</td></tr>';
-        if(d.next_plan)h+='<tr><th>次回予定</th><td class="drwp-view-text">'+esc(d.next_plan)+'</td></tr>';
-        if(d.public_title)h+='<tr><th>公開タイトル</th><td>'+esc(d.public_title)+'</td></tr>';
-        h+='</table>';
-        body.innerHTML=h;
+        document.getElementById('drwp-edit-date').value=d.report_date||'';
+        document.getElementById('drwp-edit-project').value=d.project_id||'';
+        document.getElementById('drwp-edit-started').value=(d.started_at||'').substring(0,5);
+        document.getElementById('drwp-edit-ended').value=(d.ended_at||'').substring(0,5);
+        document.getElementById('drwp-edit-work').value=d.work_description||'';
+        document.getElementById('drwp-edit-issues').value=d.issues||'';
+        document.getElementById('drwp-edit-next').value=d.next_plan||'';
         if(reviewSection){
           reviewSection.style.display='';
           document.getElementById('drwp-view-review-status').value=d.review_status||'pending';
@@ -377,14 +355,35 @@
           document.getElementById('drwp-view-comment-body').value='';
           loadComments(id);
         }
-      }).catch(function(err){body.innerHTML='<p style="color:#991b1b;">'+esc(err.message)+'</p>';});
+      }).catch(function(err){document.getElementById('drwp-edit-status').textContent=err.message;});
+    });
+
+    /* ---- 保存 ---- */
+    document.getElementById('drwp-edit-save').addEventListener('click',function(){
+      var id=document.getElementById('drwp-edit-id').value;
+      var st=document.getElementById('drwp-edit-status');
+      st.textContent='保存中…';st.style.color='';this.disabled=true;var self=this;
+      api('/reports/'+id,{
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          report_date:document.getElementById('drwp-edit-date').value,
+          project_id:Number(document.getElementById('drwp-edit-project').value)||null,
+          started_at:document.getElementById('drwp-edit-started').value||null,
+          ended_at:document.getElementById('drwp-edit-ended').value||null,
+          work_description:document.getElementById('drwp-edit-work').value,
+          issues:document.getElementById('drwp-edit-issues').value,
+          next_plan:document.getElementById('drwp-edit-next').value
+        })
+      }).then(function(){st.textContent='保存しました';st.style.color='#166534';self.disabled=false;})
+        .catch(function(err){st.textContent=err.message;st.style.color='#991b1b';self.disabled=false;});
     });
 
     /* ---- レビュー送信 ---- */
     var reviewBtn=document.getElementById('drwp-view-review-submit');
     if(reviewBtn){
       reviewBtn.addEventListener('click',function(){
-        var id=document.getElementById('drwp-view-id').value;
+        var id=document.getElementById('drwp-edit-id').value;
         var msg=document.getElementById('drwp-view-review-status-msg');
         msg.textContent='送信中…';msg.style.color='';this.disabled=true;var self=this;
         api('/reports/'+id+'/review',{
@@ -406,7 +405,7 @@
     var commentBtn=document.getElementById('drwp-view-comment-submit');
     if(commentBtn){
       commentBtn.addEventListener('click',function(){
-        var id=document.getElementById('drwp-view-id').value;
+        var id=document.getElementById('drwp-edit-id').value;
         var bodyEl=document.getElementById('drwp-view-comment-body');
         var text=bodyEl.value.trim();
         if(!text)return;
@@ -421,48 +420,6 @@
         }).catch(function(){self.disabled=false;});
       });
     }
-
-    /* ---- 編集モーダル ---- */
-    table.addEventListener('click',function(e){
-      var eb=e.target.closest('.drwp-edit-btn');
-      if(!eb)return;
-      var id=eb.dataset.id;
-      document.getElementById('drwp-edit-id').value=id;
-      document.getElementById('drwp-edit-status').textContent='';
-      ['drwp-edit-date','drwp-edit-started','drwp-edit-ended'].forEach(function(k){document.getElementById(k).value='';});
-      ['drwp-edit-work','drwp-edit-issues','drwp-edit-next'].forEach(function(k){document.getElementById(k).value='';});
-      document.getElementById('drwp-edit-project').value='';
-      editDlg.showModal();
-      api('/reports/'+id).then(function(d){
-        document.getElementById('drwp-edit-date').value=d.report_date||'';
-        document.getElementById('drwp-edit-project').value=d.project_id||'';
-        document.getElementById('drwp-edit-started').value=(d.started_at||'').substring(0,5);
-        document.getElementById('drwp-edit-ended').value=(d.ended_at||'').substring(0,5);
-        document.getElementById('drwp-edit-work').value=d.work_description||'';
-        document.getElementById('drwp-edit-issues').value=d.issues||'';
-        document.getElementById('drwp-edit-next').value=d.next_plan||'';
-      }).catch(function(err){document.getElementById('drwp-edit-status').textContent=err.message;});
-    });
-
-    document.getElementById('drwp-edit-save').addEventListener('click',function(){
-      var id=document.getElementById('drwp-edit-id').value;
-      var st=document.getElementById('drwp-edit-status');
-      st.textContent='保存中…';this.disabled=true;var self=this;
-      api('/reports/'+id,{
-        method:'PATCH',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          report_date:document.getElementById('drwp-edit-date').value,
-          project_id:Number(document.getElementById('drwp-edit-project').value)||null,
-          started_at:document.getElementById('drwp-edit-started').value||null,
-          ended_at:document.getElementById('drwp-edit-ended').value||null,
-          work_description:document.getElementById('drwp-edit-work').value,
-          issues:document.getElementById('drwp-edit-issues').value,
-          next_plan:document.getElementById('drwp-edit-next').value
-        })
-      }).then(function(){editDlg.close();location.reload();})
-        .catch(function(err){st.textContent=err.message;self.disabled=false;});
-    });
 
   })();
   </script>
