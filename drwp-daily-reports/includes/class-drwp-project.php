@@ -19,6 +19,13 @@ class DRWP_Project {
         return $wpdb->get_results($sql);
     }
 
+    public static function location_title($id) {
+        $project = self::find($id);
+        if (!$project) return '';
+        $parts = array_filter([(string) ($project->prefecture ?? ''), (string) ($project->city ?? '')]);
+        return implode('', $parts);
+    }
+
     public static function find($id) {
         global $wpdb;
         $id = absint($id);
@@ -54,11 +61,19 @@ class DRWP_Project {
         $allowed_status = ['active', 'inactive'];
         if (!in_array($status, $allowed_status, true)) $status = 'active';
 
+        $prefecture = sanitize_text_field(wp_unslash($_POST['prefecture'] ?? ''));
+        $city       = sanitize_text_field(wp_unslash($_POST['city'] ?? ''));
+        $street     = sanitize_text_field(wp_unslash($_POST['street'] ?? ''));
+        $building   = sanitize_text_field(wp_unslash($_POST['building'] ?? ''));
         $data = [
             'name'           => $name,
             'status'         => $status,
             'postal_code'    => sanitize_text_field(wp_unslash($_POST['postal_code'] ?? '')),
-            'address'        => sanitize_text_field(wp_unslash($_POST['address'] ?? '')),
+            'prefecture'     => $prefecture,
+            'city'           => $city,
+            'street'         => $street,
+            'building'       => $building,
+            'address'        => trim($prefecture . $city . $street . ' ' . $building),
             'phone'          => sanitize_text_field(wp_unslash($_POST['phone'] ?? '')),
             'job_description'=> wp_kses_post(wp_unslash($_POST['job_description'] ?? '')),
             'client_name'    => sanitize_text_field(wp_unslash($_POST['client_name'] ?? '')),
