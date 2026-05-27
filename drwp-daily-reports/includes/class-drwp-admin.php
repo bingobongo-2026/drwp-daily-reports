@@ -115,6 +115,16 @@ class DRWP_Admin {
         return self::project_map();
     }
 
+    public static function project_location_map() {
+        $all = DRWP_Project::all();
+        $map = [];
+        foreach ($all as $p) {
+            $loc = trim(($p->prefecture ?? '') . ($p->city ?? ''));
+            if ($loc !== '') $map[(int) $p->id] = $loc;
+        }
+        return (object) $map;
+    }
+
     private static function project_map() {
         $all = DRWP_Project::all();
         $map = [];
@@ -340,10 +350,6 @@ class DRWP_Admin {
             $wpdb->update($table, $data, ['id' => $id]);
             DRWP_Audit::log('report_updated', '日報を更新', $id, ['project_id' => $data['project_id']]);
         } else {
-            if (empty($data['public_title']) && !empty($data['project_id'])) {
-                $loc = DRWP_Project::location_title((int) $data['project_id']);
-                if ($loc !== '') $data['public_title'] = $loc;
-            }
             $data['user_id'] = get_current_user_id();
             $wpdb->insert($table, $data);
             $id = (int) $wpdb->insert_id;

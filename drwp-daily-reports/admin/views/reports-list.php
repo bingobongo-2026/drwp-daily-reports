@@ -89,14 +89,13 @@
           <th><?php esc_html_e('日付', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('作成者', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('現場', 'drwp-daily-reports'); ?></th>
-          <th><?php esc_html_e('公開タイトル', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('レビュー', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('操作', 'drwp-daily-reports'); ?></th>
         </tr>
       </thead>
       <tbody>
         <?php if (empty($reports)): ?>
-          <tr><td colspan="8"><?php esc_html_e('データがありません。', 'drwp-daily-reports'); ?></td></tr>
+          <tr><td colspan="7"><?php esc_html_e('データがありません。', 'drwp-daily-reports'); ?></td></tr>
         <?php else: foreach ($reports as $report): ?>
           <tr>
             <td><input class="drwp-check" type="checkbox" name="report_ids[]" value="<?php echo esc_attr($report->id); ?>" /></td>
@@ -114,7 +113,6 @@
               }
               echo esc_html($project_name);
             ?></td>
-            <td><?php echo esc_html($report->public_title ?: __('（未設定）', 'drwp-daily-reports')); ?></td>
             <td><?php echo esc_html(DRWP_Labels::review_status((string) $report->review_status)); ?></td>
             <td style="white-space:nowrap;">
               <button type="button" class="button button-small drwp-detail-btn" data-id="<?php echo (int) $report->id; ?>"><?php esc_html_e('確認・編集', 'drwp-daily-reports'); ?></button>
