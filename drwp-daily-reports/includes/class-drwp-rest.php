@@ -246,6 +246,11 @@ class DRWP_REST {
 
         if (empty($data['report_date'])) $data['report_date'] = current_time('Y-m-d');
 
+        if (empty($data['public_title']) && !empty($data['project_id'])) {
+            $loc = DRWP_Project::location_title((int) $data['project_id']);
+            if ($loc !== '') $data['public_title'] = $loc;
+        }
+
         $wpdb->insert($table, $data);
         $id = (int) $wpdb->insert_id;
         self::sync_photos_from_input($id, $input);

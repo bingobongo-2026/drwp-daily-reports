@@ -35,7 +35,14 @@
           <td><?php echo (int) $project->id; ?></td>
           <td><?php echo esc_html($project->name); ?></td>
           <td><?php echo esc_html($project->client_name ?: '-'); ?></td>
-          <td><?php echo esc_html($project->address ?: '-'); ?></td>
+          <td><?php
+            $addr_parts = array_filter([
+                (string) ($project->prefecture ?? ''),
+                (string) ($project->city ?? ''),
+                (string) ($project->street ?? ''),
+            ]);
+            echo esc_html($addr_parts ? implode('', $addr_parts) : ((string) ($project->address ?? '') ?: '-'));
+          ?></td>
           <td><?php
             $jd = (string) ($project->job_description ?? '');
             echo esc_html(mb_strlen($jd) > 30 ? mb_substr($jd, 0, 30) . '…' : ($jd ?: '-'));
@@ -47,7 +54,10 @@
                     data-name="<?php echo esc_attr($project->name); ?>"
                     data-status="<?php echo esc_attr($project->status); ?>"
                     data-postal_code="<?php echo esc_attr($project->postal_code ?? ''); ?>"
-                    data-address="<?php echo esc_attr($project->address ?? ''); ?>"
+                    data-prefecture="<?php echo esc_attr($project->prefecture ?? ''); ?>"
+                    data-city="<?php echo esc_attr($project->city ?? ''); ?>"
+                    data-street="<?php echo esc_attr($project->street ?? ''); ?>"
+                    data-building="<?php echo esc_attr($project->building ?? ''); ?>"
                     data-phone="<?php echo esc_attr($project->phone ?? ''); ?>"
                     data-job_description="<?php echo esc_attr($project->job_description ?? ''); ?>"
                     data-client_name="<?php echo esc_attr($project->client_name ?? ''); ?>"
@@ -89,11 +99,29 @@
           </tr>
           <tr>
             <th><label for="drwp-pm-postal"><?php esc_html_e('郵便番号', 'drwp-daily-reports'); ?></label></th>
-            <td><input type="text" id="drwp-pm-postal" name="postal_code" class="small-text" placeholder="123-4567" /></td>
+            <td>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input type="text" id="drwp-pm-postal" name="postal_code" class="small-text" placeholder="123-4567" />
+                <button type="button" class="button button-small" id="drwp-pm-zip-lookup"><?php esc_html_e('住所検索', 'drwp-daily-reports'); ?></button>
+                <span id="drwp-pm-zip-status" style="font-size:.85em;"></span>
+              </div>
+            </td>
           </tr>
           <tr>
-            <th><label for="drwp-pm-address"><?php esc_html_e('住所', 'drwp-daily-reports'); ?></label></th>
-            <td><input type="text" id="drwp-pm-address" name="address" class="large-text" /></td>
+            <th><label for="drwp-pm-prefecture"><?php esc_html_e('都道府県', 'drwp-daily-reports'); ?></label></th>
+            <td><input type="text" id="drwp-pm-prefecture" name="prefecture" class="regular-text" /></td>
+          </tr>
+          <tr>
+            <th><label for="drwp-pm-city"><?php esc_html_e('市区町村', 'drwp-daily-reports'); ?></label></th>
+            <td><input type="text" id="drwp-pm-city" name="city" class="regular-text" /></td>
+          </tr>
+          <tr>
+            <th><label for="drwp-pm-street"><?php esc_html_e('番地', 'drwp-daily-reports'); ?></label></th>
+            <td><input type="text" id="drwp-pm-street" name="street" class="regular-text" /></td>
+          </tr>
+          <tr>
+            <th><label for="drwp-pm-building"><?php esc_html_e('建物名', 'drwp-daily-reports'); ?></label></th>
+            <td><input type="text" id="drwp-pm-building" name="building" class="regular-text" /></td>
           </tr>
           <tr>
             <th><label for="drwp-pm-phone"><?php esc_html_e('電話番号', 'drwp-daily-reports'); ?></label></th>
@@ -151,7 +179,7 @@
   var dlg = document.getElementById('drwp-project-dialog');
   if (!dlg) return;
 
-  var fields = ['name','client','contact','postal','address','phone','job','notes','status','id'];
+  var fields = ['name','client','contact','postal','prefecture','city','street','building','phone','job','notes','status','id'];
   var map = {};
   fields.forEach(function(f){ map[f] = document.getElementById('drwp-pm-' + f); });
   var titleEl  = document.getElementById('drwp-pm-title');
@@ -182,18 +210,40 @@
     var d = btn.dataset;
     titleEl.textContent = editTitle + ' (#' + d.id + ')';
     submitEl.textContent = saveLabel;
-    map.id.value     = d.id;
-    map.name.value   = d.name;
-    map.status.value = d.status;
-    map.postal.value = d.postal_code || '';
-    map.address.value= d.address || '';
-    map.phone.value  = d.phone || '';
-    map.job.value    = d.job_description || '';
-    map.client.value = d.client_name || '';
-    map.contact.value= d.contact_person || '';
-    map.notes.value  = d.notes || '';
+    map.id.value        = d.id;
+    map.name.value      = d.name;
+    map.status.value    = d.status;
+    map.postal.value    = d.postal_code || '';
+    map.prefecture.value= d.prefecture || '';
+    map.city.value      = d.city || '';
+    map.street.value    = d.street || '';
+    map.building.value  = d.building || '';
+    map.phone.value     = d.phone || '';
+    map.job.value       = d.job_description || '';
+    map.client.value    = d.client_name || '';
+    map.contact.value   = d.contact_person || '';
+    map.notes.value     = d.notes || '';
     dlg.showModal();
     map.name.focus();
+  });
+
+  /* ---- 郵便番号から住所検索 ---- */
+  document.getElementById('drwp-pm-zip-lookup').addEventListener('click', function(){
+    var zip = (map.postal.value || '').replace(/[^0-9]/g, '');
+    var st = document.getElementById('drwp-pm-zip-status');
+    if (zip.length !== 7) { st.textContent = '7桁の郵便番号を入力してください'; st.style.color = '#991b1b'; return; }
+    st.textContent = '検索中…'; st.style.color = '';
+    fetch('https://zipcloud.ibsnet.co.jp/api/search?zipcode=' + zip)
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if (!j.results || !j.results.length) { st.textContent = '該当する住所が見つかりません'; st.style.color = '#991b1b'; return; }
+        var a = j.results[0];
+        map.prefecture.value = a.address1 || '';
+        map.city.value = (a.address2 || '') + (a.address3 || '');
+        st.textContent = ''; st.style.color = '';
+        map.street.focus();
+      })
+      .catch(function(){ st.textContent = '通信エラー'; st.style.color = '#991b1b'; });
   });
 
   dlg.addEventListener('click', function(e){
