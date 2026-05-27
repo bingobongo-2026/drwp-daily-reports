@@ -237,7 +237,13 @@
         <table class="form-table" role="presentation">
           <tr>
             <th><?php esc_html_e('公開タイトル', 'drwp-daily-reports'); ?></th>
-            <td><input type="text" id="drwp-conv-title" class="large-text" /></td>
+            <td>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input type="text" id="drwp-conv-title" class="large-text" />
+                <button type="button" class="button button-small" id="drwp-dup-check" style="white-space:nowrap;"><?php esc_html_e('重複を確認', 'drwp-daily-reports'); ?></button>
+              </div>
+              <div id="drwp-dup-result" style="margin-top:4px;"></div>
+            </td>
           </tr>
           <tr>
             <th><?php esc_html_e('導入文', 'drwp-daily-reports'); ?></th>
@@ -245,7 +251,15 @@
           </tr>
           <tr>
             <th><?php esc_html_e('本文', 'drwp-daily-reports'); ?></th>
-            <td><textarea id="drwp-conv-body" rows="6" class="large-text"></textarea></td>
+            <td>
+              <?php wp_editor('', 'drwp-conv-body', [
+                  'textarea_rows' => 10,
+                  'media_buttons' => true,
+                  'teeny'         => false,
+                  'quicktags'     => true,
+                  'tinymce'       => ['init_instance_callback' => 'function(e){e.hide()}'],
+              ]); ?>
+            </td>
           </tr>
           <tr>
             <th><?php esc_html_e('今後の予定', 'drwp-daily-reports'); ?></th>
@@ -362,6 +376,7 @@
   (function(){
     var rest = <?php echo wp_json_encode([
         'url'       => esc_url_raw(rest_url('drwp/v1')),
+        'wpurl'     => esc_url_raw(rest_url('wp/v2')),
         'nonce'     => wp_create_nonce('wp_rest'),
         'projects'  => (object) DRWP_Admin::project_map_public(),
         'locations' => (object) DRWP_Admin::project_location_map(),
@@ -379,12 +394,55 @@
       });
     }
 
+    var editorId='drwp-conv-body';
+
+    function setEditorContent(content){
+      var ed=typeof tinymce!=='undefined'&&tinymce.get(editorId);
+      if(ed){ed.setContent(content||'');}
+      document.getElementById(editorId).value=content||'';
+    }
+    function getEditorContent(){
+      var ed=typeof tinymce!=='undefined'&&tinymce.get(editorId);
+      if(ed)ed.save();
+      return document.getElementById(editorId).value;
+    }
+    function showEditor(){
+      var ed=typeof tinymce!=='undefined'&&tinymce.get(editorId);
+      if(ed)ed.show();
+    }
+
     if(dlg){
       dlg.addEventListener('click',function(e){
         if(e.target.classList.contains('drwp-modal-close'))dlg.close();
         if(e.target===dlg)dlg.close();
       });
     }
+
+    /* ---- 重複確認 ---- */
+    document.getElementById('drwp-dup-check').addEventListener('click',function(){
+      var title=document.getElementById('drwp-conv-title').value.trim();
+      var res=document.getElementById('drwp-dup-result');
+      if(!title){res.innerHTML='<span style="color:#991b1b;">タイトルを入力してください</span>';return;}
+      res.innerHTML='<span>確認中…</span>';
+      var headers={'X-WP-Nonce':rest.nonce};
+      var enc=encodeURIComponent(title);
+      Promise.all([
+        fetch(rest.wpurl+'/posts?search='+enc+'&per_page=100&status=publish,draft,pending,future,private',{headers:headers,credentials:'same-origin'}).then(function(r){return r.json();}),
+        fetch(rest.wpurl+'/pages?search='+enc+'&per_page=100&status=publish,draft,pending,future,private',{headers:headers,credentials:'same-origin'}).then(function(r){return r.json();})
+      ]).then(function(results){
+        var all=[].concat(results[0]||[],results[1]||[]);
+        var dupes=all.filter(function(p){
+          var t=(p.title&&p.title.rendered||'').replace(/&amp;/g,'&').replace(/&#039;/g,"'").replace(/&quot;/g,'"').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+          return t===title;
+        });
+        if(dupes.length){
+          var links=dupes.map(function(p){return '<a href="'+esc(p.link)+'" target="_blank">#'+p.id+' '+esc(p.title.rendered)+'</a>';});
+          res.innerHTML='<span style="color:#991b1b;font-weight:600;">⚠ 同じタイトルの記事が '+dupes.length+' 件あります:</span><br>'+links.join('<br>');
+        } else {
+          res.innerHTML='<span style="color:#166534;">重複なし</span>';
+        }
+      }).catch(function(){res.innerHTML='<span style="color:#991b1b;">確認に失敗しました</span>';});
+    });
 
     /* ---- モーダルを開く ---- */
     table.addEventListener('click',function(e){
@@ -395,8 +453,9 @@
       document.getElementById('drwp-conv-status').textContent='';
       document.getElementById('drwp-conv-submit').disabled=false;
       document.getElementById('drwp-conv-title').value='';
+      document.getElementById('drwp-dup-result').innerHTML='';
       document.getElementById('drwp-conv-intro').value='';
-      document.getElementById('drwp-conv-body').value='';
+      setEditorContent('');
       document.getElementById('drwp-conv-next-plan').value='';
       document.getElementById('drwp-conv-tags').value='';
       document.getElementById('drwp-conv-template').value='standard';
@@ -407,6 +466,7 @@
       var viewBody=document.getElementById('drwp-view-body');
       viewBody.innerHTML='<p>読み込み中…</p>';
       dlg.showModal();
+      setTimeout(showEditor,50);
       api('/reports/'+id).then(function(d){
         var time='';
         if(d.started_at)time+=d.started_at.substring(0,5);
@@ -427,7 +487,7 @@
         }
         document.getElementById('drwp-conv-title').value=autoTitle;
         document.getElementById('drwp-conv-intro').value=d.public_intro||'';
-        document.getElementById('drwp-conv-body').value=d.public_body||'';
+        setEditorContent(d.public_body||(d.work_description||''));
         document.getElementById('drwp-conv-next-plan').value=d.public_next_plan||'';
         document.getElementById('drwp-conv-tags').value=d.post_tags||'';
         if(d.post_template)document.getElementById('drwp-conv-template').value=d.post_template;
@@ -456,7 +516,7 @@
         body:JSON.stringify({
           public_title:document.getElementById('drwp-conv-title').value,
           public_intro:document.getElementById('drwp-conv-intro').value,
-          public_body:document.getElementById('drwp-conv-body').value,
+          public_body:getEditorContent(),
           public_next_plan:document.getElementById('drwp-conv-next-plan').value,
           post_template:document.getElementById('drwp-conv-template').value,
           post_category_id:document.getElementById('drwp-conv-category').value,

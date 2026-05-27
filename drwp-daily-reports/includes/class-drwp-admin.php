@@ -66,6 +66,11 @@ class DRWP_Admin {
     }
 
     public static function enqueue($hook) {
+        if (is_string($hook) && strpos($hook, 'drwp_articles') !== false) {
+            wp_enqueue_media();
+            wp_enqueue_editor();
+            return;
+        }
         if (!is_string($hook) || strpos($hook, 'drwp_report_edit') === false) return;
         wp_enqueue_media();
         wp_enqueue_style('drwp-admin', DRWP_URL . 'admin/assets/admin.css', [], DRWP_VERSION);
@@ -119,8 +124,8 @@ class DRWP_Admin {
         $all = DRWP_Project::all();
         $map = [];
         foreach ($all as $p) {
-            $loc = trim(($p->prefecture ?? '') . ($p->city ?? ''));
-            if ($loc !== '') $map[(int) $p->id] = $loc;
+            $parts = array_filter([(string) ($p->prefecture ?? ''), (string) ($p->city ?? '')]);
+            if ($parts) $map[(int) $p->id] = implode(' ', $parts);
         }
         return (object) $map;
     }
