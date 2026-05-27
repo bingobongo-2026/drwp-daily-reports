@@ -23,7 +23,7 @@ class DRWP_Project {
         $project = self::find($id);
         if (!$project) return '';
         $parts = array_filter([(string) ($project->prefecture ?? ''), (string) ($project->city ?? '')]);
-        return implode('', $parts);
+        return implode(' ', $parts);
     }
 
     public static function find($id) {
