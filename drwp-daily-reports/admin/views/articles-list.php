@@ -361,9 +361,10 @@
   <script>
   (function(){
     var rest = <?php echo wp_json_encode([
-        'url'      => esc_url_raw(rest_url('drwp/v1')),
-        'nonce'    => wp_create_nonce('wp_rest'),
-        'projects' => (object) DRWP_Admin::project_map_public(),
+        'url'       => esc_url_raw(rest_url('drwp/v1')),
+        'nonce'     => wp_create_nonce('wp_rest'),
+        'projects'  => (object) DRWP_Admin::project_map_public(),
+        'locations' => (object) DRWP_Admin::project_location_map(),
     ]); ?>;
     var table=document.getElementById('drwp-articles-table');
     if(!table)return;
@@ -420,7 +421,11 @@
         if(d.next_plan)h+='<tr><th>次回予定</th><td class="drwp-view-text">'+esc(d.next_plan)+'</td></tr>';
         h+='</table>';
         viewBody.innerHTML=h;
-        document.getElementById('drwp-conv-title').value=d.public_title||'';
+        var autoTitle=d.public_title||'';
+        if(!autoTitle&&d.project_id&&rest.locations&&rest.locations[d.project_id]){
+          autoTitle=rest.locations[d.project_id];
+        }
+        document.getElementById('drwp-conv-title').value=autoTitle;
         document.getElementById('drwp-conv-intro').value=d.public_intro||'';
         document.getElementById('drwp-conv-body').value=d.public_body||'';
         document.getElementById('drwp-conv-next-plan').value=d.public_next_plan||'';

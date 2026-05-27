@@ -101,7 +101,7 @@
             <th><label for="drwp-pm-postal"><?php esc_html_e('郵便番号', 'drwp-daily-reports'); ?></label></th>
             <td>
               <div style="display:flex;gap:8px;align-items:center;">
-                <input type="text" id="drwp-pm-postal" name="postal_code" class="small-text" placeholder="123-4567" />
+                <input type="text" id="drwp-pm-postal" name="postal_code" class="regular-text" style="max-width:140px;" placeholder="123-4567" />
                 <button type="button" class="button button-small" id="drwp-pm-zip-lookup"><?php esc_html_e('住所検索', 'drwp-daily-reports'); ?></button>
                 <span id="drwp-pm-zip-status" style="font-size:.85em;"></span>
               </div>
