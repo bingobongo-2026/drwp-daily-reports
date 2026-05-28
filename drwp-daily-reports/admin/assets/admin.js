@@ -160,7 +160,7 @@ jQuery(function ($) {
       if (time) html += '<tr><th>時刻</th><td>' + esc(time) + '</td></tr>';
       html += '<tr><th>レビュー</th><td>' + esc(rest.labels && rest.labels[d.review_status] || d.review_status) + '</td></tr>';
       html += '<tr><th>作業内容</th><td class="drwp-view-text">' + esc(d.work_description || '') + '</td></tr>';
-      if (d.issues) html += '<tr><th>問題点</th><td class="drwp-view-text">' + esc(d.issues) + '</td></tr>';
+      if (d.issues) html += '<tr><th>特記事項</th><td class="drwp-view-text">' + esc(d.issues) + '</td></tr>';
       if (d.next_plan) html += '<tr><th>次回予定</th><td class="drwp-view-text">' + esc(d.next_plan) + '</td></tr>';
       if (d.public_title) html += '<tr><th>公開タイトル</th><td>' + esc(d.public_title) + '</td></tr>';
       html += '</table>';

@@ -55,7 +55,7 @@
           ['project_name',      $optional, __('未登録なら自動作成', 'drwp-daily-reports')],
           ['started_at',        $optional, 'HH:MM'],
           ['ended_at',          $optional, 'HH:MM'],
-          ['issues',            $optional, __('問題点', 'drwp-daily-reports')],
+          ['issues',            $optional, __('特記事項（反省・連絡・相談・提案）', 'drwp-daily-reports')],
           ['next_plan',         $optional, __('次回予定', 'drwp-daily-reports')],
           ['public_title',      $optional, __('公開タイトル', 'drwp-daily-reports')],
           ['public_intro',      $optional, __('公開導入', 'drwp-daily-reports')],
