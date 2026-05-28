@@ -108,6 +108,8 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $audit, $audit, 'manage_options', 'drwp_audit', ['DRWP_Audit_Admin', 'render_page']);
         $csv = __('CSV インポート', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $csv, $csv, self::CAP_EDIT, 'drwp_csv_import', ['DRWP_CSV_Import', 'render_page']);
+        $pdf = __('PDF出力', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $pdf, $pdf, self::CAP_EDIT, 'drwp_print', ['DRWP_Print', 'render_page']);
         $notif = __('通知設定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $notif, $notif, 'manage_options', 'drwp_notifications', ['DRWP_Notifications_Admin', 'render_page']);
         $output = __('公開設定', 'drwp-daily-reports');

@@ -36,6 +36,7 @@ require_once DRWP_PATH . 'includes/class-drwp-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-report-form.php';
 require_once DRWP_PATH . 'includes/class-drwp-report-archive.php';
 require_once DRWP_PATH . 'includes/class-drwp-login.php';
+require_once DRWP_PATH . 'includes/class-drwp-print.php';
 
 if (defined('WP_CLI') && WP_CLI) {
     require_once DRWP_PATH . 'includes/class-drwp-cli.php';
