@@ -480,6 +480,13 @@
         if(d.issues)h+='<tr><th>特記事項</th><td class="drwp-view-text">'+esc(d.issues)+'</td></tr>';
         if(d.next_plan)h+='<tr><th>次回予定</th><td class="drwp-view-text">'+esc(d.next_plan)+'</td></tr>';
         h+='</table>';
+        if(d.photos&&d.photos.length){
+          h+='<div class="drwp-view-photos">';
+          d.photos.forEach(function(p){
+            h+='<figure><img src="'+esc(p.url)+'" alt="" />'+(p.caption?'<figcaption>'+esc(p.caption)+'</figcaption>':'')+'</figure>';
+          });
+          h+='</div>';
+        }
         viewBody.innerHTML=h;
         var autoTitle=d.public_title||'';
         if(!autoTitle&&d.project_id&&rest.locations&&rest.locations[d.project_id]){

@@ -71,7 +71,7 @@
           $date_ts = strtotime((string) $r->report_date);
         ?>
         <article class="drwp-sheet">
-          <h1 class="drwp-sheet-title"><?php esc_html_e('作業日報', 'drwp-daily-reports'); ?></h1>
+          <div class="drwp-sheet-title"><?php esc_html_e('作業日報', 'drwp-daily-reports'); ?></div>
 
           <div class="drwp-sheet-top">
             <table class="drwp-sheet-meta">
@@ -140,8 +140,8 @@
 .drwp-print-area{background:#f3f4f6;padding:24px}
 .drwp-print-pagebreak{height:24px}
 .drwp-sheet{background:#fff;padding:18mm;margin:0 auto 16px;max-width:210mm;min-height:280mm;box-sizing:border-box;font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;color:#1d2327;font-size:11pt;line-height:1.5;display:flex;flex-direction:column}
-.drwp-sheet-title{text-align:center;font-size:18pt;font-weight:700;margin:0 0 10mm;padding:8px 0;background:#e5e7eb;border:1px solid #1d2327}
-.drwp-sheet-top{display:flex;gap:12px;margin-bottom:8px;align-items:flex-start}
+.drwp-sheet-title{text-align:center;font-size:18pt;font-weight:700;margin:0;padding:8px 0;background:#e5e7eb;border:1px solid #1d2327}
+.drwp-sheet-top{display:flex;gap:12px;margin:10mm 0 8px;align-items:flex-start}
 .drwp-sheet-meta{border-collapse:collapse;flex:1}
 .drwp-sheet-meta th,.drwp-sheet-meta td{border:1px solid #1d2327;padding:4px 8px;font-size:10pt}
 .drwp-sheet-meta th{background:#e5e7eb;width:50px;text-align:center;font-weight:700;white-space:nowrap}
@@ -161,6 +161,7 @@
   .drwp-print-area{background:#fff !important;padding:0 !important}
   .drwp-print-pagebreak{display:none}
   .drwp-sheet{margin:0;padding:0;min-height:auto;max-width:none;page-break-after:always;break-after:page;page-break-inside:avoid}
+  .drwp-sheet-top{margin:10mm 0 8px !important}
   .drwp-sheet:last-child{page-break-after:auto}
   @page{margin:15mm;size:A4 portrait}
 }

@@ -145,6 +145,16 @@ class DRWP_REST {
 
     private static function shape_report($r) {
         if (!$r) return null;
+        $photos = [];
+        foreach (DRWP_Media::for_report((int) $r->id) as $ph) {
+            $thumb = wp_get_attachment_image_url((int) $ph->attachment_id, 'medium');
+            if (!$thumb) continue;
+            $photos[] = [
+                'attachment_id' => (int) $ph->attachment_id,
+                'url'           => $thumb,
+                'caption'       => (string) ($ph->caption ?? ''),
+            ];
+        }
         return [
             'id'                => (int) $r->id,
             'project_id'        => $r->project_id ? (int) $r->project_id : null,
@@ -166,6 +176,7 @@ class DRWP_REST {
             'post_status'       => (string) $r->post_status,
             'scheduled_at'      => $r->scheduled_at ?: null,
             'linked_post_id'    => $r->linked_post_id ? (int) $r->linked_post_id : null,
+            'photos'            => $photos,
             'created_at'        => (string) $r->created_at,
             'updated_at'        => (string) $r->updated_at,
         ];

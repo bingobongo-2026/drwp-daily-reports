@@ -208,6 +208,11 @@
         <span id="drwp-edit-status"></span>
       </div>
 
+      <div class="drwp-view-section" id="drwp-view-photos-section" style="display:none;">
+        <h3><?php esc_html_e('写真', 'drwp-daily-reports'); ?></h3>
+        <div id="drwp-view-photos" class="drwp-view-photos"></div>
+      </div>
+
       <?php if (current_user_can('edit_others_posts')): ?>
       <div class="drwp-view-section" id="drwp-view-review-section" style="display:none;">
         <h3><?php esc_html_e('レビュー操作', 'drwp-daily-reports'); ?></h3>
@@ -333,8 +338,10 @@
       document.getElementById('drwp-edit-project').value='';
       var reviewSection=document.getElementById('drwp-view-review-section');
       var commentsSection=document.getElementById('drwp-view-comments-section');
+      var photosSection=document.getElementById('drwp-view-photos-section');
       if(reviewSection){reviewSection.style.display='none';document.getElementById('drwp-view-review-status-msg').textContent='';}
       if(commentsSection)commentsSection.style.display='none';
+      if(photosSection){photosSection.style.display='none';document.getElementById('drwp-view-photos').innerHTML='';}
       dlg.showModal();
       api('/reports/'+id).then(function(d){
         document.getElementById('drwp-edit-date').value=d.report_date||'';
@@ -352,6 +359,16 @@
           commentsSection.style.display='';
           document.getElementById('drwp-view-comment-body').value='';
           loadComments(id);
+        }
+        if(photosSection&&d.photos&&d.photos.length){
+          var pe=document.getElementById('drwp-view-photos');
+          pe.innerHTML='';
+          d.photos.forEach(function(p){
+            var fig=document.createElement('figure');
+            fig.innerHTML='<img src="'+esc(p.url)+'" alt="" />'+(p.caption?'<figcaption>'+esc(p.caption)+'</figcaption>':'');
+            pe.appendChild(fig);
+          });
+          photosSection.style.display='';
         }
       }).catch(function(err){document.getElementById('drwp-edit-status').textContent=err.message;});
     });
