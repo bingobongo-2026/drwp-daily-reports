@@ -76,6 +76,10 @@
           <div class="drwp-sheet-top">
             <table class="drwp-sheet-meta">
               <tr>
+                <th><?php esc_html_e('現場名', 'drwp-daily-reports'); ?></th>
+                <td colspan="3"><?php echo esc_html($project_name); ?></td>
+              </tr>
+              <tr>
                 <th><?php esc_html_e('日付', 'drwp-daily-reports'); ?></th>
                 <td>
                   <?php
@@ -86,14 +90,20 @@
                     }
                   ?>
                 </td>
-              </tr>
-              <tr>
-                <th><?php esc_html_e('所属', 'drwp-daily-reports'); ?></th>
-                <td><?php echo esc_html($project_name); ?></td>
+                <?php
+                  $start = substr((string) $r->started_at, 0, 5);
+                  $end   = substr((string) $r->ended_at, 0, 5);
+                  if ($start !== '' || $end !== ''):
+                ?>
+                <th><?php esc_html_e('作業時間', 'drwp-daily-reports'); ?></th>
+                <td><?php echo esc_html($start); ?> 〜 <?php echo esc_html($end); ?></td>
+                <?php else: ?>
+                <th></th><td></td>
+                <?php endif; ?>
               </tr>
               <tr>
                 <th><?php esc_html_e('氏名', 'drwp-daily-reports'); ?></th>
-                <td><?php echo esc_html($author ? $author->display_name : ''); ?></td>
+                <td colspan="3"><?php echo esc_html($author ? $author->display_name : ''); ?></td>
               </tr>
             </table>
 
@@ -130,7 +140,7 @@
 .drwp-print-area{background:#f3f4f6;padding:24px}
 .drwp-print-pagebreak{height:24px}
 .drwp-sheet{background:#fff;padding:18mm;margin:0 auto 16px;max-width:210mm;min-height:280mm;box-sizing:border-box;font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;color:#1d2327;font-size:11pt;line-height:1.5;display:flex;flex-direction:column}
-.drwp-sheet-title{text-align:center;font-size:18pt;font-weight:700;margin:0 0 12px;padding:6px 0;background:#e5e7eb;border:1px solid #1d2327}
+.drwp-sheet-title{text-align:center;font-size:18pt;font-weight:700;margin:0 0 10mm;padding:8px 0;background:#e5e7eb;border:1px solid #1d2327}
 .drwp-sheet-top{display:flex;gap:12px;margin-bottom:8px;align-items:flex-start}
 .drwp-sheet-meta{border-collapse:collapse;flex:1}
 .drwp-sheet-meta th,.drwp-sheet-meta td{border:1px solid #1d2327;padding:4px 8px;font-size:10pt}
