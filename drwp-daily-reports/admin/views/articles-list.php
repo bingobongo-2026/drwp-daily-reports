@@ -477,7 +477,7 @@
         h+='<tr><th>現場</th><td>'+esc(d.project_id?(rest.projects&&rest.projects[d.project_id]||'#'+d.project_id):'（未設定）')+'</td></tr>';
         if(time)h+='<tr><th>時刻</th><td>'+esc(time)+'</td></tr>';
         h+='<tr><th>作業内容</th><td class="drwp-view-text">'+esc(d.work_description||'')+'</td></tr>';
-        if(d.issues)h+='<tr><th>問題点</th><td class="drwp-view-text">'+esc(d.issues)+'</td></tr>';
+        if(d.issues)h+='<tr><th>特記事項</th><td class="drwp-view-text">'+esc(d.issues)+'</td></tr>';
         if(d.next_plan)h+='<tr><th>次回予定</th><td class="drwp-view-text">'+esc(d.next_plan)+'</td></tr>';
         h+='</table>';
         viewBody.innerHTML=h;

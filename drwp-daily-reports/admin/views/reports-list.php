@@ -195,7 +195,7 @@
           <td><textarea id="drwp-edit-work" rows="4" class="large-text"></textarea></td>
         </tr>
         <tr>
-          <th><?php esc_html_e('問題点', 'drwp-daily-reports'); ?></th>
+          <th><?php esc_html_e('特記事項（反省・連絡・相談・提案）', 'drwp-daily-reports'); ?></th>
           <td><textarea id="drwp-edit-issues" rows="2" class="large-text"></textarea></td>
         </tr>
         <tr>

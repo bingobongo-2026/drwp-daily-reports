@@ -102,7 +102,7 @@ if (!empty($report->user_id)) {
             <td><textarea name="work_description" rows="5" class="large-text"><?php echo esc_textarea($report->work_description ?? ''); ?></textarea></td>
           </tr>
           <tr>
-            <th><label><?php esc_html_e('問題点', 'drwp-daily-reports'); ?></label></th>
+            <th><label><?php esc_html_e('特記事項（反省・連絡・相談・提案）', 'drwp-daily-reports'); ?></label></th>
             <td><textarea name="issues" rows="4" class="large-text"><?php echo esc_textarea($report->issues ?? ''); ?></textarea></td>
           </tr>
           <tr>

@@ -520,7 +520,7 @@ class DRWP_Report_Form {
                     <textarea name="work_description" rows="4" required><?php echo esc_textarea((string) $report->work_description); ?></textarea>
                 </label>
                 <label class="drwp-mform-row">
-                    <span class="drwp-mform-label"><?php esc_html_e('問題点 (任意)', 'drwp-daily-reports'); ?></span>
+                    <span class="drwp-mform-label"><?php esc_html_e('特記事項（反省・連絡・相談・提案、任意）', 'drwp-daily-reports'); ?></span>
                     <textarea name="issues" rows="2"><?php echo esc_textarea((string) $report->issues); ?></textarea>
                 </label>
                 <label class="drwp-mform-row">
@@ -645,7 +645,7 @@ class DRWP_Report_Form {
                 </label>
 
                 <label class="drwp-mform-row">
-                    <span class="drwp-mform-label"><?php esc_html_e('問題点 (任意)', 'drwp-daily-reports'); ?></span>
+                    <span class="drwp-mform-label"><?php esc_html_e('特記事項（反省・連絡・相談・提案、任意）', 'drwp-daily-reports'); ?></span>
                     <textarea name="issues" rows="2"></textarea>
                 </label>
 

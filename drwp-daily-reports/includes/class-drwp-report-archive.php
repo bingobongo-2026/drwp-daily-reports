@@ -422,7 +422,7 @@ class DRWP_Report_Archive {
                 <?php endif; ?>
                 <?php if (!empty($report->issues)): ?>
                     <div class="drwp-archive-block">
-                        <h4><?php esc_html_e('問題点', 'drwp-daily-reports'); ?></h4>
+                        <h4><?php esc_html_e('特記事項', 'drwp-daily-reports'); ?></h4>
                         <?php echo wp_kses_post(wpautop((string) $report->issues)); ?>
                     </div>
                 <?php endif; ?>
@@ -560,7 +560,7 @@ class DRWP_Report_Archive {
                     <textarea name="work_description" rows="4" required><?php echo esc_textarea((string) $report->work_description); ?></textarea>
                 </label>
                 <label class="drwp-archive-edit-field">
-                    <span><?php esc_html_e('問題点 (任意)', 'drwp-daily-reports'); ?></span>
+                    <span><?php esc_html_e('特記事項（反省・連絡・相談・提案、任意）', 'drwp-daily-reports'); ?></span>
                     <textarea name="issues" rows="2"><?php echo esc_textarea((string) $report->issues); ?></textarea>
                 </label>
                 <label class="drwp-archive-edit-field">
