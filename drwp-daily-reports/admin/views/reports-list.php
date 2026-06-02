@@ -62,11 +62,20 @@ foreach (($reports ?? []) as $r) {
         </select>
       </div>
       <div class="drwp-row">
-        <input type="date" name="date_from" value="<?php echo esc_attr($filters['date_from']); ?>" />
+        <input type="date" name="date_from" id="drwp-date-from" value="<?php echo esc_attr($filters['date_from']); ?>" />
         〜
-        <input type="date" name="date_to" value="<?php echo esc_attr($filters['date_to']); ?>" />
+        <input type="date" name="date_to" id="drwp-date-to" value="<?php echo esc_attr($filters['date_to']); ?>" />
         <button class="button button-primary"><?php esc_html_e('検索', 'drwp-daily-reports'); ?></button>
         <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_reports')); ?>"><?php esc_html_e('クリア', 'drwp-daily-reports'); ?></a>
+      </div>
+      <div class="drwp-cal-wrap">
+        <div class="drwp-cal-head">
+          <button type="button" class="button button-small" id="drwp-cal-prev">‹</button>
+          <span id="drwp-cal-title"></span>
+          <button type="button" class="button button-small" id="drwp-cal-next">›</button>
+          <span class="drwp-cal-hint"><?php esc_html_e('日付をクリックで開始日 / 範囲指定', 'drwp-daily-reports'); ?></span>
+        </div>
+        <div class="drwp-cal-grid" id="drwp-cal-grid"></div>
       </div>
     </form>
   </details>
@@ -282,6 +291,23 @@ foreach (($reports ?? []) as $r) {
 .drwp-bulk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;padding:0 14px 12px;max-height:160px;overflow-y:auto}
 .drwp-bulk-item{display:flex;gap:6px;align-items:center;font-size:.85em;color:#374151;padding:2px 4px;border-radius:4px}
 .drwp-bulk-item:hover{background:#f9fafb}
+.drwp-cal-wrap{padding:0 14px 12px}
+.drwp-cal-head{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.drwp-cal-head #drwp-cal-title{font-weight:600;min-width:120px;text-align:center}
+.drwp-cal-hint{font-size:.8em;color:#64748b;margin-left:8px}
+.drwp-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:4px;max-width:380px}
+.drwp-cal-grid .dow{text-align:center;font-size:.75em;color:#64748b;font-weight:600;padding:4px 0}
+.drwp-cal-grid .dow.sun{color:#dc2626}
+.drwp-cal-grid .dow.sat{color:#2563eb}
+.drwp-cal-day{position:relative;text-align:center;padding:6px 0;font-size:.85em;border-radius:4px;cursor:pointer;border:0;background:transparent;color:#374151;transition:background .1s}
+.drwp-cal-day.empty{visibility:hidden}
+.drwp-cal-day:hover:not(.empty){background:#e0f2fe}
+.drwp-cal-day.has-reports{font-weight:600;color:#0f172a}
+.drwp-cal-day.has-reports::after{content:'';position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#2271b1}
+.drwp-cal-day.today{outline:1px solid #2271b1}
+.drwp-cal-day.in-range{background:#dbeafe}
+.drwp-cal-day.range-edge{background:#2271b1;color:#fff}
+.drwp-cal-day.range-edge::after{background:#fff}
 .drwp-counter-line{margin:8px 0;color:#64748b;font-size:.9em}
 .drwp-empty{background:#fff;border:1px dashed #cbd5e1;border-radius:10px;padding:32px;text-align:center;color:#94a3b8}
 
@@ -321,6 +347,103 @@ foreach (($reports ?? []) as $r) {
 .drwp-comment-meta{font-size:.8em;color:#64748b;margin-bottom:2px}
 .drwp-comment-body{white-space:pre-wrap;font-size:.92em;color:#1f2937}
 </style>
+
+<script>
+(function(){
+  /* ---- カレンダー ---- */
+  var dates = <?php echo wp_json_encode((object) ($report_dates ?? [])); ?>;
+  var fromEl = document.getElementById('drwp-date-from');
+  var toEl = document.getElementById('drwp-date-to');
+  var grid = document.getElementById('drwp-cal-grid');
+  var titleEl = document.getElementById('drwp-cal-title');
+  if (!grid) return;
+
+  function pad(n){return n<10?('0'+n):(''+n);}
+  function fmt(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  function parseDate(s){
+    if(!s)return null;
+    var m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m)return null;
+    return new Date(parseInt(m[1],10),parseInt(m[2],10)-1,parseInt(m[3],10));
+  }
+  function startOfMonth(y,m){return new Date(y,m,1);}
+
+  // Initial cursor: month of date_from, else date_to, else current
+  var init = parseDate(fromEl.value) || parseDate(toEl.value) || new Date();
+  var cursor = startOfMonth(init.getFullYear(), init.getMonth());
+  var pendingStart = null; // first click for range mode
+
+  function render(){
+    var y = cursor.getFullYear(), m = cursor.getMonth();
+    titleEl.textContent = y + '年 ' + (m+1) + '月';
+    grid.innerHTML = '';
+    var dows = ['日','月','火','水','木','金','土'];
+    dows.forEach(function(d,i){
+      var el = document.createElement('div');
+      el.className = 'dow' + (i===0?' sun':(i===6?' sat':''));
+      el.textContent = d;
+      grid.appendChild(el);
+    });
+    var firstDow = new Date(y,m,1).getDay();
+    var daysInMonth = new Date(y,m+1,0).getDate();
+    var today = fmt(new Date());
+    var fromVal = fromEl.value, toVal = toEl.value;
+    for (var i=0;i<firstDow;i++){
+      var emp = document.createElement('div'); emp.className='drwp-cal-day empty'; grid.appendChild(emp);
+    }
+    for (var d=1; d<=daysInMonth; d++){
+      var date = new Date(y,m,d);
+      var key = fmt(date);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'drwp-cal-day';
+      btn.textContent = d;
+      btn.dataset.date = key;
+      if (dates[key]) btn.classList.add('has-reports');
+      if (key === today) btn.classList.add('today');
+      if (fromVal && toVal) {
+        if (key >= fromVal && key <= toVal) btn.classList.add('in-range');
+        if (key === fromVal || key === toVal) btn.classList.add('range-edge');
+      } else if (pendingStart && pendingStart === key) {
+        btn.classList.add('range-edge');
+      }
+      grid.appendChild(btn);
+    }
+  }
+
+  grid.addEventListener('click', function(e){
+    var btn = e.target.closest('.drwp-cal-day');
+    if (!btn || btn.classList.contains('empty')) return;
+    var key = btn.dataset.date;
+    if (!pendingStart && !(fromEl.value && toEl.value && fromEl.value !== toEl.value)) {
+      // Start fresh selection: single day
+      pendingStart = key;
+      fromEl.value = key;
+      toEl.value = key;
+    } else {
+      var anchor = pendingStart || fromEl.value;
+      if (key < anchor) { fromEl.value = key; toEl.value = anchor; }
+      else { fromEl.value = anchor; toEl.value = key; }
+      pendingStart = null;
+    }
+    render();
+  });
+
+  document.getElementById('drwp-cal-prev').addEventListener('click', function(){
+    cursor = startOfMonth(cursor.getFullYear(), cursor.getMonth()-1); render();
+  });
+  document.getElementById('drwp-cal-next').addEventListener('click', function(){
+    cursor = startOfMonth(cursor.getFullYear(), cursor.getMonth()+1); render();
+  });
+
+  // Sync calendar when user edits date inputs manually
+  [fromEl, toEl].forEach(function(el){
+    el.addEventListener('change', function(){ pendingStart = null; render(); });
+  });
+
+  render();
+})();
+</script>
 
 <script>
 (function(){
