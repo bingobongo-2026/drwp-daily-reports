@@ -227,6 +227,22 @@ class DRWP_Admin {
         $query_args[] = $offset;
         $reports = $wpdb->get_results($wpdb->prepare($sql, $query_args));
 
+        // Calendar data: all report dates in scope (respecting permissions
+        // but ignoring filters) so users can navigate freely without
+        // re-fetching per month.
+        $cal_where = '1=1';
+        $cal_args  = [];
+        if (!current_user_can(self::CAP_REVIEW)) {
+            $cal_where .= ' AND user_id = %d';
+            $cal_args[] = get_current_user_id();
+        }
+        $cal_sql = "SELECT report_date, COUNT(*) AS cnt FROM $table WHERE $cal_where GROUP BY report_date";
+        $cal_rows = $cal_args
+            ? $wpdb->get_results($wpdb->prepare($cal_sql, $cal_args))
+            : $wpdb->get_results($cal_sql);
+        $report_dates = [];
+        foreach ($cal_rows as $row) $report_dates[(string) $row->report_date] = (int) $row->cnt;
+
         $projects = DRWP_Project::all();
 
         include DRWP_PATH . 'admin/views/reports-list.php';
