@@ -105,35 +105,46 @@ foreach (($reports ?? []) as $r) {
       <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_operations')); ?>"><?php esc_html_e('日報操作へ', 'drwp-daily-reports'); ?></a>
     </div>
 
-    <!-- ページ -->
+    <!-- ページ（紙面風） -->
     <article class="drwp-page" id="drwp-page">
-      <!-- 表示モード -->
       <div class="drwp-page-view" id="drwp-page-view">
-        <header class="drwp-page-header">
-          <div class="drwp-page-date" id="drwp-view-date"></div>
-          <div class="drwp-page-meta">
-            <span id="drwp-view-project" class="drwp-page-project"></span>
-            <span id="drwp-view-author" class="drwp-page-author"></span>
-            <span id="drwp-view-time" class="drwp-page-time"></span>
-            <span id="drwp-view-status" class="drwp-page-status"></span>
-          </div>
-        </header>
-        <div class="drwp-page-section" id="drwp-view-work-wrap" style="display:none;">
-          <h3>作業内容</h3>
-          <div class="drwp-page-text" id="drwp-view-work"></div>
-        </div>
-        <div class="drwp-page-section" id="drwp-view-issues-wrap" style="display:none;">
-          <h3>特記事項（反省・連絡・相談・提案）</h3>
-          <div class="drwp-page-text" id="drwp-view-issues"></div>
-        </div>
-        <div class="drwp-page-section" id="drwp-view-next-wrap" style="display:none;">
-          <h3>次回予定</h3>
-          <div class="drwp-page-text" id="drwp-view-next"></div>
-        </div>
-        <div class="drwp-page-section" id="drwp-view-photos-wrap" style="display:none;">
-          <h3>写真</h3>
-          <div class="drwp-page-photos" id="drwp-view-photos"></div>
-        </div>
+        <div class="drwp-page-title">作業日報</div>
+
+        <table class="drwp-page-meta">
+          <tr>
+            <th>現場名</th>
+            <td colspan="3" id="drwp-view-project"></td>
+          </tr>
+          <tr>
+            <th>日付</th>
+            <td id="drwp-view-date"></td>
+            <th>作業時間</th>
+            <td id="drwp-view-time"></td>
+          </tr>
+          <tr>
+            <th>氏名</th>
+            <td id="drwp-view-author"></td>
+            <th>レビュー</th>
+            <td><span id="drwp-view-status" class="drwp-page-status"></span></td>
+          </tr>
+        </table>
+
+        <table class="drwp-page-section" id="drwp-view-work-wrap" style="display:none;">
+          <tr><th class="drwp-page-section-head">作業内容</th></tr>
+          <tr><td class="drwp-page-section-body"><div class="drwp-page-text" id="drwp-view-work"></div></td></tr>
+        </table>
+        <table class="drwp-page-section" id="drwp-view-issues-wrap" style="display:none;">
+          <tr><th class="drwp-page-section-head">特記事項（反省・連絡・相談・提案）</th></tr>
+          <tr><td class="drwp-page-section-body"><div class="drwp-page-text" id="drwp-view-issues"></div></td></tr>
+        </table>
+        <table class="drwp-page-section" id="drwp-view-next-wrap" style="display:none;">
+          <tr><th class="drwp-page-section-head">次回予定</th></tr>
+          <tr><td class="drwp-page-section-body"><div class="drwp-page-text" id="drwp-view-next"></div></td></tr>
+        </table>
+        <table class="drwp-page-section" id="drwp-view-photos-wrap" style="display:none;">
+          <tr><th class="drwp-page-section-head">写真</th></tr>
+          <tr><td class="drwp-page-section-body"><div class="drwp-page-photos" id="drwp-view-photos"></div></td></tr>
+        </table>
       </div>
 
     </article>
@@ -238,27 +249,27 @@ foreach (($reports ?? []) as $r) {
 .drwp-nav-hint{font-size:.8em;color:#94a3b8;margin-left:8px}
 .drwp-nav-spacer{flex:1}
 
-.drwp-page{background:#fffefb;border:1px solid #d4d4d8;border-radius:6px;padding:32px 40px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.06),0 1px 3px rgba(0,0,0,.04);position:relative;min-height:300px;background-image:linear-gradient(to bottom,#fffefb 0,#fffefb 100%);transition:opacity .25s ease, transform .25s ease}
-.drwp-page::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(to bottom,#e5e7eb,#cbd5e1);border-top-left-radius:6px;border-bottom-left-radius:6px}
+.drwp-page{background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:24px 28px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,.06);font-family:"Hiragino Sans","Yu Gothic","Noto Sans JP",sans-serif;color:#1f2937;transition:opacity .25s ease, transform .25s ease}
 .drwp-page.flipping{opacity:0;transform:translateX(8px)}
-.drwp-page-header{border-bottom:2px solid #1f2937;padding-bottom:10px;margin-bottom:18px}
-.drwp-page-date{font-size:1.6em;font-weight:700;color:#0f172a;letter-spacing:.5px;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif}
-.drwp-page-meta{margin-top:6px;font-size:.9em;color:#475569;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-.drwp-page-project{font-weight:600;color:#1f2937}
-.drwp-page-status{padding:2px 10px;border-radius:999px;font-size:.8em;font-weight:600;background:#f1f5f9;color:#475569}
+.drwp-page-title{text-align:center;font-size:1.3em;font-weight:700;background:#e5e7eb;border:1px solid #1f2937;padding:6px 0;margin-bottom:14px}
+.drwp-page-meta{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
+.drwp-page-meta th,.drwp-page-meta td{border:1px solid #1f2937;padding:6px 10px;font-size:.92em;vertical-align:middle}
+.drwp-page-meta th{background:#e5e7eb;width:90px;text-align:center;font-weight:600;white-space:nowrap}
+.drwp-page-status{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.8em;font-weight:600;background:#f1f5f9;color:#475569}
 .drwp-page-status.is-approved{background:#dcfce7;color:#166534}
 .drwp-page-status.is-needs_revision{background:#fee2e2;color:#991b1b}
 .drwp-page-status.is-edit_requested{background:#fef3c7;color:#92400e}
 .drwp-page-status.is-pending{background:#e0e7ff;color:#3730a3}
-.drwp-page-section{margin-top:18px}
-.drwp-page-section h3{font-size:1em;margin:0 0 6px;color:#1f2937;border-left:4px solid #2271b1;padding:2px 0 2px 10px;font-weight:600}
-.drwp-page-text{white-space:pre-wrap;line-height:1.7;color:#1f2937;padding-left:14px}
-.drwp-page-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding-left:14px}
+.drwp-page-section{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
+.drwp-page-section-head{background:#e5e7eb;border:1px solid #1f2937;text-align:center;font-weight:700;font-size:.95em;padding:5px}
+.drwp-page-section-body{border:1px solid #1f2937;padding:12px 14px;vertical-align:top;min-height:80px}
+.drwp-page-text{white-space:pre-wrap;line-height:1.6;color:#1f2937}
+.drwp-page-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
 .drwp-page-photos figure{margin:0}
-.drwp-page-photos img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb;display:block}
-.drwp-page-photos figcaption{font-size:.8em;color:#64748b;margin-top:3px}
+.drwp-page-photos img{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid #c3c4c7;display:block}
+.drwp-page-photos figcaption{font-size:.8em;color:#64748b;margin-top:2px}
 
-.drwp-review-card{background:#f0fdf4;border-left:4px solid #16a34a}
+.drwp-review-card{background:#f0fdf4}
 .drwp-review-input{flex:1;min-width:200px}
 .drwp-comments-card{background:#fff}
 .drwp-comment-item{padding:8px 0;border-bottom:1px solid #f1f5f9}
@@ -407,12 +418,12 @@ foreach (($reports ?? []) as $r) {
   function renderView(r){
     document.getElementById('drwp-view-date').textContent = formatDate(r.report_date);
     document.getElementById('drwp-view-project').textContent = r.project_name || '（現場未設定）';
-    document.getElementById('drwp-view-author').textContent = r.author_name ? ('作成: ' + r.author_name) : '';
+    document.getElementById('drwp-view-author').textContent = r.author_name || '';
     var time = '';
     if (r.started_at) time += r.started_at.substring(0,5);
     if (r.started_at && r.ended_at) time += ' 〜 ';
     if (r.ended_at) time += r.ended_at.substring(0,5);
-    document.getElementById('drwp-view-time').textContent = time ? ('時刻: ' + time) : '';
+    document.getElementById('drwp-view-time').textContent = time;
     var status = document.getElementById('drwp-view-status');
     status.textContent = rest.labels[r.review_status] || r.review_status;
     status.className = 'drwp-page-status is-' + r.review_status;
