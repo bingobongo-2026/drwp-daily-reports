@@ -89,39 +89,6 @@ foreach (($reports ?? []) as $r) {
     ?>
   </p>
 
-  <!-- 一括操作（折りたたみ） -->
-  <details class="drwp-card drwp-bulk-card">
-    <summary><?php esc_html_e('一括操作', 'drwp-daily-reports'); ?></summary>
-    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" id="drwp-bulk-form">
-      <?php wp_nonce_field('drwp_bulk_reports'); ?>
-      <input type="hidden" name="action" value="drwp_bulk_reports" />
-      <div class="drwp-row">
-        <select name="bulk_action">
-          <option value=""><?php esc_html_e('操作を選択', 'drwp-daily-reports'); ?></option>
-          <option value="bulk_approve"><?php esc_html_e('一括承認', 'drwp-daily-reports'); ?></option>
-          <option value="bulk_revision"><?php esc_html_e('一括差し戻し', 'drwp-daily-reports'); ?></option>
-          <option value="bulk_export_csv"><?php esc_html_e('選択した日報をCSV出力', 'drwp-daily-reports'); ?></option>
-        </select>
-        <button class="button button-primary"><?php esc_html_e('実行', 'drwp-daily-reports'); ?></button>
-      </div>
-      <div class="drwp-bulk-grid">
-        <?php foreach (($reports ?? []) as $r): ?>
-          <label class="drwp-bulk-item">
-            <input class="drwp-check" type="checkbox" name="report_ids[]" value="<?php echo esc_attr($r->id); ?>" />
-            <span>
-              #<?php echo (int) $r->id; ?>
-              <?php echo esc_html(date_i18n('Y/n/j', strtotime((string) $r->report_date))); ?>
-              <?php if (!empty($r->project_id)) {
-                  $proj = DRWP_Project::find((int) $r->project_id);
-                  if ($proj) echo ' · ' . esc_html($proj->name);
-              } ?>
-            </span>
-          </label>
-        <?php endforeach; ?>
-      </div>
-    </form>
-  </details>
-
   <?php if (empty($reports_json)): ?>
     <div class="drwp-empty"><?php esc_html_e('該当する日報がありません。', 'drwp-daily-reports'); ?></div>
   <?php else: ?>
@@ -135,7 +102,7 @@ foreach (($reports ?? []) as $r) {
       <button type="button" class="button drwp-nav-btn" id="drwp-next"><?php esc_html_e('次', 'drwp-daily-reports'); ?> →</button>
       <span class="drwp-nav-hint"><?php esc_html_e('← → キーで切り替え', 'drwp-daily-reports'); ?></span>
       <span class="drwp-nav-spacer"></span>
-      <button type="button" class="button" id="drwp-edit-toggle"><?php esc_html_e('編集', 'drwp-daily-reports'); ?></button>
+      <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_operations')); ?>"><?php esc_html_e('日報操作へ', 'drwp-daily-reports'); ?></a>
     </div>
 
     <!-- ページ -->
@@ -169,47 +136,6 @@ foreach (($reports ?? []) as $r) {
         </div>
       </div>
 
-      <!-- 編集モード -->
-      <div class="drwp-page-edit" id="drwp-page-edit" style="display:none;">
-        <table class="form-table" role="presentation">
-          <tr>
-            <th>日付</th>
-            <td><input type="date" id="drwp-edit-date" /></td>
-          </tr>
-          <tr>
-            <th>現場</th>
-            <td>
-              <select id="drwp-edit-project">
-                <option value="">（未設定）</option>
-                <?php foreach (($projects ?? []) as $p): ?>
-                  <option value="<?php echo (int) $p->id; ?>"><?php echo esc_html($p->name); ?></option>
-                <?php endforeach; ?>
-              </select>
-            </td>
-          </tr>
-          <tr>
-            <th>時刻</th>
-            <td><input type="time" id="drwp-edit-started" /> 〜 <input type="time" id="drwp-edit-ended" /></td>
-          </tr>
-          <tr>
-            <th>作業内容</th>
-            <td><textarea id="drwp-edit-work" rows="4" class="large-text"></textarea></td>
-          </tr>
-          <tr>
-            <th>特記事項</th>
-            <td><textarea id="drwp-edit-issues" rows="3" class="large-text"></textarea></td>
-          </tr>
-          <tr>
-            <th>次回予定</th>
-            <td><textarea id="drwp-edit-next" rows="3" class="large-text"></textarea></td>
-          </tr>
-        </table>
-        <div class="drwp-edit-actions">
-          <button type="button" class="button button-primary" id="drwp-edit-save">保存</button>
-          <button type="button" class="button" id="drwp-edit-cancel">キャンセル</button>
-          <span id="drwp-edit-status"></span>
-        </div>
-      </div>
     </article>
 
     <!-- レビュー操作（常時表示） -->
@@ -285,12 +211,8 @@ foreach (($reports ?? []) as $r) {
 .drwp-card>.drwp-filter-form,.drwp-card>form,.drwp-card>.drwp-row,.drwp-card>h3,.drwp-card>p,.drwp-card>div{padding:0 14px 12px}
 .drwp-card>h3{padding-top:10px;margin:0 0 6px;font-size:.95em;color:#1d2327;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
 .drwp-filter-card{background:#f0f6fc;border-left:4px solid #2271b1}
-.drwp-bulk-card{background:#fefce8;border-left:4px solid #d97706}
 .drwp-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
 .drwp-search-input{min-width:240px;flex:1}
-.drwp-bulk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;padding:0 14px 12px;max-height:160px;overflow-y:auto}
-.drwp-bulk-item{display:flex;gap:6px;align-items:center;font-size:.85em;color:#374151;padding:2px 4px;border-radius:4px}
-.drwp-bulk-item:hover{background:#f9fafb}
 .drwp-cal-wrap{padding:0 14px 12px}
 .drwp-cal-head{display:flex;gap:8px;align-items:center;margin-bottom:6px}
 .drwp-cal-head #drwp-cal-title{font-weight:600;min-width:120px;text-align:center}
@@ -335,10 +257,6 @@ foreach (($reports ?? []) as $r) {
 .drwp-page-photos figure{margin:0}
 .drwp-page-photos img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb;display:block}
 .drwp-page-photos figcaption{font-size:.8em;color:#64748b;margin-top:3px}
-
-.drwp-page-edit .form-table th{width:100px;padding:8px 10px 8px 0;font-weight:600}
-.drwp-page-edit .form-table td{padding:8px 0}
-.drwp-edit-actions{display:flex;gap:8px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb}
 
 .drwp-review-card{background:#f0fdf4;border-left:4px solid #16a34a}
 .drwp-review-input{flex:1;min-width:200px}
@@ -456,12 +374,8 @@ foreach (($reports ?? []) as $r) {
   ]); ?>;
 
   var idx = 0;
-  var editMode = false;
   var page = document.getElementById('drwp-page');
-  var view = document.getElementById('drwp-page-view');
-  var edit = document.getElementById('drwp-page-edit');
   var counter = document.getElementById('drwp-cur');
-  var editBtn = document.getElementById('drwp-edit-toggle');
 
   function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
   function api(path,opts){
@@ -519,8 +433,6 @@ foreach (($reports ?? []) as $r) {
         document.getElementById('drwp-view-photos').innerHTML = html;
         document.getElementById('drwp-view-photos-wrap').style.display = '';
       }
-      // Refresh edit form values from latest server data
-      if (editMode) populateEdit(d);
     }).catch(function(){});
     // Reset review/comment UI
     var reviewSel = document.getElementById('drwp-review-status');
@@ -532,20 +444,8 @@ foreach (($reports ?? []) as $r) {
     loadComments(r.id);
   }
 
-  function populateEdit(r){
-    document.getElementById('drwp-edit-date').value = r.report_date || '';
-    document.getElementById('drwp-edit-project').value = r.project_id || '';
-    document.getElementById('drwp-edit-started').value = (r.started_at||'').substring(0,5);
-    document.getElementById('drwp-edit-ended').value = (r.ended_at||'').substring(0,5);
-    document.getElementById('drwp-edit-work').value = r.work_description || '';
-    document.getElementById('drwp-edit-issues').value = r.issues || '';
-    document.getElementById('drwp-edit-next').value = r.next_plan || '';
-  }
-
   function go(newIdx){
     if (newIdx < 0 || newIdx >= reports.length) return;
-    // exit edit mode on flip
-    if (editMode) toggleEdit(false);
     page.classList.add('flipping');
     setTimeout(function(){
       idx = newIdx;
@@ -555,57 +455,12 @@ foreach (($reports ?? []) as $r) {
     }, 180);
   }
 
-  function toggleEdit(on){
-    editMode = on !== undefined ? on : !editMode;
-    view.style.display = editMode ? 'none' : '';
-    edit.style.display = editMode ? '' : 'none';
-    editBtn.textContent = editMode ? '編集を閉じる' : '編集';
-    document.getElementById('drwp-edit-status').textContent = '';
-    if (editMode) populateEdit(reports[idx]);
-  }
-
   document.getElementById('drwp-prev').addEventListener('click', function(){ go(idx-1); });
   document.getElementById('drwp-next').addEventListener('click', function(){ go(idx+1); });
   document.addEventListener('keydown', function(e){
     if (e.target.matches('input, textarea, select')) return;
     if (e.key === 'ArrowLeft') { e.preventDefault(); go(idx-1); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); go(idx+1); }
-  });
-
-  editBtn.addEventListener('click', function(){ toggleEdit(); });
-  document.getElementById('drwp-edit-cancel').addEventListener('click', function(){ toggleEdit(false); });
-  document.getElementById('drwp-edit-save').addEventListener('click', function(){
-    var st = document.getElementById('drwp-edit-status');
-    st.textContent = '保存中…'; st.style.color = '';
-    var self = this; self.disabled = true;
-    var r = reports[idx];
-    api('/reports/'+r.id, {
-      method:'PATCH',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        report_date: document.getElementById('drwp-edit-date').value,
-        project_id: Number(document.getElementById('drwp-edit-project').value)||null,
-        started_at: document.getElementById('drwp-edit-started').value||null,
-        ended_at: document.getElementById('drwp-edit-ended').value||null,
-        work_description: document.getElementById('drwp-edit-work').value,
-        issues: document.getElementById('drwp-edit-issues').value,
-        next_plan: document.getElementById('drwp-edit-next').value
-      })
-    }).then(function(d){
-      // Merge updated fields back into local reports array
-      r.report_date = d.report_date; r.started_at = d.started_at; r.ended_at = d.ended_at;
-      r.project_id = d.project_id;
-      r.work_description = d.work_description; r.issues = d.issues; r.next_plan = d.next_plan;
-      if (d.project_id) {
-        var sel = document.getElementById('drwp-edit-project');
-        var opt = sel.querySelector('option[value="'+d.project_id+'"]');
-        r.project_name = opt ? opt.textContent : '';
-      } else { r.project_name = ''; }
-      st.textContent = '保存しました'; st.style.color = '#166534';
-      self.disabled = false;
-      toggleEdit(false);
-      renderView(r);
-    }).catch(function(err){ st.textContent = err.message; st.style.color = '#991b1b'; self.disabled = false; });
   });
 
   function loadComments(id){

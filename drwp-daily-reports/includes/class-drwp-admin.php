@@ -98,6 +98,8 @@ class DRWP_Admin {
         add_menu_page($reports, $reports, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page'], 'dashicons-media-spreadsheet');
         $list_label = __('日報一覧', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $list_label, $list_label, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page']);
+        $ops = __('日報操作', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $ops, $ops, self::CAP_EDIT, 'drwp_operations', [__CLASS__, 'operations_page']);
         $articles = __('記事作成', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $articles, $articles, self::CAP_CONVERT, 'drwp_articles', [__CLASS__, 'articles_page']);
         $proj = __('現場', 'drwp-daily-reports');
@@ -246,6 +248,56 @@ class DRWP_Admin {
         $projects = DRWP_Project::all();
 
         include DRWP_PATH . 'admin/views/reports-list.php';
+    }
+
+    public static function operations_page() {
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        global $wpdb;
+        $table = self::reports_table();
+
+        $filters = [
+            'search'        => isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '',
+            'review_status' => isset($_GET['review_status']) ? sanitize_text_field(wp_unslash($_GET['review_status'])) : '',
+            'project_id'    => isset($_GET['project_id']) ? absint($_GET['project_id']) : 0,
+            'date_from'     => isset($_GET['date_from']) ? sanitize_text_field(wp_unslash($_GET['date_from'])) : '',
+            'date_to'       => isset($_GET['date_to']) ? sanitize_text_field(wp_unslash($_GET['date_to'])) : '',
+        ];
+
+        $where = '1=1';
+        $args = [];
+        if (!current_user_can(self::CAP_REVIEW)) {
+            $where .= ' AND user_id = %d';
+            $args[] = get_current_user_id();
+        }
+        if ($filters['search'] !== '') {
+            $where .= ' AND (public_title LIKE %s OR public_body LIKE %s OR work_description LIKE %s OR post_tags LIKE %s)';
+            $like = '%' . $wpdb->esc_like($filters['search']) . '%';
+            $args[] = $like; $args[] = $like; $args[] = $like; $args[] = $like;
+        }
+        if ($filters['review_status'] !== '') { $where .= ' AND review_status = %s'; $args[] = $filters['review_status']; }
+        if ($filters['project_id']) { $where .= ' AND project_id = %d'; $args[] = $filters['project_id']; }
+        if ($filters['date_from'] !== '') { $where .= ' AND report_date >= %s'; $args[] = $filters['date_from']; }
+        if ($filters['date_to'] !== '') { $where .= ' AND report_date <= %s'; $args[] = $filters['date_to']; }
+
+        $count_sql = "SELECT COUNT(*) FROM $table WHERE $where";
+        $total = $args
+            ? (int) $wpdb->get_var($wpdb->prepare($count_sql, $args))
+            : (int) $wpdb->get_var($count_sql);
+
+        $paged = max(1, (int) ($_GET['paged'] ?? 1));
+        $pages = max(1, (int) ceil($total / self::PER_PAGE));
+        if ($paged > $pages) $paged = $pages;
+        $offset = ($paged - 1) * self::PER_PAGE;
+
+        $sql = "SELECT * FROM $table WHERE $where ORDER BY report_date DESC, id DESC LIMIT %d OFFSET %d";
+        $query_args = $args;
+        $query_args[] = self::PER_PAGE;
+        $query_args[] = $offset;
+        $reports = $wpdb->get_results($wpdb->prepare($sql, $query_args));
+
+        $projects = DRWP_Project::all();
+
+        include DRWP_PATH . 'admin/views/operations-list.php';
     }
 
     public static function articles_page() {
@@ -465,8 +517,8 @@ class DRWP_Admin {
                 }
             }
         }
-        $redirect_page = sanitize_text_field($_POST['redirect_page'] ?? 'drwp_reports');
-        if (!in_array($redirect_page, ['drwp_reports', 'drwp_articles'], true)) $redirect_page = 'drwp_reports';
+        $redirect_page = sanitize_text_field($_POST['redirect_page'] ?? 'drwp_operations');
+        if (!in_array($redirect_page, ['drwp_reports', 'drwp_operations', 'drwp_articles'], true)) $redirect_page = 'drwp_operations';
         wp_safe_redirect(admin_url('admin.php?page=' . $redirect_page . '&updated=' . $count));
         exit;
     }
