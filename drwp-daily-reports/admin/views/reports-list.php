@@ -111,6 +111,12 @@ foreach (($reports ?? []) as $r) {
         <div class="drwp-page-title">作業日報</div>
 
         <table class="drwp-page-meta">
+          <colgroup>
+            <col class="drwp-meta-col-head" />
+            <col class="drwp-meta-col-val" />
+            <col class="drwp-meta-col-head" />
+            <col class="drwp-meta-col-val" />
+          </colgroup>
           <tr>
             <th>現場名</th>
             <td colspan="3" id="drwp-view-project"></td>
@@ -122,26 +128,26 @@ foreach (($reports ?? []) as $r) {
             <td id="drwp-view-time"></td>
           </tr>
           <tr>
-            <th>氏名</th>
+            <th>報告者</th>
             <td id="drwp-view-author"></td>
             <th>レビュー</th>
             <td><span id="drwp-view-status" class="drwp-page-status"></span></td>
           </tr>
         </table>
 
-        <table class="drwp-page-section" id="drwp-view-work-wrap" style="display:none;">
+        <table class="drwp-page-section">
           <tr><th class="drwp-page-section-head">作業内容</th></tr>
           <tr><td class="drwp-page-section-body"><div class="drwp-page-text" id="drwp-view-work"></div></td></tr>
         </table>
-        <table class="drwp-page-section" id="drwp-view-issues-wrap" style="display:none;">
+        <table class="drwp-page-section">
           <tr><th class="drwp-page-section-head">特記事項（反省・連絡・相談・提案）</th></tr>
           <tr><td class="drwp-page-section-body"><div class="drwp-page-text" id="drwp-view-issues"></div></td></tr>
         </table>
-        <table class="drwp-page-section" id="drwp-view-next-wrap" style="display:none;">
+        <table class="drwp-page-section">
           <tr><th class="drwp-page-section-head">次回予定</th></tr>
           <tr><td class="drwp-page-section-body"><div class="drwp-page-text" id="drwp-view-next"></div></td></tr>
         </table>
-        <table class="drwp-page-section" id="drwp-view-photos-wrap" style="display:none;">
+        <table class="drwp-page-section">
           <tr><th class="drwp-page-section-head">写真</th></tr>
           <tr><td class="drwp-page-section-body"><div class="drwp-page-photos" id="drwp-view-photos"></div></td></tr>
         </table>
@@ -254,7 +260,9 @@ foreach (($reports ?? []) as $r) {
 .drwp-page-title{text-align:center;font-size:1.3em;font-weight:700;background:#e5e7eb;border:1px solid #1f2937;padding:6px 0;margin-bottom:14px}
 .drwp-page-meta{width:100%;border-collapse:collapse;margin-bottom:14px;table-layout:fixed}
 .drwp-page-meta th,.drwp-page-meta td{border:1px solid #1f2937;padding:6px 10px;font-size:.92em;vertical-align:middle}
-.drwp-page-meta th{background:#e5e7eb;width:90px;text-align:center;font-weight:600;white-space:nowrap}
+.drwp-page-meta th{background:#e5e7eb;text-align:center;font-weight:600;white-space:nowrap}
+.drwp-meta-col-head{width:14%}
+.drwp-meta-col-val{width:36%}
 .drwp-page-status{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.8em;font-weight:600;background:#f1f5f9;color:#475569}
 .drwp-page-status.is-approved{background:#dcfce7;color:#166534}
 .drwp-page-status.is-needs_revision{background:#fee2e2;color:#991b1b}
@@ -404,17 +412,6 @@ foreach (($reports ?? []) as $r) {
     var w = ['日','月','火','水','木','金','土'][dt.getDay()];
     return dt.getFullYear()+'年'+(dt.getMonth()+1)+'月'+dt.getDate()+'日（'+w+'）';
   }
-  function setSectionText(wrapId, textId, value){
-    var wrap = document.getElementById(wrapId);
-    var text = document.getElementById(textId);
-    if (value && value.trim()) {
-      text.textContent = value;
-      wrap.style.display = '';
-    } else {
-      wrap.style.display = 'none';
-    }
-  }
-
   function renderView(r){
     document.getElementById('drwp-view-date').textContent = formatDate(r.report_date);
     document.getElementById('drwp-view-project').textContent = r.project_name || '（現場未設定）';
@@ -427,12 +424,11 @@ foreach (($reports ?? []) as $r) {
     var status = document.getElementById('drwp-view-status');
     status.textContent = rest.labels[r.review_status] || r.review_status;
     status.className = 'drwp-page-status is-' + r.review_status;
-    setSectionText('drwp-view-work-wrap','drwp-view-work',r.work_description);
-    setSectionText('drwp-view-issues-wrap','drwp-view-issues',r.issues);
-    setSectionText('drwp-view-next-wrap','drwp-view-next',r.next_plan);
-    // Photos: lazy fetch
+    document.getElementById('drwp-view-work').textContent = r.work_description || '';
+    document.getElementById('drwp-view-issues').textContent = r.issues || '';
+    document.getElementById('drwp-view-next').textContent = r.next_plan || '';
+    // Photos: lazy fetch (常時表示、空のときは空欄)
     document.getElementById('drwp-view-photos').innerHTML = '';
-    document.getElementById('drwp-view-photos-wrap').style.display = 'none';
     api('/reports/'+r.id).then(function(d){
       // Stale check: user may have flipped pages already
       if (reports[idx].id !== r.id) return;
@@ -442,7 +438,6 @@ foreach (($reports ?? []) as $r) {
           html += '<figure><img src="'+esc(p.url)+'" alt="" />'+(p.caption?'<figcaption>'+esc(p.caption)+'</figcaption>':'')+'</figure>';
         });
         document.getElementById('drwp-view-photos').innerHTML = html;
-        document.getElementById('drwp-view-photos-wrap').style.display = '';
       }
     }).catch(function(){});
     // Reset review/comment UI
