@@ -116,6 +116,8 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $notif, $notif, 'manage_options', 'drwp_notifications', ['DRWP_Notifications_Admin', 'render_page']);
         $output = __('公開設定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $output, $output, 'manage_options', 'drwp_output', ['DRWP_Output_Admin', 'render_page']);
+        $ai = __('AI設定', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $ai, $ai, 'manage_options', 'drwp_ai', ['DRWP_AI_Admin', 'render_page']);
         $prev = __('公開プレビュー', 'drwp-daily-reports');
         add_submenu_page(null, $prev, $prev, self::CAP_EDIT, 'drwp_report_preview', [__CLASS__, 'report_preview_page']);
     }

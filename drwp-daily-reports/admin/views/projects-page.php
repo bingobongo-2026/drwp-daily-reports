@@ -65,6 +65,13 @@
                     data-notes="<?php echo esc_attr($project->notes ?? ''); ?>">
               <?php esc_html_e('編集', 'drwp-daily-reports'); ?>
             </button>
+            <?php if (DRWP_AI::is_enabled()): ?>
+            <button type="button" class="button button-small drwp-ai-briefing-btn"
+                    data-id="<?php echo (int) $project->id; ?>"
+                    data-name="<?php echo esc_attr($project->name); ?>">
+              <?php esc_html_e('AI ブリーフィング', 'drwp-daily-reports'); ?>
+            </button>
+            <?php endif; ?>
           </td>
         </tr>
       <?php endforeach; endif; ?>
@@ -160,6 +167,23 @@
       </div>
     </form>
   </dialog>
+
+  <?php if (DRWP_AI::is_enabled()): ?>
+  <dialog id="drwp-ai-briefing-dialog" class="drwp-project-modal">
+    <div class="drwp-project-modal-header">
+      <h2 id="drwp-ai-briefing-title"><?php esc_html_e('AI ブリーフィング', 'drwp-daily-reports'); ?></h2>
+      <button type="button" class="drwp-project-modal-close">&times;</button>
+    </div>
+    <div class="drwp-project-modal-body">
+      <p class="description" id="drwp-ai-briefing-meta"></p>
+      <div id="drwp-ai-briefing-status" style="margin:8px 0;"></div>
+      <div id="drwp-ai-briefing-output" style="white-space:pre-wrap;font-family:inherit;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px;min-height:200px;line-height:1.6;"></div>
+    </div>
+    <div class="drwp-project-modal-footer">
+      <button type="button" class="button drwp-project-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
+    </div>
+  </dialog>
+  <?php endif; ?>
 </div>
 
 <style>
@@ -250,5 +274,43 @@
     if (e.target.classList.contains('drwp-project-modal-close')) dlg.close();
     if (e.target === dlg) dlg.close();
   });
+
+  <?php if (DRWP_AI::is_enabled()): ?>
+  /* ---- AI ブリーフィング ---- */
+  var aiDlg = document.getElementById('drwp-ai-briefing-dialog');
+  var aiCfg = <?php echo wp_json_encode([
+      'url'   => esc_url_raw(rest_url('drwp/v1/ai/briefing')),
+      'nonce' => wp_create_nonce('wp_rest'),
+  ]); ?>;
+  aiDlg.addEventListener('click', function(e){
+    if (e.target.classList.contains('drwp-project-modal-close')) aiDlg.close();
+    if (e.target === aiDlg) aiDlg.close();
+  });
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.drwp-ai-briefing-btn');
+    if (!btn) return;
+    document.getElementById('drwp-ai-briefing-meta').textContent = '現場: ' + btn.dataset.name;
+    var statusEl = document.getElementById('drwp-ai-briefing-status');
+    var outEl = document.getElementById('drwp-ai-briefing-output');
+    statusEl.textContent = '生成中… ローカルAIの応答には数秒〜数分かかる場合があります';
+    statusEl.style.color = '#64748b';
+    outEl.textContent = '';
+    aiDlg.showModal();
+    fetch(aiCfg.url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type':'application/json','X-WP-Nonce':aiCfg.nonce},
+      body: JSON.stringify({project_id: Number(btn.dataset.id)}),
+    }).then(function(r){
+      return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'HTTP '+r.status);return j;});
+    }).then(function(d){
+      statusEl.textContent = '';
+      outEl.textContent = d.response || '（応答なし）';
+    }).catch(function(err){
+      statusEl.textContent = 'エラー: ' + err.message;
+      statusEl.style.color = '#991b1b';
+    });
+  });
+  <?php endif; ?>
 })();
 </script>
