@@ -33,9 +33,6 @@ class DRWP_Report_Archive {
 
     const HANDLE      = 'drwp-archive';
     const HANDLE_EDIT = 'drwp-archive-edit';
-    const HANDLE_CAL  = 'drwp-archive-cal';
-    const PER_PAGE_DEFAULT = 20;
-    const PER_PAGE_OPTIONS = [10, 20, 50, 100];
 
     public static function init() {
         add_shortcode('drwp_report_archive', [__CLASS__, 'shortcode']);
@@ -57,13 +54,6 @@ class DRWP_Report_Archive {
         wp_register_script(
             self::HANDLE_EDIT,
             DRWP_URL . 'public/assets/archive-edit.js',
-            [],
-            DRWP_VERSION,
-            true
-        );
-        wp_register_script(
-            self::HANDLE_CAL,
-            DRWP_URL . 'public/assets/archive-cal.js',
             [],
             DRWP_VERSION,
             true
@@ -106,32 +96,30 @@ class DRWP_Report_Archive {
         $reports_t = $wpdb->prefix . 'drwp_reports';
 
         $q       = isset($_GET['drwp_q']) ? sanitize_text_field(wp_unslash((string) $_GET['drwp_q'])) : '';
-        $author  = isset($_GET['drwp_author']) ? absint($_GET['drwp_author']) : 0;
-        $from    = isset($_GET['drwp_from']) ? sanitize_text_field((string) $_GET['drwp_from']) : '';
-        $to      = isset($_GET['drwp_to']) ? sanitize_text_field((string) $_GET['drwp_to']) : '';
+        $project = isset($_GET['drwp_project']) ? absint($_GET['drwp_project']) : 0;
         $status  = isset($_GET['drwp_status']) ? sanitize_key((string) $_GET['drwp_status']) : '';
-        $per     = (int) ($_GET['drwp_per'] ?? self::PER_PAGE_DEFAULT);
-        if (!in_array($per, self::PER_PAGE_OPTIONS, true)) $per = self::PER_PAGE_DEFAULT;
-        $page    = max(1, (int) ($_GET['drwp_p'] ?? 1));
 
-        // WHERE assembly: each predicate added only when the input
-        // is well-formed, with prepared placeholders. The free-text
-        // LIKE goes against both the flat report body AND each
-        // entry's work_description via EXISTS, so multi-entry
-        // reports surface even if only an entry matches.
-        $where = ['1=1'];
-        $args  = [];
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
-            $where[] = 'r.report_date >= %s';
-            $args[]  = $from;
+        // Month navigation. Default to the current month so the
+        // archive opens on "今月". URL state lets users bookmark or
+        // share a specific month view.
+        $month_param = isset($_GET['drwp_month']) ? sanitize_text_field((string) $_GET['drwp_month']) : '';
+        if (!preg_match('/^\d{4}-\d{2}$/', $month_param)) {
+            $month_param = date('Y-m');
         }
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
-            $where[] = 'r.report_date <= %s';
-            $args[]  = $to;
-        }
-        if ($author) {
-            $where[] = 'r.user_id = %d';
-            $args[]  = $author;
+        $month_start = $month_param . '-01';
+        $month_end   = date('Y-m-t', strtotime($month_start));
+        $prev_month  = date('Y-m', strtotime($month_start . ' -1 month'));
+        $next_month  = date('Y-m', strtotime($month_start . ' +1 month'));
+        $today_month = date('Y-m');
+
+        // Pull every report inside the visible month (no pagination —
+        // a calendar month is the natural unit). Filters compose with
+        // the month bounds.
+        $where = ['r.report_date >= %s', 'r.report_date <= %s'];
+        $args  = [$month_start, $month_end];
+        if ($project) {
+            $where[] = 'r.project_id = %d';
+            $args[]  = $project;
         }
         if ($status && in_array($status, ['pending', 'approved', 'needs_revision', 'edit_requested'], true)) {
             $where[] = 'r.review_status = %s';
@@ -140,82 +128,56 @@ class DRWP_Report_Archive {
         if ($q !== '') {
             $like = '%' . $wpdb->esc_like($q) . '%';
             $where[] = 'r.work_description LIKE %s';
-            $args[] = $like;
+            $args[]  = $like;
         }
         $where_sql = implode(' AND ', $where);
 
-        $count_sql = "SELECT COUNT(*) FROM $reports_t r WHERE $where_sql";
-        $total = (int) ($args
-            ? $wpdb->get_var($wpdb->prepare($count_sql, $args))
-            : $wpdb->get_var($count_sql));
+        $list_sql = "SELECT r.* FROM $reports_t r WHERE $where_sql ORDER BY r.report_date ASC, r.started_at ASC, r.id ASC";
+        $rows = $wpdb->get_results($wpdb->prepare($list_sql, $args));
 
-        $total_pages = max(1, (int) ceil($total / $per));
-        if ($page > $total_pages) $page = $total_pages;
-        $offset = ($page - 1) * $per;
+        $by_date = [];
+        foreach ($rows as $r) {
+            $by_date[(string) $r->report_date][] = $r;
+        }
 
-        $list_sql = "SELECT r.* FROM $reports_t r WHERE $where_sql ORDER BY r.report_date DESC, r.id DESC LIMIT %d OFFSET %d";
-        $list_args = array_merge($args, [$per, $offset]);
-        $rows = $wpdb->get_results($wpdb->prepare($list_sql, $list_args));
-
-        $authors = self::report_authors();
-
-        // Calendar data: all report dates in scope (ignoring filters)
-        // so users can navigate to any day with reports.
-        $cal_rows = $wpdb->get_results("SELECT report_date, COUNT(*) AS cnt FROM $reports_t GROUP BY report_date");
-        $report_dates = [];
-        foreach ($cal_rows as $row) $report_dates[(string) $row->report_date] = (int) $row->cnt;
-
-        wp_enqueue_script(self::HANDLE_CAL);
-        wp_add_inline_script(
-            self::HANDLE_CAL,
-            'window.drwpArchCal = ' . wp_json_encode(['dates' => (object) $report_dates]) . ';',
-            'before'
-        );
+        $projects = DRWP_Project::all();
 
         ob_start();
         ?>
         <div class="drwp-archive-wrap">
-            <h2 class="drwp-archive-title"><?php esc_html_e('過去の日報', 'drwp-daily-reports'); ?></h2>
+            <h2 class="drwp-archive-title"><?php esc_html_e('日報カレンダー', 'drwp-daily-reports'); ?></h2>
 
-            <?php echo self::render_filter_form($q, $author, $from, $to, $status, $per, $authors, $report_dates); ?>
+            <?php echo self::render_filter_form($q, $project, $status, $month_param, $projects); ?>
 
             <p class="drwp-archive-summary">
                 <?php
+                $count = count($rows);
                 printf(
-                    /* translators: 1: total count, 2: current page, 3: total pages */
-                    esc_html__('全 %1$d 件 / %2$d ページ目 / 全 %3$d ページ', 'drwp-daily-reports'),
-                    $total, $page, $total_pages
+                    esc_html__('%1$s（%2$d 件）', 'drwp-daily-reports'),
+                    esc_html(date_i18n('Y年n月', strtotime($month_start))),
+                    $count
                 );
                 ?>
             </p>
 
-            <?php if (empty($rows)): ?>
-                <p class="drwp-archive-empty"><?php esc_html_e('該当する日報がありません。', 'drwp-daily-reports'); ?></p>
-            <?php else: ?>
-                <ul class="drwp-archive-list">
-                    <?php foreach ($rows as $r): ?>
-                        <?php echo self::render_list_item($r); ?>
-                    <?php endforeach; ?>
-                </ul>
-            <?php endif; ?>
-
-            <?php echo self::render_pagination($total_pages, $page); ?>
+            <?php echo self::render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, ['q' => $q, 'project' => $project, 'status' => $status]); ?>
         </div>
         <?php
         return ob_get_clean();
     }
 
-    private static function render_filter_form($q, $author, $from, $to, $status, $per, $authors, $report_dates = []) {
+    private static function render_filter_form($q, $project, $status, $month_param, $projects) {
         $action = esc_url(get_permalink());
         $statuses = [
             ''                   => __('すべて', 'drwp-daily-reports'),
             'pending'            => DRWP_Labels::review_status('pending'),
             'approved'           => DRWP_Labels::review_status('approved'),
-            'needs_revision' => DRWP_Labels::review_status('needs_revision'),
+            'needs_revision'     => DRWP_Labels::review_status('needs_revision'),
         ];
         ob_start();
         ?>
         <form method="get" action="<?php echo $action; ?>" class="drwp-archive-filter">
+            <input type="hidden" name="drwp_month" value="<?php echo esc_attr($month_param); ?>" />
             <div class="drwp-archive-filter-row">
                 <label class="drwp-archive-field grow">
                     <span><?php esc_html_e('キーワード', 'drwp-daily-reports'); ?></span>
@@ -223,25 +185,15 @@ class DRWP_Report_Archive {
                            placeholder="<?php esc_attr_e('作業内容に含まれる語', 'drwp-daily-reports'); ?>" />
                 </label>
                 <label class="drwp-archive-field">
-                    <span><?php esc_html_e('作成者', 'drwp-daily-reports'); ?></span>
-                    <select name="drwp_author">
+                    <span><?php esc_html_e('現場', 'drwp-daily-reports'); ?></span>
+                    <select name="drwp_project">
                         <option value="0"><?php esc_html_e('すべて', 'drwp-daily-reports'); ?></option>
-                        <?php foreach ($authors as $u): ?>
-                            <option value="<?php echo (int) $u->ID; ?>" <?php selected($author, (int) $u->ID); ?>>
-                                <?php echo esc_html($u->display_name); ?>
+                        <?php foreach (($projects ?? []) as $p): ?>
+                            <option value="<?php echo (int) $p->id; ?>" <?php selected($project, (int) $p->id); ?>>
+                                <?php echo esc_html($p->name); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
-                </label>
-            </div>
-            <div class="drwp-archive-filter-row">
-                <label class="drwp-archive-field">
-                    <span><?php esc_html_e('開始日', 'drwp-daily-reports'); ?></span>
-                    <input type="date" name="drwp_from" id="drwp-arch-from" value="<?php echo esc_attr($from); ?>" />
-                </label>
-                <label class="drwp-archive-field">
-                    <span><?php esc_html_e('終了日', 'drwp-daily-reports'); ?></span>
-                    <input type="date" name="drwp_to" id="drwp-arch-to" value="<?php echo esc_attr($to); ?>" />
                 </label>
                 <label class="drwp-archive-field">
                     <span><?php esc_html_e('ステータス', 'drwp-daily-reports'); ?></span>
@@ -253,25 +205,6 @@ class DRWP_Report_Archive {
                         <?php endforeach; ?>
                     </select>
                 </label>
-                <label class="drwp-archive-field">
-                    <span><?php esc_html_e('表示件数', 'drwp-daily-reports'); ?></span>
-                    <select name="drwp_per">
-                        <?php foreach (self::PER_PAGE_OPTIONS as $opt): ?>
-                            <option value="<?php echo (int) $opt; ?>" <?php selected($per, $opt); ?>>
-                                <?php echo (int) $opt; ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </label>
-            </div>
-            <div class="drwp-archive-cal-wrap">
-                <div class="drwp-archive-cal-head">
-                    <button type="button" class="drwp-archive-cal-nav" id="drwp-arch-cal-prev" aria-label="前の月">‹</button>
-                    <span id="drwp-arch-cal-title"></span>
-                    <button type="button" class="drwp-archive-cal-nav" id="drwp-arch-cal-next" aria-label="次の月">›</button>
-                    <span class="drwp-archive-cal-hint"><?php esc_html_e('日付をクリックで開始日 / もう一度で範囲指定', 'drwp-daily-reports'); ?></span>
-                </div>
-                <div class="drwp-archive-cal-grid" id="drwp-arch-cal-grid"></div>
             </div>
             <div class="drwp-archive-filter-row">
                 <button type="submit" class="drwp-archive-submit">
@@ -286,44 +219,80 @@ class DRWP_Report_Archive {
         return ob_get_clean();
     }
 
-    private static function render_list_item($r) {
-        $author = get_userdata((int) $r->user_id);
-        $author_name = $author ? $author->display_name : '-';
+    private static function render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, $filters) {
+        $base = get_permalink();
+        $build_url = function ($month) use ($base, $filters) {
+            $args = ['drwp_month' => $month];
+            if (!empty($filters['q']))       $args['drwp_q']       = $filters['q'];
+            if (!empty($filters['project'])) $args['drwp_project'] = (int) $filters['project'];
+            if (!empty($filters['status']))  $args['drwp_status']  = $filters['status'];
+            return esc_url(add_query_arg($args, $base));
+        };
 
-        $project = $r->project_id ? DRWP_Project::find((int) $r->project_id) : null;
-        $project_name = $project ? $project->name : '';
-        $snippet = wp_strip_all_tags((string) $r->work_description);
-        if (mb_strlen($snippet) > 80) $snippet = mb_substr($snippet, 0, 80) . '…';
+        $year  = (int) date('Y', strtotime($month_start));
+        $month = (int) date('n', strtotime($month_start));
+        $first_dow = (int) date('w', strtotime($month_start));
+        $days_in_month = (int) date('t', strtotime($month_start));
+        $today = date('Y-m-d');
 
-        $time_window = self::format_time_window($r->started_at ?? '', $r->ended_at ?? '');
-
-        $href = esc_url(add_query_arg('drwp_id', (int) $r->id, get_permalink()));
-        $status_label = DRWP_Labels::review_status((string) $r->review_status);
+        $dows = ['日', '月', '火', '水', '木', '金', '土'];
 
         ob_start();
         ?>
-        <li class="drwp-archive-item">
-            <a class="drwp-archive-item-link" href="<?php echo $href; ?>">
-                <div class="drwp-archive-item-head">
-                    <span class="drwp-archive-date"><?php echo esc_html((string) $r->report_date); ?></span>
-                    <span class="drwp-archive-status status-<?php echo esc_attr((string) $r->review_status); ?>">
-                        <?php echo esc_html($status_label); ?>
-                    </span>
-                </div>
-                <div class="drwp-archive-item-body">
-                    <?php if ($project_name !== ''): ?>
-                        <span class="drwp-archive-project"><?php echo esc_html($project_name); ?></span>
-                    <?php endif; ?>
-                    <?php if ($time_window !== ''): ?>
-                        <span class="drwp-archive-time"><?php echo esc_html($time_window); ?></span>
-                    <?php endif; ?>
-                    <span class="drwp-archive-snippet"><?php echo esc_html($snippet); ?></span>
-                </div>
-                <div class="drwp-archive-item-meta">
-                    <span class="drwp-archive-author"><?php echo esc_html($author_name); ?></span>
-                </div>
-            </a>
-        </li>
+        <div class="drwp-archive-cal">
+          <div class="drwp-archive-cal-nav">
+            <a class="drwp-archive-cal-btn" href="<?php echo $build_url($prev_month); ?>" aria-label="<?php esc_attr_e('前の月', 'drwp-daily-reports'); ?>">‹</a>
+            <h3 class="drwp-archive-cal-month"><?php echo esc_html($year . '年 ' . $month . '月'); ?></h3>
+            <a class="drwp-archive-cal-btn" href="<?php echo $build_url($next_month); ?>" aria-label="<?php esc_attr_e('次の月', 'drwp-daily-reports'); ?>">›</a>
+            <?php if ($month_param !== $today_month): ?>
+              <a class="drwp-archive-cal-today" href="<?php echo $build_url($today_month); ?>"><?php esc_html_e('今月', 'drwp-daily-reports'); ?></a>
+            <?php endif; ?>
+          </div>
+
+          <div class="drwp-archive-cal-grid">
+            <?php foreach ($dows as $i => $d): ?>
+              <div class="drwp-archive-cal-dow<?php echo $i === 0 ? ' sun' : ($i === 6 ? ' sat' : ''); ?>"><?php echo esc_html($d); ?></div>
+            <?php endforeach; ?>
+
+            <?php for ($i = 0; $i < $first_dow; $i++): ?>
+              <div class="drwp-archive-cal-cell empty"></div>
+            <?php endfor; ?>
+
+            <?php for ($d = 1; $d <= $days_in_month; $d++):
+              $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
+              $dow = ((int) date('w', strtotime($date)));
+              $cell_cls = 'drwp-archive-cal-cell';
+              if ($dow === 0) $cell_cls .= ' sun';
+              if ($dow === 6) $cell_cls .= ' sat';
+              if ($date === $today) $cell_cls .= ' today';
+              $items = $by_date[$date] ?? [];
+            ?>
+              <div class="<?php echo esc_attr($cell_cls); ?>">
+                <div class="drwp-archive-cal-day"><?php echo (int) $d; ?></div>
+                <?php foreach ($items as $r):
+                  $proj = $r->project_id ? DRWP_Project::find((int) $r->project_id) : null;
+                  $proj_name = $proj ? $proj->name : __('（現場未設定）', 'drwp-daily-reports');
+                  $href = esc_url(add_query_arg('drwp_id', (int) $r->id, $base));
+                  $time = self::format_time_window($r->started_at ?? '', $r->ended_at ?? '');
+                ?>
+                  <a class="drwp-archive-cal-chip status-<?php echo esc_attr((string) $r->review_status); ?>"
+                     href="<?php echo $href; ?>"
+                     title="<?php echo esc_attr($proj_name . ($time ? ' / ' . $time : '')); ?>">
+                    <?php if ($time !== ''): ?><span class="drwp-archive-cal-chip-time"><?php echo esc_html(substr($time, 0, 5)); ?></span><?php endif; ?>
+                    <span class="drwp-archive-cal-chip-text"><?php echo esc_html($proj_name); ?></span>
+                  </a>
+                <?php endforeach; ?>
+              </div>
+            <?php endfor;
+
+            // Pad the trailing cells so the grid completes its last row.
+            $total_cells = $first_dow + $days_in_month;
+            $trailing = (7 - ($total_cells % 7)) % 7;
+            for ($i = 0; $i < $trailing; $i++): ?>
+              <div class="drwp-archive-cal-cell empty"></div>
+            <?php endfor; ?>
+          </div>
+        </div>
         <?php
         return ob_get_clean();
     }
@@ -333,48 +302,6 @@ class DRWP_Report_Archive {
         $e = substr((string) $ended_at, 0, 5);
         if ($s === '' && $e === '') return '';
         return trim($s . ' - ' . $e, ' -');
-    }
-
-    private static function render_pagination($total_pages, $page) {
-        if ($total_pages <= 1) return '';
-
-        $base = remove_query_arg('drwp_p');
-        $url_for = function ($p) use ($base) {
-            return esc_url(add_query_arg('drwp_p', (int) $p, $base));
-        };
-
-        // Show: first, prev, current ± 2, next, last. Compact for
-        // mobile but still shows where you are in a 50-page archive.
-        $range = [];
-        $range[] = 1;
-        for ($p = max(2, $page - 2); $p <= min($total_pages - 1, $page + 2); $p++) $range[] = $p;
-        if ($total_pages > 1) $range[] = $total_pages;
-        $range = array_values(array_unique($range));
-        sort($range, SORT_NUMERIC);
-
-        ob_start();
-        ?>
-        <nav class="drwp-archive-pagination" aria-label="<?php esc_attr_e('ページ送り', 'drwp-daily-reports'); ?>">
-            <?php if ($page > 1): ?>
-                <a class="drwp-archive-page" href="<?php echo $url_for($page - 1); ?>">&laquo; <?php esc_html_e('前', 'drwp-daily-reports'); ?></a>
-            <?php endif; ?>
-            <?php
-            $prev = 0;
-            foreach ($range as $p):
-                if ($prev && $p > $prev + 1):
-                    echo '<span class="drwp-archive-page-gap">…</span>';
-                endif;
-                $prev = $p;
-                $cls = $p === $page ? 'drwp-archive-page current' : 'drwp-archive-page';
-            ?>
-                <a class="<?php echo esc_attr($cls); ?>" href="<?php echo $url_for($p); ?>"><?php echo (int) $p; ?></a>
-            <?php endforeach; ?>
-            <?php if ($page < $total_pages): ?>
-                <a class="drwp-archive-page" href="<?php echo $url_for($page + 1); ?>"><?php esc_html_e('次', 'drwp-daily-reports'); ?> &raquo;</a>
-            <?php endif; ?>
-        </nav>
-        <?php
-        return ob_get_clean();
     }
 
     /* ------------------------------------------------------------
@@ -715,25 +642,5 @@ class DRWP_Report_Archive {
         return null;
     }
 
-    /* ------------------------------------------------------------
-     * Helpers
-     * ------------------------------------------------------------ */
-
-    private static function report_authors() {
-        global $wpdb;
-        $ids = $wpdb->get_col(
-            "SELECT DISTINCT user_id FROM " . $wpdb->prefix . "drwp_reports ORDER BY user_id ASC"
-        );
-        if (empty($ids)) return [];
-        $users = [];
-        foreach ($ids as $uid) {
-            $u = get_userdata((int) $uid);
-            if ($u) $users[] = $u;
-        }
-        usort($users, function ($a, $b) {
-            return strcmp((string) $a->display_name, (string) $b->display_name);
-        });
-        return $users;
-    }
 
 }
