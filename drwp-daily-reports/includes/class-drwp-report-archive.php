@@ -151,12 +151,18 @@ class DRWP_Report_Archive {
 
         $authors = self::report_authors();
 
+        // Calendar data: all report dates in scope (ignoring filters)
+        // so users can navigate to any day with reports.
+        $cal_rows = $wpdb->get_results("SELECT report_date, COUNT(*) AS cnt FROM $reports_t GROUP BY report_date");
+        $report_dates = [];
+        foreach ($cal_rows as $row) $report_dates[(string) $row->report_date] = (int) $row->cnt;
+
         ob_start();
         ?>
         <div class="drwp-archive-wrap">
             <h2 class="drwp-archive-title"><?php esc_html_e('過去の日報', 'drwp-daily-reports'); ?></h2>
 
-            <?php echo self::render_filter_form($q, $author, $from, $to, $status, $per, $authors); ?>
+            <?php echo self::render_filter_form($q, $author, $from, $to, $status, $per, $authors, $report_dates); ?>
 
             <p class="drwp-archive-summary">
                 <?php
@@ -184,7 +190,7 @@ class DRWP_Report_Archive {
         return ob_get_clean();
     }
 
-    private static function render_filter_form($q, $author, $from, $to, $status, $per, $authors) {
+    private static function render_filter_form($q, $author, $from, $to, $status, $per, $authors, $report_dates = []) {
         $action = esc_url(get_permalink());
         $statuses = [
             ''                   => __('すべて', 'drwp-daily-reports'),
@@ -216,11 +222,11 @@ class DRWP_Report_Archive {
             <div class="drwp-archive-filter-row">
                 <label class="drwp-archive-field">
                     <span><?php esc_html_e('開始日', 'drwp-daily-reports'); ?></span>
-                    <input type="date" name="drwp_from" value="<?php echo esc_attr($from); ?>" />
+                    <input type="date" name="drwp_from" id="drwp-arch-from" value="<?php echo esc_attr($from); ?>" />
                 </label>
                 <label class="drwp-archive-field">
                     <span><?php esc_html_e('終了日', 'drwp-daily-reports'); ?></span>
-                    <input type="date" name="drwp_to" value="<?php echo esc_attr($to); ?>" />
+                    <input type="date" name="drwp_to" id="drwp-arch-to" value="<?php echo esc_attr($to); ?>" />
                 </label>
                 <label class="drwp-archive-field">
                     <span><?php esc_html_e('ステータス', 'drwp-daily-reports'); ?></span>
@@ -243,6 +249,15 @@ class DRWP_Report_Archive {
                     </select>
                 </label>
             </div>
+            <div class="drwp-archive-cal-wrap">
+                <div class="drwp-archive-cal-head">
+                    <button type="button" class="drwp-archive-cal-nav" id="drwp-arch-cal-prev" aria-label="前の月">‹</button>
+                    <span id="drwp-arch-cal-title"></span>
+                    <button type="button" class="drwp-archive-cal-nav" id="drwp-arch-cal-next" aria-label="次の月">›</button>
+                    <span class="drwp-archive-cal-hint"><?php esc_html_e('日付をクリックで開始日 / もう一度で範囲指定', 'drwp-daily-reports'); ?></span>
+                </div>
+                <div class="drwp-archive-cal-grid" id="drwp-arch-cal-grid"></div>
+            </div>
             <div class="drwp-archive-filter-row">
                 <button type="submit" class="drwp-archive-submit">
                     <?php esc_html_e('絞り込み', 'drwp-daily-reports'); ?>
@@ -252,6 +267,120 @@ class DRWP_Report_Archive {
                 </a>
             </div>
         </form>
+
+        <style>
+        .drwp-archive-cal-wrap{margin:8px 0}
+        .drwp-archive-cal-head{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+        .drwp-archive-cal-head #drwp-arch-cal-title{font-weight:600;min-width:120px;text-align:center}
+        .drwp-archive-cal-nav{cursor:pointer;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;padding:2px 10px;font-size:1em;line-height:1}
+        .drwp-archive-cal-nav:hover{background:#e5e7eb}
+        .drwp-archive-cal-hint{font-size:.8em;color:#64748b;margin-left:8px}
+        .drwp-archive-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:4px;max-width:380px}
+        .drwp-archive-cal-grid .dow{text-align:center;font-size:.75em;color:#64748b;font-weight:600;padding:4px 0}
+        .drwp-archive-cal-grid .dow.sun{color:#dc2626}
+        .drwp-archive-cal-grid .dow.sat{color:#2563eb}
+        .drwp-archive-cal-day{position:relative;text-align:center;padding:6px 0;font-size:.85em;border-radius:4px;cursor:pointer;border:0;background:transparent;color:#374151;font-family:inherit}
+        .drwp-archive-cal-day.empty{visibility:hidden}
+        .drwp-archive-cal-day:hover:not(.empty){background:#e0f2fe}
+        .drwp-archive-cal-day.has-reports{font-weight:600;color:#0f172a}
+        .drwp-archive-cal-day.has-reports::after{content:'';position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#2271b1}
+        .drwp-archive-cal-day.today{outline:1px solid #2271b1}
+        .drwp-archive-cal-day.in-range{background:#dbeafe}
+        .drwp-archive-cal-day.range-edge{background:#2271b1;color:#fff}
+        .drwp-archive-cal-day.range-edge::after{background:#fff}
+        </style>
+
+        <script>
+        (function(){
+          var dates = <?php echo wp_json_encode((object) $report_dates); ?>;
+          var fromEl = document.getElementById('drwp-arch-from');
+          var toEl = document.getElementById('drwp-arch-to');
+          var grid = document.getElementById('drwp-arch-cal-grid');
+          var titleEl = document.getElementById('drwp-arch-cal-title');
+          if (!grid || !fromEl || !toEl) return;
+
+          function pad(n){return n<10?('0'+n):(''+n);}
+          function fmt(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+          function parseDate(s){
+            if(!s)return null;
+            var m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if(!m)return null;
+            return new Date(parseInt(m[1],10),parseInt(m[2],10)-1,parseInt(m[3],10));
+          }
+          function startOfMonth(y,m){return new Date(y,m,1);}
+
+          var init = parseDate(fromEl.value) || parseDate(toEl.value) || new Date();
+          var cursor = startOfMonth(init.getFullYear(), init.getMonth());
+          var pendingStart = null;
+
+          function render(){
+            var y = cursor.getFullYear(), m = cursor.getMonth();
+            titleEl.textContent = y + '年 ' + (m+1) + '月';
+            grid.innerHTML = '';
+            var dows = ['日','月','火','水','木','金','土'];
+            dows.forEach(function(d,i){
+              var el = document.createElement('div');
+              el.className = 'dow' + (i===0?' sun':(i===6?' sat':''));
+              el.textContent = d;
+              grid.appendChild(el);
+            });
+            var firstDow = new Date(y,m,1).getDay();
+            var daysInMonth = new Date(y,m+1,0).getDate();
+            var today = fmt(new Date());
+            var fromVal = fromEl.value, toVal = toEl.value;
+            for (var i=0;i<firstDow;i++){
+              var emp = document.createElement('div'); emp.className='drwp-archive-cal-day empty'; grid.appendChild(emp);
+            }
+            for (var d=1; d<=daysInMonth; d++){
+              var date = new Date(y,m,d);
+              var key = fmt(date);
+              var btn = document.createElement('button');
+              btn.type = 'button';
+              btn.className = 'drwp-archive-cal-day';
+              btn.textContent = d;
+              btn.dataset.date = key;
+              if (dates[key]) btn.classList.add('has-reports');
+              if (key === today) btn.classList.add('today');
+              if (fromVal && toVal) {
+                if (key >= fromVal && key <= toVal) btn.classList.add('in-range');
+                if (key === fromVal || key === toVal) btn.classList.add('range-edge');
+              } else if (pendingStart && pendingStart === key) {
+                btn.classList.add('range-edge');
+              }
+              grid.appendChild(btn);
+            }
+          }
+
+          grid.addEventListener('click', function(e){
+            var btn = e.target.closest('.drwp-archive-cal-day');
+            if (!btn || btn.classList.contains('empty')) return;
+            var key = btn.dataset.date;
+            if (!pendingStart && !(fromEl.value && toEl.value && fromEl.value !== toEl.value)) {
+              pendingStart = key;
+              fromEl.value = key;
+              toEl.value = key;
+            } else {
+              var anchor = pendingStart || fromEl.value;
+              if (key < anchor) { fromEl.value = key; toEl.value = anchor; }
+              else { fromEl.value = anchor; toEl.value = key; }
+              pendingStart = null;
+            }
+            render();
+          });
+
+          document.getElementById('drwp-arch-cal-prev').addEventListener('click', function(){
+            cursor = startOfMonth(cursor.getFullYear(), cursor.getMonth()-1); render();
+          });
+          document.getElementById('drwp-arch-cal-next').addEventListener('click', function(){
+            cursor = startOfMonth(cursor.getFullYear(), cursor.getMonth()+1); render();
+          });
+          [fromEl, toEl].forEach(function(el){
+            el.addEventListener('change', function(){ pendingStart = null; render(); });
+          });
+
+          render();
+        })();
+        </script>
         <?php
         return ob_get_clean();
     }
