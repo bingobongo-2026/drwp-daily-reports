@@ -37,6 +37,10 @@ require_once DRWP_PATH . 'includes/class-drwp-report-form.php';
 require_once DRWP_PATH . 'includes/class-drwp-report-archive.php';
 require_once DRWP_PATH . 'includes/class-drwp-login.php';
 require_once DRWP_PATH . 'includes/class-drwp-print.php';
+require_once DRWP_PATH . 'includes/class-drwp-ai-backend.php';
+require_once DRWP_PATH . 'includes/class-drwp-ai-backend-ollama.php';
+require_once DRWP_PATH . 'includes/class-drwp-ai-backend-openai.php';
+require_once DRWP_PATH . 'includes/class-drwp-ai-backend-anthropic.php';
 require_once DRWP_PATH . 'includes/class-drwp-ai.php';
 require_once DRWP_PATH . 'includes/class-drwp-ai-admin.php';
 
