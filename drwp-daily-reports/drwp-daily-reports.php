@@ -37,6 +37,8 @@ require_once DRWP_PATH . 'includes/class-drwp-report-form.php';
 require_once DRWP_PATH . 'includes/class-drwp-report-archive.php';
 require_once DRWP_PATH . 'includes/class-drwp-login.php';
 require_once DRWP_PATH . 'includes/class-drwp-print.php';
+require_once DRWP_PATH . 'includes/class-drwp-ai.php';
+require_once DRWP_PATH . 'includes/class-drwp-ai-admin.php';
 
 if (defined('WP_CLI') && WP_CLI) {
     require_once DRWP_PATH . 'includes/class-drwp-cli.php';
@@ -64,6 +66,7 @@ add_action('plugins_loaded', function () {
     DRWP_Report_Form::init();
     DRWP_Report_Archive::init();
     DRWP_Login::init();
+    DRWP_AI_Admin::init();
 
     add_action(DRWP_License::CRON_HOOK, ['DRWP_License', 'check_now']);
     DRWP_License::schedule_cron();

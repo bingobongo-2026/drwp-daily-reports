@@ -39,6 +39,10 @@ $options = [
     // Output settings
     'drwp_output_post_type',
     'drwp_output_auto_thumbnail',
+    // AI settings
+    'drwp_ai_url',
+    'drwp_ai_model',
+    'drwp_ai_enabled',
     // Notification settings
     'drwp_notify_enabled',
     'drwp_notify_on_pending',

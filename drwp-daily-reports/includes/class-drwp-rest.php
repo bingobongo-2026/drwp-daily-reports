@@ -95,6 +95,27 @@ class DRWP_REST {
             'callback'            => [__CLASS__, 'convert_report'],
             'permission_callback' => [__CLASS__, 'can_convert'],
         ]);
+
+        register_rest_route(self::NS, '/ai/briefing', [
+            'methods'             => 'POST',
+            'callback'            => [__CLASS__, 'ai_briefing'],
+            'permission_callback' => [__CLASS__, 'can_edit'],
+        ]);
+    }
+
+    public static function ai_briefing(WP_REST_Request $request) {
+        $project_id = absint(($request->get_json_params() ?: [])['project_id'] ?? 0);
+        if (!$project_id) {
+            return new WP_Error('drwp_invalid', 'project_id is required', ['status' => 400]);
+        }
+        if (!DRWP_AI::is_enabled()) {
+            return new WP_Error('drwp_ai_disabled', 'AI機能が無効です。AI設定で有効にしてください。', ['status' => 503]);
+        }
+        $result = DRWP_AI::briefing_for_project($project_id);
+        if (is_wp_error($result)) {
+            return new WP_Error($result->get_error_code(), $result->get_error_message(), ['status' => 500]);
+        }
+        return ['response' => $result];
     }
 
     private static function list_args() {
