@@ -37,11 +37,24 @@ class DRWP_Report_Archive {
     public static function init() {
         add_shortcode('drwp_report_archive', [__CLASS__, 'shortcode']);
         add_action('wp_enqueue_scripts', [__CLASS__, 'register_assets']);
+        // Register our query vars with WordPress so canonical_redirect
+        // doesn't strip them on static-front-page sites. Without this,
+        // clicking the month-nav button on a homepage-mounted shortcode
+        // ends up at "/" because WP doesn't recognize drwp_month.
+        add_filter('query_vars', [__CLASS__, 'register_query_vars']);
         // Phase B: own-pending edit POST handler runs on
         // template_redirect so we can wp_safe_redirect after a
         // successful save (PRG pattern, same as the lost-password
         // flow). Output hasn't started yet at this hook.
         add_action('template_redirect', [__CLASS__, 'handle_edit_post']);
+    }
+
+    public static function register_query_vars($vars) {
+        return array_merge($vars, [
+            'drwp_month', 'drwp_q', 'drwp_project', 'drwp_status',
+            'drwp_id', 'drwp_edit', 'drwp_new', 'drwp_saved',
+            'drwp_requested', 'drwp_err',
+        ]);
     }
 
     public static function register_assets() {
@@ -92,6 +105,34 @@ class DRWP_Report_Archive {
      * ------------------------------------------------------------ */
 
     private static function render_list() {
+        return self::render_month_view([
+            'title' => __('日報カレンダー', 'drwp-daily-reports'),
+        ]);
+    }
+
+    /**
+     * Render a month-view calendar of reports. Shared between this
+     * archive shortcode (team-wide) and DRWP_Report_Form's "my list"
+     * default view (scoped to the current user via user_id).
+     *
+     * Options:
+     *   user_id          int  - 0 = team-wide, else scope to that user
+     *   show_new_button  bool - render "+日報を書く" CTA above the filter
+     *   new_url          string - href for the CTA
+     *   title            string - optional H2 above the view
+     *   extra_message    string - optional HTML banner (e.g. "保存しました")
+     */
+    public static function render_month_view(array $opts = []) {
+        $opts = array_merge([
+            'user_id'         => 0,
+            'show_new_button' => false,
+            'new_url'         => '',
+            'title'           => '',
+            'extra_message'   => '',
+        ], $opts);
+
+        wp_enqueue_style(self::HANDLE);
+
         global $wpdb;
         $reports_t = $wpdb->prefix . 'drwp_reports';
 
@@ -99,9 +140,8 @@ class DRWP_Report_Archive {
         $project = isset($_GET['drwp_project']) ? absint($_GET['drwp_project']) : 0;
         $status  = isset($_GET['drwp_status']) ? sanitize_key((string) $_GET['drwp_status']) : '';
 
-        // Month navigation. Default to the current month so the
-        // archive opens on "今月". URL state lets users bookmark or
-        // share a specific month view.
+        // Month navigation. Default to the current month so the view
+        // opens on "今月". URL state lets users bookmark a specific month.
         $month_param = isset($_GET['drwp_month']) ? sanitize_text_field((string) $_GET['drwp_month']) : '';
         if (!preg_match('/^\d{4}-\d{2}$/', $month_param)) {
             $month_param = date('Y-m');
@@ -112,11 +152,12 @@ class DRWP_Report_Archive {
         $next_month  = date('Y-m', strtotime($month_start . ' +1 month'));
         $today_month = date('Y-m');
 
-        // Pull every report inside the visible month (no pagination —
-        // a calendar month is the natural unit). Filters compose with
-        // the month bounds.
         $where = ['r.report_date >= %s', 'r.report_date <= %s'];
         $args  = [$month_start, $month_end];
+        if ($opts['user_id']) {
+            $where[] = 'r.user_id = %d';
+            $args[]  = (int) $opts['user_id'];
+        }
         if ($project) {
             $where[] = 'r.project_id = %d';
             $args[]  = $project;
@@ -140,12 +181,34 @@ class DRWP_Report_Archive {
             $by_date[(string) $r->report_date][] = $r;
         }
 
-        $projects = DRWP_Project::all();
+        // For the my-list view we restrict the project dropdown to
+        // projects the worker has actually visited (plus the
+        // currently-selected one, if any). Archive view shows all
+        // projects so reviewers can filter widely.
+        if ($opts['user_id']) {
+            $projects = self::projects_for_user((int) $opts['user_id'], $project);
+        } else {
+            $projects = DRWP_Project::all();
+        }
 
         ob_start();
         ?>
         <div class="drwp-archive-wrap">
-            <h2 class="drwp-archive-title"><?php esc_html_e('日報カレンダー', 'drwp-daily-reports'); ?></h2>
+            <?php if (!empty($opts['title'])): ?>
+                <h2 class="drwp-archive-title"><?php echo esc_html($opts['title']); ?></h2>
+            <?php endif; ?>
+
+            <?php if (!empty($opts['extra_message'])): ?>
+                <div class="drwp-archive-flash"><?php echo wp_kses_post($opts['extra_message']); ?></div>
+            <?php endif; ?>
+
+            <?php if ($opts['show_new_button'] && $opts['new_url']): ?>
+                <p class="drwp-archive-actions">
+                    <a class="drwp-archive-new-btn" href="<?php echo esc_url($opts['new_url']); ?>">
+                        + <?php esc_html_e('日報を書く', 'drwp-daily-reports'); ?>
+                    </a>
+                </p>
+            <?php endif; ?>
 
             <?php echo self::render_filter_form($q, $project, $status, $month_param, $projects); ?>
 
@@ -164,6 +227,23 @@ class DRWP_Report_Archive {
         </div>
         <?php
         return ob_get_clean();
+    }
+
+    private static function projects_for_user($user_id, $extra_id = 0) {
+        global $wpdb;
+        $reports_t = $wpdb->prefix . 'drwp_reports';
+        $ids = array_filter(array_map('intval', (array) $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT project_id FROM $reports_t WHERE user_id = %d AND project_id IS NOT NULL",
+            $user_id
+        ))));
+        if ($extra_id && !in_array($extra_id, $ids, true)) {
+            $ids[] = $extra_id;
+        }
+        $projects = array_filter(array_map([DRWP_Project::class, 'find'], $ids));
+        usort($projects, function ($a, $b) {
+            return strcmp((string) $a->name, (string) $b->name);
+        });
+        return $projects;
     }
 
     private static function render_filter_form($q, $project, $status, $month_param, $projects) {

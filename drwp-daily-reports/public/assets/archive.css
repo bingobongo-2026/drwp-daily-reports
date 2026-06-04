@@ -293,3 +293,10 @@
   .drwp-archive-cal-chip-time { display: none; }
   .drwp-archive-cal-day { width: 22px; height: 22px; font-size: 0.78rem; }
 }
+
+/* Shared "+日報を書く" CTA */
+.drwp-archive-actions { margin: 0 0 12px; }
+.drwp-archive-new-btn { display: inline-block; padding: 10px 18px; background: #111827; color: #fff; border-radius: 10px; text-decoration: none; font-weight: 700; }
+.drwp-archive-new-btn:hover { background: #1f2937; color: #fff; }
+/* Flash messages from the my-list view (.drwp-mform-status legacy class) */
+.drwp-mform-status.ok { padding: 10px 14px; background: #ecfdf5; border: 1px solid #86efac; color: #166534; border-radius: 10px; margin: 0 0 12px; font-weight: 600; }

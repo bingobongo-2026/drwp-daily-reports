@@ -30,8 +30,6 @@ if (!defined('ABSPATH')) exit;
 class DRWP_Report_Form {
 
     const HANDLE = 'drwp-mform';
-    const PER_PAGE_DEFAULT = 20;
-    const PER_PAGE_OPTIONS = [10, 20, 50];
 
     public static function init() {
         add_shortcode('drwp_report_form', [__CLASS__, 'render']);
@@ -76,266 +74,24 @@ class DRWP_Report_Form {
      * ------------------------------------------------------------ */
 
     private static function render_my_list() {
-        global $wpdb;
-        $reports_t = $wpdb->prefix . 'drwp_reports';
-        $current_uid = get_current_user_id();
+        // The my-list view reuses the calendar from DRWP_Report_Archive
+        // scoped to the current user. This keeps both shortcodes
+        // visually consistent and avoids duplicating filter/query code.
+        $new_url = add_query_arg('drwp_new', '1', strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
 
-        $q       = isset($_GET['drwp_q']) ? sanitize_text_field(wp_unslash((string) $_GET['drwp_q'])) : '';
-        $project = isset($_GET['drwp_project']) ? absint($_GET['drwp_project']) : 0;
-        $from    = isset($_GET['drwp_from']) ? sanitize_text_field((string) $_GET['drwp_from']) : '';
-        $to      = isset($_GET['drwp_to']) ? sanitize_text_field((string) $_GET['drwp_to']) : '';
-        $status  = isset($_GET['drwp_status']) ? sanitize_key((string) $_GET['drwp_status']) : '';
-        $per     = (int) ($_GET['drwp_per'] ?? self::PER_PAGE_DEFAULT);
-        if (!in_array($per, self::PER_PAGE_OPTIONS, true)) $per = self::PER_PAGE_DEFAULT;
-        $page    = max(1, (int) ($_GET['drwp_p'] ?? 1));
-
-        // user_id always pinned — this shortcode is "my reports
-        // only" by contract. Anything else would be a privacy
-        // surprise for a contributor.
-        $where = ['user_id = %d'];
-        $args  = [$current_uid];
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
-            $where[] = 'report_date >= %s';
-            $args[]  = $from;
+        $flash = '';
+        if (isset($_GET['drwp_saved'])) {
+            $flash = '<p class="drwp-mform-status ok">' . esc_html__('保存しました。', 'drwp-daily-reports') . '</p>';
+        } elseif (isset($_GET['drwp_requested'])) {
+            $flash = '<p class="drwp-mform-status ok">' . esc_html__('編集依頼を送信しました。管理者の承諾をお待ちください。', 'drwp-daily-reports') . '</p>';
         }
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
-            $where[] = 'report_date <= %s';
-            $args[]  = $to;
-        }
-        if ($project) {
-            $where[] = 'project_id = %d';
-            $args[]  = $project;
-        }
-        if ($status && in_array($status, ['pending', 'approved', 'needs_revision', 'edit_requested'], true)) {
-            $where[] = 'review_status = %s';
-            $args[]  = $status;
-        }
-        if ($q !== '') {
-            $like = '%' . $wpdb->esc_like($q) . '%';
-            $where[] = 'work_description LIKE %s';
-            $args[] = $like;
-        }
-        $where_sql = implode(' AND ', $where);
 
-        $total = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $reports_t WHERE $where_sql", $args
-        ));
-        $total_pages = max(1, (int) ceil($total / $per));
-        if ($page > $total_pages) $page = $total_pages;
-        $offset = ($page - 1) * $per;
-
-        $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $reports_t WHERE $where_sql ORDER BY report_date DESC, id DESC LIMIT %d OFFSET %d",
-            array_merge($args, [$per, $offset])
-        ));
-
-        // Project list for the filter dropdown. Show only the
-        // projects the worker has actually written about plus the
-        // currently-selected one (if any) so the dropdown stays
-        // short on long-tenured accounts. We pull DISTINCT project
-        // IDs from the worker's own reports.
-        $project_ids = array_filter(array_map(
-            'intval',
-            (array) $wpdb->get_col($wpdb->prepare(
-                "SELECT DISTINCT project_id FROM $reports_t WHERE user_id = %d AND project_id IS NOT NULL",
-                $current_uid
-            ))
-        ));
-        if ($project && !in_array($project, $project_ids, true)) {
-            $project_ids[] = $project;
-        }
-        $projects = array_filter(array_map([DRWP_Project::class, 'find'], $project_ids));
-        usort($projects, function ($a, $b) {
-            return strcmp((string) $a->name, (string) $b->name);
-        });
-
-        $new_url = esc_url(add_query_arg('drwp_new', '1', get_permalink()));
-        $base    = esc_url(get_permalink());
-
-        ob_start();
-        ?>
-        <div class="drwp-mform-wrap drwp-mform-list-wrap">
-            <?php if (isset($_GET['drwp_saved'])): ?>
-                <p class="drwp-mform-status ok"><?php esc_html_e('保存しました。', 'drwp-daily-reports'); ?></p>
-            <?php endif; ?>
-            <?php if (isset($_GET['drwp_requested'])): ?>
-                <p class="drwp-mform-status ok"><?php esc_html_e('編集依頼を送信しました。管理者の承諾をお待ちください。', 'drwp-daily-reports'); ?></p>
-            <?php endif; ?>
-
-            <p class="drwp-mform-list-actions">
-                <a class="drwp-mform-new-btn" href="<?php echo $new_url; ?>">
-                    + <?php esc_html_e('日報を書く', 'drwp-daily-reports'); ?>
-                </a>
-            </p>
-
-            <form method="get" action="<?php echo $base; ?>" class="drwp-mform-filter">
-                <div class="drwp-mform-filter-row">
-                    <label class="grow">
-                        <span><?php esc_html_e('キーワード', 'drwp-daily-reports'); ?></span>
-                        <input type="search" name="drwp_q" value="<?php echo esc_attr($q); ?>"
-                               placeholder="<?php esc_attr_e('作業内容に含まれる語', 'drwp-daily-reports'); ?>" />
-                    </label>
-                    <label>
-                        <span><?php esc_html_e('現場', 'drwp-daily-reports'); ?></span>
-                        <select name="drwp_project">
-                            <option value="0"><?php esc_html_e('すべて', 'drwp-daily-reports'); ?></option>
-                            <?php foreach ($projects as $p): ?>
-                                <option value="<?php echo (int) $p->id; ?>" <?php selected($project, (int) $p->id); ?>>
-                                    <?php echo esc_html($p->name); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
-                </div>
-                <div class="drwp-mform-filter-row">
-                    <label>
-                        <span><?php esc_html_e('開始日', 'drwp-daily-reports'); ?></span>
-                        <input type="date" name="drwp_from" value="<?php echo esc_attr($from); ?>" />
-                    </label>
-                    <label>
-                        <span><?php esc_html_e('終了日', 'drwp-daily-reports'); ?></span>
-                        <input type="date" name="drwp_to" value="<?php echo esc_attr($to); ?>" />
-                    </label>
-                    <label>
-                        <span><?php esc_html_e('ステータス', 'drwp-daily-reports'); ?></span>
-                        <select name="drwp_status">
-                            <option value=""><?php esc_html_e('すべて', 'drwp-daily-reports'); ?></option>
-                            <option value="pending"        <?php selected($status, 'pending'); ?>><?php echo esc_html(DRWP_Labels::review_status('pending')); ?></option>
-                            <option value="approved"       <?php selected($status, 'approved'); ?>><?php echo esc_html(DRWP_Labels::review_status('approved')); ?></option>
-                            <option value="needs_revision" <?php selected($status, 'needs_revision'); ?>><?php echo esc_html(DRWP_Labels::review_status('needs_revision')); ?></option>
-                            <option value="edit_requested" <?php selected($status, 'edit_requested'); ?>><?php echo esc_html(DRWP_Labels::review_status('edit_requested')); ?></option>
-                        </select>
-                    </label>
-                    <label>
-                        <span><?php esc_html_e('表示件数', 'drwp-daily-reports'); ?></span>
-                        <select name="drwp_per">
-                            <?php foreach (self::PER_PAGE_OPTIONS as $opt): ?>
-                                <option value="<?php echo (int) $opt; ?>" <?php selected($per, $opt); ?>>
-                                    <?php echo (int) $opt; ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
-                </div>
-                <div class="drwp-mform-filter-row">
-                    <button type="submit" class="drwp-mform-filter-submit">
-                        <?php esc_html_e('絞り込み', 'drwp-daily-reports'); ?>
-                    </button>
-                    <a class="drwp-mform-filter-reset" href="<?php echo $base; ?>">
-                        <?php esc_html_e('条件をクリア', 'drwp-daily-reports'); ?>
-                    </a>
-                </div>
-            </form>
-
-            <p class="drwp-mform-list-summary">
-                <?php
-                printf(
-                    /* translators: 1: total count, 2: current page, 3: total pages */
-                    esc_html__('全 %1$d 件 / %2$d ページ目 / 全 %3$d ページ', 'drwp-daily-reports'),
-                    $total, $page, $total_pages
-                );
-                ?>
-            </p>
-
-            <?php if (empty($rows)): ?>
-                <p class="drwp-mform-list-empty">
-                    <?php esc_html_e('該当する日報がありません。「+ 日報を書く」から作成してください。', 'drwp-daily-reports'); ?>
-                </p>
-            <?php else: ?>
-                <ul class="drwp-mform-list">
-                    <?php foreach ($rows as $r): ?>
-                        <?php echo self::render_list_item($r); ?>
-                    <?php endforeach; ?>
-                </ul>
-            <?php endif; ?>
-
-            <?php echo self::render_pagination($total_pages, $page); ?>
-        </div>
-        <?php
-        return ob_get_clean();
-    }
-
-    private static function render_list_item($r) {
-        $project = $r->project_id ? DRWP_Project::find((int) $r->project_id) : null;
-        $project_name = $project ? $project->name : __('（現場未設定）', 'drwp-daily-reports');
-        $started = substr((string) ($r->started_at ?? ''), 0, 5);
-        $ended   = substr((string) ($r->ended_at ?? ''), 0, 5);
-        $time_window = trim($started . ' - ' . $ended, ' -');
-        $snippet = wp_strip_all_tags((string) $r->work_description);
-        if (mb_strlen($snippet) > 80) $snippet = mb_substr($snippet, 0, 80) . '…';
-        $status = (string) $r->review_status;
-        $id = (int) $r->id;
-
-        ob_start();
-        ?>
-        <li class="drwp-mform-list-item">
-            <div class="head">
-                <span class="date"><?php echo esc_html(date_i18n('Y年n月j日', strtotime((string) $r->report_date))); ?></span>
-                <span class="status status-<?php echo esc_attr($status); ?>">
-                    <?php echo esc_html(DRWP_Labels::review_status($status)); ?>
-                </span>
-            </div>
-            <div class="body">
-                <span class="project"><?php echo esc_html($project_name); ?></span>
-                <?php if ($time_window !== ''): ?>
-                    <span class="time"><?php echo esc_html($time_window); ?></span>
-                <?php endif; ?>
-            </div>
-            <?php if ($snippet !== ''): ?>
-                <p class="snippet"><?php echo esc_html($snippet); ?></p>
-            <?php endif; ?>
-            <div class="actions">
-                <?php if ($status === 'pending'): ?>
-                    <a class="drwp-mform-edit-link" href="<?php echo esc_url(add_query_arg('drwp_edit', $id, get_permalink())); ?>">
-                        <?php esc_html_e('編集', 'drwp-daily-reports'); ?>
-                    </a>
-                <?php elseif ($status === 'approved'): ?>
-                    <form method="post" action="<?php echo esc_url(get_permalink()); ?>" class="drwp-mform-inline-form">
-                        <?php wp_nonce_field('drwp_request_edit_' . $id); ?>
-                        <input type="hidden" name="_drwp_request_edit" value="1" />
-                        <input type="hidden" name="drwp_id" value="<?php echo $id; ?>" />
-                        <button type="submit" class="drwp-mform-request-btn">
-                            <?php esc_html_e('編集を依頼', 'drwp-daily-reports'); ?>
-                        </button>
-                    </form>
-                <?php elseif ($status === 'edit_requested'): ?>
-                    <span class="drwp-mform-waiting"><?php esc_html_e('管理者の承諾待ち', 'drwp-daily-reports'); ?></span>
-                <?php endif; ?>
-            </div>
-        </li>
-        <?php
-        return ob_get_clean();
-    }
-
-    private static function render_pagination($total_pages, $page) {
-        if ($total_pages <= 1) return '';
-        $base = remove_query_arg('drwp_p');
-
-        ob_start();
-        ?>
-        <nav class="drwp-mform-pagination">
-            <?php if ($page > 1): ?>
-                <a href="<?php echo esc_url(add_query_arg('drwp_p', $page - 1, $base)); ?>">&laquo; <?php esc_html_e('前', 'drwp-daily-reports'); ?></a>
-            <?php else: ?>
-                <span class="disabled">&laquo; <?php esc_html_e('前', 'drwp-daily-reports'); ?></span>
-            <?php endif; ?>
-            <span class="indicator">
-                <?php
-                printf(
-                    /* translators: 1: current page, 2: total pages */
-                    esc_html__('%1$d / %2$d', 'drwp-daily-reports'),
-                    $page, $total_pages
-                );
-                ?>
-            </span>
-            <?php if ($page < $total_pages): ?>
-                <a href="<?php echo esc_url(add_query_arg('drwp_p', $page + 1, $base)); ?>"><?php esc_html_e('次', 'drwp-daily-reports'); ?> &raquo;</a>
-            <?php else: ?>
-                <span class="disabled"><?php esc_html_e('次', 'drwp-daily-reports'); ?> &raquo;</span>
-            <?php endif; ?>
-        </nav>
-        <?php
-        return ob_get_clean();
+        return DRWP_Report_Archive::render_month_view([
+            'user_id'         => get_current_user_id(),
+            'show_new_button' => true,
+            'new_url'         => $new_url,
+            'extra_message'   => $flash,
+        ]);
     }
 
     /* ------------------------------------------------------------
