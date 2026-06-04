@@ -37,11 +37,24 @@ class DRWP_Report_Archive {
     public static function init() {
         add_shortcode('drwp_report_archive', [__CLASS__, 'shortcode']);
         add_action('wp_enqueue_scripts', [__CLASS__, 'register_assets']);
+        // Register our query vars with WordPress so canonical_redirect
+        // doesn't strip them on static-front-page sites. Without this,
+        // clicking the month-nav button on a homepage-mounted shortcode
+        // ends up at "/" because WP doesn't recognize drwp_month.
+        add_filter('query_vars', [__CLASS__, 'register_query_vars']);
         // Phase B: own-pending edit POST handler runs on
         // template_redirect so we can wp_safe_redirect after a
         // successful save (PRG pattern, same as the lost-password
         // flow). Output hasn't started yet at this hook.
         add_action('template_redirect', [__CLASS__, 'handle_edit_post']);
+    }
+
+    public static function register_query_vars($vars) {
+        return array_merge($vars, [
+            'drwp_month', 'drwp_q', 'drwp_project', 'drwp_status',
+            'drwp_id', 'drwp_edit', 'drwp_new', 'drwp_saved',
+            'drwp_requested', 'drwp_err',
+        ]);
     }
 
     public static function register_assets() {
