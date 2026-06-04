@@ -247,10 +247,24 @@ class DRWP_Report_Archive {
     }
 
     private static function render_filter_form($q, $project, $status, $month_param, $projects) {
-        // Empty form action submits to the current URL. We avoid
-        // get_permalink() here because on a static-front-page setup
-        // it can resolve to the site root and "lose" the archive
-        // page entirely when the user clicks 絞り込み.
+        // On non-permalink sites the page is identified by ?page_id=N
+        // (or similar). A GET form replaces the entire query string
+        // with its form fields, so those external params would be lost
+        // unless we mirror them as hidden inputs. Anything that isn't
+        // one of our drwp_* keys gets preserved this way.
+        $current_query = [];
+        parse_str($_SERVER['QUERY_STRING'] ?? '', $current_query);
+        $drwp_keys = ['drwp_q', 'drwp_project', 'drwp_status', 'drwp_month',
+                      'drwp_id', 'drwp_edit', 'drwp_new', 'drwp_saved',
+                      'drwp_requested', 'drwp_err', 'drwp_p', 'drwp_per'];
+        $preserve = [];
+        foreach ($current_query as $k => $v) {
+            if (!in_array($k, $drwp_keys, true) && is_scalar($v)) {
+                $preserve[$k] = (string) $v;
+            }
+        }
+        $reset_url = remove_query_arg(['drwp_q', 'drwp_project', 'drwp_status', 'drwp_month'], $_SERVER['REQUEST_URI'] ?? '');
+
         $statuses = [
             ''                   => __('すべて', 'drwp-daily-reports'),
             'pending'            => DRWP_Labels::review_status('pending'),
@@ -260,6 +274,9 @@ class DRWP_Report_Archive {
         ob_start();
         ?>
         <form method="get" action="" class="drwp-archive-filter">
+            <?php foreach ($preserve as $k => $v): ?>
+                <input type="hidden" name="<?php echo esc_attr($k); ?>" value="<?php echo esc_attr($v); ?>" />
+            <?php endforeach; ?>
             <input type="hidden" name="drwp_month" value="<?php echo esc_attr($month_param); ?>" />
             <div class="drwp-archive-filter-row">
                 <label class="drwp-archive-field grow">
@@ -293,7 +310,7 @@ class DRWP_Report_Archive {
                 <button type="submit" class="drwp-archive-submit">
                     <?php esc_html_e('絞り込み', 'drwp-daily-reports'); ?>
                 </button>
-                <a class="drwp-archive-reset" href="<?php echo esc_url(strtok($_SERVER['REQUEST_URI'] ?? '', '?')); ?>">
+                <a class="drwp-archive-reset" href="<?php echo esc_url($reset_url); ?>">
                     <?php esc_html_e('条件をクリア', 'drwp-daily-reports'); ?>
                 </a>
             </div>
@@ -303,15 +320,18 @@ class DRWP_Report_Archive {
     }
 
     private static function render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, $filters) {
-        // Build URLs relative to the current request path so links
-        // keep working on static-front-page setups where
-        // get_permalink() would resolve to the site root.
-        $base = strtok($_SERVER['REQUEST_URI'] ?? '', '?');
+        // Use the FULL REQUEST_URI as the base so add_query_arg merges
+        // new args into the existing query string instead of replacing
+        // it. This preserves params like ?page_id=N that WordPress
+        // needs to resolve the current page on non-permalink sites.
+        $base = $_SERVER['REQUEST_URI'] ?? '';
         $build_url = function ($month) use ($base, $filters) {
-            $args = ['drwp_month' => $month];
-            if (!empty($filters['q']))       $args['drwp_q']       = $filters['q'];
-            if (!empty($filters['project'])) $args['drwp_project'] = (int) $filters['project'];
-            if (!empty($filters['status']))  $args['drwp_status']  = $filters['status'];
+            $args = [
+                'drwp_month'   => $month,
+                'drwp_q'       => $filters['q']       !== '' ? $filters['q']             : false,
+                'drwp_project' => !empty($filters['project']) ? (int) $filters['project'] : false,
+                'drwp_status'  => $filters['status']  !== '' ? $filters['status']        : false,
+            ];
             return esc_url(add_query_arg($args, $base));
         };
 
