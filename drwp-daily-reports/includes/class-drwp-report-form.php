@@ -77,7 +77,9 @@ class DRWP_Report_Form {
         // The my-list view reuses the calendar from DRWP_Report_Archive
         // scoped to the current user. This keeps both shortcodes
         // visually consistent and avoids duplicating filter/query code.
-        $new_url = add_query_arg('drwp_new', '1', strtok($_SERVER['REQUEST_URI'] ?? '', '?'));
+        // Use the full REQUEST_URI so non-permalink pages keep their
+        // ?page_id=N param when we tack on drwp_new=1.
+        $new_url = add_query_arg('drwp_new', '1', $_SERVER['REQUEST_URI'] ?? '');
 
         $flash = '';
         if (isset($_GET['drwp_saved'])) {
