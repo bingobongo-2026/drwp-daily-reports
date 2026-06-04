@@ -66,35 +66,15 @@ class DRWP_Report_Form {
         if (!empty($_GET['drwp_new'])) {
             return self::render_form();
         }
-        return self::render_my_list();
+        // Default: no rendering. [drwp_report_archive] provides
+        // the list/calendar and embeds the new-report form in a modal.
+        return '';
     }
 
     /* ------------------------------------------------------------
-     * My list — default view
+     * Form rendering (?drwp_new=1) — public so [drwp_report_archive]
+     * can embed the form inside a modal dialog.
      * ------------------------------------------------------------ */
-
-    private static function render_my_list() {
-        // The my-list view reuses the calendar from DRWP_Report_Archive
-        // scoped to the current user. This keeps both shortcodes
-        // visually consistent and avoids duplicating filter/query code.
-        // Use the full REQUEST_URI so non-permalink pages keep their
-        // ?page_id=N param when we tack on drwp_new=1.
-        $new_url = add_query_arg('drwp_new', '1', $_SERVER['REQUEST_URI'] ?? '');
-
-        $flash = '';
-        if (isset($_GET['drwp_saved'])) {
-            $flash = '<p class="drwp-mform-status ok">' . esc_html__('保存しました。', 'drwp-daily-reports') . '</p>';
-        } elseif (isset($_GET['drwp_requested'])) {
-            $flash = '<p class="drwp-mform-status ok">' . esc_html__('編集依頼を送信しました。管理者の承諾をお待ちください。', 'drwp-daily-reports') . '</p>';
-        }
-
-        return DRWP_Report_Archive::render_month_view([
-            'user_id'         => get_current_user_id(),
-            'show_new_button' => true,
-            'new_url'         => $new_url,
-            'extra_message'   => $flash,
-        ]);
-    }
 
     /* ------------------------------------------------------------
      * POST handlers (template_redirect)
@@ -325,7 +305,7 @@ class DRWP_Report_Form {
      * Input form — ?drwp_new=1
      * ------------------------------------------------------------ */
 
-    private static function render_form() {
+    public static function render_form() {
         $projects = array_map(function ($p) {
             return ['id' => (int) $p->id, 'name' => (string) $p->name];
         }, DRWP_Project::all());

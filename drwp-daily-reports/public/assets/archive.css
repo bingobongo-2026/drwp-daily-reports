@@ -300,3 +300,36 @@
 .drwp-archive-new-btn:hover { background: #1f2937; color: #fff; }
 /* Flash messages from the my-list view (.drwp-mform-status legacy class) */
 .drwp-mform-status.ok { padding: 10px 14px; background: #ecfdf5; border: 1px solid #86efac; color: #166534; border-radius: 10px; margin: 0 0 12px; font-weight: 600; }
+
+/* "自分のみ" checkbox styling */
+.drwp-archive-field-checkbox .drwp-archive-mine-wrap { display: inline-flex; align-items: center; gap: 6px; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; cursor: pointer; }
+.drwp-archive-field-checkbox input[type=checkbox] { margin: 0; }
+
+/* Chip as button */
+.drwp-archive-cal-chip { font: inherit; cursor: pointer; border: 0; text-align: left; width: 100%; }
+
+/* Modal dialogs (view / form) */
+.drwp-archive-dialog { padding: 0; border: 0; border-radius: 14px; max-width: 720px; width: 92vw; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
+.drwp-archive-dialog::backdrop { background: rgba(15, 23, 42, 0.55); }
+.drwp-archive-dialog-wide { max-width: 820px; }
+.drwp-archive-dialog-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid #e5e7eb; background: #f8fafc; border-radius: 14px 14px 0 0; }
+.drwp-archive-dialog-head h3 { margin: 0; font-size: 1.05rem; color: #0f172a; }
+.drwp-archive-dialog-close { background: transparent; border: 0; font-size: 1.6em; line-height: 1; cursor: pointer; color: #64748b; padding: 0 4px; }
+.drwp-archive-dialog-close:hover { color: #0f172a; }
+.drwp-archive-dialog-body { padding: 18px 22px; max-height: 70vh; overflow-y: auto; }
+.drwp-archive-dialog-loading, .drwp-archive-dialog-error { text-align: center; color: #64748b; padding: 24px; }
+.drwp-archive-dialog-error { color: #991b1b; }
+.drwp-archive-dialog-meta { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+.drwp-archive-dialog-meta th, .drwp-archive-dialog-meta td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.drwp-archive-dialog-meta th { width: 90px; font-weight: 600; color: #475569; }
+.drwp-archive-dialog-body h4 { margin: 14px 0 4px; font-size: 0.9rem; color: #475569; border-left: 4px solid #2271b1; padding: 2px 0 2px 8px; }
+.drwp-archive-dialog-text { white-space: pre-wrap; line-height: 1.6; color: #0f172a; }
+.drwp-archive-dialog-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.drwp-archive-dialog-photos figure { margin: 0; }
+.drwp-archive-dialog-photos img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; }
+.drwp-archive-dialog-photos figcaption { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
+.drwp-archive-dialog-actions { margin-top: 18px; text-align: right; }
+/* The new-report form is rendered inside the form dialog. Hide its
+   "back to list" link since the close button is the cancel action. */
+.drwp-archive-dialog-body .drwp-mform-back { display: none; }
+.drwp-archive-dialog-body .drwp-mform-wrap { padding: 0; max-width: none; }
