@@ -52,8 +52,8 @@ class DRWP_Report_Archive {
     public static function register_query_vars($vars) {
         return array_merge($vars, [
             'drwp_month', 'drwp_q', 'drwp_project', 'drwp_status',
-            'drwp_id', 'drwp_edit', 'drwp_new', 'drwp_saved',
-            'drwp_requested', 'drwp_err',
+            'drwp_mine', 'drwp_id', 'drwp_edit', 'drwp_new',
+            'drwp_saved', 'drwp_requested', 'drwp_err',
         ]);
     }
 
@@ -105,9 +105,177 @@ class DRWP_Report_Archive {
      * ------------------------------------------------------------ */
 
     private static function render_list() {
-        return self::render_month_view([
-            'title' => __('日報カレンダー', 'drwp-daily-reports'),
+        // "自分のみ" filter — checkbox on the form, persisted via
+        // ?drwp_mine=1. When set we scope the calendar to the
+        // current user just like the old [drwp_report_form] my-list.
+        $mine = !empty($_GET['drwp_mine']) && is_user_logged_in();
+        $user_id = $mine ? get_current_user_id() : 0;
+        $can_write = is_user_logged_in() && current_user_can('edit_posts');
+
+        $flash = '';
+        if (isset($_GET['drwp_saved'])) {
+            $flash = '<p class="drwp-mform-status ok">' . esc_html__('保存しました。', 'drwp-daily-reports') . '</p>';
+        } elseif (isset($_GET['drwp_requested'])) {
+            $flash = '<p class="drwp-mform-status ok">' . esc_html__('編集依頼を送信しました。', 'drwp-daily-reports') . '</p>';
+        }
+
+        // The "+日報を書く" CTA opens the form modal on click. URL
+        // fallback is provided for no-JS / direct linking.
+        $new_url = add_query_arg('drwp_new', '1', $_SERVER['REQUEST_URI'] ?? '');
+
+        $body = self::render_month_view([
+            'user_id'         => $user_id,
+            'show_new_button' => $can_write,
+            'new_url'         => $new_url,
+            'title'           => __('日報カレンダー', 'drwp-daily-reports'),
+            'extra_message'   => $flash,
+            'use_modals'      => true,
         ]);
+
+        $modals = self::render_modals($can_write);
+        return $body . $modals;
+    }
+
+    /**
+     * Hidden <dialog> containers used by [drwp_report_archive]:
+     * - View dialog: JS populates with /reports/{id} data
+     * - Form dialog: embeds the new-report form so users don't
+     *   navigate away when clicking "+日報を書く"
+     */
+    private static function render_modals($can_write) {
+        $rest_root = esc_url_raw(rest_url('drwp/v1'));
+        $nonce     = wp_create_nonce('wp_rest');
+        $labels    = [
+            'pending'        => DRWP_Labels::review_status('pending'),
+            'approved'       => DRWP_Labels::review_status('approved'),
+            'needs_revision' => DRWP_Labels::review_status('needs_revision'),
+            'edit_requested' => DRWP_Labels::review_status('edit_requested'),
+        ];
+        $cfg = wp_json_encode([
+            'restRoot' => $rest_root,
+            'nonce'    => $nonce,
+            'labels'   => $labels,
+            'editBase' => esc_url_raw(add_query_arg('drwp_edit', '__ID__', $_SERVER['REQUEST_URI'] ?? '')),
+        ]);
+
+        ob_start();
+        ?>
+        <dialog id="drwp-archive-view-dialog" class="drwp-archive-dialog">
+            <div class="drwp-archive-dialog-head">
+                <h3 id="drwp-archive-view-title"><?php esc_html_e('日報の内容', 'drwp-daily-reports'); ?></h3>
+                <button type="button" class="drwp-archive-dialog-close" aria-label="<?php esc_attr_e('閉じる', 'drwp-daily-reports'); ?>">×</button>
+            </div>
+            <div class="drwp-archive-dialog-body" id="drwp-archive-view-body">
+                <p class="drwp-archive-dialog-loading"><?php esc_html_e('読み込み中…', 'drwp-daily-reports'); ?></p>
+            </div>
+        </dialog>
+
+        <?php if ($can_write): ?>
+        <dialog id="drwp-archive-form-dialog" class="drwp-archive-dialog drwp-archive-dialog-wide">
+            <div class="drwp-archive-dialog-head">
+                <h3><?php esc_html_e('日報を書く', 'drwp-daily-reports'); ?></h3>
+                <button type="button" class="drwp-archive-dialog-close" aria-label="<?php esc_attr_e('閉じる', 'drwp-daily-reports'); ?>">×</button>
+            </div>
+            <div class="drwp-archive-dialog-body">
+                <?php echo DRWP_Report_Form::render_form(); ?>
+            </div>
+        </dialog>
+        <?php endif; ?>
+
+        <script>
+        (function(){
+          var cfg = <?php echo $cfg; ?>;
+          var viewDlg = document.getElementById('drwp-archive-view-dialog');
+          var formDlg = document.getElementById('drwp-archive-form-dialog');
+          var viewBody = document.getElementById('drwp-archive-view-body');
+          if (!viewDlg) return;
+
+          function esc(s){ var d=document.createElement('div'); d.textContent=String(s==null?'':s); return d.innerHTML; }
+          function nl2br(s){ return esc(s).replace(/\n/g, '<br>'); }
+          function fmtDate(d){
+            if(!d) return '';
+            var m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if(!m) return esc(d);
+            var w = ['日','月','火','水','木','金','土'][new Date(+m[1], +m[2]-1, +m[3]).getDay()];
+            return m[1]+'年'+(+m[2])+'月'+(+m[3])+'日（'+w+'）';
+          }
+          function fmtTime(t){ return String(t||'').substring(0,5); }
+
+          function openView(id){
+            viewBody.innerHTML = '<p class="drwp-archive-dialog-loading"><?php echo esc_js(__('読み込み中…', 'drwp-daily-reports')); ?></p>';
+            viewDlg.showModal();
+            fetch(cfg.restRoot + '/reports/' + encodeURIComponent(id), {
+              credentials: 'same-origin',
+              headers: { 'X-WP-Nonce': cfg.nonce },
+            }).then(function(r){ return r.json().then(function(j){ if(!r.ok) throw new Error(j.message||'HTTP '+r.status); return j; }); })
+              .then(function(d){
+                var time = '';
+                if (d.started_at) time += fmtTime(d.started_at);
+                if (d.started_at && d.ended_at) time += ' 〜 ';
+                if (d.ended_at) time += fmtTime(d.ended_at);
+                var statusLabel = (cfg.labels && cfg.labels[d.review_status]) || d.review_status;
+                var html = '';
+                html += '<table class="drwp-archive-dialog-meta"><tbody>';
+                html += '<tr><th>'+'<?php echo esc_js(__('日付', 'drwp-daily-reports')); ?>'+'</th><td>'+esc(fmtDate(d.report_date))+'</td></tr>';
+                if (time) html += '<tr><th>'+'<?php echo esc_js(__('時刻', 'drwp-daily-reports')); ?>'+'</th><td>'+esc(time)+'</td></tr>';
+                html += '<tr><th>'+'<?php echo esc_js(__('ステータス', 'drwp-daily-reports')); ?>'+'</th><td><span class="drwp-archive-cal-chip status-'+esc(d.review_status)+'">'+esc(statusLabel)+'</span></td></tr>';
+                html += '</tbody></table>';
+                if (d.work_description) html += '<h4>'+'<?php echo esc_js(__('作業内容', 'drwp-daily-reports')); ?>'+'</h4><div class="drwp-archive-dialog-text">'+nl2br(d.work_description)+'</div>';
+                if (d.issues)           html += '<h4>'+'<?php echo esc_js(__('特記事項', 'drwp-daily-reports')); ?>'+'</h4><div class="drwp-archive-dialog-text">'+nl2br(d.issues)+'</div>';
+                if (d.next_plan)        html += '<h4>'+'<?php echo esc_js(__('次回予定', 'drwp-daily-reports')); ?>'+'</h4><div class="drwp-archive-dialog-text">'+nl2br(d.next_plan)+'</div>';
+                if (d.photos && d.photos.length) {
+                  html += '<h4>'+'<?php echo esc_js(__('写真', 'drwp-daily-reports')); ?>'+'</h4><div class="drwp-archive-dialog-photos">';
+                  d.photos.forEach(function(p){
+                    html += '<figure><img src="'+esc(p.url)+'" alt="">'+(p.caption?'<figcaption>'+esc(p.caption)+'</figcaption>':'')+'</figure>';
+                  });
+                  html += '</div>';
+                }
+                if (d.review_status === 'pending') {
+                  var editUrl = cfg.editBase.replace('__ID__', encodeURIComponent(d.id));
+                  html += '<p class="drwp-archive-dialog-actions"><a class="drwp-archive-new-btn" href="'+esc(editUrl)+'"><?php echo esc_js(__('編集する', 'drwp-daily-reports')); ?></a></p>';
+                }
+                viewBody.innerHTML = html;
+              })
+              .catch(function(err){
+                viewBody.innerHTML = '<p class="drwp-archive-dialog-error">'+esc(err.message || '<?php echo esc_js(__('読み込みに失敗しました。', 'drwp-daily-reports')); ?>')+'</p>';
+              });
+          }
+
+          document.addEventListener('click', function(e){
+            var chip = e.target.closest('.drwp-archive-cal-chip[data-id]');
+            if (chip) {
+              e.preventDefault();
+              openView(chip.dataset.id);
+              return;
+            }
+            if (formDlg) {
+              var newBtn = e.target.closest('#drwp-archive-new-btn');
+              if (newBtn) {
+                e.preventDefault();
+                formDlg.showModal();
+                return;
+              }
+            }
+            if (e.target.classList.contains('drwp-archive-dialog-close')) {
+              var dlg = e.target.closest('dialog');
+              if (dlg) dlg.close();
+            }
+          });
+
+          // Click outside dialog content closes it.
+          [viewDlg, formDlg].forEach(function(dlg){
+            if (!dlg) return;
+            dlg.addEventListener('click', function(e){
+              var rect = dlg.getBoundingClientRect();
+              if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+                dlg.close();
+              }
+            });
+          });
+        })();
+        </script>
+        <?php
+        return ob_get_clean();
     }
 
     /**
@@ -129,6 +297,7 @@ class DRWP_Report_Archive {
             'new_url'         => '',
             'title'           => '',
             'extra_message'   => '',
+            'use_modals'      => false,
         ], $opts);
 
         wp_enqueue_style(self::HANDLE);
@@ -204,13 +373,19 @@ class DRWP_Report_Archive {
 
             <?php if ($opts['show_new_button'] && $opts['new_url']): ?>
                 <p class="drwp-archive-actions">
-                    <a class="drwp-archive-new-btn" href="<?php echo esc_url($opts['new_url']); ?>">
-                        + <?php esc_html_e('日報を書く', 'drwp-daily-reports'); ?>
-                    </a>
+                    <?php if (!empty($opts['use_modals'])): ?>
+                        <button type="button" id="drwp-archive-new-btn" class="drwp-archive-new-btn">
+                            + <?php esc_html_e('日報を書く', 'drwp-daily-reports'); ?>
+                        </button>
+                    <?php else: ?>
+                        <a class="drwp-archive-new-btn" href="<?php echo esc_url($opts['new_url']); ?>">
+                            + <?php esc_html_e('日報を書く', 'drwp-daily-reports'); ?>
+                        </a>
+                    <?php endif; ?>
                 </p>
             <?php endif; ?>
 
-            <?php echo self::render_filter_form($q, $project, $status, $month_param, $projects); ?>
+            <?php echo self::render_filter_form($q, $project, $status, $month_param, $projects, !empty($_GET['drwp_mine'])); ?>
 
             <p class="drwp-archive-summary">
                 <?php
@@ -246,7 +421,7 @@ class DRWP_Report_Archive {
         return $projects;
     }
 
-    private static function render_filter_form($q, $project, $status, $month_param, $projects) {
+    private static function render_filter_form($q, $project, $status, $month_param, $projects, $mine = false) {
         // On non-permalink sites the page is identified by ?page_id=N
         // (or similar). A GET form replaces the entire query string
         // with its form fields, so those external params would be lost
@@ -255,15 +430,15 @@ class DRWP_Report_Archive {
         $current_query = [];
         parse_str($_SERVER['QUERY_STRING'] ?? '', $current_query);
         $drwp_keys = ['drwp_q', 'drwp_project', 'drwp_status', 'drwp_month',
-                      'drwp_id', 'drwp_edit', 'drwp_new', 'drwp_saved',
-                      'drwp_requested', 'drwp_err', 'drwp_p', 'drwp_per'];
+                      'drwp_mine', 'drwp_id', 'drwp_edit', 'drwp_new',
+                      'drwp_saved', 'drwp_requested', 'drwp_err', 'drwp_p', 'drwp_per'];
         $preserve = [];
         foreach ($current_query as $k => $v) {
             if (!in_array($k, $drwp_keys, true) && is_scalar($v)) {
                 $preserve[$k] = (string) $v;
             }
         }
-        $reset_url = remove_query_arg(['drwp_q', 'drwp_project', 'drwp_status', 'drwp_month'], $_SERVER['REQUEST_URI'] ?? '');
+        $reset_url = remove_query_arg(['drwp_q', 'drwp_project', 'drwp_status', 'drwp_month', 'drwp_mine'], $_SERVER['REQUEST_URI'] ?? '');
 
         $statuses = [
             ''                   => __('すべて', 'drwp-daily-reports'),
@@ -305,6 +480,15 @@ class DRWP_Report_Archive {
                         <?php endforeach; ?>
                     </select>
                 </label>
+                <?php if (is_user_logged_in()): ?>
+                <label class="drwp-archive-field drwp-archive-field-checkbox">
+                    <span>&nbsp;</span>
+                    <span class="drwp-archive-mine-wrap">
+                        <input type="checkbox" name="drwp_mine" value="1" <?php checked($mine); ?> />
+                        <?php esc_html_e('自分のみ', 'drwp-daily-reports'); ?>
+                    </span>
+                </label>
+                <?php endif; ?>
             </div>
             <div class="drwp-archive-filter-row">
                 <button type="submit" class="drwp-archive-submit">
@@ -378,15 +562,14 @@ class DRWP_Report_Archive {
                 <?php foreach ($items as $r):
                   $proj = $r->project_id ? DRWP_Project::find((int) $r->project_id) : null;
                   $proj_name = $proj ? $proj->name : __('（現場未設定）', 'drwp-daily-reports');
-                  $href = esc_url(add_query_arg('drwp_id', (int) $r->id, $base));
                   $time = self::format_time_window($r->started_at ?? '', $r->ended_at ?? '');
                 ?>
-                  <a class="drwp-archive-cal-chip status-<?php echo esc_attr((string) $r->review_status); ?>"
-                     href="<?php echo $href; ?>"
-                     title="<?php echo esc_attr($proj_name . ($time ? ' / ' . $time : '')); ?>">
+                  <button type="button" class="drwp-archive-cal-chip status-<?php echo esc_attr((string) $r->review_status); ?>"
+                          data-id="<?php echo (int) $r->id; ?>"
+                          title="<?php echo esc_attr($proj_name . ($time ? ' / ' . $time : '')); ?>">
                     <?php if ($time !== ''): ?><span class="drwp-archive-cal-chip-time"><?php echo esc_html(substr($time, 0, 5)); ?></span><?php endif; ?>
                     <span class="drwp-archive-cal-chip-text"><?php echo esc_html($proj_name); ?></span>
-                  </a>
+                  </button>
                 <?php endforeach; ?>
               </div>
             <?php endfor;
