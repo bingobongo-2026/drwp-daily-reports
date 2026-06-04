@@ -167,7 +167,10 @@ class DRWP_Report_Archive {
     }
 
     private static function render_filter_form($q, $project, $status, $month_param, $projects) {
-        $action = esc_url(get_permalink());
+        // Empty form action submits to the current URL. We avoid
+        // get_permalink() here because on a static-front-page setup
+        // it can resolve to the site root and "lose" the archive
+        // page entirely when the user clicks 絞り込み.
         $statuses = [
             ''                   => __('すべて', 'drwp-daily-reports'),
             'pending'            => DRWP_Labels::review_status('pending'),
@@ -176,7 +179,7 @@ class DRWP_Report_Archive {
         ];
         ob_start();
         ?>
-        <form method="get" action="<?php echo $action; ?>" class="drwp-archive-filter">
+        <form method="get" action="" class="drwp-archive-filter">
             <input type="hidden" name="drwp_month" value="<?php echo esc_attr($month_param); ?>" />
             <div class="drwp-archive-filter-row">
                 <label class="drwp-archive-field grow">
@@ -210,7 +213,7 @@ class DRWP_Report_Archive {
                 <button type="submit" class="drwp-archive-submit">
                     <?php esc_html_e('絞り込み', 'drwp-daily-reports'); ?>
                 </button>
-                <a class="drwp-archive-reset" href="<?php echo $action; ?>">
+                <a class="drwp-archive-reset" href="<?php echo esc_url(strtok($_SERVER['REQUEST_URI'] ?? '', '?')); ?>">
                     <?php esc_html_e('条件をクリア', 'drwp-daily-reports'); ?>
                 </a>
             </div>
@@ -220,7 +223,10 @@ class DRWP_Report_Archive {
     }
 
     private static function render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, $filters) {
-        $base = get_permalink();
+        // Build URLs relative to the current request path so links
+        // keep working on static-front-page setups where
+        // get_permalink() would resolve to the site root.
+        $base = strtok($_SERVER['REQUEST_URI'] ?? '', '?');
         $build_url = function ($month) use ($base, $filters) {
             $args = ['drwp_month' => $month];
             if (!empty($filters['q']))       $args['drwp_q']       = $filters['q'];
