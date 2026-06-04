@@ -152,10 +152,14 @@ class DRWP_Report_Archive {
             'edit_requested' => DRWP_Labels::review_status('edit_requested'),
         ];
         $cfg = wp_json_encode([
-            'restRoot' => $rest_root,
-            'nonce'    => $nonce,
-            'labels'   => $labels,
-            'editBase' => esc_url_raw(add_query_arg('drwp_edit', '__ID__', $_SERVER['REQUEST_URI'] ?? '')),
+            'restRoot'  => $rest_root,
+            'nonce'     => $nonce,
+            'labels'    => $labels,
+            // The archive's edit flow uses ?drwp_id=N&drwp_edit=1
+            // (see shortcode() dispatch); we build a link template
+            // with __ID__ that JS replaces per-report.
+            'editBase'  => esc_url_raw(add_query_arg(['drwp_id' => '__ID__', 'drwp_edit' => 1], $_SERVER['REQUEST_URI'] ?? '')),
+            'autoOpenNew' => !empty($_GET['drwp_new']),
         ]);
 
         ob_start();
@@ -272,6 +276,13 @@ class DRWP_Report_Archive {
               }
             });
           });
+
+          // Auto-open the form modal when arriving via ?drwp_new=1.
+          // Lets external links / bookmarks land users directly on
+          // the new-report form without needing a click.
+          if (cfg.autoOpenNew && formDlg) {
+            try { formDlg.showModal(); } catch (e) {}
+          }
         })();
         </script>
         <?php
