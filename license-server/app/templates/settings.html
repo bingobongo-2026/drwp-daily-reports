@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}サーバー設定 / DRWP License Server{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h1>サーバー設定</h1>
+  <p class="muted">このサーバー自身の管理トークン（管理画面ログインパスワード）と署名鍵を管理します。</p>
+</div>
+
+<div class="card">
+  <h2>管理トークン</h2>
+  <p class="muted">
+    管理画面と <code>/admin/*</code> API へのアクセスに使うパスワードです。
+    {% if has_db_token %}
+      現在は <strong>DB に保存された値</strong>が使われています。
+    {% elif env_token_set %}
+      現在は環境変数 <code>DRWP_ADMIN_TOKEN</code> の値が使われています。
+      DB に値を保存すると、そちらが優先されます。
+    {% else %}
+      <span style="color:#b91c1c;">トークンが未設定です。</span>
+    {% endif %}
+  </p>
+
+  <form method="post" action="/admin/ui/settings/admin-token" id="token-form">
+    <label for="token">新しい管理トークン</label>
+    <div class="row" style="gap: 8px;">
+      <input type="text" id="token" name="token" placeholder="ここに貼り付け、または「自動生成」" autocomplete="off" />
+      <button type="button" class="btn ghost" onclick="generateToken()">自動生成</button>
+    </div>
+    <p class="muted" style="margin-top: 6px;">
+      32 バイトのランダム値（hex 64 文字）を推奨します。設定後は次回ログイン時にブラウザのパスワードを更新してください。
+    </p>
+    <div class="row" style="margin-top: 12px;">
+      <button type="submit" class="btn">保存</button>
+      {% if has_db_token %}
+      <button type="submit" name="clear" value="1" class="btn danger"
+              onclick="return confirm('DB に保存された管理トークンを削除します。環境変数の値（あれば）にフォールバックします。続行しますか？');">
+        DB トークンを削除
+      </button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>署名鍵</h2>
+  <p class="muted">ライセンス検証応答に署名するための Ed25519 鍵ペアです。ローテートすると、以降の応答は新しい鍵で署名されます。クライアントは <code>previous_keys</code> 経由で旧鍵による検証もしばらく継続できます。</p>
+  <p><strong>現在の公開鍵:</strong></p>
+  <p class="mono" style="background:#f1f5f9;padding:8px 10px;border-radius:6px;word-break:break-all;">
+    {{ public_key_b64 }}
+  </p>
+  <form method="post" action="/admin/ui/settings/rotate-signing"
+        onsubmit="return confirm('署名鍵をローテートします。続行しますか？');">
+    <button type="submit" class="btn danger">署名鍵をローテート</button>
+  </form>
+</div>
+
+<script>
+function generateToken() {
+  // Browser-side random hex (32 bytes -> 64 hex chars).
+  var bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  var hex = '';
+  for (var i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, '0');
+  }
+  document.getElementById('token').value = hex;
+}
+</script>
+{% endblock %}
+{% block help_title %}サーバー設定について{% endblock %}
+{% block help_body %}
+<h3>管理トークン</h3>
+<p>このサーバーの管理画面 (<code>/admin/ui/*</code>) と admin API (<code>/admin/*</code>) のアクセスを保護するパスワードです。<strong>HTTP Basic Auth</strong> の password として使います（user は何でも可）。</p>
+<p>初回は環境変数 <code>DRWP_ADMIN_TOKEN</code> で起動時に設定し、運用中はこの画面から差し替える形を推奨します。</p>
+<h3>署名鍵のローテート</h3>
+<p>ライセンス検証応答に使う Ed25519 鍵ペアを新しいものに交換します。古い公開鍵は previous_keys として <code>/api/public-key</code> で配布され続けるので、クライアント側は無停止で移行できます。</p>
+{% endblock %}

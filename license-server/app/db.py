@@ -44,8 +44,42 @@ def init_db() -> None:
             )
             """
         )
+        # Single-row key/value store for runtime-configurable settings
+        # (admin token, etc.). Separated from the licenses table so the
+        # value column can stay free-form.
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
         # Migration for existing DBs: add columns if missing.
         _migrate_add_columns(c)
+
+
+def get_setting(key: str) -> Optional[str]:
+    with connection() as c:
+        row = c.execute(
+            "SELECT value FROM settings WHERE key = ?", (key,)
+        ).fetchone()
+        return row["value"] if row else None
+
+
+def set_setting(key: str, value: str) -> None:
+    with connection() as c:
+        c.execute(
+            "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+            (key, value),
+        )
+
+
+def delete_setting(key: str) -> None:
+    with connection() as c:
+        c.execute("DELETE FROM settings WHERE key = ?", (key,))
 
 
 def _migrate_add_columns(c: sqlite3.Connection) -> None:

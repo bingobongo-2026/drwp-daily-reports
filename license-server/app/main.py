@@ -25,6 +25,9 @@ _FLASH = {
     "deleted": ("削除しました。", "ok"),
     "conflict": ("そのライセンスキーは既に存在します。", "err"),
     "not_found": ("ライセンスが見つかりませんでした。", "err"),
+    "token_saved": ("管理トークンを保存しました。", "ok"),
+    "token_cleared": ("管理トークンを削除しました（環境変数の値が使われます）。", "ok"),
+    "rotated": ("署名鍵をローテートしました。", "ok"),
 }
 
 
@@ -37,8 +40,15 @@ def _flash_ctx(msg: Optional[str]) -> dict:
 security = HTTPBasic()
 
 
+def _resolve_admin_token() -> Optional[str]:
+    """DB-stored token wins (manageable from the admin UI); env var is
+    the bootstrap fallback so an operator can reach the UI on a fresh
+    install before any DB-stored token exists."""
+    return db.get_setting("admin_token") or os.environ.get("DRWP_ADMIN_TOKEN")
+
+
 def require_admin(credentials: HTTPBasicCredentials = Depends(security)) -> str:
-    expected = os.environ.get("DRWP_ADMIN_TOKEN")
+    expected = _resolve_admin_token()
     if not expected:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -360,5 +370,52 @@ def ui_delete(license_key: str, _: str = Depends(require_admin)):
     msg = "deleted" if db.delete_license(license_key) else "not_found"
     return RedirectResponse(
         f"/admin/ui/licenses?msg={msg}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+# --- Settings UI -----------------------------------------------------------
+
+@app.get("/admin/ui/settings", response_class=HTMLResponse, include_in_schema=False)
+def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(require_admin)):
+    db_token = db.get_setting("admin_token") or ""
+    return templates.TemplateResponse(
+        request,
+        "settings.html",
+        {
+            "has_db_token": db_token != "",
+            "env_token_set": bool(os.environ.get("DRWP_ADMIN_TOKEN")),
+            "public_key_b64": signing.public_key_b64(),
+            **_flash_ctx(msg),
+        },
+    )
+
+
+@app.post("/admin/ui/settings/admin-token", include_in_schema=False)
+def ui_set_admin_token(
+    token: str = Form(""),
+    clear: Optional[str] = Form(None),
+    _: str = Depends(require_admin),
+):
+    if clear:
+        db.delete_setting("admin_token")
+        return RedirectResponse(
+            "/admin/ui/settings?msg=token_cleared",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    token = token.strip()
+    if token:
+        db.set_setting("admin_token", token)
+    return RedirectResponse(
+        "/admin/ui/settings?msg=token_saved",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/admin/ui/settings/rotate-signing", include_in_schema=False)
+def ui_rotate_signing(_: str = Depends(require_admin)):
+    signing.rotate()
+    return RedirectResponse(
+        "/admin/ui/settings?msg=rotated",
         status_code=status.HTTP_303_SEE_OTHER,
     )
