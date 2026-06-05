@@ -56,7 +56,7 @@ class DRWP_Labels {
     public static function post_template($value) {
         $map = [
             'standard'     => __('標準', 'drwp-daily-reports'),
-            'site_report'  => __('現場レポート', 'drwp-daily-reports'),
+            'site_report'  => __('案件レポート', 'drwp-daily-reports'),
             'before_after' => __('ビフォーアフター', 'drwp-daily-reports'),
         ];
         return $map[(string) $value] ?? (string) $value;

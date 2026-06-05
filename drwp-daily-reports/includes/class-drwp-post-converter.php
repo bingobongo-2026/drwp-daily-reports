@@ -133,7 +133,7 @@ class DRWP_Post_Converter {
         }
 
         $post_data = [
-            'post_title'   => $report->public_title ?: __('現場レポート', 'drwp-daily-reports'),
+            'post_title'   => $report->public_title ?: __('案件レポート', 'drwp-daily-reports'),
             'post_content' => self::build_content($report),
             'post_status'  => $report->post_status ?: 'draft',
             'post_type'    => $post_type,

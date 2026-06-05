@@ -156,7 +156,7 @@ jQuery(function ($) {
 
       var html = '<table class="form-table drwp-view-table">';
       html += '<tr><th>日付</th><td>' + esc(d.report_date) + '</td></tr>';
-      html += '<tr><th>現場</th><td>' + esc(d.project_id ? (rest.projects && rest.projects[d.project_id] || '#' + d.project_id) : '（未設定）') + '</td></tr>';
+      html += '<tr><th>案件</th><td>' + esc(d.project_id ? (rest.projects && rest.projects[d.project_id] || '#' + d.project_id) : '（未設定）') + '</td></tr>';
       if (time) html += '<tr><th>時刻</th><td>' + esc(time) + '</td></tr>';
       html += '<tr><th>レビュー</th><td>' + esc(rest.labels && rest.labels[d.review_status] || d.review_status) + '</td></tr>';
       html += '<tr><th>作業内容</th><td class="drwp-view-text">' + esc(d.work_description || '') + '</td></tr>';

@@ -6,7 +6,7 @@
     <div class="notice notice-success"><p><?php esc_html_e('保存しました。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>
 
-  <p><?php esc_html_e('日報を AI に渡して、現場ごとの次回訪問ブリーフィングを生成します。バックエンドはローカル (Ollama) / クラウド (OpenAI / Anthropic) から選択できます。', 'drwp-daily-reports'); ?></p>
+  <p><?php esc_html_e('日報を AI に渡して、案件ごとの次回訪問ブリーフィングを生成します。バックエンドはローカル (Ollama) / クラウド (OpenAI / Anthropic) から選択できます。', 'drwp-daily-reports'); ?></p>
 
   <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
     <?php wp_nonce_field('drwp_save_ai_settings'); ?>

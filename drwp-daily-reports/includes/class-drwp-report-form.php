@@ -182,7 +182,7 @@ class DRWP_Report_Form {
             <h2 class="drwp-mform-edit-title"><?php esc_html_e('日報を編集', 'drwp-daily-reports'); ?></h2>
 
             <?php if ($flash === 'noproject'): ?>
-                <p class="drwp-mform-status err"><?php esc_html_e('現場を選択してください。', 'drwp-daily-reports'); ?></p>
+                <p class="drwp-mform-status err"><?php esc_html_e('案件を選択してください。', 'drwp-daily-reports'); ?></p>
             <?php elseif ($flash === 'nowork'): ?>
                 <p class="drwp-mform-status err"><?php esc_html_e('作業内容を入力してください。', 'drwp-daily-reports'); ?></p>
             <?php elseif ($flash === 'license'): ?>
@@ -209,7 +209,7 @@ class DRWP_Report_Form {
                            value="<?php echo esc_attr((string) $report->report_date); ?>" required />
                 </label>
                 <label class="drwp-mform-row">
-                    <span class="drwp-mform-label"><?php esc_html_e('現場', 'drwp-daily-reports'); ?> <em>*</em></span>
+                    <span class="drwp-mform-label"><?php esc_html_e('案件', 'drwp-daily-reports'); ?> <em>*</em></span>
                     <select name="project_id" required>
                         <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
                         <?php foreach ($projects as $p): ?>
@@ -296,7 +296,7 @@ class DRWP_Report_Form {
             'projects'    => $projects,
             'i18n'        => [
                 'pick_project' => __('選択してください', 'drwp-daily-reports'),
-                'need_project' => __('現場を選択してください。', 'drwp-daily-reports'),
+                'need_project' => __('案件を選択してください。', 'drwp-daily-reports'),
                 'need_work'    => __('作業内容を入力してください。', 'drwp-daily-reports'),
                 'uploading'    => __('写真をアップロード中…', 'drwp-daily-reports'),
                 'sending'      => __('送信中…', 'drwp-daily-reports'),
@@ -332,7 +332,7 @@ class DRWP_Report_Form {
 
                 <label class="drwp-mform-row">
                     <span class="drwp-mform-label">
-                        <?php esc_html_e('現場', 'drwp-daily-reports'); ?> <em>*</em>
+                        <?php esc_html_e('案件', 'drwp-daily-reports'); ?> <em>*</em>
                     </span>
                     <select name="project_id" required>
                         <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>

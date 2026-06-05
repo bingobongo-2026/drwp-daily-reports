@@ -102,8 +102,10 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $ops, $ops, self::CAP_EDIT, 'drwp_operations', [__CLASS__, 'operations_page']);
         $articles = __('記事作成', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $articles, $articles, self::CAP_CONVERT, 'drwp_articles', [__CLASS__, 'articles_page']);
-        $proj = __('現場', 'drwp-daily-reports');
+        $proj = __('案件', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $proj, $proj, 'manage_options', 'drwp_projects', ['DRWP_Project', 'render_page']);
+        $cust = __('顧客', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $cust, $cust, 'manage_options', 'drwp_customers', ['DRWP_Customer', 'render_page']);
         $lic = __('ライセンス', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $lic, $lic, 'manage_options', 'drwp_license', ['DRWP_License_Admin', 'render_page']);
         $audit = __('操作履歴', 'drwp-daily-reports');
