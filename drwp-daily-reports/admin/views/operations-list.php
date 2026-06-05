@@ -33,7 +33,7 @@ $review_labels = [
           <?php endforeach; ?>
         </select>
         <select name="project_id">
-          <option value="0"><?php esc_html_e('現場すべて', 'drwp-daily-reports'); ?></option>
+          <option value="0"><?php esc_html_e('案件すべて', 'drwp-daily-reports'); ?></option>
           <?php foreach (($projects ?? []) as $project): ?>
             <option value="<?php echo (int) $project->id; ?>" <?php selected((int) $filters['project_id'], (int) $project->id); ?>><?php echo esc_html($project->name); ?></option>
           <?php endforeach; ?>
@@ -83,7 +83,7 @@ $review_labels = [
           <th>ID</th>
           <th><?php esc_html_e('日付', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('作成者', 'drwp-daily-reports'); ?></th>
-          <th><?php esc_html_e('現場', 'drwp-daily-reports'); ?></th>
+          <th><?php esc_html_e('案件', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('レビュー', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('操作', 'drwp-daily-reports'); ?></th>
         </tr>
@@ -163,7 +163,7 @@ $review_labels = [
       <table class="form-table" role="presentation">
         <tr><th><?php esc_html_e('日付', 'drwp-daily-reports'); ?></th>
             <td><input type="date" id="drwp-edit-date" /></td></tr>
-        <tr><th><?php esc_html_e('現場', 'drwp-daily-reports'); ?></th>
+        <tr><th><?php esc_html_e('案件', 'drwp-daily-reports'); ?></th>
             <td>
               <select id="drwp-edit-project">
                 <option value=""><?php esc_html_e('（未設定）', 'drwp-daily-reports'); ?></option>

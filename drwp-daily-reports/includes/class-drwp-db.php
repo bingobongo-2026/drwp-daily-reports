@@ -41,13 +41,37 @@ class DRWP_DB {
         $charset = $wpdb->get_charset_collate();
         $reports = $wpdb->prefix . 'drwp_reports';
         $projects = $wpdb->prefix . 'drwp_projects';
+        $customers = $wpdb->prefix . 'drwp_customers';
         $comments = $wpdb->prefix . 'drwp_comments';
         $audit = $wpdb->prefix . 'drwp_audit_logs';
         $photos = $wpdb->prefix . 'drwp_report_photos';
 
+        // Customer ("顧客") — owns address / phone / email and is
+        // referenced by 0..N projects. Project-level address fields
+        // remain as overrides for the per-project "現場が違う" case.
+        $sql0 = "CREATE TABLE $customers (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name VARCHAR(255) NOT NULL,
+            postal_code VARCHAR(10) NULL,
+            prefecture VARCHAR(10) NULL,
+            city VARCHAR(100) NULL,
+            street VARCHAR(255) NULL,
+            building VARCHAR(255) NULL,
+            address VARCHAR(500) NULL,
+            phone VARCHAR(30) NULL,
+            email VARCHAR(255) NULL,
+            notes TEXT NULL,
+            status VARCHAR(32) NOT NULL DEFAULT 'active',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id)
+        ) $charset;";
+        dbDelta($sql0);
+
         $sql1 = "CREATE TABLE $projects (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             name VARCHAR(255) NOT NULL,
+            customer_id BIGINT UNSIGNED NULL,
             postal_code VARCHAR(10) NULL,
             prefecture VARCHAR(10) NULL,
             city VARCHAR(100) NULL,
@@ -62,7 +86,8 @@ class DRWP_DB {
             status VARCHAR(32) NOT NULL DEFAULT 'active',
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY  (id)
+            PRIMARY KEY  (id),
+            KEY customer_id (customer_id)
         ) $charset;";
         dbDelta($sql1);
 

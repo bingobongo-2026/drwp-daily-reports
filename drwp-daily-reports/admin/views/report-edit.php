@@ -66,7 +66,7 @@ if (!empty($report->user_id)) {
         <h3><?php esc_html_e('基本情報', 'drwp-daily-reports'); ?></h3>
         <table class="form-table" role="presentation">
           <tr>
-            <th><label for="drwp-project-id"><?php esc_html_e('現場', 'drwp-daily-reports'); ?></label></th>
+            <th><label for="drwp-project-id"><?php esc_html_e('案件', 'drwp-daily-reports'); ?></label></th>
             <td>
               <select name="project_id" id="drwp-project-id">
                 <option value=""><?php esc_html_e('（未設定）', 'drwp-daily-reports'); ?></option>
@@ -171,7 +171,7 @@ if (!empty($report->user_id)) {
             <th><label><?php esc_html_e('公開タイトル', 'drwp-daily-reports'); ?></label></th>
             <td>
               <input type="text" name="public_title" class="regular-text" value="<?php echo esc_attr($report->public_title ?? ''); ?>" />
-              <p class="description"><?php esc_html_e('空欄なら「現場レポート」が自動でタイトルになります。', 'drwp-daily-reports'); ?></p>
+              <p class="description"><?php esc_html_e('空欄なら「案件レポート」が自動でタイトルになります。', 'drwp-daily-reports'); ?></p>
             </td>
           </tr>
           <tr>
@@ -220,7 +220,7 @@ if (!empty($report->user_id)) {
             <th><label><?php esc_html_e('タグ', 'drwp-daily-reports'); ?></label></th>
             <td>
               <input type="text" name="post_tags" class="regular-text" value="<?php echo esc_attr($report->post_tags ?? ''); ?>" />
-              <p class="description"><?php esc_html_e('カンマ区切りで入力します。例: 外壁補修, 三島市, 現場レポート', 'drwp-daily-reports'); ?></p>
+              <p class="description"><?php esc_html_e('カンマ区切りで入力します。例: 外壁補修, 三島市, 案件レポート', 'drwp-daily-reports'); ?></p>
             </td>
           </tr>
           <tr>

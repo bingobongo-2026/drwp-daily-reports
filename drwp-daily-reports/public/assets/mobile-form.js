@@ -107,7 +107,7 @@
         var projectId = Number(form.project_id.value) || 0;
         var work = form.work_description.value.trim();
         if (!projectId) {
-            setStatus(i18n.need_project || '現場を選択してください。', 'err');
+            setStatus(i18n.need_project || '案件を選択してください。', 'err');
             stopSending();
             return;
         }

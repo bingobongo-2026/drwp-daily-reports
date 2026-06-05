@@ -2,30 +2,18 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Front-end shortcode that lets a logged-in field worker manage
- * their own daily reports from a phone.
+ * New-report form rendering + POST handlers for the front-end.
  *
- * Usage:
+ * The [drwp_report_form] shortcode is kept registered for backward
+ * compatibility but no longer produces any output on its own —
+ * [drwp_report_archive] is the single user-facing entry point and:
+ *   - calls render_form() to embed the new-report form in a modal
+ *   - provides a calendar view of reports
+ *   - handles ?drwp_edit=N on its own
  *
- *     [drwp_report_form]
- *
- * Three views, selected by URL state:
- *
- *   default        → list of MY past reports + filter form +
- *                    「+ 日報を書く」 button at the top
- *   ?drwp_new=1    → input form for a fresh report (the form is
- *                    the original [drwp_report_form] UI)
- *
- * The list is scoped to the current user only — workers don't need
- * to see (or accidentally edit) other people's reports here. A
- * separate [drwp_report_archive] shortcode exists for team-wide
- * browsing.
- *
- * Requirements for the visitor:
- *   - logged in (WP cookie auth supplies the REST nonce)
- *   - has the edit_posts capability (Contributor or higher)
- *   - the plugin's license is active or in grace, otherwise the
- *     REST POST returns 402 and we surface the message verbatim
+ * Users with [drwp_report_form] in an existing page can leave it
+ * there (no effect) or remove it. The handle_post() routine still
+ * fires on template_redirect for the legacy "編集を依頼" POST.
  */
 class DRWP_Report_Form {
 
@@ -54,20 +42,10 @@ class DRWP_Report_Form {
     }
 
     public static function render($atts = [], $content = '') {
-        if (!is_user_logged_in() || !current_user_can('edit_posts')) {
-            return '';
-        }
-        wp_enqueue_style(self::HANDLE);
-
-        $edit_id = absint($_GET['drwp_edit'] ?? 0);
-        if ($edit_id) {
-            return self::render_edit($edit_id);
-        }
-        if (!empty($_GET['drwp_new'])) {
-            return self::render_form();
-        }
-        // Default: no rendering. [drwp_report_archive] provides
-        // the list/calendar and embeds the new-report form in a modal.
+        // This shortcode is kept registered for backward compatibility
+        // but no longer renders anything — [drwp_report_archive] is
+        // now the single user-facing entry point and handles
+        // ?drwp_new / ?drwp_edit on its own.
         return '';
     }
 
@@ -174,7 +152,7 @@ class DRWP_Report_Form {
      * Edit form — ?drwp_edit=N (own pending only)
      * ------------------------------------------------------------ */
 
-    private static function render_edit($id) {
+    public static function render_edit($id) {
         global $wpdb;
         $report = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM " . $wpdb->prefix . "drwp_reports WHERE id = %d", $id
@@ -204,7 +182,7 @@ class DRWP_Report_Form {
             <h2 class="drwp-mform-edit-title"><?php esc_html_e('日報を編集', 'drwp-daily-reports'); ?></h2>
 
             <?php if ($flash === 'noproject'): ?>
-                <p class="drwp-mform-status err"><?php esc_html_e('現場を選択してください。', 'drwp-daily-reports'); ?></p>
+                <p class="drwp-mform-status err"><?php esc_html_e('案件を選択してください。', 'drwp-daily-reports'); ?></p>
             <?php elseif ($flash === 'nowork'): ?>
                 <p class="drwp-mform-status err"><?php esc_html_e('作業内容を入力してください。', 'drwp-daily-reports'); ?></p>
             <?php elseif ($flash === 'license'): ?>
@@ -231,7 +209,7 @@ class DRWP_Report_Form {
                            value="<?php echo esc_attr((string) $report->report_date); ?>" required />
                 </label>
                 <label class="drwp-mform-row">
-                    <span class="drwp-mform-label"><?php esc_html_e('現場', 'drwp-daily-reports'); ?> <em>*</em></span>
+                    <span class="drwp-mform-label"><?php esc_html_e('案件', 'drwp-daily-reports'); ?> <em>*</em></span>
                     <select name="project_id" required>
                         <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
                         <?php foreach ($projects as $p): ?>
@@ -318,7 +296,7 @@ class DRWP_Report_Form {
             'projects'    => $projects,
             'i18n'        => [
                 'pick_project' => __('選択してください', 'drwp-daily-reports'),
-                'need_project' => __('現場を選択してください。', 'drwp-daily-reports'),
+                'need_project' => __('案件を選択してください。', 'drwp-daily-reports'),
                 'need_work'    => __('作業内容を入力してください。', 'drwp-daily-reports'),
                 'uploading'    => __('写真をアップロード中…', 'drwp-daily-reports'),
                 'sending'      => __('送信中…', 'drwp-daily-reports'),
@@ -354,7 +332,7 @@ class DRWP_Report_Form {
 
                 <label class="drwp-mform-row">
                     <span class="drwp-mform-label">
-                        <?php esc_html_e('現場', 'drwp-daily-reports'); ?> <em>*</em>
+                        <?php esc_html_e('案件', 'drwp-daily-reports'); ?> <em>*</em>
                     </span>
                     <select name="project_id" required>
                         <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>

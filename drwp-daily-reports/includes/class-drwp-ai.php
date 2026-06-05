@@ -78,7 +78,7 @@ class DRWP_AI {
             return new WP_Error('drwp_ai_disabled', 'AI機能が無効です');
         }
         $project = DRWP_Project::find($project_id);
-        if (!$project) return new WP_Error('drwp_ai_no_project', '現場が見つかりません');
+        if (!$project) return new WP_Error('drwp_ai_no_project', '案件が見つかりません');
 
         global $wpdb;
         $table = $wpdb->prefix . 'drwp_reports';
@@ -88,7 +88,7 @@ class DRWP_AI {
         ));
 
         if (empty($reports)) {
-            return new WP_Error('drwp_ai_no_reports', 'この現場の日報がまだありません');
+            return new WP_Error('drwp_ai_no_reports', 'この案件の日報がまだありません');
         }
 
         $messages = self::build_briefing_messages($project, $reports);
@@ -96,7 +96,7 @@ class DRWP_AI {
     }
 
     private static function build_briefing_messages($project, $reports) {
-        $meta = ['現場名: ' . $project->name];
+        $meta = ['案件名: ' . $project->name];
         if (!empty($project->client_name))     $meta[] = '顧客: ' . $project->client_name;
         if (!empty($project->job_description)) $meta[] = '仕事内容: ' . $project->job_description;
         if (!empty($project->notes))           $meta[] = '備考: ' . $project->notes;
@@ -111,12 +111,12 @@ class DRWP_AI {
         }
         $count = count($reports);
 
-        $system = 'あなたは建設・サービス業の現場担当者を支援するアシスタントです。'
+        $system = 'あなたは建設・サービス業の案件担当者を支援するアシスタントです。'
             . '日報の内容から、次回訪問時に役立つ「持参物」「継続案件・注意点」「お客様への提案ポイント」を箇条書きで提案します。'
             . '日報に書かれていない事項は推測せず、根拠が読み取れる項目のみ挙げてください。'
             . '出力は Markdown 箇条書きで、## 次回持参すべきもの / ## 注意点・継続案件 / ## お客様への提案ポイント の3セクションに分けてください。';
 
-        $user = "【現場情報】\n{$meta_str}\n\n【過去の日報（新しい順、最大{$count}件）】\n{$reports_str}";
+        $user = "【案件情報】\n{$meta_str}\n\n【過去の日報（新しい順、最大{$count}件）】\n{$reports_str}";
 
         return [
             ['role' => 'system', 'content' => $system],

@@ -55,7 +55,7 @@ foreach (($reports ?? []) as $r) {
           <?php endforeach; ?>
         </select>
         <select name="project_id">
-          <option value="0"><?php esc_html_e('現場すべて', 'drwp-daily-reports'); ?></option>
+          <option value="0"><?php esc_html_e('案件すべて', 'drwp-daily-reports'); ?></option>
           <?php foreach (($projects ?? []) as $project): ?>
             <option value="<?php echo (int) $project->id; ?>" <?php selected((int) $filters['project_id'], (int) $project->id); ?>><?php echo esc_html($project->name); ?></option>
           <?php endforeach; ?>
@@ -118,7 +118,7 @@ foreach (($reports ?? []) as $r) {
             <col class="drwp-meta-col-val" />
           </colgroup>
           <tr>
-            <th>現場名</th>
+            <th>案件名</th>
             <td colspan="3" id="drwp-view-project"></td>
           </tr>
           <tr>
@@ -414,7 +414,7 @@ foreach (($reports ?? []) as $r) {
   }
   function renderView(r){
     document.getElementById('drwp-view-date').textContent = formatDate(r.report_date);
-    document.getElementById('drwp-view-project').textContent = r.project_name || '（現場未設定）';
+    document.getElementById('drwp-view-project').textContent = r.project_name || '（案件未設定）';
     document.getElementById('drwp-view-author').textContent = r.author_name || '';
     var time = '';
     if (r.started_at) time += r.started_at.substring(0,5);

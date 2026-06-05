@@ -10,6 +10,7 @@ global $wpdb;
 $tables = [
     $wpdb->prefix . 'drwp_reports',
     $wpdb->prefix . 'drwp_projects',
+    $wpdb->prefix . 'drwp_customers',
     $wpdb->prefix . 'drwp_comments',
     $wpdb->prefix . 'drwp_audit_logs',
     $wpdb->prefix . 'drwp_report_photos',

@@ -37,7 +37,7 @@
           <?php endforeach; ?>
         </select>
         <select name="project_id">
-          <option value="0"><?php esc_html_e('現場すべて', 'drwp-daily-reports'); ?></option>
+          <option value="0"><?php esc_html_e('案件すべて', 'drwp-daily-reports'); ?></option>
           <?php foreach (($projects ?? []) as $project): ?>
             <option value="<?php echo (int) $project->id; ?>" <?php selected((int) $filters['project_id'], (int) $project->id); ?>><?php echo esc_html($project->name); ?></option>
           <?php endforeach; ?>
@@ -133,7 +133,7 @@
           <th>ID</th>
           <th><?php esc_html_e('日付', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('作成者', 'drwp-daily-reports'); ?></th>
-          <th><?php esc_html_e('現場', 'drwp-daily-reports'); ?></th>
+          <th><?php esc_html_e('案件', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('公開タイトル', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('投稿状態', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('記事', 'drwp-daily-reports'); ?></th>
@@ -474,7 +474,7 @@
         if(d.ended_at)time+=d.ended_at.substring(0,5);
         var h='<table class="drwp-ref-table">';
         h+='<tr><th>日付</th><td>'+esc(d.report_date)+'</td></tr>';
-        h+='<tr><th>現場</th><td>'+esc(d.project_id?(rest.projects&&rest.projects[d.project_id]||'#'+d.project_id):'（未設定）')+'</td></tr>';
+        h+='<tr><th>案件</th><td>'+esc(d.project_id?(rest.projects&&rest.projects[d.project_id]||'#'+d.project_id):'（未設定）')+'</td></tr>';
         if(time)h+='<tr><th>時刻</th><td>'+esc(time)+'</td></tr>';
         h+='<tr><th>作業内容</th><td class="drwp-view-text">'+esc(d.work_description||'')+'</td></tr>';
         if(d.issues)h+='<tr><th>特記事項</th><td class="drwp-view-text">'+esc(d.issues)+'</td></tr>';

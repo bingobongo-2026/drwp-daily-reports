@@ -152,10 +152,14 @@ class DRWP_Report_Archive {
             'edit_requested' => DRWP_Labels::review_status('edit_requested'),
         ];
         $cfg = wp_json_encode([
-            'restRoot' => $rest_root,
-            'nonce'    => $nonce,
-            'labels'   => $labels,
-            'editBase' => esc_url_raw(add_query_arg('drwp_edit', '__ID__', $_SERVER['REQUEST_URI'] ?? '')),
+            'restRoot'  => $rest_root,
+            'nonce'     => $nonce,
+            'labels'    => $labels,
+            // The archive's edit flow uses ?drwp_id=N&drwp_edit=1
+            // (see shortcode() dispatch); we build a link template
+            // with __ID__ that JS replaces per-report.
+            'editBase'  => esc_url_raw(add_query_arg(['drwp_id' => '__ID__', 'drwp_edit' => 1], $_SERVER['REQUEST_URI'] ?? '')),
+            'autoOpenNew' => !empty($_GET['drwp_new']),
         ]);
 
         ob_start();
@@ -272,6 +276,13 @@ class DRWP_Report_Archive {
               }
             });
           });
+
+          // Auto-open the form modal when arriving via ?drwp_new=1.
+          // Lets external links / bookmarks land users directly on
+          // the new-report form without needing a click.
+          if (cfg.autoOpenNew && formDlg) {
+            try { formDlg.showModal(); } catch (e) {}
+          }
         })();
         </script>
         <?php
@@ -460,7 +471,7 @@ class DRWP_Report_Archive {
                            placeholder="<?php esc_attr_e('作業内容に含まれる語', 'drwp-daily-reports'); ?>" />
                 </label>
                 <label class="drwp-archive-field">
-                    <span><?php esc_html_e('現場', 'drwp-daily-reports'); ?></span>
+                    <span><?php esc_html_e('案件', 'drwp-daily-reports'); ?></span>
                     <select name="drwp_project">
                         <option value="0"><?php esc_html_e('すべて', 'drwp-daily-reports'); ?></option>
                         <?php foreach (($projects ?? []) as $p): ?>
@@ -561,7 +572,7 @@ class DRWP_Report_Archive {
                 <div class="drwp-archive-cal-day"><?php echo (int) $d; ?></div>
                 <?php foreach ($items as $r):
                   $proj = $r->project_id ? DRWP_Project::find((int) $r->project_id) : null;
-                  $proj_name = $proj ? $proj->name : __('（現場未設定）', 'drwp-daily-reports');
+                  $proj_name = $proj ? $proj->name : __('（案件未設定）', 'drwp-daily-reports');
                   $time = self::format_time_window($r->started_at ?? '', $r->ended_at ?? '');
                 ?>
                   <button type="button" class="drwp-archive-cal-chip status-<?php echo esc_attr((string) $r->review_status); ?>"
@@ -754,7 +765,7 @@ class DRWP_Report_Archive {
 
             <?php
             $flash = isset($_GET['drwp_err']) ? sanitize_key((string) $_GET['drwp_err']) : '';
-            if ($flash === 'noproject') echo '<p class="drwp-archive-flash err">' . esc_html__('現場を選択してください。', 'drwp-daily-reports') . '</p>';
+            if ($flash === 'noproject') echo '<p class="drwp-archive-flash err">' . esc_html__('案件を選択してください。', 'drwp-daily-reports') . '</p>';
             if ($flash === 'nowork')    echo '<p class="drwp-archive-flash err">' . esc_html__('作業内容を入力してください。', 'drwp-daily-reports') . '</p>';
             if ($flash === 'license')   echo '<p class="drwp-archive-flash err">' . esc_html__('現在保存できない状態です(ライセンス未有効など)。', 'drwp-daily-reports') . '</p>';
             ?>
@@ -779,7 +790,7 @@ class DRWP_Report_Archive {
                            value="<?php echo esc_attr((string) $report->report_date); ?>" required />
                 </label>
                 <label class="drwp-archive-edit-field">
-                    <span><?php esc_html_e('現場', 'drwp-daily-reports'); ?></span>
+                    <span><?php esc_html_e('案件', 'drwp-daily-reports'); ?></span>
                     <select name="project_id" required>
                         <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
                         <?php foreach ($projects as $p): ?>

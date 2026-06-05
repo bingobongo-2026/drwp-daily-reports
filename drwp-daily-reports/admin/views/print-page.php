@@ -16,10 +16,10 @@
           </td>
         </tr>
         <tr>
-          <th><?php esc_html_e('現場', 'drwp-daily-reports'); ?></th>
+          <th><?php esc_html_e('案件', 'drwp-daily-reports'); ?></th>
           <td>
             <select name="project_id">
-              <option value="0"><?php esc_html_e('現場すべて', 'drwp-daily-reports'); ?></option>
+              <option value="0"><?php esc_html_e('案件すべて', 'drwp-daily-reports'); ?></option>
               <?php foreach (($projects ?? []) as $p): ?>
                 <option value="<?php echo (int) $p->id; ?>" <?php selected((int) $filters['project_id'], (int) $p->id); ?>><?php echo esc_html($p->name); ?></option>
               <?php endforeach; ?>
@@ -76,7 +76,7 @@
           <div class="drwp-sheet-top">
             <table class="drwp-sheet-meta">
               <tr>
-                <th><?php esc_html_e('現場名', 'drwp-daily-reports'); ?></th>
+                <th><?php esc_html_e('案件名', 'drwp-daily-reports'); ?></th>
                 <td colspan="3"><?php echo esc_html($project_name); ?></td>
               </tr>
               <tr>

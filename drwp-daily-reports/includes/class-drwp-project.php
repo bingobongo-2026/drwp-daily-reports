@@ -36,6 +36,7 @@ class DRWP_Project {
     public static function render_page() {
         if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         $projects = self::all();
+        $customers = DRWP_Customer::all();
         // Edit mode: pre-fill the form from ?edit_id=N. The form's
         // hidden id input is what flips save() between INSERT (no
         // id) and UPDATE (id present) — the back-end already
@@ -65,8 +66,10 @@ class DRWP_Project {
         $city       = sanitize_text_field(wp_unslash($_POST['city'] ?? ''));
         $street     = sanitize_text_field(wp_unslash($_POST['street'] ?? ''));
         $building   = sanitize_text_field(wp_unslash($_POST['building'] ?? ''));
+        $customer_id = absint($_POST['customer_id'] ?? 0);
         $data = [
             'name'           => $name,
+            'customer_id'    => $customer_id ?: null,
             'status'         => $status,
             'postal_code'    => sanitize_text_field(wp_unslash($_POST['postal_code'] ?? '')),
             'prefecture'     => $prefecture,
