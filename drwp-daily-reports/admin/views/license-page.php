@@ -26,6 +26,15 @@
     </p></div>
   <?php endif; ?>
 
+  <?php
+  $token_result = get_transient('drwp_token_write_result');
+  if ($token_result) {
+      delete_transient('drwp_token_write_result');
+      $cls = !empty($token_result['ok']) ? 'notice-success' : 'notice-warning';
+      printf('<div class="notice %s"><p>%s</p></div>', esc_attr($cls), esc_html($token_result['message']));
+  }
+  ?>
+
   <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="background:#fff;padding:16px;margin-top:12px;">
     <?php wp_nonce_field('drwp_save_license'); ?>
     <input type="hidden" name="action" value="drwp_save_license" />
@@ -77,6 +86,14 @@
         <?php wp_nonce_field('drwp_rotate_license_key'); ?>
         <input type="hidden" name="action" value="drwp_rotate_license_key" />
         <?php submit_button(__('鍵をローテート', 'drwp-daily-reports'), 'delete', 'submit', false); ?>
+      </form>
+    <?php endif; ?>
+    <?php if ($license['admin_token_source'] === 'option'): ?>
+      <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+            onsubmit="return confirm('<?php echo esc_js(__('wp-config.php に DRWP_LICENSE_ADMIN_TOKEN を書き込みます。書き込み後、DB 上のトークンは削除されます。続行しますか？', 'drwp-daily-reports')); ?>');">
+        <?php wp_nonce_field('drwp_write_admin_token'); ?>
+        <input type="hidden" name="action" value="drwp_write_admin_token" />
+        <?php submit_button(__('wp-config.php に書き込む', 'drwp-daily-reports'), 'secondary', 'submit', false); ?>
       </form>
     <?php endif; ?>
   </div>
