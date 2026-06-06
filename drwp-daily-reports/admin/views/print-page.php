@@ -96,6 +96,16 @@
           <div class="drwp-sheet-title"><?php esc_html_e('作業日報', 'drwp-daily-reports'); ?></div>
 
           <table class="drwp-sheet-meta">
+            <colgroup>
+              <col class="drwp-sheet-meta-label" />
+              <col />
+              <col class="drwp-sheet-meta-label" />
+              <col />
+            </colgroup>
+            <tr>
+              <th><?php esc_html_e('日報 No.', 'drwp-daily-reports'); ?></th>
+              <td colspan="3"><?php echo esc_html('#' . (int) $r->id); ?></td>
+            </tr>
             <tr>
               <th><?php esc_html_e('案件名', 'drwp-daily-reports'); ?></th>
               <td colspan="3"><?php echo esc_html($project_name); ?></td>
@@ -115,7 +125,7 @@
               <td><?php echo esc_html($work_time_text); ?></td>
             </tr>
             <tr>
-              <th><?php esc_html_e('氏名', 'drwp-daily-reports'); ?></th>
+              <th><?php esc_html_e('記入者', 'drwp-daily-reports'); ?></th>
               <td><?php echo esc_html($author ? $author->display_name : ''); ?></td>
               <th><?php esc_html_e('提出日', 'drwp-daily-reports'); ?></th>
               <td>
@@ -125,10 +135,6 @@
                   }
                 ?>
               </td>
-            </tr>
-            <tr>
-              <th><?php esc_html_e('日報 No.', 'drwp-daily-reports'); ?></th>
-              <td colspan="3"><?php echo esc_html('#' . (int) $r->id); ?></td>
             </tr>
           </table>
 
@@ -172,15 +178,16 @@
 .drwp-print-pagebreak{height:24px}
 .drwp-sheet{background:#fff;padding:18mm;margin:0 auto 16px;max-width:210mm;min-height:280mm;box-sizing:border-box;font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;color:#1d2327;font-size:11pt;line-height:1.5;display:flex;flex-direction:column}
 .drwp-sheet-title{text-align:center;font-size:18pt;font-weight:700;margin:0;padding:8px 0;background:#e5e7eb;border:1px solid #1d2327}
-.drwp-sheet-meta{width:100%;border-collapse:collapse;margin:10mm 0 8px;table-layout:fixed}
+.drwp-sheet-meta{width:100%;border-collapse:collapse;margin-top:8px;table-layout:fixed}
 .drwp-sheet-meta th,.drwp-sheet-meta td{border:1px solid #1d2327;padding:4px 8px;font-size:10pt}
-.drwp-sheet-meta th{background:#e5e7eb;width:80px;text-align:center;font-weight:700;white-space:nowrap}
+.drwp-sheet-meta th{background:#e5e7eb;text-align:center;font-weight:700;white-space:nowrap}
+.drwp-sheet-meta-label{width:80px}
 .drwp-sheet-section{width:100%;border-collapse:collapse;margin-top:8px;table-layout:fixed}
 .drwp-sheet-section-head{background:#e5e7eb;border:1px solid #1d2327;text-align:center;font-weight:700;font-size:11pt;padding:4px}
 .drwp-sheet-section-body{border:1px solid #1d2327;padding:8px;vertical-align:top;white-space:pre-wrap;word-break:break-all}
 .drwp-sheet-section-body-lg{height:110mm}
 .drwp-sheet-section-body-md{height:28mm}
-.drwp-sheet-approval{margin:10px 0 0;padding:6px 8px;border:1px solid #1d2327;font-size:10.5pt;text-align:right}
+.drwp-sheet-approval{margin:10px 0 0;padding:6px 8px;font-size:10.5pt;text-align:right}
 @media print{
   body{background:#fff !important}
   #adminmenumain,#wpadminbar,#wpfooter,.update-nag,.drwp-no-print{display:none !important}
@@ -189,7 +196,6 @@
   .drwp-print-area{background:#fff !important;padding:0 !important}
   .drwp-print-pagebreak{display:none}
   .drwp-sheet{margin:0;padding:0;min-height:auto;max-width:none;page-break-after:always;break-after:page;page-break-inside:avoid}
-  .drwp-sheet-meta{margin:10mm 0 8px !important}
   .drwp-sheet:last-child{page-break-after:auto}
   @page{margin:15mm;size:A4 portrait}
 }
