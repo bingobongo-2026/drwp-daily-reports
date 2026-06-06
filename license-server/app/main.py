@@ -29,6 +29,8 @@ _FLASH = {
     "not_found": ("ライセンスが見つかりませんでした。", "err"),
     "token_saved": ("管理トークンを保存しました。", "ok"),
     "token_cleared": ("管理トークンを削除しました（環境変数の値が使われます）。", "ok"),
+    "creds_saved": ("ユーザー名と管理トークンを保存しました。", "ok"),
+    "username_saved": ("ユーザー名を保存しました。", "ok"),
     "rotated": ("署名鍵をローテートしました。", "ok"),
     "restored": ("バックアップから復元しました。", "ok"),
     "restore_invalid": ("バックアップファイルが不正です（zip ではない / 中身が想定外）。", "err"),
@@ -44,6 +46,21 @@ def _flash_ctx(msg: Optional[str]) -> dict:
 
 security = HTTPBasic(auto_error=False)
 
+# Default admin username. Mostly cosmetic — it just gives operators a
+# real value to type alongside the password instead of "anything works".
+_DEFAULT_ADMIN_USERNAME = "admin"
+
+
+def _resolve_admin_username() -> str:
+    """DB value wins; env var DRWP_ADMIN_USERNAME is a bootstrap
+    fallback; "admin" is the ultimate default so a fresh install
+    always has a valid pair to type."""
+    return (
+        db.get_setting("admin_username")
+        or os.environ.get("DRWP_ADMIN_USERNAME")
+        or _DEFAULT_ADMIN_USERNAME
+    )
+
 
 def _resolve_admin_token() -> Optional[str]:
     """DB-stored token wins (manageable from the admin UI); env var is
@@ -54,9 +71,10 @@ def _resolve_admin_token() -> Optional[str]:
 
 def _current_realm() -> str:
     """Realm name advertised in WWW-Authenticate. We append a version
-    counter so that when the operator changes the admin token, the
-    realm string changes too — browsers treat that as a separate auth
-    domain and stop silently retrying with the cached old token."""
+    counter so that when the operator changes the admin username or
+    token, the realm string changes too — browsers treat that as a
+    separate auth domain and stop silently retrying with the cached
+    old credentials."""
     version = db.get_setting("admin_token_version") or "0"
     return f"DRWP-Admin-v{version}"
 
@@ -69,8 +87,9 @@ def _bump_admin_token_version() -> None:
 def require_admin(
     credentials: Optional[HTTPBasicCredentials] = Depends(security),
 ) -> str:
-    expected = _resolve_admin_token()
-    if not expected:
+    expected_user = _resolve_admin_username()
+    expected_pass = _resolve_admin_token()
+    if not expected_pass:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Admin token not configured",
@@ -82,10 +101,14 @@ def require_admin(
             detail="Authentication required",
             headers=www_auth,
         )
-    if not secrets.compare_digest(credentials.password, expected):
+    # Compare both sides with constant-time digest to avoid timing
+    # leaks on the username (rare but cheap to defend against).
+    user_ok = secrets.compare_digest(credentials.username, expected_user)
+    pass_ok = secrets.compare_digest(credentials.password, expected_pass)
+    if not (user_ok and pass_ok):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin token",
+            detail="Invalid admin credentials",
             headers=www_auth,
         )
     return credentials.username
@@ -407,6 +430,7 @@ def ui_delete(license_key: str, _: str = Depends(require_admin)):
 @app.get("/admin/ui/settings", response_class=HTMLResponse, include_in_schema=False)
 def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(require_admin)):
     db_token = db.get_setting("admin_token") or ""
+    db_username = db.get_setting("admin_username") or ""
     key_path = signing._key_path()
     key_created_at = None
     if os.path.exists(key_path):
@@ -421,6 +445,10 @@ def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(re
         {
             "has_db_token": db_token != "",
             "env_token_set": bool(os.environ.get("DRWP_ADMIN_TOKEN")),
+            "current_username": _resolve_admin_username(),
+            "has_db_username": db_username != "",
+            "env_username_set": bool(os.environ.get("DRWP_ADMIN_USERNAME")),
+            "default_username": _DEFAULT_ADMIN_USERNAME,
             "public_key_b64": signing.public_key_b64(),
             "key_created_at": key_created_at,
             "last_rotated_at": db.get_setting("last_rotated_at"),
@@ -432,23 +460,40 @@ def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(re
 
 @app.post("/admin/ui/settings/admin-token", include_in_schema=False)
 def ui_set_admin_token(
+    username: str = Form(""),
     token: str = Form(""),
     clear: Optional[str] = Form(None),
     _: str = Depends(require_admin),
 ):
     if clear:
         db.delete_setting("admin_token")
+        db.delete_setting("admin_username")
         _bump_admin_token_version()
         return RedirectResponse(
             "/admin/ui/settings?msg=token_cleared",
             status_code=status.HTTP_303_SEE_OTHER,
         )
+    username = username.strip()
     token = token.strip()
+    changed = False
+    if username:
+        db.set_setting("admin_username", username)
+        changed = True
     if token:
         db.set_setting("admin_token", token)
+        changed = True
+    if changed:
+        # Bump the realm version so the browser stops silently retrying
+        # with the cached old credentials and prompts for the new pair.
         _bump_admin_token_version()
+    if username and token:
+        msg = "creds_saved"
+    elif username:
+        msg = "username_saved"
+    else:
+        msg = "token_saved"
     return RedirectResponse(
-        "/admin/ui/settings?msg=token_saved",
+        f"/admin/ui/settings?msg={msg}",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 

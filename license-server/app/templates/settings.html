@@ -8,39 +8,55 @@
 </div>
 
 <div class="card">
-  <h2>管理トークン</h2>
+  <h2>管理ユーザー名 / トークン</h2>
   <p class="muted">
-    管理画面と <code>/admin/*</code> API へのアクセスに使うパスワードです。
+    管理画面と <code>/admin/*</code> API へのアクセスに使う Basic 認証のユーザー名とパスワードです。
+  </p>
+  <p class="muted">
+    <strong>ユーザー名:</strong>
+    現在は <code>{{ current_username }}</code> が使われています
+    {% if has_db_username %}
+      （DB に保存された値）。
+    {% elif env_username_set %}
+      （環境変数 <code>DRWP_ADMIN_USERNAME</code> の値）。
+    {% else %}
+      （デフォルト値 <code>{{ default_username }}</code>）。
+    {% endif %}
+    <br>
+    <strong>トークン:</strong>
     {% if has_db_token %}
       現在は <strong>DB に保存された値</strong>が使われています。
     {% elif env_token_set %}
       現在は環境変数 <code>DRWP_ADMIN_TOKEN</code> の値が使われています。
       DB に値を保存すると、そちらが優先されます。
     {% else %}
-      <span style="color:#b91c1c;">トークンが未設定です。</span>
+      <span style="color:#b91c1c;">未設定です。</span>
     {% endif %}
   </p>
 
   <form method="post" action="/admin/ui/settings/admin-token" id="token-form">
-    <label for="token">新しい管理トークン</label>
+    <label for="username">新しいユーザー名（空欄なら変更なし）</label>
+    <input type="text" id="username" name="username" placeholder="現在: {{ current_username }}" autocomplete="off" />
+
+    <label for="token" style="margin-top: 14px;">新しい管理トークン（空欄なら変更なし）</label>
     <div class="row" style="gap: 8px;">
       <input type="text" id="token" name="token" placeholder="ここに貼り付け、または「自動生成」" autocomplete="off" />
       <button type="button" class="btn ghost" onclick="generateToken()">自動生成</button>
     </div>
     <p class="muted" style="margin-top: 6px;">
-      32 バイトのランダム値（hex 64 文字）を推奨します。
+      トークンは 32 バイトのランダム値（hex 64 文字）を推奨します。
     </p>
     <div class="flash err" style="margin-top: 10px; font-weight: normal;">
       <strong>保存後の挙動:</strong> 保存直後にブラウザの Basic 認証ダイアログが再表示されます。
-      ユーザー名は何でも OK、パスワードに <strong>新しいトークン</strong>を入力してください。
-      （古いトークンはもう効きません）
+      <strong>新しいユーザー名とトークン</strong>を入力してください。
+      （古い値はもう効きません）
     </div>
     <div class="row" style="margin-top: 12px;">
       <button type="submit" class="btn">保存</button>
-      {% if has_db_token %}
+      {% if has_db_token or has_db_username %}
       <button type="submit" name="clear" value="1" class="btn danger"
-              onclick="return confirm('DB に保存された管理トークンを削除します。環境変数の値（あれば）にフォールバックします。続行しますか？');">
-        DB トークンを削除
+              onclick="return confirm('DB に保存された管理ユーザー名とトークンを削除します。環境変数の値（あれば）またはデフォルトにフォールバックします。続行しますか？');">
+        DB 認証情報を削除
       </button>
       {% endif %}
     </div>
@@ -101,9 +117,10 @@ function generateToken() {
 {% endblock %}
 {% block help_title %}サーバー設定について{% endblock %}
 {% block help_body %}
-<h3>管理トークン</h3>
-<p>このサーバーの管理画面 (<code>/admin/ui/*</code>) と admin API (<code>/admin/*</code>) のアクセスを保護するパスワードです。<strong>HTTP Basic Auth</strong> の password として使います（user は何でも可）。</p>
-<p>初回は環境変数 <code>DRWP_ADMIN_TOKEN</code> で起動時に設定し、運用中はこの画面から差し替える形を推奨します。</p>
+<h3>管理ユーザー名 / トークン</h3>
+<p>このサーバーの管理画面 (<code>/admin/ui/*</code>) と admin API (<code>/admin/*</code>) のアクセスを保護する <strong>HTTP Basic Auth</strong> のユーザー名とパスワードです。両方とも一致して初めて認証が通ります。</p>
+<p>初回は環境変数 <code>DRWP_ADMIN_USERNAME</code> / <code>DRWP_ADMIN_TOKEN</code> で起動時に設定し、運用中はこの画面から差し替える形を推奨します（ユーザー名のデフォルトは <code>admin</code>）。</p>
+<p>保存すると Basic 認証の realm が更新されるため、ブラウザはキャッシュした古い認証情報を破棄して再度ダイアログを表示します。</p>
 <h3>署名鍵のローテート</h3>
 <p>ライセンス検証応答に使う Ed25519 鍵ペアを新しいものに交換します。古い公開鍵は previous_keys として <code>/api/public-key</code> で配布され続けるので、クライアント側は無停止で移行できます。</p>
 <h3>バックアップ / 復元</h3>
