@@ -58,10 +58,6 @@
       </div>
       <?php if (count($reports) > 1): ?>
       <div class="drwp-print-nav">
-        <label class="drwp-focus-toggle-label">
-          <input type="checkbox" id="drwp-focus-toggle" />
-          <?php esc_html_e('1 件ずつ表示', 'drwp-daily-reports'); ?>
-        </label>
         <button type="button" id="drwp-prev" class="button" aria-label="<?php esc_attr_e('前の日報', 'drwp-daily-reports'); ?>">◀</button>
         <span class="counter" id="drwp-counter" aria-live="polite">1 / <?php echo (int) count($reports); ?></span>
         <button type="button" id="drwp-next" class="button" aria-label="<?php esc_attr_e('次の日報', 'drwp-daily-reports'); ?>">▶</button>
@@ -69,7 +65,7 @@
       <?php endif; ?>
     </div>
 
-    <div class="drwp-print-area">
+    <div class="drwp-print-area is-focus-mode">
       <?php if (empty($reports)): ?>
         <p><?php esc_html_e('該当する承認済みの日報がありません。', 'drwp-daily-reports'); ?></p>
       <?php else: ?>
@@ -217,12 +213,15 @@
 <style>
 .drwp-print-card{background:#fff;border:1px solid #c3c4c7;border-radius:8px;padding:12px 16px;margin-bottom:12px}
 .drwp-print-card>h2{margin:0 0 8px;font-size:.95em;color:#1d2327;border-bottom:1px solid #e5e7eb;padding-bottom:6px}
-.drwp-print-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+/* Sticky so the print button stays reachable after the user scrolls
+   through the body of a sheet. 32px clears the WP admin bar; for a
+   logged-out / front-end render the offset still works because the
+   sheet area has plenty of padding above. */
+.drwp-print-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:32px;z-index:10}
 .drwp-print-toolbar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:0}
 .drwp-print-toolbar-left .description{color:#475569}
 .drwp-print-toolbar-left .drwp-print-count{color:#1d2327;font-weight:600;white-space:nowrap}
 .drwp-print-nav{display:inline-flex;align-items:center;gap:8px;padding-left:12px;border-left:1px solid #e5e7eb}
-.drwp-print-nav .drwp-focus-toggle-label{display:inline-flex;align-items:center;gap:4px;cursor:pointer;user-select:none}
 .drwp-print-nav .counter{font-variant-numeric:tabular-nums;color:#475569;min-width:60px;text-align:center}
 .drwp-print-area{background:#f3f4f6;padding:24px;display:flex;gap:16px;align-items:flex-start}
 .drwp-print-pagebreak{height:24px}
@@ -285,7 +284,6 @@
   var sheets = Array.prototype.slice.call(document.querySelectorAll('.drwp-sheet'));
   if (!area || sheets.length < 2) return;
 
-  var toggle = document.getElementById('drwp-focus-toggle');
   var prevBtn = document.getElementById('drwp-prev');
   var nextBtn = document.getElementById('drwp-next');
   var counter = document.getElementById('drwp-counter');
@@ -293,10 +291,6 @@
 
   var current = 0;
   var total = sheets.length;
-  // Block the scroll observer's setCurrent calls while we drive a
-  // programmatic smooth-scroll — otherwise the intermediate sheets
-  // light up the TOC during the animation.
-  var suppressObserver = false;
 
   function setCurrent(i, scroll) {
     current = Math.max(0, Math.min(total - 1, i));
@@ -308,25 +302,12 @@
     }
     counter.textContent = (current + 1) + ' / ' + total;
     if (scroll) {
-      suppressObserver = true;
-      sheets[current].scrollIntoView({behavior: 'smooth', block: 'start'});
-      // Re-enable observer after the smooth scroll settles.
-      window.setTimeout(function () { suppressObserver = false; }, 600);
-    }
-  }
-
-  function setFocusMode(on) {
-    area.classList.toggle('is-focus-mode', on);
-    if (on) {
-      // Snap to the current sheet without animation so the user
-      // doesn't watch a smooth-scroll right after toggling.
+      // Snap to the top of the (newly visible) sheet so the operator
+      // doesn't have to scroll back up to read it from the start.
       sheets[current].scrollIntoView({behavior: 'auto', block: 'start'});
     }
   }
 
-  toggle.addEventListener('change', function () {
-    setFocusMode(toggle.checked);
-  });
   prevBtn.addEventListener('click', function () { setCurrent(current - 1, true); });
   nextBtn.addEventListener('click', function () { setCurrent(current + 1, true); });
 
@@ -350,26 +331,6 @@
       e.preventDefault(); setCurrent(current + 1, true);
     }
   });
-
-  // Track which sheet the user is currently looking at so the TOC
-  // highlight follows the scroll. Disabled in focus mode (only one
-  // sheet visible).
-  if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (entries) {
-      if (suppressObserver || area.classList.contains('is-focus-mode')) return;
-      var best = null;
-      for (var k = 0; k < entries.length; k++) {
-        var ent = entries[k];
-        if (!ent.isIntersecting) continue;
-        if (!best || ent.intersectionRatio > best.intersectionRatio) best = ent;
-      }
-      if (best) {
-        var idx = parseInt(best.target.dataset.index, 10);
-        if (!isNaN(idx) && idx !== current) setCurrent(idx, false);
-      }
-    }, {threshold: [0.25, 0.5, 0.75]});
-    sheets.forEach(function (s) { io.observe(s); });
-  }
 
   setCurrent(0, false);
 })();
