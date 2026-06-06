@@ -1,10 +1,12 @@
+import io
 import os
 import secrets
+import zipfile
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -28,6 +30,9 @@ _FLASH = {
     "token_saved": ("管理トークンを保存しました。", "ok"),
     "token_cleared": ("管理トークンを削除しました（環境変数の値が使われます）。", "ok"),
     "rotated": ("署名鍵をローテートしました。", "ok"),
+    "restored": ("バックアップから復元しました。", "ok"),
+    "restore_invalid": ("バックアップファイルが不正です（zip ではない / 中身が想定外）。", "err"),
+    "restore_failed": ("復元処理に失敗しました。詳細はサーバーログを確認してください。", "err"),
 }
 
 
@@ -379,6 +384,14 @@ def ui_delete(license_key: str, _: str = Depends(require_admin)):
 @app.get("/admin/ui/settings", response_class=HTMLResponse, include_in_schema=False)
 def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(require_admin)):
     db_token = db.get_setting("admin_token") or ""
+    key_path = signing._key_path()
+    key_created_at = None
+    if os.path.exists(key_path):
+        # ctime on POSIX is the inode's last metadata change but is close
+        # enough to "when the key file appeared" for display purposes.
+        key_created_at = datetime.fromtimestamp(
+            os.path.getmtime(key_path), tz=timezone.utc
+        ).isoformat(timespec="seconds")
     return templates.TemplateResponse(
         request,
         "settings.html",
@@ -386,6 +399,9 @@ def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(re
             "has_db_token": db_token != "",
             "env_token_set": bool(os.environ.get("DRWP_ADMIN_TOKEN")),
             "public_key_b64": signing.public_key_b64(),
+            "key_created_at": key_created_at,
+            "last_rotated_at": db.get_setting("last_rotated_at"),
+            "last_backup_at": db.get_setting("last_backup_at"),
             **_flash_ctx(msg),
         },
     )
@@ -415,7 +431,89 @@ def ui_set_admin_token(
 @app.post("/admin/ui/settings/rotate-signing", include_in_schema=False)
 def ui_rotate_signing(_: str = Depends(require_admin)):
     signing.rotate()
+    db.set_setting("last_rotated_at", _now_iso())
     return RedirectResponse(
         "/admin/ui/settings?msg=rotated",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+# --- Backup / restore ------------------------------------------------------
+
+_BACKUP_FILES = (
+    ("signing.key", lambda: signing._key_path()),
+    ("signing.key.previous.json", lambda: signing._previous_path()),
+    ("data.sqlite3", lambda: db._db_path()),
+)
+
+
+@app.get("/admin/ui/settings/backup", include_in_schema=False)
+def ui_backup(_: str = Depends(require_admin)):
+    """Zip up the signing key, archived public keys, and the license DB
+    so the operator has a single file to put in cold storage. The DB is
+    included because losing it leaves the signing key without context
+    (no licenses to validate). All three files are tiny, so we hold the
+    zip in memory."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for arcname, getter in _BACKUP_FILES:
+            path = getter()
+            if os.path.exists(path):
+                z.write(path, arcname=arcname)
+    buf.seek(0)
+    db.set_setting("last_backup_at", _now_iso())
+    fname = "drwp-license-backup-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S") + ".zip"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+@app.post("/admin/ui/settings/restore", include_in_schema=False)
+def ui_restore(file: UploadFile = File(...), _: str = Depends(require_admin)):
+    """Restore signing key + previous-keys archive + DB from a zip
+    previously produced by ui_backup. Each file is written via a
+    tmp + rename to keep the on-disk state consistent if any single
+    step fails."""
+    try:
+        raw = file.file.read()
+        zf = zipfile.ZipFile(io.BytesIO(raw))
+    except zipfile.BadZipFile:
+        return RedirectResponse(
+            "/admin/ui/settings?msg=restore_invalid",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    allowed = {name for name, _ in _BACKUP_FILES}
+    names = set(zf.namelist())
+    if not names or not names.issubset(allowed):
+        return RedirectResponse(
+            "/admin/ui/settings?msg=restore_invalid",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    try:
+        for arcname, getter in _BACKUP_FILES:
+            if arcname not in names:
+                continue
+            dest = getter()
+            parent = os.path.dirname(dest) or "."
+            os.makedirs(parent, exist_ok=True)
+            tmp = dest + ".restore-tmp"
+            with zf.open(arcname) as src, open(tmp, "wb") as dst:
+                dst.write(src.read())
+            # Owner-only on the signing key for parity with normal creation.
+            if arcname == "signing.key":
+                os.chmod(tmp, 0o600)
+            os.replace(tmp, dest)
+    except Exception:
+        return RedirectResponse(
+            "/admin/ui/settings?msg=restore_failed",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    # Drop the cached private key so the next sign() picks up the
+    # restored bytes instead of the previous in-memory copy.
+    signing._invalidate_cache()
+    return RedirectResponse(
+        "/admin/ui/settings?msg=restored",
         status_code=status.HTTP_303_SEE_OTHER,
     )
