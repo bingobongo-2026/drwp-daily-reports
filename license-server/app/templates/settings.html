@@ -4,7 +4,7 @@
 
 <div class="card">
   <h1>サーバー設定</h1>
-  <p class="muted">このサーバー自身の管理トークン（管理画面ログインパスワード）と署名鍵を管理します。</p>
+  <p class="muted">このサーバー自身の管理トークン、署名鍵、バックアップを管理します。</p>
 </div>
 
 <div class="card">
@@ -45,6 +45,10 @@
 <div class="card">
   <h2>署名鍵</h2>
   <p class="muted">ライセンス検証応答に署名するための Ed25519 鍵ペアです。ローテートすると、以降の応答は新しい鍵で署名されます。クライアントは <code>previous_keys</code> 経由で旧鍵による検証もしばらく継続できます。</p>
+  <table style="width:auto;margin-bottom:12px;">
+    <tr><th style="text-align:right;padding-right:14px;">現在の鍵ファイル日時</th><td class="mono">{{ key_created_at or '-' }}</td></tr>
+    <tr><th style="text-align:right;padding-right:14px;">最後のローテート</th><td class="mono">{{ last_rotated_at or '（未ローテート）' }}</td></tr>
+  </table>
   <p><strong>現在の公開鍵:</strong></p>
   <p class="mono" style="background:#f1f5f9;padding:8px 10px;border-radius:6px;word-break:break-all;">
     {{ public_key_b64 }}
@@ -55,9 +59,31 @@
   </form>
 </div>
 
+<div class="card">
+  <h2>バックアップ / 復元</h2>
+  <p class="muted">署名鍵・過去の公開鍵リスト・ライセンス DB をひとつの zip にまとめて取得 / 復元します。ディスク障害やコンテナ消失に備えて、定期的にダウンロードして安全な場所に保管してください。</p>
+  <table style="width:auto;margin-bottom:12px;">
+    <tr><th style="text-align:right;padding-right:14px;">前回バックアップ日時</th>
+        <td class="mono">{{ last_backup_at or '（未取得）' }}</td></tr>
+  </table>
+
+  <h3 style="margin-top:14px;">バックアップを取得</h3>
+  <p>
+    <a class="btn" href="/admin/ui/settings/backup">バックアップをダウンロード (zip)</a>
+  </p>
+
+  <h3 style="margin-top:18px;">バックアップから復元</h3>
+  <form method="post" action="/admin/ui/settings/restore" enctype="multipart/form-data"
+        onsubmit="return confirm('現在の署名鍵 / 過去鍵 / ライセンス DB をアップロードしたファイルで上書きします。続行しますか？');">
+    <input type="file" name="file" accept=".zip,application/zip" required />
+    <div style="margin-top:8px;">
+      <button type="submit" class="btn danger">復元する</button>
+    </div>
+  </form>
+</div>
+
 <script>
 function generateToken() {
-  // Browser-side random hex (32 bytes -> 64 hex chars).
   var bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
   var hex = '';
@@ -75,4 +101,7 @@ function generateToken() {
 <p>初回は環境変数 <code>DRWP_ADMIN_TOKEN</code> で起動時に設定し、運用中はこの画面から差し替える形を推奨します。</p>
 <h3>署名鍵のローテート</h3>
 <p>ライセンス検証応答に使う Ed25519 鍵ペアを新しいものに交換します。古い公開鍵は previous_keys として <code>/api/public-key</code> で配布され続けるので、クライアント側は無停止で移行できます。</p>
+<h3>バックアップ / 復元</h3>
+<p>zip には <code>signing.key</code> (現在の秘密鍵)、<code>signing.key.previous.json</code> (引退済み公開鍵)、<code>data.sqlite3</code> (ライセンス DB) の3つが含まれます。月に1回程度、ダウンロードして手元に保管しておけば、コンテナごと消えた場合でも復元できます。</p>
+<p>復元時は同名ファイルを上書きします。新たなクライアント検証エラーを避けるため、復元後は管理 UI 上で公開鍵が想定どおりであることを確認してください。</p>
 {% endblock %}
