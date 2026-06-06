@@ -225,7 +225,7 @@
 .drwp-print-nav .counter{font-variant-numeric:tabular-nums;color:#475569;min-width:60px;text-align:center}
 .drwp-print-area{background:#f3f4f6;padding:24px;display:flex;gap:16px;align-items:flex-start}
 .drwp-print-pagebreak{height:24px}
-.drwp-print-toc{position:sticky;top:42px;width:240px;flex-shrink:0;background:#fff;border:1px solid #c3c4c7;border-radius:8px;padding:10px 0;max-height:calc(100vh - 60px);overflow:auto;font-size:.92em}
+.drwp-print-toc{position:sticky;top:96px;width:240px;flex-shrink:0;background:#fff;border:1px solid #c3c4c7;border-radius:8px;padding:10px 0;max-height:calc(100vh - 120px);overflow:auto;font-size:.92em}
 .drwp-print-toc h3{margin:0 12px 6px;font-size:.95em;color:#1d2327;border-bottom:1px solid #e5e7eb;padding-bottom:6px}
 .drwp-print-toc ol{list-style:none;margin:0;padding:0;counter-reset:drwp-toc}
 .drwp-print-toc li{counter-increment:drwp-toc}
