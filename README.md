@@ -1,124 +1,129 @@
 # DRWP Daily Reports
 
-Two pieces in this repo:
+施工日報の管理を行う WordPress プラグインと、その有効性検証用ライセンスサーバーの組み合わせです。このリポジトリには以下の 2 つが入っています。
 
-- **`drwp-daily-reports/`** — the WordPress plugin (admin pages, REST
-  API, dashboard widget, CSV import, photo attachments, post
-  conversion). See `drwp-daily-reports/README.md` for the full feature
-  list.
-- **`license-server/`** — a standalone FastAPI server that issues
-  Ed25519-signed license check responses. The plugin verifies these
-  with libsodium so a tampered status can't unlock features. See
-  `license-server/README.md` for endpoints.
+- **`drwp-daily-reports/`** — WordPress プラグイン本体（日報管理画面、REST API、ダッシュボードウィジェット、CSV インポート、写真添付、投稿変換）。機能の詳細は [`drwp-daily-reports/README.md`](drwp-daily-reports/README.md) を参照。
+- **`license-server/`** — ライセンス検証応答に Ed25519 で署名するスタンドアロンの FastAPI サーバー。プラグイン側は libsodium で署名を検証するので、応答を改ざんしても機能が解放されません。エンドポイントの詳細は [`license-server/README.md`](license-server/README.md) を参照。
 
-## Local Docker quickstart
+---
+
+## ローカル Docker でのクイックスタート
 
 ```sh
-# 1. (optional) copy env defaults
+# 1. 環境変数のデフォルトをコピー（任意）
 cp .env.example .env
 
-# 2. one-shot bootstrap: build, install WP, activate plugin,
-#    seed a demo license, run the first license check
+# 2. 一発セットアップ: ビルド + WP インストール + プラグイン有効化
+#    + デモライセンス投入 + 初回ライセンスチェックまで自動実行
 bash scripts/docker-setup.sh
 ```
 
-When it finishes you have:
+完了するとローカルで以下の URL にアクセスできます。
 
-| Service           | URL                                                     |
-| ----------------- | ------------------------------------------------------- |
-| WordPress         | http://localhost:8080                                   |
-| WP admin login    | `admin` / `adminpass`                                   |
-| License JSON API  | http://localhost:8001                                   |
-| License HTML UI   | http://localhost:8001/admin/ui/licenses                 |
-| License admin tok | `demo-token` (Basic auth user `admin`, pwd = the token) |
+| サービス | URL | 認証 |
+| --- | --- | --- |
+| WordPress | http://localhost:8080 | — |
+| WordPress 管理画面 | http://localhost:8080/wp-admin | ユーザー `admin` / パスワード `adminpass` |
+| ライセンス JSON API | http://localhost:8001 | 後述 |
+| ライセンス管理画面 (HTML) | http://localhost:8001/admin/ui/licenses | 後述 |
 
-The plugin source under `./drwp-daily-reports/` is **bind-mounted**
-into the container, so editing PHP on the host shows up immediately
-in WordPress without a rebuild.
+### ライセンスサーバーのベーシック認証
 
-### Day-to-day commands
+**初期状態のログイン情報**:
+
+- ユーザー名: `admin`
+- パスワード: `demo-token`
+
+これは `docker-compose.yml` の環境変数 `DRWP_ADMIN_TOKEN` のデフォルト値です。`.env` で `DRWP_ADMIN_TOKEN` を上書きするとそちらが使われます。
+
+**運用中の変更**: 管理画面の「サーバー設定」ページからユーザー名とパスワードを変更できます。変更すると DB に保存された値が環境変数より優先されます。
+
+**パスワードを忘れた場合** の確認・初期化方法は [`license-server/README.md`](license-server/README.md) の「ログインできなくなった時」セクションを参照してください。
+
+プラグインのソース（`./drwp-daily-reports/`）はコンテナに**バインドマウント**されているので、ホスト側で PHP を編集すれば再ビルド不要で即反映されます。
+
+---
+
+## 日常的に使うコマンド
 
 ```sh
-# Tail the WordPress error log
+# WordPress のエラーログを追う
 docker compose exec wordpress tail -f /var/www/html/wp-content/debug.log
 
-# Run wp-cli inside the stack (any wp subcommand works)
+# WP-CLI をスタック内で実行（任意の wp サブコマンド）
 docker compose run --rm wpcli plugin list
 
-# Run the license server's pytest suite (locally — not in the stack)
+# ライセンスサーバーの pytest 実行（スタック内ではなくローカル）
 cd license-server && pip install -r requirements.txt pytest httpx && pytest
 
-# Stop everything (volumes preserved)
+# 全停止（ボリュームは保持）
 docker compose down
 
-# Nuke and start fresh (drops MySQL, WP uploads, license keys + DB)
+# まっさらに戻す（MySQL / WP アップロード / ライセンス鍵・DB すべて削除）
 docker compose down -v
+
+# ライセンスサーバーだけ再ビルド（コード変更時）
+docker compose up -d --build license
 ```
 
-### WP-CLI commands
+### WP-CLI コマンド
 
-When `WP_CLI` is defined the plugin registers eight `wp drwp` commands.
-Run them inside the wpcli helper container:
+`WP_CLI` 定数が定義されているとプラグインは `wp drwp` 系コマンドを 8 つ登録します。`wpcli` ヘルパーコンテナ経由で実行:
 
 ```sh
-# Reports
+# 日報
 docker compose run --rm wpcli drwp report list
 docker compose run --rm wpcli drwp report list --status=pending --format=csv
 docker compose run --rm wpcli drwp report show 42
 docker compose run --rm wpcli drwp report convert 42
 docker compose run --rm wpcli drwp report import /var/www/html/import.csv --user=admin
 
-# License
+# ライセンス
 docker compose run --rm wpcli drwp license fetch-key
 docker compose run --rm wpcli drwp license check
 
-# Projects, audit
+# 案件、監査ログ
 docker compose run --rm wpcli drwp project list
 docker compose run --rm wpcli drwp audit tail --event=review_status_changed --n=10
 ```
 
-Each command reuses the same DRWP_License / DRWP_Post_Converter /
-DRWP_Audit helpers as the admin pages, so license gating, audit
-events, and validation stay consistent regardless of the entry point.
+これらのコマンドは管理画面と同じ `DRWP_License` / `DRWP_Post_Converter` / `DRWP_Audit` ヘルパーを使うので、ライセンスチェック、監査ログ、バリデーションがエントリーポイントによらず一貫します。
 
-### Plugin tests (PHPUnit + WP test library)
+---
+
+## プラグインのテスト（PHPUnit + WP テストライブラリ）
 
 ```sh
 cd drwp-daily-reports
 composer install
-# One-time: install the WP develop test library + a test database.
-# Args are: <db-name> <db-user> <db-pass> [host] [version].
+# 初回のみ: WP develop テストライブラリとテスト用 DB を用意。
+# 引数: <db-name> <db-user> <db-pass> [host] [version]
 bash bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1 latest
 vendor/bin/phpunit
 ```
 
-Tests use real `WP_UnitTestCase` (so they hit MySQL), and cover
-`DRWP_License`, `DRWP_Audit`, `DRWP_Comment`, `DRWP_Project`,
-`DRWP_Media`, `DRWP_Post_Converter`, and the `DRWP_REST` endpoints.
-The CI workflow runs the same suite on PHP 7.4 and 8.2 against a
-MySQL 8 service container.
+テストは実際の `WP_UnitTestCase` を使うので MySQL に接続します。カバー範囲は `DRWP_License`、`DRWP_Audit`、`DRWP_Comment`、`DRWP_Project`、`DRWP_Media`、`DRWP_Post_Converter`、`DRWP_REST` の各エンドポイント。CI ワークフローは同じテストを PHP 7.4 と 8.2 × MySQL 8 サービスコンテナで実行します。
 
-### File layout
+---
+
+## ファイル配置
 
 ```
-docker-compose.yml         WP + MySQL + license-server stack
-scripts/docker-setup.sh    Idempotent bootstrap script
-.env.example               Tunables (host ports, admin creds, etc.)
+docker-compose.yml         WP + MySQL + license-server スタック
+scripts/docker-setup.sh    冪等なブートストラップスクリプト
+.env.example               調整可能な値（ホストポート、管理者認証情報など）
 
-drwp-daily-reports/        WordPress plugin source (bind-mounted into
-                           wordpress container)
-license-server/            FastAPI server source (built from Dockerfile)
-.github/workflows/ci.yml   php -l matrix + pytest on PRs
+drwp-daily-reports/        WordPress プラグインのソース
+                           （wordpress コンテナにバインドマウント）
+license-server/            FastAPI サーバーのソース（Dockerfile からビルド）
+.github/workflows/ci.yml   PR ごとに php -l マトリクスと pytest を実行
 ```
 
-## Production notes
+---
 
-- The Docker stack is for local development. For production, deploy
-  WordPress and the license server separately, use TLS in front of
-  both, set a strong `DRWP_ADMIN_TOKEN`, and persist the signing key
-  outside the container image.
-- The plugin-side `Requires PHP: 7.4` baseline is enforced by the CI
-  matrix. The bundled WordPress image runs PHP 8.2.
-- Public keys rotate via `POST /admin/rotate-signing-key`; old
-  signatures keep validating against the previous-key set (rolling
-  cap of 3) until clients refresh `/api/public-key`.
+## 本番運用の注意
+
+- Docker スタックはローカル開発専用です。本番では WordPress とライセンスサーバーを別々にデプロイし、両方の前段に TLS を置き、`DRWP_ADMIN_TOKEN` を強固なランダム値に変え、署名鍵をコンテナイメージの外で永続化してください。
+- プラグイン側の `Requires PHP: 7.4` は CI マトリクスで担保しています。同梱の WordPress イメージは PHP 8.2 で動作。
+- 署名鍵のローテートは `POST /admin/rotate-signing-key` または管理画面の「サーバー設定」ページから。古い署名は previous-key セット（最大 3 鍵）で検証され続けるので、クライアントが `/api/public-key` を再取得するまで無停止で移行できます。
+- ライセンスサーバーの DB と署名鍵は管理画面の「バックアップ / 復元」から zip 1 ファイルで取得・復元できます。月 1 回程度ダウンロードして手元に保管しておくと、コンテナごと消えた場合でも復元できます。
