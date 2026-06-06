@@ -262,17 +262,25 @@
 }
 
 @media print{
-  body{background:#fff !important}
+  html,body{margin:0 !important;padding:0 !important;background:#fff !important}
   #adminmenumain,#wpadminbar,#wpfooter,.update-nag,.drwp-no-print{display:none !important}
   #wpcontent,#wpbody-content{margin-left:0 !important;padding:0 !important}
   .wrap{margin:0 !important;padding:0 !important}
   .drwp-print-area{background:#fff !important;padding:0 !important;display:block !important}
   .drwp-print-sheets{display:block}
   .drwp-print-pagebreak{display:none}
-  .drwp-sheet{margin:0;padding:0;min-height:auto;max-width:none;page-break-after:always;break-after:page;page-break-inside:avoid}
-  .drwp-sheet:last-child{page-break-after:auto}
+  /* display:block (not flex) keeps page-break behavior predictable —
+     Chrome/Firefox both treat flex containers oddly across page
+     boundaries and can leak a phantom blank page. */
+  .drwp-sheet{margin:0;padding:0;min-height:auto;max-width:none;display:block !important;page-break-after:always;break-after:page;page-break-inside:avoid}
+  /* The first sheet must not request a leading page break; the last
+     must not request a trailing one. Reset BOTH the legacy
+     `page-break-*` and the modern `break-*` shorthand so neither
+     branch fires a phantom blank page. */
+  .drwp-sheet:first-child{page-break-before:avoid !important;break-before:avoid !important}
+  .drwp-sheet:last-child{page-break-after:auto !important;break-after:auto !important}
   /* Print always shows every sheet, even if focus mode is toggled on. */
-  .drwp-print-area.is-focus-mode .drwp-sheet{display:flex !important}
+  .drwp-print-area.is-focus-mode .drwp-sheet{display:block !important}
   @page{margin:15mm;size:A4 portrait}
 }
 </style>
