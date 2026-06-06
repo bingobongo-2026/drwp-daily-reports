@@ -41,25 +41,66 @@
   </div>
 
   <?php if (!empty($filters['go'])): ?>
-    <div class="drwp-no-print drwp-print-card" style="margin-bottom:8px;">
-      <button type="button" class="button button-primary" onclick="window.print()"><?php esc_html_e('印刷 / PDF保存', 'drwp-daily-reports'); ?></button>
-      <span class="description" style="margin-left:8px;">
-        <?php esc_html_e('印刷ダイアログで「PDFとして保存」を選択してください。1日報につき1ページで出力されます。', 'drwp-daily-reports'); ?>
-      </span>
-      <span style="margin-left:12px;">
-        <?php
-          printf(
-              esc_html(_n('対象 %d 件', '対象 %d 件', count($reports), 'drwp-daily-reports')),
-              count($reports)
-          );
-        ?>
-      </span>
+    <div class="drwp-no-print drwp-print-card drwp-print-toolbar">
+      <div class="drwp-print-toolbar-left">
+        <button type="button" class="button button-primary" onclick="window.print()"><?php esc_html_e('印刷 / PDF保存', 'drwp-daily-reports'); ?></button>
+        <span class="description">
+          <?php esc_html_e('印刷ダイアログで「PDFとして保存」を選択してください。1日報につき1ページで出力されます。', 'drwp-daily-reports'); ?>
+        </span>
+        <span class="drwp-print-count">
+          <?php
+            printf(
+                esc_html(_n('対象 %d 件', '対象 %d 件', count($reports), 'drwp-daily-reports')),
+                count($reports)
+            );
+          ?>
+        </span>
+      </div>
+      <?php if (count($reports) > 1): ?>
+      <div class="drwp-print-nav">
+        <label class="drwp-focus-toggle-label">
+          <input type="checkbox" id="drwp-focus-toggle" />
+          <?php esc_html_e('1 件ずつ表示', 'drwp-daily-reports'); ?>
+        </label>
+        <button type="button" id="drwp-prev" class="button" aria-label="<?php esc_attr_e('前の日報', 'drwp-daily-reports'); ?>">◀</button>
+        <span class="counter" id="drwp-counter" aria-live="polite">1 / <?php echo (int) count($reports); ?></span>
+        <button type="button" id="drwp-next" class="button" aria-label="<?php esc_attr_e('次の日報', 'drwp-daily-reports'); ?>">▶</button>
+      </div>
+      <?php endif; ?>
     </div>
 
     <div class="drwp-print-area">
       <?php if (empty($reports)): ?>
         <p><?php esc_html_e('該当する承認済みの日報がありません。', 'drwp-daily-reports'); ?></p>
-      <?php else:
+      <?php else: ?>
+        <?php if (count($reports) > 1): ?>
+        <aside class="drwp-print-toc drwp-no-print" aria-label="<?php esc_attr_e('日報目次', 'drwp-daily-reports'); ?>">
+          <h3><?php esc_html_e('目次', 'drwp-daily-reports'); ?></h3>
+          <ol>
+            <?php foreach ($reports as $i => $r):
+              $toc_author = get_userdata((int) $r->user_id);
+              $toc_project = '';
+              if (!empty($r->project_id)) {
+                  $tp = DRWP_Project::find((int) $r->project_id);
+                  $toc_project = $tp ? $tp->name : ('#' . (int) $r->project_id);
+              }
+              $toc_ts = strtotime((string) $r->report_date);
+              $toc_date = $toc_ts ? date_i18n('n/j', $toc_ts) : '';
+              $toc_meta_parts = array_filter([$toc_project, $toc_author ? $toc_author->display_name : '']);
+            ?>
+            <li>
+              <a href="#drwp-sheet-<?php echo (int) $i; ?>" data-index="<?php echo (int) $i; ?>">
+                <span class="toc-date"><?php echo esc_html($toc_date); ?></span>
+                <span class="toc-meta"><?php echo esc_html(implode(' / ', $toc_meta_parts)); ?></span>
+              </a>
+            </li>
+            <?php endforeach; ?>
+          </ol>
+        </aside>
+        <?php endif; ?>
+
+        <div class="drwp-print-sheets">
+      <?php
         $last_index = count($reports) - 1;
         foreach ($reports as $i => $r):
           $author = get_userdata((int) $r->user_id);
@@ -92,7 +133,7 @@
 
           $approval = $approvals[(int) $r->id] ?? null;
         ?>
-        <article class="drwp-sheet">
+        <article class="drwp-sheet" id="drwp-sheet-<?php echo (int) $i; ?>" data-index="<?php echo (int) $i; ?>">
           <div class="drwp-sheet-title"><?php esc_html_e('作業日報', 'drwp-daily-reports'); ?></div>
 
           <table class="drwp-sheet-meta">
@@ -166,7 +207,9 @@
           </p>
         </article>
         <?php if ($i < $last_index): ?><div class="drwp-print-pagebreak"></div><?php endif; ?>
-      <?php endforeach; endif; ?>
+      <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
     </div>
   <?php endif; ?>
 </div>
@@ -174,8 +217,26 @@
 <style>
 .drwp-print-card{background:#fff;border:1px solid #c3c4c7;border-radius:8px;padding:12px 16px;margin-bottom:12px}
 .drwp-print-card>h2{margin:0 0 8px;font-size:.95em;color:#1d2327;border-bottom:1px solid #e5e7eb;padding-bottom:6px}
-.drwp-print-area{background:#f3f4f6;padding:24px}
+.drwp-print-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.drwp-print-toolbar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:0}
+.drwp-print-toolbar-left .description{color:#475569}
+.drwp-print-toolbar-left .drwp-print-count{color:#1d2327;font-weight:600;white-space:nowrap}
+.drwp-print-nav{display:inline-flex;align-items:center;gap:8px;padding-left:12px;border-left:1px solid #e5e7eb}
+.drwp-print-nav .drwp-focus-toggle-label{display:inline-flex;align-items:center;gap:4px;cursor:pointer;user-select:none}
+.drwp-print-nav .counter{font-variant-numeric:tabular-nums;color:#475569;min-width:60px;text-align:center}
+.drwp-print-area{background:#f3f4f6;padding:24px;display:flex;gap:16px;align-items:flex-start}
 .drwp-print-pagebreak{height:24px}
+.drwp-print-toc{position:sticky;top:42px;width:240px;flex-shrink:0;background:#fff;border:1px solid #c3c4c7;border-radius:8px;padding:10px 0;max-height:calc(100vh - 60px);overflow:auto;font-size:.92em}
+.drwp-print-toc h3{margin:0 12px 6px;font-size:.95em;color:#1d2327;border-bottom:1px solid #e5e7eb;padding-bottom:6px}
+.drwp-print-toc ol{list-style:none;margin:0;padding:0;counter-reset:drwp-toc}
+.drwp-print-toc li{counter-increment:drwp-toc}
+.drwp-print-toc a{display:block;padding:6px 12px;color:#1d2327;text-decoration:none;border-left:3px solid transparent;line-height:1.35}
+.drwp-print-toc a:hover{background:#f1f5f9}
+.drwp-print-toc a.is-current{background:#dbeafe;border-left-color:#2563eb}
+.drwp-print-toc a::before{content:counter(drwp-toc) ". ";color:#64748b;font-variant-numeric:tabular-nums}
+.drwp-print-toc .toc-date{font-weight:600}
+.drwp-print-toc .toc-meta{color:#475569;font-size:.92em;display:block;margin-left:1.4em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drwp-print-sheets{flex:1;min-width:0}
 .drwp-sheet{background:#fff;padding:18mm;margin:0 auto 16px;max-width:210mm;min-height:280mm;box-sizing:border-box;font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;color:#1d2327;font-size:11pt;line-height:1.5;display:flex;flex-direction:column}
 .drwp-sheet-title{text-align:center;font-size:18pt;font-weight:700;margin:0;padding:8px 0;background:#e5e7eb;border:1px solid #1d2327}
 .drwp-sheet-meta{width:100%;border-collapse:collapse;margin-top:8px;table-layout:fixed}
@@ -188,15 +249,129 @@
 .drwp-sheet-section-body-lg{height:110mm}
 .drwp-sheet-section-body-md{height:28mm}
 .drwp-sheet-approval{margin:10px 0 0;padding:6px 8px;font-size:10.5pt;text-align:right}
+
+/* Focus mode: hide all sheets except the current one. Pagebreaks too,
+   so there's no phantom 24mm gap above the visible sheet. */
+.drwp-print-area.is-focus-mode .drwp-sheet{display:none}
+.drwp-print-area.is-focus-mode .drwp-sheet.is-current{display:flex}
+.drwp-print-area.is-focus-mode .drwp-print-pagebreak{display:none}
+
+/* Narrow screens: TOC moves above the sheet stack and shrinks. */
+@media (max-width:880px){
+  .drwp-print-area{flex-direction:column}
+  .drwp-print-toc{width:auto;position:static;max-height:200px}
+}
+
 @media print{
   body{background:#fff !important}
   #adminmenumain,#wpadminbar,#wpfooter,.update-nag,.drwp-no-print{display:none !important}
   #wpcontent,#wpbody-content{margin-left:0 !important;padding:0 !important}
   .wrap{margin:0 !important;padding:0 !important}
-  .drwp-print-area{background:#fff !important;padding:0 !important}
+  .drwp-print-area{background:#fff !important;padding:0 !important;display:block !important}
+  .drwp-print-sheets{display:block}
   .drwp-print-pagebreak{display:none}
   .drwp-sheet{margin:0;padding:0;min-height:auto;max-width:none;page-break-after:always;break-after:page;page-break-inside:avoid}
   .drwp-sheet:last-child{page-break-after:auto}
+  /* Print always shows every sheet, even if focus mode is toggled on. */
+  .drwp-print-area.is-focus-mode .drwp-sheet{display:flex !important}
   @page{margin:15mm;size:A4 portrait}
 }
 </style>
+
+<?php if (!empty($filters['go']) && count($reports) > 1): ?>
+<script>
+(function () {
+  var area = document.querySelector('.drwp-print-area');
+  var sheets = Array.prototype.slice.call(document.querySelectorAll('.drwp-sheet'));
+  if (!area || sheets.length < 2) return;
+
+  var toggle = document.getElementById('drwp-focus-toggle');
+  var prevBtn = document.getElementById('drwp-prev');
+  var nextBtn = document.getElementById('drwp-next');
+  var counter = document.getElementById('drwp-counter');
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('.drwp-print-toc a'));
+
+  var current = 0;
+  var total = sheets.length;
+  // Block the scroll observer's setCurrent calls while we drive a
+  // programmatic smooth-scroll — otherwise the intermediate sheets
+  // light up the TOC during the animation.
+  var suppressObserver = false;
+
+  function setCurrent(i, scroll) {
+    current = Math.max(0, Math.min(total - 1, i));
+    for (var s = 0; s < sheets.length; s++) {
+      sheets[s].classList.toggle('is-current', s === current);
+    }
+    for (var t = 0; t < tocLinks.length; t++) {
+      tocLinks[t].classList.toggle('is-current', t === current);
+    }
+    counter.textContent = (current + 1) + ' / ' + total;
+    if (scroll) {
+      suppressObserver = true;
+      sheets[current].scrollIntoView({behavior: 'smooth', block: 'start'});
+      // Re-enable observer after the smooth scroll settles.
+      window.setTimeout(function () { suppressObserver = false; }, 600);
+    }
+  }
+
+  function setFocusMode(on) {
+    area.classList.toggle('is-focus-mode', on);
+    if (on) {
+      // Snap to the current sheet without animation so the user
+      // doesn't watch a smooth-scroll right after toggling.
+      sheets[current].scrollIntoView({behavior: 'auto', block: 'start'});
+    }
+  }
+
+  toggle.addEventListener('change', function () {
+    setFocusMode(toggle.checked);
+  });
+  prevBtn.addEventListener('click', function () { setCurrent(current - 1, true); });
+  nextBtn.addEventListener('click', function () { setCurrent(current + 1, true); });
+
+  for (var i = 0; i < tocLinks.length; i++) {
+    (function (link) {
+      link.addEventListener('click', function (e) {
+        e.preventDefault();
+        var idx = parseInt(link.dataset.index, 10);
+        if (!isNaN(idx)) setCurrent(idx, true);
+      });
+    })(tocLinks[i]);
+  }
+
+  document.addEventListener('keydown', function (e) {
+    var t = e.target.tagName;
+    if (t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT') return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault(); setCurrent(current - 1, true);
+    } else if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+      e.preventDefault(); setCurrent(current + 1, true);
+    }
+  });
+
+  // Track which sheet the user is currently looking at so the TOC
+  // highlight follows the scroll. Disabled in focus mode (only one
+  // sheet visible).
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      if (suppressObserver || area.classList.contains('is-focus-mode')) return;
+      var best = null;
+      for (var k = 0; k < entries.length; k++) {
+        var ent = entries[k];
+        if (!ent.isIntersecting) continue;
+        if (!best || ent.intersectionRatio > best.intersectionRatio) best = ent;
+      }
+      if (best) {
+        var idx = parseInt(best.target.dataset.index, 10);
+        if (!isNaN(idx) && idx !== current) setCurrent(idx, false);
+      }
+    }, {threshold: [0.25, 0.5, 0.75]});
+    sheets.forEach(function (s) { io.observe(s); });
+  }
+
+  setCurrent(0, false);
+})();
+</script>
+<?php endif; ?>
