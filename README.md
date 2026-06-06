@@ -2,7 +2,7 @@
 
 施工日報の管理を行う WordPress プラグインと、その有効性検証用ライセンスサーバーの組み合わせです。このリポジトリには以下の 2 つが入っています。
 
-- **`drwp-daily-reports/`** — WordPress プラグイン本体（日報管理画面、REST API、ダッシュボードウィジェット、CSV インポート、写真添付、投稿変換）。機能の詳細は [`drwp-daily-reports/README.md`](drwp-daily-reports/README.md) を参照。
+- **`drwp-daily-reports/`** — WordPress プラグイン本体（日報管理画面、REST API、ダッシュボードウィジェット、写真添付、投稿変換）。機能の詳細は [`drwp-daily-reports/README.md`](drwp-daily-reports/README.md) を参照。
 - **`license-server/`** — ライセンス検証応答に Ed25519 で署名するスタンドアロンの FastAPI サーバー。プラグイン側は libsodium で署名を検証するので、応答を改ざんしても機能が解放されません。エンドポイントの詳細は [`license-server/README.md`](license-server/README.md) を参照。
 
 ---
@@ -76,7 +76,6 @@ docker compose run --rm wpcli drwp report list
 docker compose run --rm wpcli drwp report list --status=pending --format=csv
 docker compose run --rm wpcli drwp report show 42
 docker compose run --rm wpcli drwp report convert 42
-docker compose run --rm wpcli drwp report import /var/www/html/import.csv --user=admin
 
 # ライセンス
 docker compose run --rm wpcli drwp license fetch-key

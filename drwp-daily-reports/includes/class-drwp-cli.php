@@ -13,7 +13,6 @@ class DRWP_CLI {
         WP_CLI::add_command('drwp report list',     [__CLASS__, 'report_list']);
         WP_CLI::add_command('drwp report show',     [__CLASS__, 'report_show']);
         WP_CLI::add_command('drwp report convert',  [__CLASS__, 'report_convert']);
-        WP_CLI::add_command('drwp report import',   [__CLASS__, 'report_import']);
         WP_CLI::add_command('drwp license check',     [__CLASS__, 'license_check']);
         WP_CLI::add_command('drwp license fetch-key', [__CLASS__, 'license_fetch_key']);
         WP_CLI::add_command('drwp project list',    [__CLASS__, 'project_list']);
@@ -107,108 +106,6 @@ class DRWP_CLI {
         $post_id = DRWP_Post_Converter::sync_post($id, true);
         if (is_wp_error($post_id)) WP_CLI::error($post_id->get_error_message());
         WP_CLI::success("Report #$id → post #$post_id");
-    }
-
-    /**
-     * Bulk-import reports from a CSV file.
-     *
-     * ## OPTIONS
-     *
-     * <file>
-     * : Path to a UTF-8 (BOM optional) CSV. Columns: report_date,
-     *   work_description (required); project_name, issues, next_plan,
-     *   public_title, public_intro, public_body, public_next_plan,
-     *   post_template, post_tags (optional).
-     *
-     * [--user=<id-or-login>]
-     * : Author user ID or login. Defaults to the current CLI user
-     *   (usually 0). Required if you want WP_Notifications to know
-     *   who imported.
-     */
-    public static function report_import($args, $assoc) {
-        if (empty($args[0]) || !is_readable($args[0])) {
-            WP_CLI::error('CSV file not readable: ' . ($args[0] ?? '?'));
-        }
-        if (!DRWP_License::can_write()) {
-            WP_CLI::error('License does not permit writes.');
-        }
-        if (!empty($assoc['user'])) {
-            $user = is_numeric($assoc['user']) ? get_user_by('id', (int) $assoc['user'])
-                                              : get_user_by('login', (string) $assoc['user']);
-            if (!$user) WP_CLI::error('User not found: ' . $assoc['user']);
-            wp_set_current_user($user->ID);
-        }
-
-        global $wpdb;
-        $reports = $wpdb->prefix . 'drwp_reports';
-        $projects = $wpdb->prefix . 'drwp_projects';
-
-        $fh = fopen($args[0], 'r');
-        if (!$fh) WP_CLI::error('Could not open CSV.');
-        $bom = fread($fh, 3);
-        if ($bom !== "\xEF\xBB\xBF") rewind($fh);
-        $header = fgetcsv($fh);
-        if (!$header) {
-            fclose($fh);
-            WP_CLI::error('No header row.');
-        }
-        $header = array_map(fn($v) => strtolower(trim((string) $v)), $header);
-        $missing = array_diff(['report_date', 'work_description'], $header);
-        if (!empty($missing)) {
-            fclose($fh);
-            WP_CLI::error('Missing required columns: ' . implode(', ', $missing));
-        }
-
-        $created = 0;
-        $errors = [];
-        $line = 1;
-        while (($row = fgetcsv($fh)) !== false) {
-            $line++;
-            if ($row === [null] || (count($row) === 1 && trim((string) $row[0]) === '')) continue;
-            $data = [];
-            foreach ($header as $i => $key) {
-                if ($key === '') continue;
-                $data[$key] = $row[$i] ?? '';
-            }
-            $report_date = sanitize_text_field((string) ($data['report_date'] ?? ''));
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $report_date)) {
-                $errors[] = "L$line: bad report_date '$report_date'";
-                continue;
-            }
-            $project_id = null;
-            $name = trim((string) ($data['project_name'] ?? ''));
-            if ($name !== '') {
-                $existing = $wpdb->get_var($wpdb->prepare(
-                    "SELECT id FROM $projects WHERE name = %s LIMIT 1", $name
-                ));
-                if (!$existing) {
-                    $wpdb->insert($projects, ['name' => $name, 'status' => 'active']);
-                    $existing = $wpdb->insert_id;
-                }
-                $project_id = (int) $existing;
-            }
-            $wpdb->insert($reports, [
-                'project_id' => $project_id,
-                'user_id' => get_current_user_id(),
-                'report_date' => $report_date,
-                'work_description' => wp_kses_post((string) ($data['work_description'] ?? '')),
-                'issues' => wp_kses_post((string) ($data['issues'] ?? '')),
-                'next_plan' => wp_kses_post((string) ($data['next_plan'] ?? '')),
-                'public_title' => sanitize_text_field((string) ($data['public_title'] ?? '')),
-                'public_intro' => wp_kses_post((string) ($data['public_intro'] ?? '')),
-                'public_body' => wp_kses_post((string) ($data['public_body'] ?? '')),
-                'public_next_plan' => wp_kses_post((string) ($data['public_next_plan'] ?? '')),
-                'post_template' => sanitize_text_field((string) ($data['post_template'] ?? 'standard')),
-                'post_tags' => sanitize_text_field((string) ($data['post_tags'] ?? '')),
-                'review_status' => 'pending',
-            ]);
-            $created++;
-            DRWP_Audit::log('report_imported', 'CLI インポートで作成', (int) $wpdb->insert_id, ['line' => $line, 'source' => 'cli']);
-        }
-        fclose($fh);
-
-        WP_CLI::success("$created imported.");
-        foreach ($errors as $e) WP_CLI::warning($e);
     }
 
     /**

@@ -55,6 +55,35 @@ class DRWP_Print {
                 : $wpdb->get_results($sql);
         }
 
+        // Approver / approved-at, derived from the audit log. There's no
+        // dedicated column for it on the report itself — the source of
+        // truth is the review_status_changed event whose meta.to is
+        // 'approved'. Pull the latest such event per report so the
+        // template can render "YYYY年M月D日 確認者：name" inline.
+        $approvals = [];
+        if ($reports) {
+            $audit = $wpdb->prefix . 'drwp_audit_logs';
+            $ids = array_map(fn($r) => (int) $r->id, $reports);
+            $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+            $rows = $wpdb->get_results($wpdb->prepare(
+                "SELECT a.report_id, a.created_at, u.display_name
+                   FROM (
+                     SELECT report_id, MAX(id) AS id
+                       FROM $audit
+                      WHERE event = 'review_status_changed'
+                        AND report_id IN ($placeholders)
+                        AND meta_json LIKE %s
+                      GROUP BY report_id
+                   ) latest
+                   JOIN $audit a ON a.id = latest.id
+              LEFT JOIN {$wpdb->users} u ON u.ID = a.user_id",
+                array_merge($ids, ['%"to":"approved"%'])
+            ));
+            foreach ($rows as $row) {
+                $approvals[(int) $row->report_id] = $row;
+            }
+        }
+
         $projects = DRWP_Project::all();
         include DRWP_PATH . 'admin/views/print-page.php';
     }
