@@ -42,7 +42,7 @@ def _flash_ctx(msg: Optional[str]) -> dict:
     text, cls = _FLASH.get(msg, (msg, "ok"))
     return {"flash": text, "flash_class": cls}
 
-security = HTTPBasic()
+security = HTTPBasic(auto_error=False)
 
 
 def _resolve_admin_token() -> Optional[str]:
@@ -52,18 +52,41 @@ def _resolve_admin_token() -> Optional[str]:
     return db.get_setting("admin_token") or os.environ.get("DRWP_ADMIN_TOKEN")
 
 
-def require_admin(credentials: HTTPBasicCredentials = Depends(security)) -> str:
+def _current_realm() -> str:
+    """Realm name advertised in WWW-Authenticate. We append a version
+    counter so that when the operator changes the admin token, the
+    realm string changes too — browsers treat that as a separate auth
+    domain and stop silently retrying with the cached old token."""
+    version = db.get_setting("admin_token_version") or "0"
+    return f"DRWP-Admin-v{version}"
+
+
+def _bump_admin_token_version() -> None:
+    v = int(db.get_setting("admin_token_version") or "0") + 1
+    db.set_setting("admin_token_version", str(v))
+
+
+def require_admin(
+    credentials: Optional[HTTPBasicCredentials] = Depends(security),
+) -> str:
     expected = _resolve_admin_token()
     if not expected:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Admin token not configured",
         )
+    www_auth = {"WWW-Authenticate": f'Basic realm="{_current_realm()}"'}
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers=www_auth,
+        )
     if not secrets.compare_digest(credentials.password, expected):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid admin token",
-            headers={"WWW-Authenticate": "Basic"},
+            headers=www_auth,
         )
     return credentials.username
 
@@ -415,6 +438,7 @@ def ui_set_admin_token(
 ):
     if clear:
         db.delete_setting("admin_token")
+        _bump_admin_token_version()
         return RedirectResponse(
             "/admin/ui/settings?msg=token_cleared",
             status_code=status.HTTP_303_SEE_OTHER,
@@ -422,6 +446,7 @@ def ui_set_admin_token(
     token = token.strip()
     if token:
         db.set_setting("admin_token", token)
+        _bump_admin_token_version()
     return RedirectResponse(
         "/admin/ui/settings?msg=token_saved",
         status_code=status.HTTP_303_SEE_OTHER,

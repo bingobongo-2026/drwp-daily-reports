@@ -28,8 +28,13 @@
       <button type="button" class="btn ghost" onclick="generateToken()">自動生成</button>
     </div>
     <p class="muted" style="margin-top: 6px;">
-      32 バイトのランダム値（hex 64 文字）を推奨します。設定後は次回ログイン時にブラウザのパスワードを更新してください。
+      32 バイトのランダム値（hex 64 文字）を推奨します。
     </p>
+    <div class="flash err" style="margin-top: 10px; font-weight: normal;">
+      <strong>保存後の挙動:</strong> 保存直後にブラウザの Basic 認証ダイアログが再表示されます。
+      ユーザー名は何でも OK、パスワードに <strong>新しいトークン</strong>を入力してください。
+      （古いトークンはもう効きません）
+    </div>
     <div class="row" style="margin-top: 12px;">
       <button type="submit" class="btn">保存</button>
       {% if has_db_token %}
