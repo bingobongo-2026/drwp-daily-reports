@@ -21,7 +21,7 @@
 | --- | --- | --- |
 | 現場作業員 | Author / Contributor (`edit_posts`) | スマホで日報送信、自分の日報を編集 |
 | 事務所編集者 | Editor (`edit_others_posts`) | 全日報のレビュー・承認・差戻し、公開タイトル/本文の作成 |
-| サイト管理者 | Administrator (`manage_options`) | プロジェクト管理、CSV インポート、通知設定、公開設定、ライセンス、監査ログ |
+| サイト管理者 | Administrator (`manage_options`) | プロジェクト管理、通知設定、公開設定、ライセンス、監査ログ |
 
 ### 用語
 
@@ -133,7 +133,7 @@
 
 | 定数 | 実 WP capability | 想定ロール | 用途 |
 | --- | --- | --- | --- |
-| `CAP_EDIT` | `edit_posts` | Author 以上(Contributor 可) | 日報の作成・自分の日報の編集、ショートコード経由の投稿、CSV インポート |
+| `CAP_EDIT` | `edit_posts` | Author 以上(Contributor 可) | 日報の作成・自分の日報の編集、ショートコード経由の投稿 |
 | `CAP_REVIEW` | `edit_others_posts` | Editor 以上 | 他人の日報のレビュー、承認/差戻し、全日報の閲覧・編集 |
 | `CAP_CONVERT` | `publish_posts` | Editor 以上 | 一括「記事化」操作 |
 
@@ -162,7 +162,6 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 | `drwp_projects` | 現場 | `manage_options` | `DRWP_Project::render_page` |
 | `drwp_license` | ライセンス | `manage_options` | `DRWP_License_Admin::render_page` |
 | `drwp_audit` | 操作履歴 | `manage_options` | `DRWP_Audit_Admin::render_page` |
-| `drwp_csv_import` | CSV インポート | `edit_posts` | `DRWP_CSV_Import::render_page` |
 | `drwp_notifications` | 通知設定 | `manage_options` | `DRWP_Notifications_Admin::render_page` |
 | `drwp_output` | 公開設定 | `manage_options` | `DRWP_Output_Admin::render_page` |
 | `drwp_login_settings` | ログイン設定 | `manage_options` | `DRWP_Login::render_settings_page` |
@@ -327,19 +326,7 @@ PATCH は部分更新。`attachment_ids` キーが含まれていれば写真リ
 
 ---
 
-## 8. CSV インポート
-
-`includes/class-drwp-csv-import.php`、エンドポイント: 管理画面 「日報 → CSV インポート」 (`drwp_csv_import`)、最大 5MB、UTF-8 / UTF-8 BOM / CP932 (SJIS-win) / EUC-JP / JIS / ASCII を自動判別。
-
-**1 行 = 1 日報**。必須: `report_date`, `work_description`。
-
-任意: `project_name`(未登録なら自動作成)、`started_at`, `ended_at`(HH:MM or HH:MM:SS、不正値は NULL)、`issues`, `next_plan`, `public_title`, `public_intro`, `public_body`, `public_next_plan`, `post_template`, `post_tags`。
-
-写真は CSV インポートでは扱わない(バイナリ → CSV はワークフロー外)。
-
----
-
-## 9. 記事化 (Post Conversion)
+## 8. 記事化 (Post Conversion)
 
 `includes/class-drwp-post-converter.php`、トリガーは管理画面の一括操作 `bulk_convert`(`DRWP_Admin::bulk_reports`)。
 
@@ -368,7 +355,7 @@ PATCH は部分更新。`attachment_ids` キーが含まれていれば写真リ
 
 ---
 
-## 10. 通知
+## 9. 通知
 
 `includes/class-drwp-notifications.php`、管理画面: 「通知設定」(`drwp_notifications`)。
 
@@ -384,7 +371,7 @@ PATCH は部分更新。`attachment_ids` キーが含まれていれば写真リ
 
 ---
 
-## 11. ログイン / 2FA
+## 10. ログイン / 2FA
 
 `includes/class-drwp-login.php`、管理画面: 「ログイン設定」(`drwp_login_settings`)。
 
@@ -421,7 +408,7 @@ PATCH は部分更新。`attachment_ids` キーが含まれていれば写真リ
 
 ---
 
-## 12. ライセンス
+## 11. ライセンス
 
 `includes/class-drwp-license.php` + `class-drwp-license-admin.php`。
 
@@ -431,17 +418,17 @@ PATCH は部分更新。`attachment_ids` キーが含まれていれば写真リ
 
 ---
 
-## 13. 監査ログ
+## 12. 監査ログ
 
 `drwp_audit_logs` テーブル。`DRWP_Audit::log($event, $message, $report_id, $meta)` を各所から呼ぶ。
 
-主なイベント: `report_created` / `report_updated` / `report_imported` / `photos_updated` / `review_status_changed` / `comment_added` / `report_edited_frontend` / `post_created_from_report` / `post_resynced`。
+主なイベント: `report_created` / `report_updated` / `photos_updated` / `review_status_changed` / `comment_added` / `report_edited_frontend` / `post_created_from_report` / `post_resynced`。
 
 管理画面の「操作履歴」で全ログを閲覧、`/wp-json/drwp/v1/reports/{id}/audit` でログを取得。
 
 ---
 
-## 14. 設定オプション一覧
+## 13. 設定オプション一覧
 
 機能ごとにまとめる。すべて `wp_options` の row(`option_name`)。
 
@@ -467,7 +454,7 @@ PATCH は部分更新。`attachment_ids` キーが含まれていれば写真リ
 
 ---
 
-## 15. アセット
+## 14. アセット
 
 | ファイル | 役割 |
 | --- | --- |
@@ -482,7 +469,7 @@ PATCH は部分更新。`attachment_ids` キーが含まれていれば写真リ
 
 ---
 
-## 16. 拡張・運用上の注意
+## 15. 拡張・運用上の注意
 
 - **アセット配信経路**: `[drwp_report_form]` の config を `wp_localize_script` や `wp_add_inline_script` で出すと、ホストのキャッシュ/最適化プラグインに剥がされる事故が観測されている(LiteSpeed Cache, Autoptimize 等)。本プラグインは **wrapper 要素の data 属性に JSON を埋め込む**方式に統一しているので、新規にフロント機能を足すときは同じパターンを推奨する。
 - **`wpautop` との共存**: ショートコード返り値文字列に `<script>` / `<style>` を直接含めると `wpautop` に壊される。CSS/JS は必ず enqueue 経由、データは data 属性で渡す。
@@ -491,7 +478,7 @@ PATCH は部分更新。`attachment_ids` キーが含まれていれば写真リ
 
 ---
 
-## 17. バージョン履歴(主要変更)
+## 16. バージョン履歴(主要変更)
 
 | バージョン | 主な変更 |
 | --- | --- |

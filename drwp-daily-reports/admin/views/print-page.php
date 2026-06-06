@@ -69,49 +69,68 @@
               $project_name = $proj ? $proj->name : ('#' . (int) $r->project_id);
           }
           $date_ts = strtotime((string) $r->report_date);
+          $submitted_ts = strtotime((string) $r->created_at);
+
+          $start = substr((string) $r->started_at, 0, 5);
+          $end   = substr((string) $r->ended_at, 0, 5);
+          $work_time_text = '';
+          if ($start !== '' || $end !== '') {
+              $work_time_text = $start . ' 〜 ' . $end;
+              // Total elapsed time. Negative spans (e.g., a typo) are
+              // dropped silently — printing "-1時間" on a paper form is
+              // worse than printing nothing.
+              $s = strtotime($r->report_date . ' ' . $start);
+              $e = strtotime($r->report_date . ' ' . $end);
+              if ($s && $e && $e > $s) {
+                  $mins = (int) (($e - $s) / 60);
+                  $h = intdiv($mins, 60);
+                  $m = $mins % 60;
+                  $total = $h . ' 時間' . ($m > 0 ? ' ' . $m . ' 分' : '');
+                  $work_time_text .= '（合計 ' . $total . '）';
+              }
+          }
+
+          $approval = $approvals[(int) $r->id] ?? null;
         ?>
         <article class="drwp-sheet">
           <div class="drwp-sheet-title"><?php esc_html_e('作業日報', 'drwp-daily-reports'); ?></div>
 
-          <div class="drwp-sheet-top">
-            <table class="drwp-sheet-meta">
-              <tr>
-                <th><?php esc_html_e('案件名', 'drwp-daily-reports'); ?></th>
-                <td colspan="3"><?php echo esc_html($project_name); ?></td>
-              </tr>
-              <tr>
-                <th><?php esc_html_e('日付', 'drwp-daily-reports'); ?></th>
-                <td>
-                  <?php
-                    if ($date_ts) {
-                        echo esc_html(date_i18n('Y', $date_ts)) . ' 年 '
-                           . esc_html(date_i18n('n', $date_ts)) . ' 月 '
-                           . esc_html(date_i18n('j', $date_ts)) . ' 日';
-                    }
-                  ?>
-                </td>
+          <table class="drwp-sheet-meta">
+            <tr>
+              <th><?php esc_html_e('案件名', 'drwp-daily-reports'); ?></th>
+              <td colspan="3"><?php echo esc_html($project_name); ?></td>
+            </tr>
+            <tr>
+              <th><?php esc_html_e('日付', 'drwp-daily-reports'); ?></th>
+              <td>
                 <?php
-                  $start = substr((string) $r->started_at, 0, 5);
-                  $end   = substr((string) $r->ended_at, 0, 5);
-                  if ($start !== '' || $end !== ''):
+                  if ($date_ts) {
+                      echo esc_html(date_i18n('Y', $date_ts)) . ' 年 '
+                         . esc_html(date_i18n('n', $date_ts)) . ' 月 '
+                         . esc_html(date_i18n('j', $date_ts)) . ' 日';
+                  }
                 ?>
-                <th><?php esc_html_e('作業時間', 'drwp-daily-reports'); ?></th>
-                <td><?php echo esc_html($start); ?> 〜 <?php echo esc_html($end); ?></td>
-                <?php else: ?>
-                <th></th><td></td>
-                <?php endif; ?>
-              </tr>
-              <tr>
-                <th><?php esc_html_e('氏名', 'drwp-daily-reports'); ?></th>
-                <td colspan="3"><?php echo esc_html($author ? $author->display_name : ''); ?></td>
-              </tr>
-            </table>
-
-            <table class="drwp-sheet-stamps">
-              <tr><td></td><td></td><td></td></tr>
-              <tr><td></td><td></td><td></td></tr>
-            </table>
-          </div>
+              </td>
+              <th><?php esc_html_e('作業時間', 'drwp-daily-reports'); ?></th>
+              <td><?php echo esc_html($work_time_text); ?></td>
+            </tr>
+            <tr>
+              <th><?php esc_html_e('氏名', 'drwp-daily-reports'); ?></th>
+              <td><?php echo esc_html($author ? $author->display_name : ''); ?></td>
+              <th><?php esc_html_e('提出日', 'drwp-daily-reports'); ?></th>
+              <td>
+                <?php
+                  if ($submitted_ts) {
+                      echo esc_html(date_i18n('Y 年 n 月 j 日', $submitted_ts));
+                  }
+                ?>
+              </td>
+            </tr>
+            <tr>
+              <th><?php esc_html_e('日報 No.', 'drwp-daily-reports'); ?></th>
+              <td colspan="3"><?php echo esc_html('#' . (int) $r->id); ?></td>
+            </tr>
+          </table>
 
           <table class="drwp-sheet-section">
             <tr><th class="drwp-sheet-section-head"><?php esc_html_e('業務内容', 'drwp-daily-reports'); ?></th></tr>
@@ -127,6 +146,18 @@
             <tr><th class="drwp-sheet-section-head"><?php esc_html_e('次回業務', 'drwp-daily-reports'); ?></th></tr>
             <tr><td class="drwp-sheet-section-body drwp-sheet-section-body-md"><?php echo nl2br(esc_html((string) $r->next_plan)); ?></td></tr>
           </table>
+
+          <p class="drwp-sheet-approval">
+            <?php if ($approval):
+              $approved_ts = strtotime((string) $approval->created_at);
+              $approved_date = $approved_ts ? date_i18n('Y 年 n 月 j 日', $approved_ts) : '';
+              $approver = $approval->display_name ?: __('（不明）', 'drwp-daily-reports');
+            ?>
+              <?php echo esc_html($approved_date); ?>　<?php esc_html_e('確認者：', 'drwp-daily-reports'); ?><?php echo esc_html($approver); ?>
+            <?php else: ?>
+              <?php esc_html_e('確認日：　　　　年　　月　　日　　確認者：', 'drwp-daily-reports'); ?>
+            <?php endif; ?>
+          </p>
         </article>
         <?php if ($i < $last_index): ?><div class="drwp-print-pagebreak"></div><?php endif; ?>
       <?php endforeach; endif; ?>
@@ -141,18 +172,15 @@
 .drwp-print-pagebreak{height:24px}
 .drwp-sheet{background:#fff;padding:18mm;margin:0 auto 16px;max-width:210mm;min-height:280mm;box-sizing:border-box;font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;color:#1d2327;font-size:11pt;line-height:1.5;display:flex;flex-direction:column}
 .drwp-sheet-title{text-align:center;font-size:18pt;font-weight:700;margin:0;padding:8px 0;background:#e5e7eb;border:1px solid #1d2327}
-.drwp-sheet-top{display:flex;gap:12px;margin:10mm 0 8px;align-items:flex-start}
-.drwp-sheet-meta{border-collapse:collapse;flex:1}
+.drwp-sheet-meta{width:100%;border-collapse:collapse;margin:10mm 0 8px;table-layout:fixed}
 .drwp-sheet-meta th,.drwp-sheet-meta td{border:1px solid #1d2327;padding:4px 8px;font-size:10pt}
-.drwp-sheet-meta th{background:#e5e7eb;width:50px;text-align:center;font-weight:700;white-space:nowrap}
-.drwp-sheet-meta td{min-width:180px}
-.drwp-sheet-stamps{border-collapse:collapse}
-.drwp-sheet-stamps td{border:1px solid #1d2327;width:42px;height:42px}
+.drwp-sheet-meta th{background:#e5e7eb;width:80px;text-align:center;font-weight:700;white-space:nowrap}
 .drwp-sheet-section{width:100%;border-collapse:collapse;margin-top:8px;table-layout:fixed}
 .drwp-sheet-section-head{background:#e5e7eb;border:1px solid #1d2327;text-align:center;font-weight:700;font-size:11pt;padding:4px}
 .drwp-sheet-section-body{border:1px solid #1d2327;padding:8px;vertical-align:top;white-space:pre-wrap;word-break:break-all}
-.drwp-sheet-section-body-lg{height:120mm}
-.drwp-sheet-section-body-md{height:30mm}
+.drwp-sheet-section-body-lg{height:110mm}
+.drwp-sheet-section-body-md{height:28mm}
+.drwp-sheet-approval{margin:10px 0 0;padding:6px 8px;border:1px solid #1d2327;font-size:10.5pt;text-align:right}
 @media print{
   body{background:#fff !important}
   #adminmenumain,#wpadminbar,#wpfooter,.update-nag,.drwp-no-print{display:none !important}
@@ -161,7 +189,7 @@
   .drwp-print-area{background:#fff !important;padding:0 !important}
   .drwp-print-pagebreak{display:none}
   .drwp-sheet{margin:0;padding:0;min-height:auto;max-width:none;page-break-after:always;break-after:page;page-break-inside:avoid}
-  .drwp-sheet-top{margin:10mm 0 8px !important}
+  .drwp-sheet-meta{margin:10mm 0 8px !important}
   .drwp-sheet:last-child{page-break-after:auto}
   @page{margin:15mm;size:A4 portrait}
 }

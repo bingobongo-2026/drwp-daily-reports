@@ -59,7 +59,9 @@ foreach ($options as $option) {
     delete_option($option);
 }
 
-// Per-user CSV import flash transients.
+// Stale flash transients from the (removed) CSV importer. Harmless if
+// nothing matches — kept so an uninstall on an older install still
+// cleans up.
 foreach (get_users(['fields' => ['ID']]) as $user) {
     delete_transient('drwp_csv_import_result_' . (int) $user->ID);
 }

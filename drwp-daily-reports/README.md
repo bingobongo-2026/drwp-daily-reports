@@ -18,9 +18,6 @@ its responses with Ed25519 so a tampered status can't unlock features.
   gallery between body and next-plan.
 - List with full-text search, filter by review status / post status /
   project / date range, and pagination.
-- CSV bulk import (UTF-8, BOM optional, max 5 MB) — required columns
-  `report_date` and `work_description`, optional 9 more. `project_name`
-  values are auto-created in `drwp_projects`.
 
 ### Mobile submission (shortcode)
 - `[drwp_report_form]` renders a mobile-first front-end form on any
