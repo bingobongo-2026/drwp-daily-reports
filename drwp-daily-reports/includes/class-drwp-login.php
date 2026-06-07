@@ -43,7 +43,8 @@ class DRWP_Login {
         add_shortcode('drwp_login_form', [__CLASS__, 'shortcode']);
         add_shortcode('drwp_lostpassword_form', [__CLASS__, 'lostpassword_shortcode']);
         add_action('login_init', [__CLASS__, 'maybe_redirect']);
-        add_action('admin_menu', [__CLASS__, 'register_admin'], 20);
+        // ログイン設定 submenu is registered centrally in
+        // DRWP_Admin::menu() so the sidebar order stays explicit.
         add_action('admin_init', [__CLASS__, 'register_settings']);
         add_action('wp_enqueue_scripts', [__CLASS__, 'register_assets']);
 
@@ -186,16 +187,6 @@ class DRWP_Login {
         exit;
     }
 
-    public static function register_admin() {
-        add_submenu_page(
-            'drwp_reports',
-            __('ログイン設定', 'drwp-daily-reports'),
-            __('ログイン設定', 'drwp-daily-reports'),
-            'manage_options',
-            'drwp_login_settings',
-            [__CLASS__, 'render_settings_page']
-        );
-    }
 
     public static function register_settings() {
         register_setting('drwp_login', self::OPT_PAGE,           ['type' => 'integer', 'default' => 0]);

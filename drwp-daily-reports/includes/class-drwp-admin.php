@@ -9,8 +9,6 @@ class DRWP_Admin {
 
     public static function init() {
         add_action('admin_menu', [__CLASS__, 'menu']);
-        add_action('admin_menu', [__CLASS__, 'mark_settings_section'], 999);
-        add_action('admin_head', [__CLASS__, 'settings_section_css']);
         add_action('admin_post_drwp_save_report', [__CLASS__, 'save_report']);
         add_action('admin_post_drwp_bulk_reports', [__CLASS__, 'bulk_reports']);
         add_action('admin_post_drwp_convert_single', [__CLASS__, 'convert_single']);
@@ -96,8 +94,13 @@ class DRWP_Admin {
     }
 
     public static function menu() {
+        // Flat submenu under 日報管理 — keeping every page as a direct
+        // child of `drwp_reports` lets WP's default hover flyout
+        // surface the entire list (日報一覧 〜 操作履歴) when the
+        // sidebar is in its collapsed/non-current state.
         $reports = __('日報管理', 'drwp-daily-reports');
         add_menu_page($reports, $reports, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page'], 'dashicons-media-spreadsheet');
+
         $list_label = __('日報一覧', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $list_label, $list_label, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page']);
         $ops = __('日報操作', 'drwp-daily-reports');
@@ -111,19 +114,15 @@ class DRWP_Admin {
         $pdf = __('PDF出力', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $pdf, $pdf, self::CAP_EDIT, 'drwp_print', ['DRWP_Print', 'render_page']);
 
-        // 設定 acts as a section header for the six admin-only items
-        // below. WP submenus are flat in the data model — we visually
-        // nest the children with CSS in `settings_section_css`, marked
-        // by classes injected in `mark_settings_section`.
-        $settings = __('設定', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $settings, $settings, 'manage_options', 'drwp_settings_hub', [__CLASS__, 'settings_hub_page']);
+        // Settings pages — same parent, registered in the order they
+        // should appear in the sidebar. ログイン設定's render callback
+        // lives in class-drwp-login.php (`DRWP_Login::render_settings_page`)
+        // but the submenu is registered here to keep ordering and
+        // capability rules in one place.
         $output = __('公開設定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $output, $output, 'manage_options', 'drwp_output', ['DRWP_Output_Admin', 'render_page']);
-        // ログイン設定 (drwp_login_settings) is registered separately
-        // in class-drwp-login.php via its own `admin_menu` hook.
-        // `mark_settings_section` reorders the final submenu list so
-        // every settings child lands after 公開設定 in the requested
-        // order regardless of registration timing.
+        $login = __('ログイン設定', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $login, $login, 'manage_options', 'drwp_login_settings', ['DRWP_Login', 'render_settings_page']);
         $notif = __('通知設定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $notif, $notif, 'manage_options', 'drwp_notifications', ['DRWP_Notifications_Admin', 'render_page']);
         $ai = __('AI設定', 'drwp-daily-reports');
@@ -135,122 +134,6 @@ class DRWP_Admin {
 
         $prev = __('公開プレビュー', 'drwp-daily-reports');
         add_submenu_page(null, $prev, $prev, self::CAP_EDIT, 'drwp_report_preview', [__CLASS__, 'report_preview_page']);
-    }
-
-    /**
-     * Slugs that visually nest under the 設定 section header,
-     * in the order they should appear in the sidebar.
-     */
-    private static function settings_section_slugs() {
-        return [
-            'drwp_output',
-            'drwp_login_settings',
-            'drwp_notifications',
-            'drwp_ai',
-            'drwp_license',
-            'drwp_audit',
-        ];
-    }
-
-    /**
-     * After every plugin has registered its submenus, reorder the
-     * 日報管理 list so the settings group sits at the bottom in the
-     * requested order, and tag the relevant rows with CSS classes so
-     * the stylesheet can indent the children under the 設定 header.
-     */
-    public static function mark_settings_section() {
-        global $submenu;
-        if (empty($submenu['drwp_reports']) || !is_array($submenu['drwp_reports'])) {
-            return;
-        }
-
-        $children_order = self::settings_section_slugs();
-        $children_set   = array_flip($children_order);
-
-        $operational = [];
-        $header      = null;
-        $children    = [];
-        foreach ($submenu['drwp_reports'] as $item) {
-            $slug = $item[2] ?? '';
-            if ($slug === 'drwp_settings_hub') {
-                $header = $item;
-            } elseif (isset($children_set[$slug])) {
-                $children[$slug] = $item;
-            } else {
-                $operational[] = $item;
-            }
-        }
-
-        $ordered_children = [];
-        foreach ($children_order as $slug) {
-            if (isset($children[$slug])) {
-                $ordered_children[] = $children[$slug];
-            }
-        }
-
-        $rebuilt = $operational;
-        if ($header !== null) {
-            $header[4] = trim((isset($header[4]) ? $header[4] . ' ' : '') . 'drwp-settings-header');
-            $rebuilt[] = $header;
-        }
-        foreach ($ordered_children as $child) {
-            $child[4]  = trim((isset($child[4]) ? $child[4] . ' ' : '') . 'drwp-settings-child');
-            $rebuilt[] = $child;
-        }
-
-        // Reindex from 5 to stay clear of WP's reserved slots
-        // (it sometimes inspects $submenu[parent][0..4]).
-        $renumbered = [];
-        $i = 5;
-        foreach ($rebuilt as $item) {
-            $renumbered[$i++] = $item;
-        }
-        $submenu['drwp_reports'] = $renumbered;
-    }
-
-    public static function settings_section_css() {
-        // Emitted on every admin page — the 日報管理 sidebar is
-        // rendered everywhere, so the indent has to apply globally
-        // even when the user is on a non-DRWP screen.
-        ?>
-        <style id="drwp-settings-section-style">
-            #adminmenu .wp-submenu li.drwp-settings-header > a {
-                font-weight: 600;
-            }
-            #adminmenu .wp-submenu li.drwp-settings-child > a {
-                padding-left: 28px;
-            }
-            #adminmenu .wp-submenu li.drwp-settings-child > a::before {
-                content: "└ ";
-                opacity: 0.5;
-                margin-right: 2px;
-            }
-        </style>
-        <?php
-    }
-
-    public static function settings_hub_page() {
-        if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('権限がありません。', 'drwp-daily-reports'));
-        }
-        $items = [
-            'drwp_output'         => [__('公開設定', 'drwp-daily-reports'),    __('日報の公開先や記事化の出力先を設定します。', 'drwp-daily-reports')],
-            'drwp_login_settings' => [__('ログイン設定', 'drwp-daily-reports'), __('ログイン画面や認証方式の挙動を設定します。', 'drwp-daily-reports')],
-            'drwp_notifications'  => [__('通知設定', 'drwp-daily-reports'),    __('日報の保存・承認時の通知先を設定します。', 'drwp-daily-reports')],
-            'drwp_ai'             => [__('AI設定', 'drwp-daily-reports'),      __('AI による要約・記事化のモデルやプロンプトを設定します。', 'drwp-daily-reports')],
-            'drwp_license'        => [__('ライセンス', 'drwp-daily-reports'),  __('プラグインのライセンスキーと API URL を設定します。', 'drwp-daily-reports')],
-            'drwp_audit'          => [__('操作履歴', 'drwp-daily-reports'),    __('管理画面での操作履歴を確認します。', 'drwp-daily-reports')],
-        ];
-        echo '<div class="wrap"><h1>' . esc_html__('設定', 'drwp-daily-reports') . '</h1>';
-        echo '<p>' . esc_html__('左のメニューから各設定ページに移動できます。', 'drwp-daily-reports') . '</p>';
-        echo '<ul class="ul-disc">';
-        foreach ($items as $slug => $info) {
-            $url   = admin_url('admin.php?page=' . $slug);
-            $label = $info[0];
-            $desc  = $info[1];
-            echo '<li><a href="' . esc_url($url) . '"><strong>' . esc_html($label) . '</strong></a> — ' . esc_html($desc) . '</li>';
-        }
-        echo '</ul></div>';
     }
 
     public static function project_map_public() {

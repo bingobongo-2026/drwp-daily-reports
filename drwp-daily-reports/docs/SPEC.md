@@ -153,13 +153,13 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 ## 5. 管理画面 (Admin)
 
-トップメニューは `drwp_reports`(ラベル: 「日報管理」、icon: `dashicons-media-spreadsheet`) のみ。サブメニューを「運用系」「設定系」の 2 グループに分けて並べる。
+トップメニューは `drwp_reports`(ラベル: 「日報管理」、icon: `dashicons-media-spreadsheet`) のみ。WP の標準ホバー・フライアウト挙動に乗るため、サブメニューは全て同階層のフラット構成で並べる。「日報管理」にマウスホバーすると 日報一覧 〜 操作履歴 までが順に表示される。
 
-設定系は `drwp_settings_hub` (ラベル「設定」) という見出し用サブメニューを境界に、その下に管理者専用 6 ページを **視覚的に字下げ** して並べる。WP の管理メニューは 2 階層しかサポートしないため、 `DRWP_Admin::mark_settings_section` で `$submenu['drwp_reports']` を並び替え + 子に `drwp-settings-child` クラスを付与し、`DRWP_Admin::settings_section_css` で `padding-left` を当てて入れ子に見せている。
+並び順は `DRWP_Admin::menu()` での `add_submenu_page` 呼び出し順で固定。ログイン設定の render 関数は `DRWP_Login::render_settings_page` だが、サブメニュー登録自体は順序を一元管理するため `DRWP_Admin::menu()` から行う。
 
-設定系の 6 項目は `manage_options` 必須なので、編集者ロールには「設定」見出しと配下の項目はサイドバーに出ない。
+`manage_options` 必須の設定系 6 項目は、編集者ロールのユーザーには WP 標準のキャパビリティチェックでそもそも表示されない。
 
-### 日報管理 配下 (運用系)
+### 日報管理 配下
 
 | スラッグ | ラベル | 必須 cap | 担当クラス |
 | --- | --- | --- | --- |
@@ -169,22 +169,14 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 | `drwp_projects` | 案件 | `manage_options` | `DRWP_Project::render_page` |
 | `drwp_customers` | 顧客 | `manage_options` | `DRWP_Customer::render_page` |
 | `drwp_print` | PDF出力 | `edit_posts` | `DRWP_Print::render_page` |
+| `drwp_output` | 公開設定 | `manage_options` | `DRWP_Output_Admin::render_page` |
+| `drwp_login_settings` | ログイン設定 | `manage_options` | `DRWP_Login::render_settings_page` |
+| `drwp_notifications` | 通知設定 | `manage_options` | `DRWP_Notifications_Admin::render_page` |
+| `drwp_ai` | AI設定 | `manage_options` | `DRWP_AI_Admin::render_page` |
+| `drwp_license` | ライセンス | `manage_options` | `DRWP_License_Admin::render_page` |
+| `drwp_audit` | 操作履歴 | `manage_options` | `DRWP_Audit_Admin::render_page` |
 | `drwp_report_edit` | 日報編集(リンク経由のみ) | `edit_posts` | `DRWP_Admin::report_edit_page` |
 | `drwp_report_preview` | 公開プレビュー(非表示) | `edit_posts` | `DRWP_Admin::report_preview_page` |
-
-### 日報管理 配下 (設定系)
-
-並び順は `DRWP_Admin::settings_section_slugs()` で固定。
-
-| スラッグ | ラベル | 必須 cap | 担当クラス |
-| --- | --- | --- | --- |
-| `drwp_settings_hub` | 設定 (見出し) | `manage_options` | `DRWP_Admin::settings_hub_page` |
-| `drwp_output` | 　└ 公開設定 | `manage_options` | `DRWP_Output_Admin::render_page` |
-| `drwp_login_settings` | 　└ ログイン設定 | `manage_options` | `DRWP_Login::render_settings_page` |
-| `drwp_notifications` | 　└ 通知設定 | `manage_options` | `DRWP_Notifications_Admin::render_page` |
-| `drwp_ai` | 　└ AI設定 | `manage_options` | `DRWP_AI_Admin::render_page` |
-| `drwp_license` | 　└ ライセンス | `manage_options` | `DRWP_License_Admin::render_page` |
-| `drwp_audit` | 　└ 操作履歴 | `manage_options` | `DRWP_Audit_Admin::render_page` |
 
 ### 5.1 日報編集ページ
 
