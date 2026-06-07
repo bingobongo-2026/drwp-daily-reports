@@ -232,8 +232,7 @@
           foreach ($photo_chunks as $chunk_idx => $chunk):
         ?>
         <article class="drwp-photo-sheet<?php echo $i === 0 ? ' is-current' : ''; ?>"
-                 data-index="<?php echo (int) $i; ?>"
-                 data-count="<?php echo (int) count($chunk); ?>">
+                 data-index="<?php echo (int) $i; ?>">
           <div class="drwp-photo-sheet-head">
             <span class="drwp-photo-sheet-head-left">
               <?php echo esc_html('#' . (int) $r->id); ?>
@@ -255,9 +254,12 @@
             </span>
           </div>
           <div class="drwp-photo-grid">
-            <?php foreach ($chunk as $photo):
-              $img_url = wp_get_attachment_image_url((int) $photo->attachment_id, 'large');
-              if (!$img_url) continue;
+            <?php
+              $filled = 0;
+              foreach ($chunk as $photo):
+                $img_url = wp_get_attachment_image_url((int) $photo->attachment_id, 'large');
+                if (!$img_url) continue;
+                $filled++;
             ?>
             <figure class="drwp-photo-cell">
               <div class="drwp-photo-cell-img">
@@ -268,6 +270,15 @@
               <?php endif; ?>
             </figure>
             <?php endforeach; ?>
+            <?php
+              // Always reserve six cells per 別紙 page so the layout
+              // doesn't reflow when the last chunk has fewer photos —
+              // the operator wants every page to show the same 2x3
+              // frame whether there are 1 photo or 6.
+              for ($empty_idx = $filled; $empty_idx < 6; $empty_idx++):
+            ?>
+            <div class="drwp-photo-cell drwp-photo-cell-empty" aria-hidden="true"></div>
+            <?php endfor; ?>
           </div>
         </article>
         <?php endforeach; ?>
@@ -334,15 +345,12 @@
 .drwp-photo-sheet-head-left{font-weight:600}
 .drwp-photo-sheet-head-right{color:#475569;white-space:nowrap}
 .drwp-photo-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3, 1fr);gap:6mm;min-height:0}
-/* Per-chunk overrides so a partial page doesn't leave huge empty
-   cells in the bottom half. 1 photo → single big cell, 2 photos →
-   stacked, 3-4 photos → 2x2 grid (right-bottom may be empty for 3),
-   5-6 photos → the default 2x3. */
-.drwp-photo-sheet[data-count="1"] .drwp-photo-grid{grid-template-columns:1fr;grid-template-rows:1fr}
-.drwp-photo-sheet[data-count="2"] .drwp-photo-grid{grid-template-columns:1fr;grid-template-rows:1fr 1fr}
-.drwp-photo-sheet[data-count="3"] .drwp-photo-grid,
-.drwp-photo-sheet[data-count="4"] .drwp-photo-grid{grid-template-rows:1fr 1fr}
 .drwp-photo-cell{border:1px solid #1d2327;padding:3mm;margin:0;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+/* Empty slots keep their bordered frame so every 別紙 page shows a
+   uniform 2x3 layout even when the last chunk only carries 1-5
+   photos. Lighter dashed border so the placeholder reads as
+   intentionally blank rather than a missing image. */
+.drwp-photo-cell-empty{border:1px dashed #94a3b8}
 .drwp-photo-cell-img{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .drwp-photo-cell-img img{max-width:100%;max-height:100%;object-fit:contain}
 .drwp-photo-cell figcaption{font-size:9pt;line-height:1.3;margin-top:4px;text-align:center;color:#1d2327;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
