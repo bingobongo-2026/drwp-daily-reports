@@ -2,7 +2,7 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * 「グループ設定」 — unified admin page that hosts both 顧客グループ
+ * 「グループ」 — unified admin page that hosts both 顧客グループ
  * and 案件グループ CRUD behind a tab switcher.
  *
  * Owns no data of its own; renders a wrap + nav + delegates to the
@@ -46,7 +46,7 @@ class DRWP_Groups_Admin {
         $tab = self::active_tab();
         ?>
         <div class="wrap">
-          <h1><?php esc_html_e('グループ設定', 'drwp-daily-reports'); ?></h1>
+          <h1><?php esc_html_e('グループ', 'drwp-daily-reports'); ?></h1>
           <h2 class="nav-tab-wrapper">
             <a href="<?php echo esc_url(admin_url('admin.php?page=' . self::SLUG . '&tab=customer')); ?>"
                class="nav-tab <?php echo $tab === 'customer' ? 'nav-tab-active' : ''; ?>">
