@@ -190,13 +190,13 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 トップメニューは `drwp_reports`(ラベル: 「日報管理」、icon: `dashicons-media-spreadsheet`) のみ。WP の標準ホバー・フライアウト挙動に乗るため、サブメニューは全て同階層のフラット構成で並べる。「日報管理」にマウスホバーすると 日報一覧 〜 操作履歴 までが順に表示される。
 
-「グループ設定」は `DRWP_Groups_Admin::render_page()` が描画する 1 ページで、`?tab=customer` / `?tab=project` で顧客グループと案件グループの 2 タブを切り替える。タブの中身は `admin/views/customer-groups-page.php` / `admin/views/project-groups-page.php` をそれぞれ include する形で、保存ハンドラ (`DRWP_Customer_Group::save` / `DRWP_Project_Group::save`) は対応するタブに `?saved=1` を付けてリダイレクトする。
+「グループ」は `DRWP_Groups_Admin::render_page()` が描画する 1 ページで、`?tab=customer` / `?tab=project` で顧客グループと案件グループの 2 タブを切り替える。タブの中身は `admin/views/customer-groups-page.php` / `admin/views/project-groups-page.php` をそれぞれ include する形で、保存ハンドラ (`DRWP_Customer_Group::save` / `DRWP_Project_Group::save`) は対応するタブに `?saved=1` を付けてリダイレクトする。
 
 並び順は `DRWP_Admin::menu()` での `add_submenu_page` 呼び出し順で固定。ログイン設定の render 関数は `DRWP_Login::render_settings_page` だが、サブメニュー登録自体は順序を一元管理するため `DRWP_Admin::menu()` から行う。
 
-`manage_options` 必須の設定系 7 項目(公開設定 / ログイン設定 / 通知設定 / グループ設定 / AI設定 / ライセンス / 操作履歴) は、編集者ロールのユーザーには WP 標準のキャパビリティチェックでそもそも表示されない。サイドバー上は CSS のみで「設定」グループとして見せる:
+`manage_options` 必須の設定系 6 項目(公開設定 / ログイン設定 / 通知設定 / AI設定 / ライセンス / 操作履歴) は、編集者ロールのユーザーには WP 標準のキャパビリティチェックでそもそも表示されない。サイドバー上は CSS のみで「設定」グループとして見せる:
 
-- `DRWP_Admin::mark_settings_section` が `admin_menu` priority 999 で `$submenu['drwp_reports']` を回り、設定系 7 行の `<li>` クラス枠 (`$item[4]`) に `drwp-settings-child` を、先頭行(公開設定)に追加で `drwp-settings-first` を付与する。
+- `DRWP_Admin::mark_settings_section` が `admin_menu` priority 999 で `$submenu['drwp_reports']` を回り、設定系 6 行の `<li>` クラス枠 (`$item[4]`) に `drwp-settings-child` を、先頭行(公開設定)に追加で `drwp-settings-first` を付与する。
 - `DRWP_Admin::settings_section_css` が `admin_head` で、設定系行をやや字下げ、先頭行に上罫線 + `::before` で「設定」ラベルを表示するスタイルを出力する。
 - サブメニュー登録順序や構造には触らないので、WP のホバーフライアウトはそのまま全 12 項目を表示する。
 
@@ -205,15 +205,14 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 | スラッグ | ラベル | 必須 cap | 担当クラス |
 | --- | --- | --- | --- |
 | `drwp_reports` | 日報一覧 | `edit_posts` | `DRWP_Admin::reports_page` |
-| `drwp_operations` | 日報操作 | `edit_posts` | `DRWP_Admin::operations_page` |
 | `drwp_articles` | 記事作成 | `publish_posts` | `DRWP_Admin::articles_page` |
 | `drwp_projects` | 案件 | `manage_options` | `DRWP_Project::render_page` |
 | `drwp_customers` | 顧客 | `manage_options` | `DRWP_Customer::render_page` |
+| `drwp_groups` | グループ | `manage_options` | `DRWP_Groups_Admin::render_page` |
 | `drwp_print` | PDF出力 | `edit_posts` | `DRWP_Print::render_page` |
 | `drwp_output` | 公開設定 | `manage_options` | `DRWP_Output_Admin::render_page` |
 | `drwp_login_settings` | ログイン設定 | `manage_options` | `DRWP_Login::render_settings_page` |
 | `drwp_notifications` | 通知設定 | `manage_options` | `DRWP_Notifications_Admin::render_page` |
-| `drwp_groups` | グループ設定 | `manage_options` | `DRWP_Groups_Admin::render_page` |
 | `drwp_ai` | AI設定 | `manage_options` | `DRWP_AI_Admin::render_page` |
 | `drwp_license` | ライセンス | `manage_options` | `DRWP_License_Admin::render_page` |
 | `drwp_audit` | 操作履歴 | `manage_options` | `DRWP_Audit_Admin::render_page` |
@@ -242,12 +241,19 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 ### 5.3 日報一覧
 
+日報一覧と日報操作は 1 ページに統合済み。レイアウトはチェックボックス + 一括操作付きのテーブル形式で、各行の操作列は **「確認」** と **「編集」** の 2 つのボタン:
+
+- **確認** — 紙面風の「作業日報」をモーダルウィンドウで表示。レビュー操作 (`edit_others_posts` 必須) とコメント送信もモーダル内で完結する。
+- **編集** — 日付・案件・時刻・本文 3 欄を編集するフォームをモーダルで表示。`PATCH /reports/{id}` で保存して reload。
+
 絞り込み: ステータス、日付範囲、現場、**案件グループ**、**顧客グループ**、作業者。
 
 - 案件グループ → `DRWP_Project_Group::project_ids_for_group($id)` で project_group_map から直接 `project_id` 配列に解決。
 - 顧客グループ → `DRWP_Customer_Group::project_ids_for_group($id)` で顧客 → 案件の階層を辿って `project_id` 配列に解決。
 
 両方とも結果が空集合のときは `0=1` でガードして「該当なし」を返す（フィルタが silently 外れて全件が出るのを防ぐ）。一括操作: 承認、差戻し、CSV エクスポート、**記事化(作成 or 更新)**。
+
+旧 `drwp_operations` スラッグはメニュー登録を撤去し、`operations_page()` メソッドも削除済み。`bulk_reports` ハンドラの `redirect_page` ホワイトリストから `drwp_operations` が外れ、未知の値は `drwp_reports` にフォールバックする。
 
 ### 5.4 顧客 / 案件ページの検索
 
