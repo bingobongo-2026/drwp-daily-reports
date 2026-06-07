@@ -153,19 +153,36 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 ## 5. 管理画面 (Admin)
 
-トップメニューは `drwp_reports`(ラベル: 「日報管理」、icon: `dashicons-media-spreadsheet`)。
+トップメニューは 2 つ:
+
+- `drwp_reports`(ラベル: 「日報管理」、icon: `dashicons-media-spreadsheet`): 運用系。日報の作成・編集・出力。
+- `drwp_license`(ラベル: 「設定」、icon: `dashicons-admin-settings`): 管理者用設定。 親スラッグを `drwp_license` のままにすることで、ライセンス周りの既存リダイレクト URL を温存している。
+
+WP の管理メニューは 2 階層しかサポートしないため、「設定」を `drwp_reports` の子にすると孫メニューがフライアウトしない。 操作系と設定系を別トップレベルに分離している。
+
+### 日報管理 配下
 
 | スラッグ | ラベル | 必須 cap | 担当クラス |
 | --- | --- | --- | --- |
 | `drwp_reports` | 日報一覧 | `edit_posts` | `DRWP_Admin::reports_page` |
-| `drwp_report_edit` | 日報編集 | `edit_posts` | `DRWP_Admin::report_edit_page` |
-| `drwp_projects` | 現場 | `manage_options` | `DRWP_Project::render_page` |
+| `drwp_operations` | 日報操作 | `edit_posts` | `DRWP_Admin::operations_page` |
+| `drwp_articles` | 記事作成 | `publish_posts` | `DRWP_Admin::articles_page` |
+| `drwp_projects` | 案件 | `manage_options` | `DRWP_Project::render_page` |
+| `drwp_customers` | 顧客 | `manage_options` | `DRWP_Customer::render_page` |
+| `drwp_print` | PDF出力 | `edit_posts` | `DRWP_Print::render_page` |
+| `drwp_report_edit` | 日報編集(リンク経由のみ) | `edit_posts` | `DRWP_Admin::report_edit_page` |
+| `drwp_report_preview` | 公開プレビュー(非表示) | `edit_posts` | `DRWP_Admin::report_preview_page` |
+
+### 設定 配下
+
+| スラッグ | ラベル | 必須 cap | 担当クラス |
+| --- | --- | --- | --- |
 | `drwp_license` | ライセンス | `manage_options` | `DRWP_License_Admin::render_page` |
 | `drwp_audit` | 操作履歴 | `manage_options` | `DRWP_Audit_Admin::render_page` |
 | `drwp_notifications` | 通知設定 | `manage_options` | `DRWP_Notifications_Admin::render_page` |
 | `drwp_output` | 公開設定 | `manage_options` | `DRWP_Output_Admin::render_page` |
+| `drwp_ai` | AI設定 | `manage_options` | `DRWP_AI_Admin::render_page` |
 | `drwp_login_settings` | ログイン設定 | `manage_options` | `DRWP_Login::render_settings_page` |
-| `drwp_report_preview` | 公開プレビュー(非表示) | `edit_posts` | `DRWP_Admin::report_preview_page` |
 
 ### 5.1 日報編集ページ
 

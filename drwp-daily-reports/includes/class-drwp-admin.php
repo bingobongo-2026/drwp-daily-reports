@@ -94,6 +94,7 @@ class DRWP_Admin {
     }
 
     public static function menu() {
+        // === Operational menu ===
         $reports = __('日報管理', 'drwp-daily-reports');
         add_menu_page($reports, $reports, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page'], 'dashicons-media-spreadsheet');
         $list_label = __('日報一覧', 'drwp-daily-reports');
@@ -106,20 +107,32 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $proj, $proj, 'manage_options', 'drwp_projects', ['DRWP_Project', 'render_page']);
         $cust = __('顧客', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $cust, $cust, 'manage_options', 'drwp_customers', ['DRWP_Customer', 'render_page']);
-        $lic = __('ライセンス', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $lic, $lic, 'manage_options', 'drwp_license', ['DRWP_License_Admin', 'render_page']);
-        $audit = __('操作履歴', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $audit, $audit, 'manage_options', 'drwp_audit', ['DRWP_Audit_Admin', 'render_page']);
         $pdf = __('PDF出力', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $pdf, $pdf, self::CAP_EDIT, 'drwp_print', ['DRWP_Print', 'render_page']);
-        $notif = __('通知設定', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $notif, $notif, 'manage_options', 'drwp_notifications', ['DRWP_Notifications_Admin', 'render_page']);
-        $output = __('公開設定', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $output, $output, 'manage_options', 'drwp_output', ['DRWP_Output_Admin', 'render_page']);
-        $ai = __('AI設定', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $ai, $ai, 'manage_options', 'drwp_ai', ['DRWP_AI_Admin', 'render_page']);
         $prev = __('公開プレビュー', 'drwp-daily-reports');
         add_submenu_page(null, $prev, $prev, self::CAP_EDIT, 'drwp_report_preview', [__CLASS__, 'report_preview_page']);
+
+        // === Settings menu ===
+        // Separate top-level item so WP's native hover fly-out surfaces
+        // the children. WP's admin menu doesn't support 3-level nesting,
+        // so a "Settings" item under 日報管理 wouldn't give us the
+        // submenu-on-hover behavior the operator asked for.
+        //
+        // Parent slug reuses `drwp_license` so the existing admin URLs
+        // (admin.php?page=drwp_license, plus every redirect that points
+        // there) keep resolving without rewrites.
+        $settings = __('設定', 'drwp-daily-reports');
+        add_menu_page($settings, $settings, 'manage_options', 'drwp_license', ['DRWP_License_Admin', 'render_page'], 'dashicons-admin-settings');
+        $lic = __('ライセンス', 'drwp-daily-reports');
+        add_submenu_page('drwp_license', $lic, $lic, 'manage_options', 'drwp_license', ['DRWP_License_Admin', 'render_page']);
+        $audit = __('操作履歴', 'drwp-daily-reports');
+        add_submenu_page('drwp_license', $audit, $audit, 'manage_options', 'drwp_audit', ['DRWP_Audit_Admin', 'render_page']);
+        $notif = __('通知設定', 'drwp-daily-reports');
+        add_submenu_page('drwp_license', $notif, $notif, 'manage_options', 'drwp_notifications', ['DRWP_Notifications_Admin', 'render_page']);
+        $output = __('公開設定', 'drwp-daily-reports');
+        add_submenu_page('drwp_license', $output, $output, 'manage_options', 'drwp_output', ['DRWP_Output_Admin', 'render_page']);
+        $ai = __('AI設定', 'drwp-daily-reports');
+        add_submenu_page('drwp_license', $ai, $ai, 'manage_options', 'drwp_ai', ['DRWP_AI_Admin', 'render_page']);
     }
 
     public static function project_map_public() {
