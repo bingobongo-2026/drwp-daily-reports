@@ -164,6 +164,7 @@ class DRWP_Report_Form {
                 . '</p>');
         }
 
+        wp_enqueue_style(self::HANDLE);
         wp_enqueue_script('drwp-archive-edit', DRWP_URL . 'public/assets/archive-edit.js', [], DRWP_VERSION, true);
 
         $projects = DRWP_Project::all();
@@ -305,6 +306,7 @@ class DRWP_Report_Form {
             ],
         ];
 
+        wp_enqueue_style(self::HANDLE);
         wp_enqueue_script(self::HANDLE);
 
         $config_attr = wp_json_encode($config);
