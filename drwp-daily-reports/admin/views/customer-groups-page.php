@@ -1,7 +1,9 @@
-<?php if (!defined('ABSPATH')) exit; ?>
-<div class="wrap">
-  <h1><?php esc_html_e('顧客グループ', 'drwp-daily-reports'); ?></h1>
-
+<?php if (!defined('ABSPATH')) exit;
+// View shared with the unified グループ設定 page —
+// DRWP_Groups_Admin::render_page() wraps this with the wrap div and
+// nav tabs. No `<div class="wrap">` / `<h1>` here on purpose.
+?>
+<div class="drwp-groups-tab-body">
   <?php if (!empty($_GET['saved'])): ?>
     <div class="notice notice-success"><p><?php esc_html_e('顧客グループを保存しました。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>

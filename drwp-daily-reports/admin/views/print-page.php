@@ -199,7 +199,7 @@
               <td><?php echo esc_html($work_time_text); ?></td>
             </tr>
             <tr>
-              <th><?php esc_html_e('記入者', 'drwp-daily-reports'); ?></th>
+              <th><?php esc_html_e('報告者', 'drwp-daily-reports'); ?></th>
               <td><?php echo esc_html($author ? $author->display_name : ''); ?></td>
               <th><?php esc_html_e('提出日', 'drwp-daily-reports'); ?></th>
               <td>

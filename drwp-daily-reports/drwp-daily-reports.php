@@ -22,6 +22,7 @@ require_once DRWP_PATH . 'includes/class-drwp-customer.php';
 require_once DRWP_PATH . 'includes/class-drwp-customer-group.php';
 require_once DRWP_PATH . 'includes/class-drwp-project.php';
 require_once DRWP_PATH . 'includes/class-drwp-project-group.php';
+require_once DRWP_PATH . 'includes/class-drwp-groups-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-audit.php';
 require_once DRWP_PATH . 'includes/class-drwp-audit-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-comment.php';

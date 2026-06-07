@@ -179,8 +179,8 @@
                     printf(
                         // translators: %s is a link to the 顧客グループ admin page.
                         esc_html__('まだ顧客グループがありません。%s から登録してください。', 'drwp-daily-reports'),
-                        '<a href="' . esc_url(admin_url('admin.php?page=drwp_customer_groups')) . '">'
-                          . esc_html__('顧客グループページ', 'drwp-daily-reports')
+                        '<a href="' . esc_url(admin_url('admin.php?page=drwp_groups&tab=customer')) . '">'
+                          . esc_html__('グループ設定ページ', 'drwp-daily-reports')
                           . '</a>'
                     );
                   ?>
