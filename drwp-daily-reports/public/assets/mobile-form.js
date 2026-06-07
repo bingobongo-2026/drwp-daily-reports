@@ -33,7 +33,11 @@
     var photoInput  = form.querySelector('[data-role=photo-input]');
     var photoPrev   = form.querySelector('[data-role=photo-preview]');
     var i18n        = config.i18n || {};
-    var pendingFiles = [];
+    // Pending photo entries — each carries a File + its caption so
+    // the submit handler can hand both arrays (attachment_ids /
+    // attachment_captions) to the REST endpoint in sync, matching
+    // the order the photos were picked.
+    var pendingEntries = [];
 
     function setStatus(text, cls) {
         if (!status) return;
@@ -56,7 +60,9 @@
     if (photoInput) {
         photoInput.addEventListener('change', function () {
             var files = Array.from(photoInput.files || []);
-            files.forEach(function (f) { pendingFiles.push(f); });
+            files.forEach(function (f) {
+                pendingEntries.push({ file: f, caption: '' });
+            });
             photoInput.value = '';
             renderPhotoPreview();
         });
@@ -65,20 +71,43 @@
     function renderPhotoPreview() {
         if (!photoPrev) return;
         photoPrev.innerHTML = '';
-        pendingFiles.forEach(function (file, idx) {
+        pendingEntries.forEach(function (entry, idx) {
             var item = document.createElement('div');
             item.className = 'item';
+
+            // Thumbnail + delete button as a self-contained block so
+            // the square-aspect padding trick still works while the
+            // caption input lives outside that block.
+            var thumb = document.createElement('div');
+            thumb.className = 'photo-thumb';
             var img = document.createElement('img');
-            img.src = URL.createObjectURL(file);
-            item.appendChild(img);
+            img.src = URL.createObjectURL(entry.file);
+            thumb.appendChild(img);
             var del = document.createElement('button');
             del.type = 'button';
             del.textContent = '×';
+            del.setAttribute('aria-label', i18n.remove_photo || '削除');
             del.onclick = function () {
-                pendingFiles.splice(idx, 1);
+                pendingEntries.splice(idx, 1);
                 renderPhotoPreview();
             };
-            item.appendChild(del);
+            thumb.appendChild(del);
+            item.appendChild(thumb);
+
+            var caption = document.createElement('input');
+            caption.type = 'text';
+            caption.className = 'photo-caption';
+            caption.maxLength = 255;
+            caption.placeholder = i18n.caption_placeholder || '説明文（任意）';
+            caption.value = entry.caption || '';
+            // `input` writes straight back into pendingEntries so the
+            // submit handler sees the latest text without re-reading
+            // the DOM.
+            caption.addEventListener('input', function () {
+                entry.caption = caption.value;
+            });
+            item.appendChild(caption);
+
             photoPrev.appendChild(item);
         });
     }
@@ -117,15 +146,22 @@
             return;
         }
 
-        var totalPhotos = pendingFiles.length;
+        var totalPhotos = pendingEntries.length;
         var uploaded = 0;
         var attachmentIds = [];
+        var attachmentCaptions = [];
         var chain = Promise.resolve();
-        pendingFiles.forEach(function (file) {
+        pendingEntries.forEach(function (entry) {
             chain = chain.then(function () {
                 setStatus((i18n.uploading || 'Uploading…') + ' (' + (uploaded + 1) + '/' + totalPhotos + ')');
-                return uploadOne(file).then(function (id) {
+                return uploadOne(entry.file).then(function (id) {
                     attachmentIds.push(id);
+                    // Push caption *after* the id resolves so the
+                    // arrays line up by index even if a previous
+                    // upload threw and was retried. The caption is
+                    // read off the live entry, so any keystrokes
+                    // during the upload chain are picked up.
+                    attachmentCaptions.push(entry.caption || '');
                     uploaded++;
                 });
             });
@@ -141,14 +177,15 @@
                     'X-WP-Nonce': config.nonce
                 },
                 body: JSON.stringify({
-                    report_date:      form.report_date.value || config.today,
-                    project_id:       projectId,
-                    started_at:       form.started_at.value || null,
-                    ended_at:         form.ended_at.value || null,
-                    work_description: work,
-                    issues:           form.issues.value || '',
-                    next_plan:        form.next_plan.value || '',
-                    attachment_ids:   attachmentIds
+                    report_date:         form.report_date.value || config.today,
+                    project_id:          projectId,
+                    started_at:          form.started_at.value || null,
+                    ended_at:            form.ended_at.value || null,
+                    work_description:    work,
+                    issues:              form.issues.value || '',
+                    next_plan:           form.next_plan.value || '',
+                    attachment_ids:      attachmentIds,
+                    attachment_captions: attachmentCaptions
                 })
             }).then(function (r) {
                 return r.json().then(function (j) {
@@ -159,7 +196,7 @@
         }).then(function (report) {
             setStatus((i18n.sent || '送信しました。') + ' (#' + report.id + ')', 'ok');
             form.reset();
-            pendingFiles = [];
+            pendingEntries = [];
             renderPhotoPreview();
             form.report_date.value = config.today;
             stopSending();

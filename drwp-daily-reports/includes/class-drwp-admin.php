@@ -29,6 +29,7 @@ class DRWP_Admin {
             'drwp_output',
             'drwp_login_settings',
             'drwp_notifications',
+            'drwp_groups',
             'drwp_ai',
             'drwp_license',
             'drwp_audit',
@@ -189,12 +190,6 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $proj, $proj, 'manage_options', 'drwp_projects', ['DRWP_Project', 'render_page']);
         $cust = __('顧客', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $cust, $cust, 'manage_options', 'drwp_customers', ['DRWP_Customer', 'render_page']);
-        // 顧客グループと案件グループは「グループ設定」ページ内のタブで
-        // 切り替える統合構成。旧スラッグ (drwp_customer_groups /
-        // drwp_project_groups) は撤去済み。リンクは
-        // DRWP_Groups_Admin::tab_url() で組み立てる。
-        $grp = __('グループ設定', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $grp, $grp, 'manage_options', DRWP_Groups_Admin::SLUG, ['DRWP_Groups_Admin', 'render_page']);
         $pdf = __('PDF出力', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $pdf, $pdf, self::CAP_EDIT, 'drwp_print', ['DRWP_Print', 'render_page']);
 
@@ -202,13 +197,16 @@ class DRWP_Admin {
         // should appear in the sidebar. ログイン設定's render callback
         // lives in class-drwp-login.php (`DRWP_Login::render_settings_page`)
         // but the submenu is registered here to keep ordering and
-        // capability rules in one place.
+        // capability rules in one place. グループ設定 lives here
+        // (rather than next to 顧客 / 案件) per operator preference.
         $output = __('公開設定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $output, $output, 'manage_options', 'drwp_output', ['DRWP_Output_Admin', 'render_page']);
         $login = __('ログイン設定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $login, $login, 'manage_options', 'drwp_login_settings', ['DRWP_Login', 'render_settings_page']);
         $notif = __('通知設定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $notif, $notif, 'manage_options', 'drwp_notifications', ['DRWP_Notifications_Admin', 'render_page']);
+        $grp = __('グループ設定', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $grp, $grp, 'manage_options', DRWP_Groups_Admin::SLUG, ['DRWP_Groups_Admin', 'render_page']);
         $ai = __('AI設定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $ai, $ai, 'manage_options', 'drwp_ai', ['DRWP_AI_Admin', 'render_page']);
         $lic = __('ライセンス', 'drwp-daily-reports');
