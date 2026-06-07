@@ -232,7 +232,8 @@
           foreach ($photo_chunks as $chunk_idx => $chunk):
         ?>
         <article class="drwp-photo-sheet<?php echo $i === 0 ? ' is-current' : ''; ?>"
-                 data-index="<?php echo (int) $i; ?>">
+                 data-index="<?php echo (int) $i; ?>"
+                 data-count="<?php echo (int) count($chunk); ?>">
           <div class="drwp-photo-sheet-head">
             <span class="drwp-photo-sheet-head-left">
               <?php echo esc_html('#' . (int) $r->id); ?>
@@ -307,17 +308,23 @@
 .drwp-print-sheets{flex:1;min-width:0}
 .drwp-sheet{background:#fff;padding:18mm;margin:0 auto 16px;max-width:210mm;min-height:280mm;box-sizing:border-box;font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;color:#1d2327;font-size:11pt;line-height:1.5;display:flex;flex-direction:column}
 .drwp-sheet-title{text-align:center;font-size:18pt;font-weight:700;margin:0;padding:8px 0;background:#e5e7eb;border:1px solid #1d2327}
-.drwp-sheet-meta{width:100%;border-collapse:collapse;margin-top:8px;table-layout:fixed}
-.drwp-sheet-meta th,.drwp-sheet-meta td{border:1px solid #1d2327;padding:4px 8px;font-size:10pt}
+.drwp-sheet-meta{width:100%;border-collapse:collapse;margin-top:6px;table-layout:fixed}
+.drwp-sheet-meta th,.drwp-sheet-meta td{border:1px solid #1d2327;padding:3px 8px;font-size:10pt}
 .drwp-sheet-meta th{background:#e5e7eb;text-align:center;font-weight:700;white-space:nowrap}
 .drwp-sheet-meta-label{width:80px}
-.drwp-sheet-section{width:100%;border-collapse:collapse;margin-top:8px;table-layout:fixed}
-.drwp-sheet-section-head{background:#e5e7eb;border:1px solid #1d2327;text-align:center;font-weight:700;font-size:11pt;padding:4px}
+.drwp-sheet-section{width:100%;border-collapse:collapse;margin-top:6px;table-layout:fixed}
+.drwp-sheet-section-head{background:#e5e7eb;border:1px solid #1d2327;text-align:center;font-weight:700;font-size:11pt;padding:3px}
 .drwp-sheet-section-body{border:1px solid #1d2327;padding:8px;vertical-align:top;white-space:pre-wrap;word-break:break-all}
-.drwp-sheet-section-body-lg{height:110mm}
-.drwp-sheet-section-body-md{height:28mm}
-.drwp-sheet-approval{margin:10px 0 0;padding:6px 8px;font-size:10.5pt;text-align:right}
-.drwp-sheet-attach-notice{margin:8px 0 0;padding:6px 10px;font-size:10.5pt;font-weight:600;border:1px dashed #1d2327;background:#fef9c3;text-align:center}
+/* Sized so the whole cover (title + meta + three sections + bottom
+   band) stays under A4 printable height (~267mm with 15mm @page
+   margins). Earlier values (lg 110mm / md 28mm) tipped the cover
+   over the page edge, so the 別紙バナー + 承認行 spilled to a
+   second page on every report — that's the "改ページが多い" the
+   operator was seeing. */
+.drwp-sheet-section-body-lg{height:88mm}
+.drwp-sheet-section-body-md{height:22mm}
+.drwp-sheet-approval{margin:6px 0 0;padding:4px 8px;font-size:10.5pt;text-align:right}
+.drwp-sheet-attach-notice{margin:6px 0 0;padding:4px 10px;font-size:10pt;font-weight:600;border:1px solid #1d2327;background:#fef9c3;text-align:center}
 
 /* Photo "別紙" sheet — six photos per A4 page in a 2x3 grid. Shares
    sizing with .drwp-sheet so it lives in the same on-screen stack and
@@ -327,6 +334,14 @@
 .drwp-photo-sheet-head-left{font-weight:600}
 .drwp-photo-sheet-head-right{color:#475569;white-space:nowrap}
 .drwp-photo-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3, 1fr);gap:6mm;min-height:0}
+/* Per-chunk overrides so a partial page doesn't leave huge empty
+   cells in the bottom half. 1 photo → single big cell, 2 photos →
+   stacked, 3-4 photos → 2x2 grid (right-bottom may be empty for 3),
+   5-6 photos → the default 2x3. */
+.drwp-photo-sheet[data-count="1"] .drwp-photo-grid{grid-template-columns:1fr;grid-template-rows:1fr}
+.drwp-photo-sheet[data-count="2"] .drwp-photo-grid{grid-template-columns:1fr;grid-template-rows:1fr 1fr}
+.drwp-photo-sheet[data-count="3"] .drwp-photo-grid,
+.drwp-photo-sheet[data-count="4"] .drwp-photo-grid{grid-template-rows:1fr 1fr}
 .drwp-photo-cell{border:1px solid #1d2327;padding:3mm;margin:0;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .drwp-photo-cell-img{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .drwp-photo-cell-img img{max-width:100%;max-height:100%;object-fit:contain}
