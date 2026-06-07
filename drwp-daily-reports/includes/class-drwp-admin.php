@@ -9,11 +9,89 @@ class DRWP_Admin {
 
     public static function init() {
         add_action('admin_menu', [__CLASS__, 'menu']);
+        add_action('admin_menu', [__CLASS__, 'mark_settings_section'], 999);
+        add_action('admin_head', [__CLASS__, 'settings_section_css']);
         add_action('admin_post_drwp_save_report', [__CLASS__, 'save_report']);
         add_action('admin_post_drwp_bulk_reports', [__CLASS__, 'bulk_reports']);
         add_action('admin_post_drwp_convert_single', [__CLASS__, 'convert_single']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue']);
         add_action('admin_notices', [__CLASS__, 'license_notice']);
+    }
+
+    /**
+     * Slugs that belong to the "設定" group inside the 日報管理
+     * submenu. Listed in the order they're registered in `menu()`
+     * — `mark_settings_section` only uses this set to decide which
+     * <li>s get the section class, not to reorder them.
+     */
+    private static function settings_section_slugs() {
+        return [
+            'drwp_output',
+            'drwp_login_settings',
+            'drwp_notifications',
+            'drwp_ai',
+            'drwp_license',
+            'drwp_audit',
+        ];
+    }
+
+    /**
+     * After every plugin has registered its submenus, decorate the
+     * settings rows so the sidebar visually separates them from the
+     * operational pages above. Pure CSS classes injected via
+     * `$submenu[parent][i][4]` (the LI class slot) — the items stay
+     * direct children of `drwp_reports` so WP's hover flyout keeps
+     * showing every entry.
+     */
+    public static function mark_settings_section() {
+        global $submenu;
+        if (empty($submenu['drwp_reports']) || !is_array($submenu['drwp_reports'])) {
+            return;
+        }
+        $settings_set = array_flip(self::settings_section_slugs());
+        $first_done = false;
+        foreach ($submenu['drwp_reports'] as &$item) {
+            $slug = $item[2] ?? '';
+            if (!isset($settings_set[$slug])) continue;
+            $cls = isset($item[4]) ? trim((string) $item[4]) : '';
+            $cls .= ($cls === '' ? '' : ' ') . 'drwp-settings-child';
+            if (!$first_done) {
+                $cls .= ' drwp-settings-first';
+                $first_done = true;
+            }
+            $item[4] = $cls;
+        }
+        unset($item);
+    }
+
+    /**
+     * Sidebar styling for the 設定 group — emitted on every admin
+     * page since the 日報管理 submenu renders site-wide (the hover
+     * flyout has to look right from the Dashboard too).
+     */
+    public static function settings_section_css() {
+        ?>
+        <style id="drwp-settings-section-style">
+            #adminmenu .wp-submenu li.drwp-settings-child > a {
+                padding-left: 28px;
+            }
+            #adminmenu .wp-submenu li.drwp-settings-first {
+                margin-top: 6px;
+                padding-top: 4px;
+                border-top: 1px solid rgba(240, 246, 252, 0.13);
+            }
+            #adminmenu .wp-submenu li.drwp-settings-first::before {
+                content: "設定";
+                display: block;
+                padding: 4px 12px 2px;
+                font-size: 11px;
+                font-weight: 600;
+                color: #a7aaad;
+                letter-spacing: 0.04em;
+                pointer-events: none;
+            }
+        </style>
+        <?php
     }
 
     public static function license_notice() {
