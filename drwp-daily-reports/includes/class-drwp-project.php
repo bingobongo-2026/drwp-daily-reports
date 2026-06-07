@@ -36,12 +36,25 @@ class DRWP_Project {
     public static function render_page() {
         if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         $filters = [
-            'search'   => isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '',
-            'group_id' => isset($_GET['group_id']) ? absint($_GET['group_id']) : 0,
+            'search'            => isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '',
+            'customer_group_id' => isset($_GET['customer_group_id']) ? absint($_GET['customer_group_id']) : (isset($_GET['group_id']) ? absint($_GET['group_id']) : 0),
+            'project_group_id'  => isset($_GET['project_group_id']) ? absint($_GET['project_group_id']) : 0,
         ];
-        $projects = self::search($filters['search'], $filters['group_id']);
+        $projects = self::search($filters['search'], $filters['customer_group_id'], $filters['project_group_id']);
         $customers = DRWP_Customer::all();
-        $groups = DRWP_Customer_Group::all(true);
+        $customer_groups = DRWP_Customer_Group::all(true);
+        $project_groups  = DRWP_Project_Group::all(true);
+
+        // Per-project group memberships for the listing chips +
+        // edit modal pre-select. Bulk fetch so the listing avoids
+        // an N+1 lookup.
+        $project_ids = array_map(fn($p) => (int) $p->id, $projects);
+        $project_group_rows = DRWP_Project_Group::groups_by_project($project_ids);
+        $project_group_ids  = [];
+        foreach ($project_group_rows as $pid => $gs) {
+            $project_group_ids[$pid] = array_map(fn($g) => (int) $g->id, $gs);
+        }
+
         // Edit mode: pre-fill the form from ?edit_id=N. The form's
         // hidden id input is what flips save() between INSERT (no
         // id) and UPDATE (id present) — the back-end already
@@ -54,14 +67,16 @@ class DRWP_Project {
     }
 
     /**
-     * Text + customer-group search.
+     * Text + customer-group + project-group search.
      *
      * Free-text LIKEs across the columns shown on the listing plus
      * the joined customer name so operators can search by client
-     * even when the case-by-case project name is opaque. The group
-     * filter pivots through the project's customer.
+     * even when the case-by-case project name is opaque. The
+     * customer-group filter pivots through `p.customer_id`; the
+     * project-group filter pivots through the project_group_map
+     * directly.
      */
-    public static function search($s = '', $group_id = 0) {
+    public static function search($s = '', $customer_group_id = 0, $project_group_id = 0) {
         global $wpdb;
         $cust_t = DRWP_Customer::table();
         $where = '1=1';
@@ -75,12 +90,19 @@ class DRWP_Project {
                    . ' OR p.job_description LIKE %s OR p.notes LIKE %s OR cu.name LIKE %s)';
             for ($i = 0; $i < 12; $i++) $args[] = $like;
         }
-        $group_id = absint($group_id);
-        if ($group_id) {
+        $customer_group_id = absint($customer_group_id);
+        if ($customer_group_id) {
             $where .= ' AND EXISTS (SELECT 1 FROM '
                    . DRWP_Customer_Group::map_table()
-                   . ' m WHERE m.customer_id = p.customer_id AND m.group_id = %d)';
-            $args[] = $group_id;
+                   . ' cm WHERE cm.customer_id = p.customer_id AND cm.group_id = %d)';
+            $args[] = $customer_group_id;
+        }
+        $project_group_id = absint($project_group_id);
+        if ($project_group_id) {
+            $where .= ' AND EXISTS (SELECT 1 FROM '
+                   . DRWP_Project_Group::map_table()
+                   . ' pm WHERE pm.project_id = p.id AND pm.group_id = %d)';
+            $args[] = $project_group_id;
         }
         $sql = 'SELECT p.* FROM ' . self::table() . ' p'
              . ' LEFT JOIN ' . $cust_t . ' cu ON cu.id = p.customer_id'
@@ -129,9 +151,21 @@ class DRWP_Project {
 
         if ($id) {
             $wpdb->update(self::table(), $data, ['id' => $id]);
+            $saved_id = $id;
         } else {
             $wpdb->insert(self::table(), $data);
+            $saved_id = (int) $wpdb->insert_id;
         }
+
+        // 案件グループ memberships — replace wholesale with the set in
+        // the submitted form. Missing key (no select rendered, or
+        // every option deselected) → empty array → existing rows
+        // wiped, mirroring the customer-side flow.
+        $group_ids = isset($_POST['project_group_ids'])
+            ? array_map('absint', (array) $_POST['project_group_ids'])
+            : [];
+        DRWP_Project_Group::set_for_project($saved_id, $group_ids);
+
         wp_safe_redirect(admin_url('admin.php?page=drwp_projects&saved=1'));
         exit;
     }

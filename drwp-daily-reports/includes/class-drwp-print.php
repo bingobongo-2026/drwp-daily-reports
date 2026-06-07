@@ -22,12 +22,13 @@ class DRWP_Print {
         $table = $wpdb->prefix . 'drwp_reports';
 
         $filters = [
-            'date_from'  => isset($_GET['date_from']) ? sanitize_text_field(wp_unslash($_GET['date_from'])) : '',
-            'date_to'    => isset($_GET['date_to']) ? sanitize_text_field(wp_unslash($_GET['date_to'])) : '',
-            'project_id' => isset($_GET['project_id']) ? absint($_GET['project_id']) : 0,
-            'group_id'   => isset($_GET['group_id']) ? absint($_GET['group_id']) : 0,
-            'ids'        => isset($_GET['ids']) ? sanitize_text_field(wp_unslash($_GET['ids'])) : '',
-            'go'         => !empty($_GET['go']),
+            'date_from'         => isset($_GET['date_from']) ? sanitize_text_field(wp_unslash($_GET['date_from'])) : '',
+            'date_to'           => isset($_GET['date_to']) ? sanitize_text_field(wp_unslash($_GET['date_to'])) : '',
+            'project_id'        => isset($_GET['project_id']) ? absint($_GET['project_id']) : 0,
+            'customer_group_id' => isset($_GET['customer_group_id']) ? absint($_GET['customer_group_id']) : (isset($_GET['group_id']) ? absint($_GET['group_id']) : 0),
+            'project_group_id'  => isset($_GET['project_group_id']) ? absint($_GET['project_group_id']) : 0,
+            'ids'               => isset($_GET['ids']) ? sanitize_text_field(wp_unslash($_GET['ids'])) : '',
+            'go'                => !empty($_GET['go']),
         ];
 
         $reports = [];
@@ -49,18 +50,27 @@ class DRWP_Print {
                 if ($filters['date_from'] !== '') { $where .= ' AND report_date >= %s'; $args[] = $filters['date_from']; }
                 if ($filters['date_to'] !== '')   { $where .= ' AND report_date <= %s'; $args[] = $filters['date_to']; }
                 if ($filters['project_id'])      { $where .= ' AND project_id = %d'; $args[] = $filters['project_id']; }
-                if ($filters['group_id']) {
-                    // Group filter resolves to the customer-owned
-                    // project IDs. Empty list → no matches (`0=1`)
-                    // so the operator gets back the "該当なし"
-                    // message rather than the entire set.
-                    $group_projects = DRWP_Customer_Group::project_ids_for_group($filters['group_id']);
-                    if (empty($group_projects)) {
+                if ($filters['customer_group_id']) {
+                    // 顧客グループ resolves to the project IDs owned by
+                    // the group's customers. Empty list → no matches
+                    // (`0=1`) so the operator gets "該当なし".
+                    $cg_projects = DRWP_Customer_Group::project_ids_for_group($filters['customer_group_id']);
+                    if (empty($cg_projects)) {
                         $where .= ' AND 0=1';
                     } else {
-                        $placeholders = implode(',', array_fill(0, count($group_projects), '%d'));
+                        $placeholders = implode(',', array_fill(0, count($cg_projects), '%d'));
                         $where .= ' AND project_id IN (' . $placeholders . ')';
-                        foreach ($group_projects as $pid) $args[] = $pid;
+                        foreach ($cg_projects as $pid) $args[] = $pid;
+                    }
+                }
+                if ($filters['project_group_id']) {
+                    $pg_projects = DRWP_Project_Group::project_ids_for_group($filters['project_group_id']);
+                    if (empty($pg_projects)) {
+                        $where .= ' AND 0=1';
+                    } else {
+                        $placeholders = implode(',', array_fill(0, count($pg_projects), '%d'));
+                        $where .= ' AND project_id IN (' . $placeholders . ')';
+                        foreach ($pg_projects as $pid) $args[] = $pid;
                     }
                 }
             }
@@ -100,7 +110,8 @@ class DRWP_Print {
         }
 
         $projects = DRWP_Project::all();
-        $groups = DRWP_Customer_Group::all(true);
+        $customer_groups = DRWP_Customer_Group::all(true);
+        $project_groups  = DRWP_Project_Group::all(true);
         include DRWP_PATH . 'admin/views/print-page.php';
     }
 }

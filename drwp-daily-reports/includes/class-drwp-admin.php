@@ -187,10 +187,12 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $articles, $articles, self::CAP_CONVERT, 'drwp_articles', [__CLASS__, 'articles_page']);
         $proj = __('案件', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $proj, $proj, 'manage_options', 'drwp_projects', ['DRWP_Project', 'render_page']);
+        $pgrp = __('案件グループ', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $pgrp, $pgrp, 'manage_options', 'drwp_project_groups', ['DRWP_Project_Group', 'render_page']);
         $cust = __('顧客', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $cust, $cust, 'manage_options', 'drwp_customers', ['DRWP_Customer', 'render_page']);
-        $grp = __('グループ', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $grp, $grp, 'manage_options', 'drwp_customer_groups', ['DRWP_Customer_Group', 'render_page']);
+        $cgrp = __('顧客グループ', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $cgrp, $cgrp, 'manage_options', 'drwp_customer_groups', ['DRWP_Customer_Group', 'render_page']);
         $pdf = __('PDF出力', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $pdf, $pdf, self::CAP_EDIT, 'drwp_print', ['DRWP_Print', 'render_page']);
 
@@ -273,7 +275,8 @@ class DRWP_Admin {
             'review_status' => isset($_GET['review_status']) ? sanitize_text_field(wp_unslash($_GET['review_status'])) : '',
             'post_status'   => isset($_GET['post_status']) ? sanitize_text_field(wp_unslash($_GET['post_status'])) : '',
             'project_id'    => isset($_GET['project_id']) ? absint($_GET['project_id']) : 0,
-            'group_id'      => isset($_GET['group_id']) ? absint($_GET['group_id']) : 0,
+            'customer_group_id' => isset($_GET['customer_group_id']) ? absint($_GET['customer_group_id']) : (isset($_GET['group_id']) ? absint($_GET['group_id']) : 0),
+            'project_group_id'  => isset($_GET['project_group_id']) ? absint($_GET['project_group_id']) : 0,
             'date_from'     => isset($_GET['date_from']) ? sanitize_text_field(wp_unslash($_GET['date_from'])) : '',
             'date_to'       => isset($_GET['date_to']) ? sanitize_text_field(wp_unslash($_GET['date_to'])) : '',
         ];
@@ -301,18 +304,30 @@ class DRWP_Admin {
             $where .= ' AND project_id = %d';
             $args[] = $filters['project_id'];
         }
-        if ($filters['group_id']) {
-            // Group filter resolves to the list of project IDs whose
+        if ($filters['customer_group_id']) {
+            // 顧客グループ resolves to the list of project IDs whose
             // customer belongs to the group. Empty list → no match
-            // (zero-row guard via `0=1`) instead of dropping the
-            // filter, which would silently show every report.
-            $group_projects = DRWP_Customer_Group::project_ids_for_group($filters['group_id']);
-            if (empty($group_projects)) {
+            // (`0=1`) so the filter doesn't silently drop and show
+            // every report.
+            $cg_projects = DRWP_Customer_Group::project_ids_for_group($filters['customer_group_id']);
+            if (empty($cg_projects)) {
                 $where .= ' AND 0=1';
             } else {
-                $placeholders = implode(',', array_fill(0, count($group_projects), '%d'));
+                $placeholders = implode(',', array_fill(0, count($cg_projects), '%d'));
                 $where .= ' AND project_id IN (' . $placeholders . ')';
-                foreach ($group_projects as $pid) $args[] = $pid;
+                foreach ($cg_projects as $pid) $args[] = $pid;
+            }
+        }
+        if ($filters['project_group_id']) {
+            // 案件グループ resolves directly off the project_group_map
+            // (no JOIN through 顧客). Same zero-row guard.
+            $pg_projects = DRWP_Project_Group::project_ids_for_group($filters['project_group_id']);
+            if (empty($pg_projects)) {
+                $where .= ' AND 0=1';
+            } else {
+                $placeholders = implode(',', array_fill(0, count($pg_projects), '%d'));
+                $where .= ' AND project_id IN (' . $placeholders . ')';
+                foreach ($pg_projects as $pid) $args[] = $pid;
             }
         }
         if ($filters['date_from'] !== '') {
@@ -357,7 +372,8 @@ class DRWP_Admin {
         foreach ($cal_rows as $row) $report_dates[(string) $row->report_date] = (int) $row->cnt;
 
         $projects = DRWP_Project::all();
-        $groups = DRWP_Customer_Group::all(true);
+        $customer_groups = DRWP_Customer_Group::all(true);
+        $project_groups  = DRWP_Project_Group::all(true);
 
         include DRWP_PATH . 'admin/views/reports-list.php';
     }

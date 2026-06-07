@@ -21,18 +21,29 @@
            value="<?php echo esc_attr($filters['search']); ?>"
            class="regular-text"
            placeholder="<?php esc_attr_e('案件名 / 顧客名 / 住所 / 仕事内容 / 備考', 'drwp-daily-reports'); ?>" />
-    <?php if (!empty($groups)): ?>
-      <select name="group_id">
-        <option value="0"><?php esc_html_e('グループすべて', 'drwp-daily-reports'); ?></option>
-        <?php foreach ($groups as $g): ?>
-          <option value="<?php echo (int) $g->id; ?>" <?php selected((int) ($filters['group_id'] ?? 0), (int) $g->id); ?>>
+    <?php if (!empty($project_groups)): ?>
+      <select name="project_group_id">
+        <option value="0"><?php esc_html_e('案件グループすべて', 'drwp-daily-reports'); ?></option>
+        <?php foreach ($project_groups as $g): ?>
+          <option value="<?php echo (int) $g->id; ?>" <?php selected((int) ($filters['project_group_id'] ?? 0), (int) $g->id); ?>>
+            <?php echo esc_html($g->name); ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+    <?php endif; ?>
+    <?php if (!empty($customer_groups)): ?>
+      <select name="customer_group_id">
+        <option value="0"><?php esc_html_e('顧客グループすべて', 'drwp-daily-reports'); ?></option>
+        <?php foreach ($customer_groups as $g): ?>
+          <option value="<?php echo (int) $g->id; ?>" <?php selected((int) ($filters['customer_group_id'] ?? 0), (int) $g->id); ?>>
             <?php echo esc_html($g->name); ?>
           </option>
         <?php endforeach; ?>
       </select>
     <?php endif; ?>
     <button class="button button-primary"><?php esc_html_e('検索', 'drwp-daily-reports'); ?></button>
-    <?php if ($filters['search'] !== '' || !empty($filters['group_id'])): ?>
+    <?php $any_filter = ($filters['search'] !== '' || !empty($filters['customer_group_id']) || !empty($filters['project_group_id'])); ?>
+    <?php if ($any_filter): ?>
       <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_projects')); ?>">
         <?php esc_html_e('クリア', 'drwp-daily-reports'); ?>
       </a>
@@ -52,6 +63,7 @@
       <tr>
         <th>ID</th>
         <th><?php esc_html_e('案件名', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('案件グループ', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('顧客', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('住所', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('仕事内容', 'drwp-daily-reports'); ?></th>
@@ -61,14 +73,17 @@
     </thead>
     <tbody>
       <?php if (empty($projects)): ?>
-        <tr><td colspan="7">
-          <?php if ($filters['search'] !== '' || !empty($filters['group_id'])):
+        <tr><td colspan="8">
+          <?php if ($filters['search'] !== '' || !empty($filters['customer_group_id']) || !empty($filters['project_group_id'])):
             esc_html_e('該当する案件が見つかりません。', 'drwp-daily-reports');
           else:
             esc_html_e('まだ案件がありません。', 'drwp-daily-reports');
           endif; ?>
         </td></tr>
       <?php else: foreach ($projects as $project):
+        $pid = (int) $project->id;
+        $pg_rows = $project_group_rows[$pid] ?? [];
+        $pg_ids  = $project_group_ids[$pid] ?? [];
         $customer = !empty($project->customer_id) ? DRWP_Customer::find((int) $project->customer_id) : null;
         $proj_addr_parts = array_filter([
             (string) ($project->prefecture ?? ''),
@@ -89,8 +104,17 @@
         }
       ?>
         <tr>
-          <td><?php echo (int) $project->id; ?></td>
+          <td><?php echo $pid; ?></td>
           <td><?php echo esc_html($project->name); ?></td>
+          <td>
+            <?php if (empty($pg_rows)): ?>
+              -
+            <?php else: foreach ($pg_rows as $g):
+              $dot_color = (string) ($g->color ?? '');
+            ?>
+              <span class="drwp-cg-chip"><?php if ($dot_color !== ''): ?><span class="drwp-cg-chip-dot" style="background:<?php echo esc_attr($dot_color); ?>;"></span><?php endif; ?><?php echo esc_html($g->name); ?></span>
+            <?php endforeach; endif; ?>
+          </td>
           <td><?php echo esc_html($customer ? $customer->name : ($project->client_name ?: '-')); ?></td>
           <td><?php echo esc_html($display_addr); ?></td>
           <td><?php
@@ -100,7 +124,7 @@
           <td><?php echo esc_html(DRWP_Labels::project_status((string) $project->status)); ?></td>
           <td>
             <button type="button" class="button button-small drwp-project-edit-btn"
-                    data-id="<?php echo (int) $project->id; ?>"
+                    data-id="<?php echo $pid; ?>"
                     data-name="<?php echo esc_attr($project->name); ?>"
                     data-customer_id="<?php echo (int) ($project->customer_id ?? 0); ?>"
                     data-status="<?php echo esc_attr($project->status); ?>"
@@ -113,7 +137,8 @@
                     data-job_description="<?php echo esc_attr($project->job_description ?? ''); ?>"
                     data-client_name="<?php echo esc_attr($project->client_name ?? ''); ?>"
                     data-contact_person="<?php echo esc_attr($project->contact_person ?? ''); ?>"
-                    data-notes="<?php echo esc_attr($project->notes ?? ''); ?>">
+                    data-notes="<?php echo esc_attr($project->notes ?? ''); ?>"
+                    data-project_group_ids="<?php echo esc_attr(wp_json_encode($pg_ids)); ?>">
               <?php esc_html_e('編集', 'drwp-daily-reports'); ?>
             </button>
             <?php if (DRWP_AI::is_enabled()): ?>
@@ -216,6 +241,33 @@
             <td><textarea id="drwp-pm-job" name="job_description" rows="3" class="large-text"></textarea></td>
           </tr>
           <tr>
+            <th><label for="drwp-pm-groups"><?php esc_html_e('案件グループ', 'drwp-daily-reports'); ?></label></th>
+            <td>
+              <?php if (empty($project_groups)): ?>
+                <p class="description">
+                  <?php
+                    printf(
+                        // translators: %s is a link to the 案件グループ admin page.
+                        esc_html__('まだ案件グループがありません。%s から登録してください。', 'drwp-daily-reports'),
+                        '<a href="' . esc_url(admin_url('admin.php?page=drwp_project_groups')) . '">'
+                          . esc_html__('案件グループページ', 'drwp-daily-reports')
+                          . '</a>'
+                    );
+                  ?>
+                </p>
+              <?php else: ?>
+                <select id="drwp-pm-groups" name="project_group_ids[]" multiple size="<?php echo (int) min(6, max(3, count($project_groups))); ?>" class="regular-text" style="min-height:auto;height:auto;">
+                  <?php foreach ($project_groups as $g): ?>
+                    <option value="<?php echo (int) $g->id; ?>"><?php echo esc_html($g->name); ?></option>
+                  <?php endforeach; ?>
+                </select>
+                <p class="description">
+                  <?php esc_html_e('Ctrl / ⌘ クリックで複数選択できます。', 'drwp-daily-reports'); ?>
+                </p>
+              <?php endif; ?>
+            </td>
+          </tr>
+          <tr>
             <th><label for="drwp-pm-notes"><?php esc_html_e('備考', 'drwp-daily-reports'); ?></label></th>
             <td>
               <textarea id="drwp-pm-notes" name="notes" rows="2" class="large-text"></textarea>
@@ -275,6 +327,10 @@
 .drwp-project-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
 .drwp-project-search{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
 .drwp-project-search-hit{color:#475569;font-size:.92em}
+/* Project-group chips on the 案件 listing. Shares classnames with
+   the 顧客 page chips for visual consistency. */
+.drwp-cg-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 8px 1px 6px;margin:1px 4px 1px 0;background:#f1f5f9;border-radius:10px;font-size:11px;line-height:1.7;color:#1d2327;white-space:nowrap}
+.drwp-cg-chip-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#94a3b8;flex-shrink:0}
 </style>
 
 <script>
@@ -285,6 +341,10 @@
   var fields = ['name','customer','contact','postal','prefecture','city','street','building','phone','job','notes','status','id'];
   var map = {};
   fields.forEach(function(f){ map[f] = document.getElementById('drwp-pm-' + f); });
+  // Project group multi-select — only present when at least one
+  // 案件グループ is registered; the modal renders a help link
+  // instead when the list is empty.
+  var groupsEl = document.getElementById('drwp-pm-groups');
   var titleEl  = document.getElementById('drwp-pm-title');
   var submitEl = document.getElementById('drwp-pm-submit');
 
@@ -293,11 +353,21 @@
   var addLabel  = <?php echo wp_json_encode(__('追加', 'drwp-daily-reports')); ?>;
   var saveLabel = <?php echo wp_json_encode(__('更新', 'drwp-daily-reports')); ?>;
 
+  function setGroupSelection(ids) {
+    if (!groupsEl) return;
+    var set = {};
+    (Array.isArray(ids) ? ids : []).forEach(function (id) { set[String(id)] = true; });
+    Array.prototype.forEach.call(groupsEl.options, function (opt) {
+      opt.selected = !!set[opt.value];
+    });
+  }
+
   function clearForm(){
     fields.forEach(function(f){ if(map[f]) map[f].value = ''; });
     if(map.status) map.status.value = 'active';
     if(map.id) map.id.value = '0';
     if(map.customer) map.customer.value = '0';
+    setGroupSelection([]);
   }
 
   document.getElementById('drwp-project-add-btn').addEventListener('click', function(){
@@ -327,6 +397,11 @@
     map.job.value       = d.job_description || '';
     map.contact.value   = d.contact_person || '';
     map.notes.value     = d.notes || '';
+    var pgids = [];
+    if (d.project_group_ids) {
+      try { pgids = JSON.parse(d.project_group_ids) || []; } catch (e) { pgids = []; }
+    }
+    setGroupSelection(pgids);
     dlg.showModal();
     map.name.focus();
   });
