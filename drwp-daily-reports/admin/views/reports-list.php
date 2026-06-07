@@ -42,7 +42,7 @@ foreach (($reports ?? []) as $r) {
   <?php endif; ?>
 
   <!-- 検索・絞り込み -->
-  <details class="drwp-card drwp-filter-card" <?php echo ($filters['search'] || $filters['review_status'] || $filters['project_id'] || $filters['date_from'] || $filters['date_to']) ? 'open' : ''; ?>>
+  <details class="drwp-card drwp-filter-card" <?php echo ($filters['search'] || $filters['review_status'] || $filters['project_id'] || !empty($filters['group_id']) || $filters['date_from'] || $filters['date_to']) ? 'open' : ''; ?>>
     <summary><?php esc_html_e('検索・絞り込み', 'drwp-daily-reports'); ?></summary>
     <form method="get" class="drwp-filter-form">
       <input type="hidden" name="page" value="drwp_reports" />
@@ -60,6 +60,14 @@ foreach (($reports ?? []) as $r) {
             <option value="<?php echo (int) $project->id; ?>" <?php selected((int) $filters['project_id'], (int) $project->id); ?>><?php echo esc_html($project->name); ?></option>
           <?php endforeach; ?>
         </select>
+        <?php if (!empty($groups)): ?>
+        <select name="group_id">
+          <option value="0"><?php esc_html_e('グループすべて', 'drwp-daily-reports'); ?></option>
+          <?php foreach ($groups as $g): ?>
+            <option value="<?php echo (int) $g->id; ?>" <?php selected((int) ($filters['group_id'] ?? 0), (int) $g->id); ?>><?php echo esc_html($g->name); ?></option>
+          <?php endforeach; ?>
+        </select>
+        <?php endif; ?>
       </div>
       <div class="drwp-row">
         <input type="date" name="date_from" id="drwp-date-from" value="<?php echo esc_attr($filters['date_from']); ?>" />

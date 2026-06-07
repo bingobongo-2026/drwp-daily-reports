@@ -35,8 +35,13 @@ class DRWP_Project {
 
     public static function render_page() {
         if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
-        $projects = self::all();
+        $filters = [
+            'search'   => isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '',
+            'group_id' => isset($_GET['group_id']) ? absint($_GET['group_id']) : 0,
+        ];
+        $projects = self::search($filters['search'], $filters['group_id']);
         $customers = DRWP_Customer::all();
+        $groups = DRWP_Customer_Group::all(true);
         // Edit mode: pre-fill the form from ?edit_id=N. The form's
         // hidden id input is what flips save() between INSERT (no
         // id) and UPDATE (id present) — the back-end already
@@ -46,6 +51,44 @@ class DRWP_Project {
             $edit_project = self::find(absint($_GET['edit_id']));
         }
         include DRWP_PATH . 'admin/views/projects-page.php';
+    }
+
+    /**
+     * Text + customer-group search.
+     *
+     * Free-text LIKEs across the columns shown on the listing plus
+     * the joined customer name so operators can search by client
+     * even when the case-by-case project name is opaque. The group
+     * filter pivots through the project's customer.
+     */
+    public static function search($s = '', $group_id = 0) {
+        global $wpdb;
+        $cust_t = DRWP_Customer::table();
+        $where = '1=1';
+        $args  = [];
+        $s = (string) $s;
+        if ($s !== '') {
+            $like = '%' . $wpdb->esc_like($s) . '%';
+            $where .= ' AND (p.name LIKE %s OR p.address LIKE %s OR p.prefecture LIKE %s'
+                   . ' OR p.city LIKE %s OR p.street LIKE %s OR p.building LIKE %s'
+                   . ' OR p.phone LIKE %s OR p.client_name LIKE %s OR p.contact_person LIKE %s'
+                   . ' OR p.job_description LIKE %s OR p.notes LIKE %s OR cu.name LIKE %s)';
+            for ($i = 0; $i < 12; $i++) $args[] = $like;
+        }
+        $group_id = absint($group_id);
+        if ($group_id) {
+            $where .= ' AND EXISTS (SELECT 1 FROM '
+                   . DRWP_Customer_Group::map_table()
+                   . ' m WHERE m.customer_id = p.customer_id AND m.group_id = %d)';
+            $args[] = $group_id;
+        }
+        $sql = 'SELECT p.* FROM ' . self::table() . ' p'
+             . ' LEFT JOIN ' . $cust_t . ' cu ON cu.id = p.customer_id'
+             . ' WHERE ' . $where
+             . ' ORDER BY p.name ASC, p.id DESC';
+        return $args
+            ? $wpdb->get_results($wpdb->prepare($sql, $args))
+            : $wpdb->get_results($sql);
     }
 
     public static function save() {

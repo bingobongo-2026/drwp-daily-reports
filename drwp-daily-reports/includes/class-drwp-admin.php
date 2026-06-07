@@ -273,6 +273,7 @@ class DRWP_Admin {
             'review_status' => isset($_GET['review_status']) ? sanitize_text_field(wp_unslash($_GET['review_status'])) : '',
             'post_status'   => isset($_GET['post_status']) ? sanitize_text_field(wp_unslash($_GET['post_status'])) : '',
             'project_id'    => isset($_GET['project_id']) ? absint($_GET['project_id']) : 0,
+            'group_id'      => isset($_GET['group_id']) ? absint($_GET['group_id']) : 0,
             'date_from'     => isset($_GET['date_from']) ? sanitize_text_field(wp_unslash($_GET['date_from'])) : '',
             'date_to'       => isset($_GET['date_to']) ? sanitize_text_field(wp_unslash($_GET['date_to'])) : '',
         ];
@@ -299,6 +300,20 @@ class DRWP_Admin {
         if ($filters['project_id']) {
             $where .= ' AND project_id = %d';
             $args[] = $filters['project_id'];
+        }
+        if ($filters['group_id']) {
+            // Group filter resolves to the list of project IDs whose
+            // customer belongs to the group. Empty list → no match
+            // (zero-row guard via `0=1`) instead of dropping the
+            // filter, which would silently show every report.
+            $group_projects = DRWP_Customer_Group::project_ids_for_group($filters['group_id']);
+            if (empty($group_projects)) {
+                $where .= ' AND 0=1';
+            } else {
+                $placeholders = implode(',', array_fill(0, count($group_projects), '%d'));
+                $where .= ' AND project_id IN (' . $placeholders . ')';
+                foreach ($group_projects as $pid) $args[] = $pid;
+            }
         }
         if ($filters['date_from'] !== '') {
             $where .= ' AND report_date >= %s';
@@ -342,6 +357,7 @@ class DRWP_Admin {
         foreach ($cal_rows as $row) $report_dates[(string) $row->report_date] = (int) $row->cnt;
 
         $projects = DRWP_Project::all();
+        $groups = DRWP_Customer_Group::all(true);
 
         include DRWP_PATH . 'admin/views/reports-list.php';
     }

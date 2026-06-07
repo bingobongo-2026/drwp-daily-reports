@@ -111,6 +111,29 @@ class DRWP_Customer_Group {
         }
     }
 
+    /**
+     * Project IDs whose customer belongs to the given group.
+     *
+     * Used by the 日報一覧 and PDF出力 group filters: a daily report
+     * carries `project_id`, a project carries `customer_id`, and a
+     * customer can have N groups via the map table. Resolving that
+     * chain upfront lets the existing reports query stay a single
+     * SELECT against `drwp_reports` with an `IN (...)` instead of
+     * forcing a 3-way JOIN.
+     */
+    public static function project_ids_for_group($group_id) {
+        global $wpdb;
+        $group_id = absint($group_id);
+        if (!$group_id) return [];
+        $projects_t = $wpdb->prefix . 'drwp_projects';
+        return array_map('intval', (array) $wpdb->get_col($wpdb->prepare(
+            'SELECT p.id FROM ' . $projects_t . ' p
+              INNER JOIN ' . self::map_table() . ' m ON m.customer_id = p.customer_id
+              WHERE m.group_id = %d',
+            $group_id
+        )));
+    }
+
     public static function render_page() {
         if (!current_user_can('manage_options')) {
             wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
