@@ -29,7 +29,6 @@ class DRWP_Admin {
             'drwp_output',
             'drwp_login_settings',
             'drwp_notifications',
-            'drwp_groups',
             'drwp_ai',
             'drwp_license',
             'drwp_audit',
@@ -182,14 +181,14 @@ class DRWP_Admin {
 
         $list_label = __('日報一覧', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $list_label, $list_label, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page']);
-        $ops = __('日報操作', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $ops, $ops, self::CAP_EDIT, 'drwp_operations', [__CLASS__, 'operations_page']);
         $articles = __('記事作成', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $articles, $articles, self::CAP_CONVERT, 'drwp_articles', [__CLASS__, 'articles_page']);
         $proj = __('案件', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $proj, $proj, 'manage_options', 'drwp_projects', ['DRWP_Project', 'render_page']);
         $cust = __('顧客', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $cust, $cust, 'manage_options', 'drwp_customers', ['DRWP_Customer', 'render_page']);
+        $grp = __('グループ', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $grp, $grp, 'manage_options', DRWP_Groups_Admin::SLUG, ['DRWP_Groups_Admin', 'render_page']);
         $pdf = __('PDF出力', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $pdf, $pdf, self::CAP_EDIT, 'drwp_print', ['DRWP_Print', 'render_page']);
 
@@ -197,16 +196,13 @@ class DRWP_Admin {
         // should appear in the sidebar. ログイン設定's render callback
         // lives in class-drwp-login.php (`DRWP_Login::render_settings_page`)
         // but the submenu is registered here to keep ordering and
-        // capability rules in one place. グループ設定 lives here
-        // (rather than next to 顧客 / 案件) per operator preference.
+        // capability rules in one place.
         $output = __('公開設定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $output, $output, 'manage_options', 'drwp_output', ['DRWP_Output_Admin', 'render_page']);
         $login = __('ログイン設定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $login, $login, 'manage_options', 'drwp_login_settings', ['DRWP_Login', 'render_settings_page']);
         $notif = __('通知設定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $notif, $notif, 'manage_options', 'drwp_notifications', ['DRWP_Notifications_Admin', 'render_page']);
-        $grp = __('グループ設定', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $grp, $grp, 'manage_options', DRWP_Groups_Admin::SLUG, ['DRWP_Groups_Admin', 'render_page']);
         $ai = __('AI設定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $ai, $ai, 'manage_options', 'drwp_ai', ['DRWP_AI_Admin', 'render_page']);
         $lic = __('ライセンス', 'drwp-daily-reports');
@@ -376,56 +372,6 @@ class DRWP_Admin {
         $project_groups  = DRWP_Project_Group::all(true);
 
         include DRWP_PATH . 'admin/views/reports-list.php';
-    }
-
-    public static function operations_page() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
-        global $wpdb;
-        $table = self::reports_table();
-
-        $filters = [
-            'search'        => isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '',
-            'review_status' => isset($_GET['review_status']) ? sanitize_text_field(wp_unslash($_GET['review_status'])) : '',
-            'project_id'    => isset($_GET['project_id']) ? absint($_GET['project_id']) : 0,
-            'date_from'     => isset($_GET['date_from']) ? sanitize_text_field(wp_unslash($_GET['date_from'])) : '',
-            'date_to'       => isset($_GET['date_to']) ? sanitize_text_field(wp_unslash($_GET['date_to'])) : '',
-        ];
-
-        $where = '1=1';
-        $args = [];
-        if (!current_user_can(self::CAP_REVIEW)) {
-            $where .= ' AND user_id = %d';
-            $args[] = get_current_user_id();
-        }
-        if ($filters['search'] !== '') {
-            $where .= ' AND (public_title LIKE %s OR public_body LIKE %s OR work_description LIKE %s OR post_tags LIKE %s)';
-            $like = '%' . $wpdb->esc_like($filters['search']) . '%';
-            $args[] = $like; $args[] = $like; $args[] = $like; $args[] = $like;
-        }
-        if ($filters['review_status'] !== '') { $where .= ' AND review_status = %s'; $args[] = $filters['review_status']; }
-        if ($filters['project_id']) { $where .= ' AND project_id = %d'; $args[] = $filters['project_id']; }
-        if ($filters['date_from'] !== '') { $where .= ' AND report_date >= %s'; $args[] = $filters['date_from']; }
-        if ($filters['date_to'] !== '') { $where .= ' AND report_date <= %s'; $args[] = $filters['date_to']; }
-
-        $count_sql = "SELECT COUNT(*) FROM $table WHERE $where";
-        $total = $args
-            ? (int) $wpdb->get_var($wpdb->prepare($count_sql, $args))
-            : (int) $wpdb->get_var($count_sql);
-
-        $paged = max(1, (int) ($_GET['paged'] ?? 1));
-        $pages = max(1, (int) ceil($total / self::PER_PAGE));
-        if ($paged > $pages) $paged = $pages;
-        $offset = ($paged - 1) * self::PER_PAGE;
-
-        $sql = "SELECT * FROM $table WHERE $where ORDER BY report_date DESC, id DESC LIMIT %d OFFSET %d";
-        $query_args = $args;
-        $query_args[] = self::PER_PAGE;
-        $query_args[] = $offset;
-        $reports = $wpdb->get_results($wpdb->prepare($sql, $query_args));
-
-        $projects = DRWP_Project::all();
-
-        include DRWP_PATH . 'admin/views/operations-list.php';
     }
 
     public static function articles_page() {
@@ -645,8 +591,12 @@ class DRWP_Admin {
                 }
             }
         }
-        $redirect_page = sanitize_text_field($_POST['redirect_page'] ?? 'drwp_operations');
-        if (!in_array($redirect_page, ['drwp_reports', 'drwp_operations', 'drwp_articles'], true)) $redirect_page = 'drwp_operations';
+        // 日報操作 (drwp_operations) was merged into the 日報一覧
+        // page; the legacy `redirect_page=drwp_operations` field on
+        // any cached form silently maps to `drwp_reports` so old
+        // submissions still land somewhere sensible.
+        $redirect_page = sanitize_text_field($_POST['redirect_page'] ?? 'drwp_reports');
+        if (!in_array($redirect_page, ['drwp_reports', 'drwp_articles'], true)) $redirect_page = 'drwp_reports';
         wp_safe_redirect(admin_url('admin.php?page=' . $redirect_page . '&updated=' . $count));
         exit;
     }
