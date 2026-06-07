@@ -128,8 +128,17 @@
           }
 
           $approval = $approvals[(int) $r->id] ?? null;
+
+          // Photo attachments for the report. When present we both
+          // (a) print a "別紙に画像あり" notice on the cover sheet and
+          // (b) emit one or more 6-up "別紙" photo sheets right after
+          // this article so they land on the immediately following PDF
+          // pages.
+          $report_photos = DRWP_Media::for_report((int) $r->id);
+          $photo_chunks  = $report_photos ? array_chunk($report_photos, 6) : [];
+          $photo_pages   = count($photo_chunks);
         ?>
-        <article class="drwp-sheet" id="drwp-sheet-<?php echo (int) $i; ?>" data-index="<?php echo (int) $i; ?>">
+        <article class="drwp-sheet<?php echo $i === 0 ? ' is-current' : ''; ?>" id="drwp-sheet-<?php echo (int) $i; ?>" data-index="<?php echo (int) $i; ?>">
           <div class="drwp-sheet-title"><?php esc_html_e('作業日報', 'drwp-daily-reports'); ?></div>
 
           <table class="drwp-sheet-meta">
@@ -190,6 +199,17 @@
             <tr><td class="drwp-sheet-section-body drwp-sheet-section-body-md"><?php echo nl2br(esc_html((string) $r->next_plan)); ?></td></tr>
           </table>
 
+          <?php if ($photo_pages > 0): ?>
+            <p class="drwp-sheet-attach-notice">
+              <?php
+                printf(
+                    esc_html(_n('※ 別紙に画像あり（%d 枚）', '※ 別紙に画像あり（%d 枚）', count($report_photos), 'drwp-daily-reports')),
+                    count($report_photos)
+                );
+              ?>
+            </p>
+          <?php endif; ?>
+
           <p class="drwp-sheet-approval">
             <?php if ($approval):
               $approved_ts = strtotime((string) $approval->created_at);
@@ -202,6 +222,55 @@
             <?php endif; ?>
           </p>
         </article>
+
+        <?php
+          // Photo "別紙" pages — six photos per page in a 2x3 grid.
+          // Each chunk becomes its own <article> with data-index =
+          // parent report index so the focus-mode JS can show/hide it
+          // alongside the cover sheet on screen, and so each prints on
+          // its own page.
+          foreach ($photo_chunks as $chunk_idx => $chunk):
+        ?>
+        <article class="drwp-photo-sheet<?php echo $i === 0 ? ' is-current' : ''; ?>"
+                 data-index="<?php echo (int) $i; ?>">
+          <div class="drwp-photo-sheet-head">
+            <span class="drwp-photo-sheet-head-left">
+              <?php echo esc_html('#' . (int) $r->id); ?>
+              <?php if ($project_name !== ''): ?>
+                ／ <?php echo esc_html($project_name); ?>
+              <?php endif; ?>
+              <?php if ($date_ts): ?>
+                ／ <?php echo esc_html(date_i18n('Y 年 n 月 j 日', $date_ts)); ?>
+              <?php endif; ?>
+            </span>
+            <span class="drwp-photo-sheet-head-right">
+              <?php
+                printf(
+                    esc_html__('別紙 %1$d / %2$d', 'drwp-daily-reports'),
+                    (int) $chunk_idx + 1,
+                    (int) $photo_pages
+                );
+              ?>
+            </span>
+          </div>
+          <div class="drwp-photo-grid">
+            <?php foreach ($chunk as $photo):
+              $img_url = wp_get_attachment_image_url((int) $photo->attachment_id, 'large');
+              if (!$img_url) continue;
+            ?>
+            <figure class="drwp-photo-cell">
+              <div class="drwp-photo-cell-img">
+                <img src="<?php echo esc_url($img_url); ?>" alt="" />
+              </div>
+              <?php if (!empty($photo->caption)): ?>
+                <figcaption><?php echo esc_html((string) $photo->caption); ?></figcaption>
+              <?php endif; ?>
+            </figure>
+            <?php endforeach; ?>
+          </div>
+        </article>
+        <?php endforeach; ?>
+
         <?php if ($i < $last_index): ?><div class="drwp-print-pagebreak"></div><?php endif; ?>
       <?php endforeach; ?>
         </div>
@@ -248,11 +317,29 @@
 .drwp-sheet-section-body-lg{height:110mm}
 .drwp-sheet-section-body-md{height:28mm}
 .drwp-sheet-approval{margin:10px 0 0;padding:6px 8px;font-size:10.5pt;text-align:right}
+.drwp-sheet-attach-notice{margin:8px 0 0;padding:6px 10px;font-size:10.5pt;font-weight:600;border:1px dashed #1d2327;background:#fef9c3;text-align:center}
+
+/* Photo "別紙" sheet — six photos per A4 page in a 2x3 grid. Shares
+   sizing with .drwp-sheet so it lives in the same on-screen stack and
+   prints on its own page. */
+.drwp-photo-sheet{background:#fff;padding:18mm;margin:0 auto 16px;max-width:210mm;min-height:280mm;box-sizing:border-box;font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif;color:#1d2327;font-size:11pt;line-height:1.5;display:flex;flex-direction:column}
+.drwp-photo-sheet-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:1px solid #1d2327;padding-bottom:6px;margin-bottom:10px;font-size:10pt}
+.drwp-photo-sheet-head-left{font-weight:600}
+.drwp-photo-sheet-head-right{color:#475569;white-space:nowrap}
+.drwp-photo-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3, 1fr);gap:6mm;min-height:0}
+.drwp-photo-cell{border:1px solid #1d2327;padding:3mm;margin:0;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.drwp-photo-cell-img{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.drwp-photo-cell-img img{max-width:100%;max-height:100%;object-fit:contain}
+.drwp-photo-cell figcaption{font-size:9pt;line-height:1.3;margin-top:4px;text-align:center;color:#1d2327;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 
 /* Focus mode: hide all sheets except the current one. Pagebreaks too,
-   so there's no phantom 24mm gap above the visible sheet. */
+   so there's no phantom 24mm gap above the visible sheet. Photo
+   sheets follow their parent report — they share the same data-index
+   so the focus-mode JS toggles them together. */
 .drwp-print-area.is-focus-mode .drwp-sheet{display:none}
 .drwp-print-area.is-focus-mode .drwp-sheet.is-current{display:flex}
+.drwp-print-area.is-focus-mode .drwp-photo-sheet{display:none}
+.drwp-print-area.is-focus-mode .drwp-photo-sheet.is-current{display:flex}
 .drwp-print-area.is-focus-mode .drwp-print-pagebreak{display:none}
 
 /* Narrow screens: TOC moves above the sheet stack and shrinks. */
@@ -274,13 +361,27 @@
      boundaries and can leak a phantom blank page. */
   .drwp-sheet{margin:0;padding:0;min-height:auto;max-width:none;display:block !important;page-break-after:always;break-after:page;page-break-inside:avoid}
   /* The first sheet must not request a leading page break; the last
-     must not request a trailing one. Reset BOTH the legacy
-     `page-break-*` and the modern `break-*` shorthand so neither
-     branch fires a phantom blank page. */
+     element in the stack (could be a photo sheet) must not request a
+     trailing one. Reset BOTH the legacy `page-break-*` and the modern
+     `break-*` shorthand so neither branch fires a phantom blank page. */
   .drwp-sheet:first-child{page-break-before:avoid !important;break-before:avoid !important}
-  .drwp-sheet:last-child{page-break-after:auto !important;break-after:auto !important}
+  .drwp-print-sheets > article:last-child{page-break-after:auto !important;break-after:auto !important}
   /* Print always shows every sheet, even if focus mode is toggled on. */
   .drwp-print-area.is-focus-mode .drwp-sheet{display:block !important}
+
+  /* Photo "別紙" sheets — each chunk lives on its own A4 page right
+     after the cover sheet for that report. Same display:block trick
+     as .drwp-sheet to keep page-break behavior predictable across
+     Chrome/Firefox (flex containers leak phantom pages). The grid
+     itself stays display:grid for the 2x3 layout. */
+  .drwp-photo-sheet{margin:0;padding:0;min-height:auto;max-width:none;height:auto;display:block !important;page-break-after:always;break-after:page;page-break-inside:avoid}
+  .drwp-print-area.is-focus-mode .drwp-photo-sheet{display:block !important}
+  /* Give the grid an explicit height so photos size against the
+     printable area rather than collapsing to intrinsic dimensions.
+     Printable height is ~267mm (297mm − 30mm @page margin); header
+     and its margin take ~20mm. */
+  .drwp-photo-sheet .drwp-photo-grid{height:247mm}
+
   @page{margin:15mm;size:A4 portrait}
 }
 </style>
@@ -296,6 +397,9 @@
   var nextBtn = document.getElementById('drwp-next');
   var counter = document.getElementById('drwp-counter');
   var tocLinks = Array.prototype.slice.call(document.querySelectorAll('.drwp-print-toc a'));
+  // Photo "別紙" sheets are tagged with data-index matching their
+  // parent report so focus mode can show them alongside the cover.
+  var photoSheets = Array.prototype.slice.call(document.querySelectorAll('.drwp-photo-sheet'));
 
   var current = 0;
   var total = sheets.length;
@@ -304,6 +408,10 @@
     current = Math.max(0, Math.min(total - 1, i));
     for (var s = 0; s < sheets.length; s++) {
       sheets[s].classList.toggle('is-current', s === current);
+    }
+    for (var p = 0; p < photoSheets.length; p++) {
+      var idx = parseInt(photoSheets[p].dataset.index, 10);
+      photoSheets[p].classList.toggle('is-current', idx === current);
     }
     for (var t = 0; t < tocLinks.length; t++) {
       tocLinks[t].classList.toggle('is-current', t === current);
