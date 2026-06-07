@@ -1,5 +1,5 @@
 <?php if (!defined('ABSPATH')) exit;
-// View shared with the unified グループ設定 page —
+// View shared with the unified グループ page —
 // DRWP_Groups_Admin::render_page() wraps this with the wrap div and
 // nav tabs. No `<div class="wrap">` / `<h1>` here on purpose.
 ?>
