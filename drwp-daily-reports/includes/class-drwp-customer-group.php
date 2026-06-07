@@ -171,7 +171,7 @@ class DRWP_Customer_Group {
         $notes  = wp_kses_post(wp_unslash($_POST['notes'] ?? ''));
         $status = sanitize_text_field($_POST['status'] ?? 'active');
         if ($name === '') {
-            wp_safe_redirect(admin_url('admin.php?page=drwp_customer_groups&error=missing_name'));
+            wp_safe_redirect(admin_url('admin.php?page=drwp_groups&tab=customer&error=missing_name'));
             exit;
         }
         if (!in_array($status, ['active', 'inactive'], true)) $status = 'active';
@@ -187,7 +187,7 @@ class DRWP_Customer_Group {
         } else {
             $wpdb->insert(self::table(), $data);
         }
-        wp_safe_redirect(admin_url('admin.php?page=drwp_customer_groups&saved=1'));
+        wp_safe_redirect(admin_url('admin.php?page=drwp_groups&tab=customer&saved=1'));
         exit;
     }
 

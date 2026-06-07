@@ -249,8 +249,8 @@
                     printf(
                         // translators: %s is a link to the 案件グループ admin page.
                         esc_html__('まだ案件グループがありません。%s から登録してください。', 'drwp-daily-reports'),
-                        '<a href="' . esc_url(admin_url('admin.php?page=drwp_project_groups')) . '">'
-                          . esc_html__('案件グループページ', 'drwp-daily-reports')
+                        '<a href="' . esc_url(admin_url('admin.php?page=drwp_groups&tab=project')) . '">'
+                          . esc_html__('グループ設定ページ', 'drwp-daily-reports')
                           . '</a>'
                     );
                   ?>

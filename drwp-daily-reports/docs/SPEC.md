@@ -190,6 +190,8 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 トップメニューは `drwp_reports`(ラベル: 「日報管理」、icon: `dashicons-media-spreadsheet`) のみ。WP の標準ホバー・フライアウト挙動に乗るため、サブメニューは全て同階層のフラット構成で並べる。「日報管理」にマウスホバーすると 日報一覧 〜 操作履歴 までが順に表示される。
 
+「グループ設定」は `DRWP_Groups_Admin::render_page()` が描画する 1 ページで、`?tab=customer` / `?tab=project` で顧客グループと案件グループの 2 タブを切り替える。タブの中身は `admin/views/customer-groups-page.php` / `admin/views/project-groups-page.php` をそれぞれ include する形で、保存ハンドラ (`DRWP_Customer_Group::save` / `DRWP_Project_Group::save`) は対応するタブに `?saved=1` を付けてリダイレクトする。
+
 並び順は `DRWP_Admin::menu()` での `add_submenu_page` 呼び出し順で固定。ログイン設定の render 関数は `DRWP_Login::render_settings_page` だが、サブメニュー登録自体は順序を一元管理するため `DRWP_Admin::menu()` から行う。
 
 `manage_options` 必須の設定系 6 項目(公開設定 / ログイン設定 / 通知設定 / AI設定 / ライセンス / 操作履歴) は、編集者ロールのユーザーには WP 標準のキャパビリティチェックでそもそも表示されない。サイドバー上は CSS のみで「設定」グループとして見せる:
@@ -206,9 +208,8 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 | `drwp_operations` | 日報操作 | `edit_posts` | `DRWP_Admin::operations_page` |
 | `drwp_articles` | 記事作成 | `publish_posts` | `DRWP_Admin::articles_page` |
 | `drwp_projects` | 案件 | `manage_options` | `DRWP_Project::render_page` |
-| `drwp_project_groups` | 案件グループ | `manage_options` | `DRWP_Project_Group::render_page` |
 | `drwp_customers` | 顧客 | `manage_options` | `DRWP_Customer::render_page` |
-| `drwp_customer_groups` | 顧客グループ | `manage_options` | `DRWP_Customer_Group::render_page` |
+| `drwp_groups` | グループ設定 | `manage_options` | `DRWP_Groups_Admin::render_page` |
 | `drwp_print` | PDF出力 | `edit_posts` | `DRWP_Print::render_page` |
 | `drwp_output` | 公開設定 | `manage_options` | `DRWP_Output_Admin::render_page` |
 | `drwp_login_settings` | ログイン設定 | `manage_options` | `DRWP_Login::render_settings_page` |

@@ -187,12 +187,14 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $articles, $articles, self::CAP_CONVERT, 'drwp_articles', [__CLASS__, 'articles_page']);
         $proj = __('案件', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $proj, $proj, 'manage_options', 'drwp_projects', ['DRWP_Project', 'render_page']);
-        $pgrp = __('案件グループ', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $pgrp, $pgrp, 'manage_options', 'drwp_project_groups', ['DRWP_Project_Group', 'render_page']);
         $cust = __('顧客', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $cust, $cust, 'manage_options', 'drwp_customers', ['DRWP_Customer', 'render_page']);
-        $cgrp = __('顧客グループ', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $cgrp, $cgrp, 'manage_options', 'drwp_customer_groups', ['DRWP_Customer_Group', 'render_page']);
+        // 顧客グループと案件グループは「グループ設定」ページ内のタブで
+        // 切り替える統合構成。旧スラッグ (drwp_customer_groups /
+        // drwp_project_groups) は撤去済み。リンクは
+        // DRWP_Groups_Admin::tab_url() で組み立てる。
+        $grp = __('グループ設定', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $grp, $grp, 'manage_options', DRWP_Groups_Admin::SLUG, ['DRWP_Groups_Admin', 'render_page']);
         $pdf = __('PDF出力', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $pdf, $pdf, self::CAP_EDIT, 'drwp_print', ['DRWP_Print', 'render_page']);
 
