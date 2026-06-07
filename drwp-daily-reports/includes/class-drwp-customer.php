@@ -34,7 +34,11 @@ class DRWP_Customer {
 
     public static function render_page() {
         if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
-        $customers = self::all();
+        $filters = [
+            'search'   => isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '',
+            'group_id' => isset($_GET['group_id']) ? absint($_GET['group_id']) : 0,
+        ];
+        $customers = self::search($filters['search'], $filters['group_id']);
         // Group data for the listing table + edit modal. We bulk
         // fetch group rows per customer (chips in the table), the
         // active group list (options in the multi-select), and a
@@ -47,6 +51,41 @@ class DRWP_Customer {
             $customer_group_ids[$cid] = array_map(fn($g) => (int) $g->id, $gs);
         }
         include DRWP_PATH . 'admin/views/customers-page.php';
+    }
+
+    /**
+     * Text + group-membership search.
+     *
+     * Free-text query LIKEs across the columns the operator can see
+     * on the listing (name / address parts / phone / email / notes).
+     * Group filter joins via the customer-group map. Empty inputs
+     * fall through to the full set, matching the existing `all()`
+     * behaviour.
+     */
+    public static function search($s = '', $group_id = 0) {
+        global $wpdb;
+        $where = '1=1';
+        $args  = [];
+        $s = (string) $s;
+        if ($s !== '') {
+            $like = '%' . $wpdb->esc_like($s) . '%';
+            $where .= ' AND (c.name LIKE %s OR c.address LIKE %s OR c.prefecture LIKE %s'
+                   . ' OR c.city LIKE %s OR c.street LIKE %s OR c.building LIKE %s'
+                   . ' OR c.phone LIKE %s OR c.email LIKE %s OR c.notes LIKE %s)';
+            for ($i = 0; $i < 9; $i++) $args[] = $like;
+        }
+        $group_id = absint($group_id);
+        if ($group_id) {
+            $where .= ' AND EXISTS (SELECT 1 FROM '
+                   . DRWP_Customer_Group::map_table()
+                   . ' m WHERE m.customer_id = c.id AND m.group_id = %d)';
+            $args[] = $group_id;
+        }
+        $sql = 'SELECT c.* FROM ' . self::table() . ' c WHERE ' . $where
+             . ' ORDER BY c.name ASC, c.id DESC';
+        return $args
+            ? $wpdb->get_results($wpdb->prepare($sql, $args))
+            : $wpdb->get_results($sql);
     }
 
     public static function save() {

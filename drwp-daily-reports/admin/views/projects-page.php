@@ -15,6 +15,38 @@
     </button>
   </p>
 
+  <form method="get" class="drwp-project-search">
+    <input type="hidden" name="page" value="drwp_projects" />
+    <input type="search" name="s"
+           value="<?php echo esc_attr($filters['search']); ?>"
+           class="regular-text"
+           placeholder="<?php esc_attr_e('案件名 / 顧客名 / 住所 / 仕事内容 / 備考', 'drwp-daily-reports'); ?>" />
+    <?php if (!empty($groups)): ?>
+      <select name="group_id">
+        <option value="0"><?php esc_html_e('グループすべて', 'drwp-daily-reports'); ?></option>
+        <?php foreach ($groups as $g): ?>
+          <option value="<?php echo (int) $g->id; ?>" <?php selected((int) ($filters['group_id'] ?? 0), (int) $g->id); ?>>
+            <?php echo esc_html($g->name); ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+    <?php endif; ?>
+    <button class="button button-primary"><?php esc_html_e('検索', 'drwp-daily-reports'); ?></button>
+    <?php if ($filters['search'] !== '' || !empty($filters['group_id'])): ?>
+      <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_projects')); ?>">
+        <?php esc_html_e('クリア', 'drwp-daily-reports'); ?>
+      </a>
+      <span class="drwp-project-search-hit">
+        <?php
+          printf(
+              esc_html(_n('%d 件ヒット', '%d 件ヒット', count($projects), 'drwp-daily-reports')),
+              count($projects)
+          );
+        ?>
+      </span>
+    <?php endif; ?>
+  </form>
+
   <table class="widefat striped" style="margin-top:8px;">
     <thead>
       <tr>
@@ -29,7 +61,13 @@
     </thead>
     <tbody>
       <?php if (empty($projects)): ?>
-        <tr><td colspan="7"><?php esc_html_e('まだ案件がありません。', 'drwp-daily-reports'); ?></td></tr>
+        <tr><td colspan="7">
+          <?php if ($filters['search'] !== '' || !empty($filters['group_id'])):
+            esc_html_e('該当する案件が見つかりません。', 'drwp-daily-reports');
+          else:
+            esc_html_e('まだ案件がありません。', 'drwp-daily-reports');
+          endif; ?>
+        </td></tr>
       <?php else: foreach ($projects as $project):
         $customer = !empty($project->customer_id) ? DRWP_Customer::find((int) $project->customer_id) : null;
         $proj_addr_parts = array_filter([
@@ -235,6 +273,8 @@
 .drwp-project-modal-body .form-table th{width:120px;padding:6px 0;vertical-align:top}
 .drwp-project-modal-body .form-table td{padding:6px 0}
 .drwp-project-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
+.drwp-project-search{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.drwp-project-search-hit{color:#475569;font-size:.92em}
 </style>
 
 <script>

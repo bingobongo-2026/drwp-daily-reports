@@ -26,6 +26,20 @@
             </select>
           </td>
         </tr>
+        <?php if (!empty($groups)): ?>
+        <tr>
+          <th><?php esc_html_e('グループ', 'drwp-daily-reports'); ?></th>
+          <td>
+            <select name="group_id">
+              <option value="0"><?php esc_html_e('グループすべて', 'drwp-daily-reports'); ?></option>
+              <?php foreach ($groups as $g): ?>
+                <option value="<?php echo (int) $g->id; ?>" <?php selected((int) ($filters['group_id'] ?? 0), (int) $g->id); ?>><?php echo esc_html($g->name); ?></option>
+              <?php endforeach; ?>
+            </select>
+            <p class="description"><?php esc_html_e('選択すると、グループに属する顧客の案件についた日報だけを対象にします。', 'drwp-daily-reports'); ?></p>
+          </td>
+        </tr>
+        <?php endif; ?>
         <tr>
           <th><?php esc_html_e('ID指定', 'drwp-daily-reports'); ?></th>
           <td>

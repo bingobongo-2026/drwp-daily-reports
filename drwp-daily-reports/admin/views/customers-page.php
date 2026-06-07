@@ -15,6 +15,38 @@
     </button>
   </p>
 
+  <form method="get" class="drwp-customer-search">
+    <input type="hidden" name="page" value="drwp_customers" />
+    <input type="search" name="s"
+           value="<?php echo esc_attr($filters['search']); ?>"
+           class="regular-text"
+           placeholder="<?php esc_attr_e('顧客名 / 住所 / 電話 / メール / 備考', 'drwp-daily-reports'); ?>" />
+    <?php if (!empty($groups)): ?>
+      <select name="group_id">
+        <option value="0"><?php esc_html_e('グループすべて', 'drwp-daily-reports'); ?></option>
+        <?php foreach ($groups as $g): ?>
+          <option value="<?php echo (int) $g->id; ?>" <?php selected((int) ($filters['group_id'] ?? 0), (int) $g->id); ?>>
+            <?php echo esc_html($g->name); ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+    <?php endif; ?>
+    <button class="button button-primary"><?php esc_html_e('検索', 'drwp-daily-reports'); ?></button>
+    <?php if ($filters['search'] !== '' || !empty($filters['group_id'])): ?>
+      <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_customers')); ?>">
+        <?php esc_html_e('クリア', 'drwp-daily-reports'); ?>
+      </a>
+      <span class="drwp-customer-search-hit">
+        <?php
+          printf(
+              esc_html(_n('%d 件ヒット', '%d 件ヒット', count($customers), 'drwp-daily-reports')),
+              count($customers)
+          );
+        ?>
+      </span>
+    <?php endif; ?>
+  </form>
+
   <table class="widefat striped" style="margin-top:8px;">
     <thead>
       <tr>
@@ -30,7 +62,13 @@
     </thead>
     <tbody>
       <?php if (empty($customers)): ?>
-        <tr><td colspan="8"><?php esc_html_e('まだ顧客がありません。', 'drwp-daily-reports'); ?></td></tr>
+        <tr><td colspan="8">
+          <?php if ($filters['search'] !== '' || !empty($filters['group_id'])):
+            esc_html_e('該当する顧客が見つかりません。', 'drwp-daily-reports');
+          else:
+            esc_html_e('まだ顧客がありません。', 'drwp-daily-reports');
+          endif; ?>
+        </td></tr>
       <?php else: foreach ($customers as $c):
         $cid = (int) $c->id;
         $cgs = $customer_groups[$cid] ?? [];
@@ -197,6 +235,8 @@
 .drwp-customer-modal-body .form-table th{width:120px;padding:6px 0;vertical-align:top}
 .drwp-customer-modal-body .form-table td{padding:6px 0}
 .drwp-customer-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
+.drwp-customer-search{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.drwp-customer-search-hit{color:#475569;font-size:.92em}
 /* Group chips shown in the 顧客 listing table — color dot + name
    in a soft pill. The color comes from the group's color column,
    left blank renders the pill without a dot. */
