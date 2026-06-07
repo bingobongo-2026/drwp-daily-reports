@@ -20,14 +20,28 @@
     background: #fff; color: #475569; cursor: pointer; font-weight: 600;
 }
 .drwp-mform-photo-pick input { display: none; }
-.drwp-mform-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.drwp-mform-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .drwp-mform-photos:empty { display: none; }
-.drwp-mform-photos .item { position: relative; padding-top: 100%; border-radius: 8px; overflow: hidden; background: #e5e7eb; }
-.drwp-mform-photos .item img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.drwp-mform-photos .item button {
+/* Each preview tile stacks vertically: square thumbnail on top, a
+   caption text input below. The caption mirrors the photo's
+   description that ends up on `drwp_report_photos.caption`. */
+.drwp-mform-photos .item { display: flex; flex-direction: column; gap: 4px; }
+.drwp-mform-photos .item .photo-thumb {
+    position: relative; padding-top: 100%; border-radius: 8px;
+    overflow: hidden; background: #e5e7eb;
+}
+.drwp-mform-photos .item .photo-thumb img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+}
+.drwp-mform-photos .item .photo-thumb button {
     position: absolute; top: 4px; right: 4px;
     width: 28px; height: 28px; border-radius: 999px; border: 0;
     background: rgba(0,0,0,.6); color: #fff; font-size: 18px; line-height: 1; cursor: pointer;
+}
+.drwp-mform-photos .item .photo-caption {
+    width: 100%; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px;
+    font-size: 0.9rem; background: #fff;
+    box-sizing: border-box;
 }
 .drwp-mform-submit {
     margin-top: 6px; padding: 16px; border: 0; border-radius: 12px;
