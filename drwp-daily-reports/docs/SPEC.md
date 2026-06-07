@@ -157,7 +157,11 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 並び順は `DRWP_Admin::menu()` での `add_submenu_page` 呼び出し順で固定。ログイン設定の render 関数は `DRWP_Login::render_settings_page` だが、サブメニュー登録自体は順序を一元管理するため `DRWP_Admin::menu()` から行う。
 
-`manage_options` 必須の設定系 6 項目は、編集者ロールのユーザーには WP 標準のキャパビリティチェックでそもそも表示されない。
+`manage_options` 必須の設定系 6 項目(公開設定 / ログイン設定 / 通知設定 / AI設定 / ライセンス / 操作履歴) は、編集者ロールのユーザーには WP 標準のキャパビリティチェックでそもそも表示されない。サイドバー上は CSS のみで「設定」グループとして見せる:
+
+- `DRWP_Admin::mark_settings_section` が `admin_menu` priority 999 で `$submenu['drwp_reports']` を回り、設定系 6 行の `<li>` クラス枠 (`$item[4]`) に `drwp-settings-child` を、先頭行(公開設定)に追加で `drwp-settings-first` を付与する。
+- `DRWP_Admin::settings_section_css` が `admin_head` で、設定系行をやや字下げ、先頭行に上罫線 + `::before` で「設定」ラベルを表示するスタイルを出力する。
+- サブメニュー登録順序や構造には触らないので、WP のホバーフライアウトはそのまま全 12 項目を表示する。
 
 ### 日報管理 配下
 
