@@ -189,6 +189,8 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $proj, $proj, 'manage_options', 'drwp_projects', ['DRWP_Project', 'render_page']);
         $cust = __('顧客', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $cust, $cust, 'manage_options', 'drwp_customers', ['DRWP_Customer', 'render_page']);
+        $grp = __('グループ', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $grp, $grp, 'manage_options', 'drwp_customer_groups', ['DRWP_Customer_Group', 'render_page']);
         $pdf = __('PDF出力', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $pdf, $pdf, self::CAP_EDIT, 'drwp_print', ['DRWP_Print', 'render_page']);
 

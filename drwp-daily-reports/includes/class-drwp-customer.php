@@ -35,6 +35,17 @@ class DRWP_Customer {
     public static function render_page() {
         if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         $customers = self::all();
+        // Group data for the listing table + edit modal. We bulk
+        // fetch group rows per customer (chips in the table), the
+        // active group list (options in the multi-select), and a
+        // per-customer id array (pre-selecting options on edit).
+        $groups = DRWP_Customer_Group::all(true);
+        $customer_ids = array_map(fn($c) => (int) $c->id, $customers);
+        $customer_groups = DRWP_Customer_Group::groups_by_customer($customer_ids);
+        $customer_group_ids = [];
+        foreach ($customer_groups as $cid => $gs) {
+            $customer_group_ids[$cid] = array_map(fn($g) => (int) $g->id, $gs);
+        }
         include DRWP_PATH . 'admin/views/customers-page.php';
     }
 
@@ -72,9 +83,21 @@ class DRWP_Customer {
 
         if ($id) {
             $wpdb->update(self::table(), $data, ['id' => $id]);
+            $saved_id = $id;
         } else {
             $wpdb->insert(self::table(), $data);
+            $saved_id = (int) $wpdb->insert_id;
         }
+
+        // Group memberships — replace wholesale with the set in the
+        // submitted form. An empty array means the operator
+        // deselected every option, so we still want to clear the
+        // existing rows.
+        $group_ids = isset($_POST['group_ids'])
+            ? array_map('absint', (array) $_POST['group_ids'])
+            : [];
+        DRWP_Customer_Group::set_for_customer($saved_id, $group_ids);
+
         wp_safe_redirect(admin_url('admin.php?page=drwp_customers&saved=1'));
         exit;
     }
