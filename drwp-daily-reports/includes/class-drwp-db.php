@@ -44,6 +44,8 @@ class DRWP_DB {
         $customers = $wpdb->prefix . 'drwp_customers';
         $customer_groups = $wpdb->prefix . 'drwp_customer_groups';
         $customer_group_map = $wpdb->prefix . 'drwp_customer_group_map';
+        $project_groups = $wpdb->prefix . 'drwp_project_groups';
+        $project_group_map = $wpdb->prefix . 'drwp_project_group_map';
         $comments = $wpdb->prefix . 'drwp_comments';
         $audit = $wpdb->prefix . 'drwp_audit_logs';
         $photos = $wpdb->prefix . 'drwp_report_photos';
@@ -197,6 +199,31 @@ class DRWP_DB {
             KEY group_id (group_id)
         ) $charset;";
         dbDelta($sql7);
+
+        // Project groups ("案件グループ") — mirror of customer groups
+        // but anchored on 案件 instead of 顧客. Same shape on purpose
+        // so the M:N API in DRWP_Project_Group stays a near-copy of
+        // DRWP_Customer_Group.
+        $sql8 = "CREATE TABLE $project_groups (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name VARCHAR(255) NOT NULL,
+            color VARCHAR(7) NULL,
+            notes TEXT NULL,
+            status VARCHAR(32) NOT NULL DEFAULT 'active',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id)
+        ) $charset;";
+        dbDelta($sql8);
+
+        $sql9 = "CREATE TABLE $project_group_map (
+            project_id BIGINT UNSIGNED NOT NULL,
+            group_id BIGINT UNSIGNED NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (project_id, group_id),
+            KEY group_id (group_id)
+        ) $charset;";
+        dbDelta($sql9);
 
         add_option('drwp_license_api_url', 'https://license.example.com');
         add_option('drwp_public_key', '');

@@ -132,7 +132,7 @@
 | `status` | VARCHAR(32) default `active` | `active` / `inactive` |
 | `created_at` / `updated_at` | DATETIME | |
 
-### 3.7 `drwp_customer_group_map` — 顧客 ↔ グループ
+### 3.7 `drwp_customer_group_map` — 顧客 ↔ 顧客グループ
 
 | カラム | 型 | 説明 |
 | --- | --- | --- |
@@ -140,7 +140,21 @@
 | `group_id` | BIGINT NOT NULL | `drwp_customer_groups.id` |
 | `created_at` | DATETIME | |
 
-主キーは `(customer_id, group_id)` の複合キー。逆引き(あるグループに属する顧客一覧)のため `group_id` 単独の KEY も持つ。`DRWP_Customer_Group::set_for_customer` は顧客 1 件分を delete → bulk insert する idempotent な API。
+主キーは `(customer_id, group_id)` の複合キー。逆引き(ある顧客グループに属する顧客一覧)のため `group_id` 単独の KEY も持つ。`DRWP_Customer_Group::set_for_customer` は顧客 1 件分を delete → bulk insert する idempotent な API。
+
+### 3.8 `drwp_project_groups` — 案件グループ
+
+`drwp_customer_groups` と同形のテーブルを `案件` 側に持たせたもの。フィールド構成・制約も同じ。
+
+### 3.9 `drwp_project_group_map` — 案件 ↔ 案件グループ
+
+| カラム | 型 | 説明 |
+| --- | --- | --- |
+| `project_id` | BIGINT NOT NULL | `drwp_projects.id` |
+| `group_id` | BIGINT NOT NULL | `drwp_project_groups.id` |
+| `created_at` | DATETIME | |
+
+`(project_id, group_id)` 複合主キー + `group_id` 単独 KEY。`DRWP_Project_Group::set_for_project` は案件 1 件分を delete → bulk insert する。`DRWP_Project_Group::project_ids_for_group($id)` は顧客側と異なり map テーブルから直接取得（顧客経由の JOIN は不要）。
 
 ### v1.11 で削除されたテーブル
 
@@ -192,8 +206,9 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 | `drwp_operations` | 日報操作 | `edit_posts` | `DRWP_Admin::operations_page` |
 | `drwp_articles` | 記事作成 | `publish_posts` | `DRWP_Admin::articles_page` |
 | `drwp_projects` | 案件 | `manage_options` | `DRWP_Project::render_page` |
+| `drwp_project_groups` | 案件グループ | `manage_options` | `DRWP_Project_Group::render_page` |
 | `drwp_customers` | 顧客 | `manage_options` | `DRWP_Customer::render_page` |
-| `drwp_customer_groups` | グループ | `manage_options` | `DRWP_Customer_Group::render_page` |
+| `drwp_customer_groups` | 顧客グループ | `manage_options` | `DRWP_Customer_Group::render_page` |
 | `drwp_print` | PDF出力 | `edit_posts` | `DRWP_Print::render_page` |
 | `drwp_output` | 公開設定 | `manage_options` | `DRWP_Output_Admin::render_page` |
 | `drwp_login_settings` | ログイン設定 | `manage_options` | `DRWP_Login::render_settings_page` |
@@ -226,15 +241,23 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 ### 5.3 日報一覧
 
-絞り込み: ステータス、日付範囲、現場、**顧客グループ**、作業者。グループは `DRWP_Customer_Group::project_ids_for_group($id)` で顧客 → 案件 → 日報の階層を辿って `report.project_id IN (...)` に解決する。一括操作: 承認、差戻し、CSV エクスポート、**記事化(作成 or 更新)**。
+絞り込み: ステータス、日付範囲、現場、**案件グループ**、**顧客グループ**、作業者。
+
+- 案件グループ → `DRWP_Project_Group::project_ids_for_group($id)` で project_group_map から直接 `project_id` 配列に解決。
+- 顧客グループ → `DRWP_Customer_Group::project_ids_for_group($id)` で顧客 → 案件の階層を辿って `project_id` 配列に解決。
+
+両方とも結果が空集合のときは `0=1` でガードして「該当なし」を返す（フィルタが silently 外れて全件が出るのを防ぐ）。一括操作: 承認、差戻し、CSV エクスポート、**記事化(作成 or 更新)**。
 
 ### 5.4 顧客 / 案件ページの検索
 
-顧客と案件の一覧上部にフリーテキスト検索 + グループフィルタを配置。`DRWP_Customer::search($s, $group_id)` / `DRWP_Project::search($s, $group_id)` が `name / address / 電話 / メール / 備考 / 仕事内容 / 顧客名（案件のみ）` を LIKE 検索、グループは map テーブル経由の EXISTS で絞り込む。
+顧客と案件の一覧上部にフリーテキスト検索 + グループフィルタを配置。
+
+- `DRWP_Customer::search($s, $customer_group_id)`: `name / address / 電話 / メール / 備考` を LIKE 横断、グループは `drwp_customer_group_map` の EXISTS で絞り込む。
+- `DRWP_Project::search($s, $customer_group_id, $project_group_id)`: 案件側の同様列に加えて JOIN した顧客名 `cu.name` も対象。顧客グループは `p.customer_id` 経由、案件グループは `p.id` 経由でそれぞれ EXISTS。
 
 ### 5.5 PDF出力
 
-承認済み日報のみ対象。絞り込み: 日付範囲、案件、**顧客グループ**、ID 直接指定（指定時は他条件無視）。グループ解決ロジックは日報一覧と同じ。
+承認済み日報のみ対象。絞り込み: 日付範囲、案件、**案件グループ**、**顧客グループ**、ID 直接指定（指定時は他条件無視）。グループ解決ロジックは日報一覧と同じ。
 
 ---
 

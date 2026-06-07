@@ -23,7 +23,7 @@
            placeholder="<?php esc_attr_e('顧客名 / 住所 / 電話 / メール / 備考', 'drwp-daily-reports'); ?>" />
     <?php if (!empty($groups)): ?>
       <select name="group_id">
-        <option value="0"><?php esc_html_e('グループすべて', 'drwp-daily-reports'); ?></option>
+        <option value="0"><?php esc_html_e('顧客グループすべて', 'drwp-daily-reports'); ?></option>
         <?php foreach ($groups as $g): ?>
           <option value="<?php echo (int) $g->id; ?>" <?php selected((int) ($filters['group_id'] ?? 0), (int) $g->id); ?>>
             <?php echo esc_html($g->name); ?>
@@ -52,7 +52,7 @@
       <tr>
         <th>ID</th>
         <th><?php esc_html_e('顧客名', 'drwp-daily-reports'); ?></th>
-        <th><?php esc_html_e('グループ', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('顧客グループ', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('住所', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('電話番号', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('メール', 'drwp-daily-reports'); ?></th>
@@ -171,16 +171,16 @@
             <td><input type="email" id="drwp-cm-email" name="email" class="regular-text" /></td>
           </tr>
           <tr>
-            <th><label for="drwp-cm-groups"><?php esc_html_e('グループ', 'drwp-daily-reports'); ?></label></th>
+            <th><label for="drwp-cm-groups"><?php esc_html_e('顧客グループ', 'drwp-daily-reports'); ?></label></th>
             <td>
               <?php if (empty($groups)): ?>
                 <p class="description">
                   <?php
                     printf(
-                        // translators: %s is a link to the グループ admin page.
-                        esc_html__('まだグループがありません。%s から登録してください。', 'drwp-daily-reports'),
+                        // translators: %s is a link to the 顧客グループ admin page.
+                        esc_html__('まだ顧客グループがありません。%s から登録してください。', 'drwp-daily-reports'),
                         '<a href="' . esc_url(admin_url('admin.php?page=drwp_customer_groups')) . '">'
-                          . esc_html__('グループページ', 'drwp-daily-reports')
+                          . esc_html__('顧客グループページ', 'drwp-daily-reports')
                           . '</a>'
                     );
                   ?>

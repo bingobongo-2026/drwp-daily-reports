@@ -26,17 +26,31 @@
             </select>
           </td>
         </tr>
-        <?php if (!empty($groups)): ?>
+        <?php if (!empty($project_groups)): ?>
         <tr>
-          <th><?php esc_html_e('グループ', 'drwp-daily-reports'); ?></th>
+          <th><?php esc_html_e('案件グループ', 'drwp-daily-reports'); ?></th>
           <td>
-            <select name="group_id">
-              <option value="0"><?php esc_html_e('グループすべて', 'drwp-daily-reports'); ?></option>
-              <?php foreach ($groups as $g): ?>
-                <option value="<?php echo (int) $g->id; ?>" <?php selected((int) ($filters['group_id'] ?? 0), (int) $g->id); ?>><?php echo esc_html($g->name); ?></option>
+            <select name="project_group_id">
+              <option value="0"><?php esc_html_e('案件グループすべて', 'drwp-daily-reports'); ?></option>
+              <?php foreach ($project_groups as $g): ?>
+                <option value="<?php echo (int) $g->id; ?>" <?php selected((int) ($filters['project_group_id'] ?? 0), (int) $g->id); ?>><?php echo esc_html($g->name); ?></option>
               <?php endforeach; ?>
             </select>
-            <p class="description"><?php esc_html_e('選択すると、グループに属する顧客の案件についた日報だけを対象にします。', 'drwp-daily-reports'); ?></p>
+            <p class="description"><?php esc_html_e('選択した案件グループに属する案件の日報だけを対象にします。', 'drwp-daily-reports'); ?></p>
+          </td>
+        </tr>
+        <?php endif; ?>
+        <?php if (!empty($customer_groups)): ?>
+        <tr>
+          <th><?php esc_html_e('顧客グループ', 'drwp-daily-reports'); ?></th>
+          <td>
+            <select name="customer_group_id">
+              <option value="0"><?php esc_html_e('顧客グループすべて', 'drwp-daily-reports'); ?></option>
+              <?php foreach ($customer_groups as $g): ?>
+                <option value="<?php echo (int) $g->id; ?>" <?php selected((int) ($filters['customer_group_id'] ?? 0), (int) $g->id); ?>><?php echo esc_html($g->name); ?></option>
+              <?php endforeach; ?>
+            </select>
+            <p class="description"><?php esc_html_e('選択した顧客グループに属する顧客の案件の日報だけを対象にします。', 'drwp-daily-reports'); ?></p>
           </td>
         </tr>
         <?php endif; ?>
