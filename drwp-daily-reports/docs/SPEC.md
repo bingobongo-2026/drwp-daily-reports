@@ -121,6 +121,27 @@
 | `meta_json` | LONGTEXT NULL | 追加メタ情報の JSON |
 | `created_at` | DATETIME | |
 
+### 3.6 `drwp_customer_groups` — 顧客グループ
+
+| カラム | 型 | 説明 |
+| --- | --- | --- |
+| `id` | BIGINT PK auto_inc | |
+| `name` | VARCHAR(255) NOT NULL | グループ名 |
+| `color` | VARCHAR(7) NULL | `#RRGGBB` ハイフン区切りの 16 進値。顧客一覧で名前横のドット表示に使う UI ヒント。空欄可 |
+| `notes` | TEXT NULL | フリーテキストメモ(`wp_kses_post`) |
+| `status` | VARCHAR(32) default `active` | `active` / `inactive` |
+| `created_at` / `updated_at` | DATETIME | |
+
+### 3.7 `drwp_customer_group_map` — 顧客 ↔ グループ
+
+| カラム | 型 | 説明 |
+| --- | --- | --- |
+| `customer_id` | BIGINT NOT NULL | `drwp_customers.id` |
+| `group_id` | BIGINT NOT NULL | `drwp_customer_groups.id` |
+| `created_at` | DATETIME | |
+
+主キーは `(customer_id, group_id)` の複合キー。逆引き(あるグループに属する顧客一覧)のため `group_id` 単独の KEY も持つ。`DRWP_Customer_Group::set_for_customer` は顧客 1 件分を delete → bulk insert する idempotent な API。
+
 ### v1.11 で削除されたテーブル
 
 `drwp_report_entries` テーブル(v1.9〜1.10 の「1 日報 × N エントリ」用)は `DRWP_DB::maybe_upgrade()` で `DROP TABLE IF EXISTS` される。`drwp_report_photos.entry_id` はカラムは残るが、`UPDATE ... SET entry_id = NULL` で参照が外れる。
@@ -172,6 +193,7 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 | `drwp_articles` | 記事作成 | `publish_posts` | `DRWP_Admin::articles_page` |
 | `drwp_projects` | 案件 | `manage_options` | `DRWP_Project::render_page` |
 | `drwp_customers` | 顧客 | `manage_options` | `DRWP_Customer::render_page` |
+| `drwp_customer_groups` | グループ | `manage_options` | `DRWP_Customer_Group::render_page` |
 | `drwp_print` | PDF出力 | `edit_posts` | `DRWP_Print::render_page` |
 | `drwp_output` | 公開設定 | `manage_options` | `DRWP_Output_Admin::render_page` |
 | `drwp_login_settings` | ログイン設定 | `manage_options` | `DRWP_Login::render_settings_page` |

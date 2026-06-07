@@ -20,6 +20,7 @@
       <tr>
         <th>ID</th>
         <th><?php esc_html_e('顧客名', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('グループ', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('住所', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('電話番号', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('メール', 'drwp-daily-reports'); ?></th>
@@ -29,11 +30,24 @@
     </thead>
     <tbody>
       <?php if (empty($customers)): ?>
-        <tr><td colspan="7"><?php esc_html_e('まだ顧客がありません。', 'drwp-daily-reports'); ?></td></tr>
-      <?php else: foreach ($customers as $c): ?>
+        <tr><td colspan="8"><?php esc_html_e('まだ顧客がありません。', 'drwp-daily-reports'); ?></td></tr>
+      <?php else: foreach ($customers as $c):
+        $cid = (int) $c->id;
+        $cgs = $customer_groups[$cid] ?? [];
+        $cgs_ids = $customer_group_ids[$cid] ?? [];
+      ?>
         <tr>
-          <td><?php echo (int) $c->id; ?></td>
+          <td><?php echo $cid; ?></td>
           <td><?php echo esc_html($c->name); ?></td>
+          <td>
+            <?php if (empty($cgs)): ?>
+              -
+            <?php else: foreach ($cgs as $g):
+              $dot_color = (string) ($g->color ?? '');
+            ?>
+              <span class="drwp-cg-chip"><?php if ($dot_color !== ''): ?><span class="drwp-cg-chip-dot" style="background:<?php echo esc_attr($dot_color); ?>;"></span><?php endif; ?><?php echo esc_html($g->name); ?></span>
+            <?php endforeach; endif; ?>
+          </td>
           <td><?php
             $parts = array_filter([
                 (string) ($c->prefecture ?? ''),
@@ -47,7 +61,7 @@
           <td><?php echo esc_html(DRWP_Labels::project_status((string) $c->status)); ?></td>
           <td>
             <button type="button" class="button button-small drwp-customer-edit-btn"
-                    data-id="<?php echo (int) $c->id; ?>"
+                    data-id="<?php echo $cid; ?>"
                     data-name="<?php echo esc_attr($c->name); ?>"
                     data-status="<?php echo esc_attr($c->status); ?>"
                     data-postal_code="<?php echo esc_attr($c->postal_code ?? ''); ?>"
@@ -57,7 +71,8 @@
                     data-building="<?php echo esc_attr($c->building ?? ''); ?>"
                     data-phone="<?php echo esc_attr($c->phone ?? ''); ?>"
                     data-email="<?php echo esc_attr($c->email ?? ''); ?>"
-                    data-notes="<?php echo esc_attr($c->notes ?? ''); ?>">
+                    data-notes="<?php echo esc_attr($c->notes ?? ''); ?>"
+                    data-group_ids="<?php echo esc_attr(wp_json_encode($cgs_ids)); ?>">
               <?php esc_html_e('編集', 'drwp-daily-reports'); ?>
             </button>
           </td>
@@ -118,6 +133,33 @@
             <td><input type="email" id="drwp-cm-email" name="email" class="regular-text" /></td>
           </tr>
           <tr>
+            <th><label for="drwp-cm-groups"><?php esc_html_e('グループ', 'drwp-daily-reports'); ?></label></th>
+            <td>
+              <?php if (empty($groups)): ?>
+                <p class="description">
+                  <?php
+                    printf(
+                        // translators: %s is a link to the グループ admin page.
+                        esc_html__('まだグループがありません。%s から登録してください。', 'drwp-daily-reports'),
+                        '<a href="' . esc_url(admin_url('admin.php?page=drwp_customer_groups')) . '">'
+                          . esc_html__('グループページ', 'drwp-daily-reports')
+                          . '</a>'
+                    );
+                  ?>
+                </p>
+              <?php else: ?>
+                <select id="drwp-cm-groups" name="group_ids[]" multiple size="<?php echo (int) min(6, max(3, count($groups))); ?>" class="regular-text" style="min-height:auto;height:auto;">
+                  <?php foreach ($groups as $g): ?>
+                    <option value="<?php echo (int) $g->id; ?>"><?php echo esc_html($g->name); ?></option>
+                  <?php endforeach; ?>
+                </select>
+                <p class="description">
+                  <?php esc_html_e('Ctrl / ⌘ クリックで複数選択できます。', 'drwp-daily-reports'); ?>
+                </p>
+              <?php endif; ?>
+            </td>
+          </tr>
+          <tr>
             <th><label for="drwp-cm-notes"><?php esc_html_e('備考', 'drwp-daily-reports'); ?></label></th>
             <td><textarea id="drwp-cm-notes" name="notes" rows="3" class="large-text"></textarea></td>
           </tr>
@@ -155,6 +197,11 @@
 .drwp-customer-modal-body .form-table th{width:120px;padding:6px 0;vertical-align:top}
 .drwp-customer-modal-body .form-table td{padding:6px 0}
 .drwp-customer-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
+/* Group chips shown in the 顧客 listing table — color dot + name
+   in a soft pill. The color comes from the group's color column,
+   left blank renders the pill without a dot. */
+.drwp-cg-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 8px 1px 6px;margin:1px 4px 1px 0;background:#f1f5f9;border-radius:10px;font-size:11px;line-height:1.7;color:#1d2327;white-space:nowrap}
+.drwp-cg-chip-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#94a3b8;flex-shrink:0}
 </style>
 
 <script>
@@ -165,6 +212,10 @@
   var fields = ['name','postal','prefecture','city','street','building','phone','email','notes','status','id'];
   var map = {};
   fields.forEach(function(f){ map[f] = document.getElementById('drwp-cm-' + f); });
+  // Group multi-select — present only when at least one group is
+  // registered; the template renders a help message instead when
+  // the operator hasn't created any groups yet.
+  var groupsEl = document.getElementById('drwp-cm-groups');
   var titleEl  = document.getElementById('drwp-cm-title');
   var submitEl = document.getElementById('drwp-cm-submit');
 
@@ -173,10 +224,20 @@
   var addLabel  = <?php echo wp_json_encode(__('追加', 'drwp-daily-reports')); ?>;
   var saveLabel = <?php echo wp_json_encode(__('更新', 'drwp-daily-reports')); ?>;
 
+  function setGroupSelection(ids) {
+    if (!groupsEl) return;
+    var set = {};
+    (Array.isArray(ids) ? ids : []).forEach(function (id) { set[String(id)] = true; });
+    Array.prototype.forEach.call(groupsEl.options, function (opt) {
+      opt.selected = !!set[opt.value];
+    });
+  }
+
   function clearForm(){
     fields.forEach(function(f){ if(map[f]) map[f].value = ''; });
     if(map.status) map.status.value = 'active';
     if(map.id) map.id.value = '0';
+    setGroupSelection([]);
   }
 
   document.getElementById('drwp-customer-add-btn').addEventListener('click', function(){
@@ -204,6 +265,11 @@
     map.phone.value     = d.phone || '';
     map.email.value     = d.email || '';
     map.notes.value     = d.notes || '';
+    var gids = [];
+    if (d.group_ids) {
+      try { gids = JSON.parse(d.group_ids) || []; } catch (e) { gids = []; }
+    }
+    setGroupSelection(gids);
     dlg.showModal();
     map.name.focus();
   });

@@ -10,7 +10,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('DRWP_VERSION', '1.18.0');
+define('DRWP_VERSION', '1.19.0');
 define('DRWP_PATH', plugin_dir_path(__FILE__));
 define('DRWP_URL', plugin_dir_url(__FILE__));
 
@@ -19,6 +19,7 @@ require_once DRWP_PATH . 'includes/class-drwp-db.php';
 require_once DRWP_PATH . 'includes/class-drwp-license.php';
 require_once DRWP_PATH . 'includes/class-drwp-license-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-customer.php';
+require_once DRWP_PATH . 'includes/class-drwp-customer-group.php';
 require_once DRWP_PATH . 'includes/class-drwp-project.php';
 require_once DRWP_PATH . 'includes/class-drwp-audit.php';
 require_once DRWP_PATH . 'includes/class-drwp-audit-admin.php';
@@ -59,6 +60,7 @@ add_action('plugins_loaded', function () {
     DRWP_Admin::init();
     DRWP_License_Admin::init();
     DRWP_Customer::init();
+    DRWP_Customer_Group::init();
     DRWP_Project::init();
     DRWP_Review::init();
     DRWP_Audit_Admin::init();

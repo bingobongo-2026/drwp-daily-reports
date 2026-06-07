@@ -42,6 +42,8 @@ class DRWP_DB {
         $reports = $wpdb->prefix . 'drwp_reports';
         $projects = $wpdb->prefix . 'drwp_projects';
         $customers = $wpdb->prefix . 'drwp_customers';
+        $customer_groups = $wpdb->prefix . 'drwp_customer_groups';
+        $customer_group_map = $wpdb->prefix . 'drwp_customer_group_map';
         $comments = $wpdb->prefix . 'drwp_comments';
         $audit = $wpdb->prefix . 'drwp_audit_logs';
         $photos = $wpdb->prefix . 'drwp_report_photos';
@@ -168,6 +170,33 @@ class DRWP_DB {
             KEY entry_id (entry_id)
         ) $charset;";
         dbDelta($sql5);
+
+        // Customer groups ("グループ") — many-to-many tagging of
+        // customers. Each customer can belong to 0..N groups, and a
+        // group lists 0..N customers. The map's composite primary
+        // key (customer_id, group_id) makes (un)assigning idempotent
+        // and the reverse-lookup index on group_id keeps the groups
+        // admin page fast.
+        $sql6 = "CREATE TABLE $customer_groups (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name VARCHAR(255) NOT NULL,
+            color VARCHAR(7) NULL,
+            notes TEXT NULL,
+            status VARCHAR(32) NOT NULL DEFAULT 'active',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id)
+        ) $charset;";
+        dbDelta($sql6);
+
+        $sql7 = "CREATE TABLE $customer_group_map (
+            customer_id BIGINT UNSIGNED NOT NULL,
+            group_id BIGINT UNSIGNED NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (customer_id, group_id),
+            KEY group_id (group_id)
+        ) $charset;";
+        dbDelta($sql7);
 
         add_option('drwp_license_api_url', 'https://license.example.com');
         add_option('drwp_public_key', '');
