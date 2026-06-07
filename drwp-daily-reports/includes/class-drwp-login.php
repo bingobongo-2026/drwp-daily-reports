@@ -188,7 +188,7 @@ class DRWP_Login {
 
     public static function register_admin() {
         add_submenu_page(
-            'drwp_license',
+            'drwp_reports',
             __('ログイン設定', 'drwp-daily-reports'),
             __('ログイン設定', 'drwp-daily-reports'),
             'manage_options',
