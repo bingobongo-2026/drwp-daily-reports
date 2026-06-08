@@ -156,6 +156,25 @@
 
 `(project_id, group_id)` 複合主キー + `group_id` 単独 KEY。`DRWP_Project_Group::set_for_project` は案件 1 件分を delete → bulk insert する。`DRWP_Project_Group::project_ids_for_group($id)` は顧客側と異なり map テーブルから直接取得（顧客経由の JOIN は不要）。
 
+### 3.10 `drwp_plans` — 予定（先々の訪問予定）
+
+| カラム | 型 | 説明 |
+| --- | --- | --- |
+| `id` | BIGINT PK auto_inc | |
+| `project_id` | BIGINT NULL | 訪問予定の案件 |
+| `user_id` | BIGINT NULL | 担当者（未割当は NULL） |
+| `planned_date` | DATE NOT NULL | 予定日 |
+| `started_at` / `ended_at` | TIME NULL | 開始 / 終了予定時刻 |
+| `notes` | TEXT NULL | フリーテキストメモ(`wp_kses_post`) |
+| `status` | VARCHAR(32) default `active` | `active` / `completed` / `cancelled` |
+| `linked_report_id` | BIGINT NULL | 実施後に紐づけた `drwp_reports.id`（任意） |
+| `created_by` | BIGINT default 0 | 予定を入力した WP ユーザー ID |
+| `created_at` / `updated_at` | DATETIME | |
+
+インデックス: `planned_date` / `user_id` / `project_id` / `linked_report_id`。
+
+レビュー・公開ライフサイクルは持たない。`DRWP_Plan::dates_for_calendar()` が日報一覧カレンダーの緑ドットオーバーレイ用のマップを返す。`DRWP_Plan::linkable_reports($plan)` は予定編集モーダルで「同日・同案件」の日報候補を出すために使う。
+
 ### v1.11 で削除されたテーブル
 
 `drwp_report_entries` テーブル(v1.9〜1.10 の「1 日報 × N エントリ」用)は `DRWP_DB::maybe_upgrade()` で `DROP TABLE IF EXISTS` される。`drwp_report_photos.entry_id` はカラムは残るが、`UPDATE ... SET entry_id = NULL` で参照が外れる。
@@ -205,6 +224,7 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 | スラッグ | ラベル | 必須 cap | 担当クラス |
 | --- | --- | --- | --- |
 | `drwp_reports` | 日報一覧 | `edit_posts` | `DRWP_Admin::reports_page` |
+| `drwp_plans` | 予定 | `edit_posts` | `DRWP_Plan::render_page` |
 | `drwp_articles` | 記事作成 | `publish_posts` | `DRWP_Admin::articles_page` |
 | `drwp_projects` | 案件 | `manage_options` | `DRWP_Project::render_page` |
 | `drwp_customers` | 顧客 | `manage_options` | `DRWP_Customer::render_page` |
@@ -254,6 +274,18 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 両方とも結果が空集合のときは `0=1` でガードして「該当なし」を返す（フィルタが silently 外れて全件が出るのを防ぐ）。一括操作: 承認、差戻し、CSV エクスポート、**記事化(作成 or 更新)**。
 
 旧 `drwp_operations` スラッグはメニュー登録を撤去し、`operations_page()` メソッドも削除済み。`bulk_reports` ハンドラの `redirect_page` ホワイトリストから `drwp_operations` が外れ、未知の値は `drwp_reports` にフォールバックする。
+
+カレンダーには `report_dates` と `plan_dates` の 2 つのマップが渡される。`has-reports` クラス（青ドット）と `has-plans` クラス（緑ドット）が同じ日に両方付くケースは CSS の `::before` / `::after` の `margin-left` で左右にずらして 2 つ並べる。
+
+### 5.6 予定
+
+`drwp_plans` を管理する独立ページ。サイドバーは日報一覧の直下、`edit_posts` 必須なので作業員もアクセス可。
+
+- 一覧テーブル: 日付 / 時間 / 案件 / 担当 / メモ / 状態 / 紐づく日報 / 操作
+- 作業員 (`edit_posts` のみ) は `user_id` または `created_by` が自分の予定だけ見える / 編集できる。担当者ドロップダウンは出さず保存時に自動で自分が `user_id` になる
+- 事務所 (`edit_others_posts`) は全件閲覧 + 担当者の割当が可能
+- 編集モーダルで日付＋案件を選ぶと、同日同案件の日報候補が REST `/reports?date_from=...&date_to=...&project_id=...` で取得され、クリックで `linked_report_id` がセットされる
+- 状態は `active` / `completed` / `cancelled`。`cancelled` の行は一覧で薄く表示
 
 ### 5.4 顧客 / 案件ページの検索
 
