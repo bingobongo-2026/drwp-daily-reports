@@ -181,6 +181,8 @@ class DRWP_Admin {
 
         $list_label = __('日報一覧', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $list_label, $list_label, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page']);
+        $plans = __('予定', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $plans, $plans, DRWP_Plan::CAP_LIST, 'drwp_plans', ['DRWP_Plan', 'render_page']);
         $articles = __('記事作成', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $articles, $articles, self::CAP_CONVERT, 'drwp_articles', [__CLASS__, 'articles_page']);
         $proj = __('案件', 'drwp-daily-reports');
@@ -370,6 +372,10 @@ class DRWP_Admin {
         $projects = DRWP_Project::all();
         $customer_groups = DRWP_Customer_Group::all(true);
         $project_groups  = DRWP_Project_Group::all(true);
+        // Plan dates overlay on the calendar — separate dot color
+        // from report dates so the operator can see at a glance
+        // which future days already have a planned visit.
+        $plan_dates = DRWP_Plan::dates_for_calendar();
 
         include DRWP_PATH . 'admin/views/reports-list.php';
     }

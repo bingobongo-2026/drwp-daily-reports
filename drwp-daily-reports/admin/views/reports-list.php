@@ -337,7 +337,12 @@ $can_review = current_user_can('edit_others_posts');
 .drwp-cal-day.empty{visibility:hidden}
 .drwp-cal-day:hover:not(.empty){background:#e0f2fe}
 .drwp-cal-day.has-reports{font-weight:600;color:#0f172a}
-.drwp-cal-day.has-reports::after{content:'';position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#2271b1}
+/* Two-dot row at the bottom of a day: blue = report, green = plan.
+   Single dot centered when only one exists; spread apart when both. */
+.drwp-cal-day.has-reports::after{content:'';position:absolute;left:50%;bottom:2px;margin-left:-2px;width:4px;height:4px;border-radius:50%;background:#2271b1}
+.drwp-cal-day.has-plans::before{content:'';position:absolute;left:50%;bottom:2px;margin-left:-2px;width:4px;height:4px;border-radius:50%;background:#16a34a}
+.drwp-cal-day.has-reports.has-plans::after{margin-left:-6px}
+.drwp-cal-day.has-reports.has-plans::before{margin-left:2px}
 .drwp-cal-day.today{outline:1px solid #2271b1}
 .drwp-cal-day.in-range{background:#dbeafe}
 .drwp-cal-day.range-edge{background:#2271b1;color:#fff}
@@ -391,6 +396,9 @@ $can_review = current_user_can('edit_others_posts');
 (function(){
   /* ---- カレンダー ---- */
   var dates = <?php echo wp_json_encode((object) ($report_dates ?? [])); ?>;
+  // Planned-visit overlay — separate dot color so days with a
+  // 予定 row show up alongside actual report dates.
+  var planDates = <?php echo wp_json_encode((object) ($plan_dates ?? [])); ?>;
   var fromEl = document.getElementById('drwp-date-from');
   var toEl = document.getElementById('drwp-date-to');
   var grid = document.getElementById('drwp-cal-grid');
@@ -438,6 +446,7 @@ $can_review = current_user_can('edit_others_posts');
       btn.textContent = d;
       btn.dataset.date = key;
       if (dates[key]) btn.classList.add('has-reports');
+      if (planDates[key]) btn.classList.add('has-plans');
       if (key === today) btn.classList.add('today');
       if (fromVal && toVal) {
         if (key >= fromVal && key <= toVal) btn.classList.add('in-range');

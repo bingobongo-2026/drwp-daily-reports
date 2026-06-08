@@ -46,6 +46,7 @@ class DRWP_DB {
         $customer_group_map = $wpdb->prefix . 'drwp_customer_group_map';
         $project_groups = $wpdb->prefix . 'drwp_project_groups';
         $project_group_map = $wpdb->prefix . 'drwp_project_group_map';
+        $plans = $wpdb->prefix . 'drwp_plans';
         $comments = $wpdb->prefix . 'drwp_comments';
         $audit = $wpdb->prefix . 'drwp_audit_logs';
         $photos = $wpdb->prefix . 'drwp_report_photos';
@@ -224,6 +225,34 @@ class DRWP_DB {
             KEY group_id (group_id)
         ) $charset;";
         dbDelta($sql9);
+
+        // 予定 — planned site visits, sibling to drwp_reports but
+        // with no review / publish lifecycle. `user_id` is the
+        // assignee (NULL = unassigned), `created_by` records who
+        // entered the plan (operator vs. worker). `linked_report_id`
+        // becomes non-null once the visit actually happens and the
+        // worker (or operator) ties the plan back to the report row
+        // that recorded it.
+        $sql10 = "CREATE TABLE $plans (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            project_id BIGINT UNSIGNED NULL,
+            user_id BIGINT UNSIGNED NULL,
+            planned_date DATE NOT NULL,
+            started_at TIME NULL,
+            ended_at TIME NULL,
+            notes TEXT NULL,
+            status VARCHAR(32) NOT NULL DEFAULT 'active',
+            linked_report_id BIGINT UNSIGNED NULL,
+            created_by BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY planned_date (planned_date),
+            KEY user_id (user_id),
+            KEY project_id (project_id),
+            KEY linked_report_id (linked_report_id)
+        ) $charset;";
+        dbDelta($sql10);
 
         add_option('drwp_license_api_url', 'https://license.example.com');
         add_option('drwp_public_key', '');
