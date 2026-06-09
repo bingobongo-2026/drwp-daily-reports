@@ -96,6 +96,12 @@ class DRWP_REST {
             'permission_callback' => [__CLASS__, 'can_convert'],
         ]);
 
+        register_rest_route(self::NS, '/plans', [
+            'methods'             => 'POST',
+            'callback'            => [__CLASS__, 'create_plan'],
+            'permission_callback' => [__CLASS__, 'can_edit'],
+        ]);
+
         register_rest_route(self::NS, '/ai/briefing', [
             'methods'             => 'POST',
             'callback'            => [__CLASS__, 'ai_briefing'],
@@ -260,6 +266,55 @@ class DRWP_REST {
         return $report
             ? rest_ensure_response(self::shape_report($report))
             : new WP_Error('drwp_not_found', 'Report not found', ['status' => 404]);
+    }
+
+    /**
+     * Create a 予定 row from the front-end calendar's "+予定を書く"
+     * dialog. Workers are always saved as the assignee + creator;
+     * the front-end UI doesn't expose an assignee picker.
+     */
+    public static function create_plan(WP_REST_Request $request) {
+        if (!DRWP_License::can_write()) {
+            return self::license_error();
+        }
+        $input = $request->get_json_params() ?: [];
+
+        $date = (string) ($input['planned_date'] ?? '');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return new WP_Error('drwp_invalid', 'planned_date is required (YYYY-MM-DD)', ['status' => 400]);
+        }
+        $project_id = isset($input['project_id']) ? absint($input['project_id']) : 0;
+        $started_at = self::sanitize_time_or_null($input['started_at'] ?? null);
+        $ended_at   = self::sanitize_time_or_null($input['ended_at'] ?? null);
+        $notes      = wp_kses_post((string) ($input['notes'] ?? ''));
+
+        $uid = get_current_user_id();
+        global $wpdb;
+        $wpdb->insert(DRWP_Plan::table(), [
+            'project_id'   => $project_id ?: null,
+            'user_id'      => $uid,
+            'planned_date' => $date,
+            'started_at'   => $started_at,
+            'ended_at'     => $ended_at,
+            'notes'        => $notes,
+            'status'       => 'active',
+            'created_by'   => $uid,
+        ]);
+        $id = (int) $wpdb->insert_id;
+        DRWP_Audit::log('plan_created', '予定を作成 (REST)', $id, ['source' => 'rest']);
+
+        $response = rest_ensure_response(['id' => $id]);
+        $response->set_status(201);
+        return $response;
+    }
+
+    private static function sanitize_time_or_null($v) {
+        $v = trim((string) $v);
+        if ($v === '') return null;
+        if (preg_match('/^(\d{2}):(\d{2})(?::(\d{2}))?$/', $v, $m)) {
+            return sprintf('%02d:%02d:%02d', (int) $m[1], (int) $m[2], (int) ($m[3] ?? 0));
+        }
+        return null;
     }
 
     public static function create_report(WP_REST_Request $request) {
