@@ -58,7 +58,7 @@ class DRWP_User {
      */
     public static function block_retired_login($user) {
         if ($user instanceof WP_User && self::is_retired((int) $user->ID)) {
-            self::set_marker_cookie();
+            self::set_marker_cookie((int) $user->ID);
             return new WP_Error(
                 'drwp_retired',
                 __('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports')
@@ -80,7 +80,7 @@ class DRWP_User {
     public static function invalidate_session_if_retired() {
         if (!is_user_logged_in()) return;
         if (!self::is_retired()) return;
-        self::set_marker_cookie();
+        self::set_marker_cookie(get_current_user_id());
         wp_logout();
     }
 
@@ -173,14 +173,39 @@ class DRWP_User {
         self::clear_marker_cookie();
     }
 
-    /** Has the request shown signs of being retired-rejected? */
+    /**
+     * Has the request shown signs of being retired-rejected?
+     *
+     * The marker cookie carries the user_id of the worker who was
+     * blocked, not just a "1" flag, so we can verify on every page
+     * load that they're still actually retired. When the operator
+     * hits "復帰させる" on the 社員 page, the worker's browser
+     * still holds the old cookie — without this check it would
+     * keep showing the "ログインできません" notice until the cookie
+     * naturally expired. Self-clearing on mismatch lets the worker
+     * pick up access immediately.
+     */
     public static function has_marker_cookie() {
-        return !empty($_COOKIE[self::COOKIE_MARKER]);
+        if (empty($_COOKIE[self::COOKIE_MARKER])) return false;
+        $uid = (int) $_COOKIE[self::COOKIE_MARKER];
+        if ($uid <= 0) {
+            // Legacy "1" cookies from before we tracked the user_id,
+            // or otherwise malformed values — drop them.
+            self::clear_marker_cookie();
+            return false;
+        }
+        if (!self::is_retired($uid)) {
+            self::clear_marker_cookie();
+            return false;
+        }
+        return true;
     }
 
-    private static function set_marker_cookie() {
+    private static function set_marker_cookie($user_id) {
         if (headers_sent()) return;
-        setcookie(self::COOKIE_MARKER, '1', [
+        $user_id = (int) $user_id;
+        if ($user_id <= 0) return;
+        setcookie(self::COOKIE_MARKER, (string) $user_id, [
             'expires'  => time() + HOUR_IN_SECONDS,
             'path'     => '/',
             'secure'   => is_ssl(),
@@ -190,11 +215,14 @@ class DRWP_User {
         // Make the cookie available within the current request so
         // shortcodes rendering on this same hit see the marker
         // without waiting for the next round-trip.
-        $_COOKIE[self::COOKIE_MARKER] = '1';
+        $_COOKIE[self::COOKIE_MARKER] = (string) $user_id;
     }
 
     private static function clear_marker_cookie() {
-        if (headers_sent()) return;
+        if (headers_sent()) {
+            unset($_COOKIE[self::COOKIE_MARKER]);
+            return;
+        }
         setcookie(self::COOKIE_MARKER, '', [
             'expires'  => time() - HOUR_IN_SECONDS,
             'path'     => '/',
