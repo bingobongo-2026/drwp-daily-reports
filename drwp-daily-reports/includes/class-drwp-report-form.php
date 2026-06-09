@@ -60,6 +60,11 @@ class DRWP_Report_Form {
 
     public static function handle_post() {
         if (!is_user_logged_in() || !current_user_can('edit_posts')) return;
+        // Retired-employee guard — covers both the "編集を依頼" and
+        // pending-edit POST paths below in one shot.
+        if (!empty($_POST['_drwp_request_edit']) || !empty($_POST['_drwp_form_edit'])) {
+            DRWP_User::block_write_or_die();
+        }
 
         // Handle "編集を依頼" for approved reports.
         if (!empty($_POST['_drwp_request_edit'])) {

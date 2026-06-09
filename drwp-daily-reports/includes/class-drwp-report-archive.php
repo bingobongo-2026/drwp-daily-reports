@@ -110,13 +110,21 @@ class DRWP_Report_Archive {
         // current user just like the old [drwp_report_form] my-list.
         $mine = !empty($_GET['drwp_mine']) && is_user_logged_in();
         $user_id = $mine ? get_current_user_id() : 0;
-        $can_write = is_user_logged_in() && current_user_can('edit_posts');
+        // Retired users keep their read access (so they can review
+        // their own past work) but lose every write entry point.
+        $is_retired = is_user_logged_in() && DRWP_User::is_retired();
+        $can_write = is_user_logged_in() && current_user_can('edit_posts') && !$is_retired;
 
         $flash = '';
         if (isset($_GET['drwp_saved'])) {
             $flash = '<p class="drwp-mform-status ok">' . esc_html__('保存しました。', 'drwp-daily-reports') . '</p>';
         } elseif (isset($_GET['drwp_requested'])) {
             $flash = '<p class="drwp-mform-status ok">' . esc_html__('編集依頼を送信しました。', 'drwp-daily-reports') . '</p>';
+        }
+        if ($is_retired) {
+            $flash .= '<p class="drwp-mform-status drwp-retired-notice">'
+                   . esc_html__('このアカウントは退職状態のため、新規日報・予定の作成や編集はできません。閲覧のみ可能です。', 'drwp-daily-reports')
+                   . '</p>';
         }
 
         // The "+日報を書く" CTA opens the form modal on click. URL
@@ -160,6 +168,7 @@ class DRWP_Report_Archive {
             // with __ID__ that JS replaces per-report.
             'editBase'  => esc_url_raw(add_query_arg(['drwp_id' => '__ID__', 'drwp_edit' => 1], $_SERVER['REQUEST_URI'] ?? '')),
             'autoOpenNew' => !empty($_GET['drwp_new']),
+            'isRetired'  => is_user_logged_in() && DRWP_User::is_retired(),
         ]);
 
         ob_start();
@@ -278,7 +287,7 @@ class DRWP_Report_Archive {
                   });
                   html += '</div>';
                 }
-                if (d.review_status === 'pending') {
+                if (d.review_status === 'pending' && !cfg.isRetired) {
                   var editUrl = cfg.editBase.replace('__ID__', encodeURIComponent(d.id));
                   html += '<p class="drwp-archive-dialog-actions"><a class="drwp-archive-new-btn" href="'+esc(editUrl)+'"><?php echo esc_js(__('編集する', 'drwp-daily-reports')); ?></a></p>';
                 }
@@ -812,7 +821,8 @@ class DRWP_Report_Archive {
         $author_name = $author ? $author->display_name : '-';
         $back_url = esc_url(remove_query_arg('drwp_id'));
         $is_own_pending = ((int) $report->user_id === get_current_user_id())
-                          && $report->review_status === 'pending';
+                          && $report->review_status === 'pending'
+                          && !DRWP_User::is_retired();
 
         $project = $report->project_id ? DRWP_Project::find((int) $report->project_id) : null;
         $project_name = $project ? $project->name : '';
@@ -923,6 +933,14 @@ class DRWP_Report_Archive {
             return self::wrap('<p class="drwp-archive-message">'
                 . esc_html__('該当する日報が見つかりません。', 'drwp-daily-reports')
                 . '</p>');
+        }
+        if (DRWP_User::is_retired()) {
+            $back = esc_url(remove_query_arg('drwp_edit'));
+            return self::wrap('<p class="drwp-archive-message">'
+                . esc_html__('このアカウントは退職状態のため、編集はできません。', 'drwp-daily-reports')
+                . '</p><p class="drwp-archive-back"><a href="' . $back . '">&laquo; '
+                . esc_html__('一覧に戻る', 'drwp-daily-reports')
+                . '</a></p>');
         }
         if ((int) $report->user_id !== get_current_user_id()
             || $report->review_status !== 'pending') {
@@ -1064,6 +1082,9 @@ class DRWP_Report_Archive {
         if (empty($_POST['_drwp_archive_edit'])) return;
         if (!is_user_logged_in()) return;
         if (!current_user_can('edit_posts')) return;
+        // Retired-employee guard. Same wp_die behavior as the
+        // admin-post handlers so a direct POST can't slip past.
+        DRWP_User::block_write_or_die();
 
         $id = absint($_POST['drwp_id'] ?? 0);
         if (!$id) return;

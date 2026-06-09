@@ -189,6 +189,8 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $list_label, $list_label, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page']);
         $plans = __('予定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $plans, $plans, DRWP_Plan::CAP_LIST, 'drwp_plans', ['DRWP_Plan', 'render_page']);
+        $workers = __('社員', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $workers, $workers, DRWP_User::CAP_MANAGE, 'drwp_workers', ['DRWP_User', 'render_page']);
         $articles = __('記事作成', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $articles, $articles, self::CAP_CONVERT, 'drwp_articles', [__CLASS__, 'articles_page']);
         $proj = __('案件', 'drwp-daily-reports');
@@ -450,6 +452,7 @@ class DRWP_Admin {
 
     public static function report_edit_page() {
         if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        DRWP_User::block_write_or_die();
         global $wpdb;
         $table = self::reports_table();
         $id = isset($_GET['id']) ? absint($_GET['id']) : 0;
@@ -472,6 +475,7 @@ class DRWP_Admin {
 
     public static function save_report() {
         if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        DRWP_User::block_write_or_die();
         check_admin_referer('drwp_save_report');
         if (!DRWP_License::can_write()) {
             wp_die(

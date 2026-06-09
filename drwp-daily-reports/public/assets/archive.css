@@ -391,3 +391,12 @@
 .drwp-archive-plan-status { font-size: 0.85rem; color: #64748b; }
 .drwp-archive-plan-status.ok { color: #15803d; }
 .drwp-archive-plan-status.err { color: #b91c1c; }
+
+/* 退職社員バナー — readonly notice at the top of the archive when
+   the logged-in user has been marked 退職. Write CTAs are also
+   suppressed by render_list(); this banner explains why. */
+.drwp-retired-notice {
+    background: #f3f4f6; border-left: 4px solid #6b7280;
+    color: #1f2937; padding: 10px 12px; margin: 0 0 10px;
+    border-radius: 4px; font-size: 0.9rem;
+}

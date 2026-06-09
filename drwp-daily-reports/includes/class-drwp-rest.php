@@ -274,6 +274,7 @@ class DRWP_REST {
      * the front-end UI doesn't expose an assignee picker.
      */
     public static function create_plan(WP_REST_Request $request) {
+        if ($err = DRWP_User::block_write_rest()) return $err;
         if (!DRWP_License::can_write()) {
             return self::license_error();
         }
@@ -318,6 +319,7 @@ class DRWP_REST {
     }
 
     public static function create_report(WP_REST_Request $request) {
+        if ($err = DRWP_User::block_write_rest()) return $err;
         if (!DRWP_License::can_write()) {
             return self::license_error();
         }
@@ -344,6 +346,7 @@ class DRWP_REST {
     }
 
     public static function update_report(WP_REST_Request $request) {
+        if ($err = DRWP_User::block_write_rest()) return $err;
         if (!DRWP_License::can_write()) {
             return self::license_error();
         }
@@ -370,6 +373,7 @@ class DRWP_REST {
     }
 
     public static function convert_report(WP_REST_Request $request) {
+        if ($err = DRWP_User::block_write_rest()) return $err;
         if (!DRWP_License::can_write()) {
             return self::license_error();
         }
@@ -490,6 +494,7 @@ class DRWP_REST {
     }
 
     public static function review_report(WP_REST_Request $request) {
+        if ($err = DRWP_User::block_write_rest()) return $err;
         global $wpdb;
         $id = (int) $request['id'];
         $report = self::find_report($id);
@@ -527,6 +532,7 @@ class DRWP_REST {
     }
 
     public static function add_comment(WP_REST_Request $request) {
+        if ($err = DRWP_User::block_write_rest()) return $err;
         $id = (int) $request['id'];
         $body = (string) $request->get_param('body');
         $comment_id = DRWP_Comment::insert($id, $body);
@@ -590,6 +596,7 @@ class DRWP_REST {
      * what the WP media library uses.
      */
     public static function upload_photo(WP_REST_Request $request) {
+        if ($err = DRWP_User::block_write_rest()) return $err;
         if (!DRWP_License::can_write()) return self::license_error();
         $files = $request->get_file_params();
         if (empty($files['file']) || !is_array($files['file'])) {
