@@ -89,10 +89,14 @@ class DRWP_Report_Archive {
                 . esc_html__('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports')
                 . '</p>');
         }
+        // 未ログイン時はログインフォームを埋め込んで返す。これで
+        // 「[drwp_login_form] と [drwp_report_archive] の 2 つを別
+        // ページに置く」設定をしなくても、1 つのショートコードで
+        // 「ログイン→そのまま日報カレンダー」が完結する。
+        // redirect_to は現在のページ自体を渡して、ログイン後に同じ
+        // ページに戻ってくるようにする。
         if (!is_user_logged_in()) {
-            return self::wrap('<p class="drwp-archive-message">'
-                . esc_html__('閲覧にはログインが必要です。', 'drwp-daily-reports')
-                . '</p>');
+            return DRWP_Login::render_login_box(get_permalink() ?: null);
         }
         if (!current_user_can('edit_posts')) {
             return self::wrap('<p class="drwp-archive-message">'
@@ -154,7 +158,14 @@ class DRWP_Report_Archive {
         ]);
 
         $modals = self::render_modals($can_write);
-        return $body . $modals;
+        // Stick the "X さんとしてログイン中 / ログアウト" bar in the
+        // archive output too — so operators who only use
+        // `[drwp_report_archive]` still get the same logged-in
+        // affordance the dedicated `[drwp_login_form]` used to
+        // provide. The bar dedups internally if both shortcodes are
+        // on the same page.
+        $bar = DRWP_Login::render_logged_in_bar(wp_get_current_user());
+        return $bar . $body . $modals;
     }
 
     /**
