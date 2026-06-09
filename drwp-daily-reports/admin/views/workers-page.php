@@ -20,7 +20,7 @@ foreach ($workers as $w) {
   <?php endif; ?>
 
   <p class="description">
-    <?php esc_html_e('退職にすると、その社員はフロント・wp-admin から日報・予定・コメント・写真の書き込みができなくなります。過去の日報データはそのまま残ります。', 'drwp-daily-reports'); ?>
+    <?php esc_html_e('退職にすると、その社員はログインできなくなり、フロント・wp-admin のいずれも利用できません(既存セッションも次のアクセスで強制ログアウトされます)。過去の日報データはそのまま残ります。', 'drwp-daily-reports'); ?>
   </p>
 
   <ul class="subsubsub" style="margin-top:8px;">
@@ -77,7 +77,7 @@ foreach ($workers as $w) {
               <?php else: ?>
                 <input type="hidden" name="retired" value="1" />
                 <button type="submit" class="button button-small button-link-delete"
-                        onclick="return confirm('<?php echo esc_js(sprintf(__('%s さんを退職にします。以降この社員は日報を書けなくなります(過去の日報は残ります)。よろしいですか？', 'drwp-daily-reports'), $w->name)); ?>');">
+                        onclick="return confirm('<?php echo esc_js(sprintf(__('%s さんを退職にします。以降この社員はログインできなくなり、データの閲覧もできなくなります(過去の日報は残ります)。よろしいですか？', 'drwp-daily-reports'), $w->name)); ?>');">
                   <?php esc_html_e('退職にする', 'drwp-daily-reports'); ?>
                 </button>
               <?php endif; ?>
