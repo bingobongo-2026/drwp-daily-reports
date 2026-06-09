@@ -446,6 +446,79 @@ class DRWP_Report_Archive {
             });
           }
 
+          // 予定の日付変更 — HTML5 drag-and-drop. クリックで「予定
+          // からテンプレ作成」も残してあるので、両方の操作が共存。
+          // すでに日報と紐づいた予定 (.is-linked) はドラッグ対象外
+          // にする(済んだ予定の日付は動かさない)。サーバ側でも
+          // `DRWP_Plan::can_edit($plan)` が無理な書き込みを弾く。
+          var draggingPlan = null;
+          var moveErrMsg = <?php echo wp_json_encode(__('日付の変更に失敗しました', 'drwp-daily-reports')); ?>;
+          document.querySelectorAll('.drwp-archive-cal-plan-chip:not(.is-linked)').forEach(function (chip) {
+            chip.setAttribute('draggable', 'true');
+            chip.addEventListener('dragstart', function (e) {
+              draggingPlan = chip;
+              chip.classList.add('is-dragging');
+              if (e.dataTransfer) {
+                e.dataTransfer.effectAllowed = 'move';
+                try { e.dataTransfer.setData('text/plain', chip.dataset.planId); } catch (err) {}
+              }
+            });
+            chip.addEventListener('dragend', function () {
+              chip.classList.remove('is-dragging');
+              document.querySelectorAll('.drwp-archive-cal-cell.is-drop-target').forEach(function (c) {
+                c.classList.remove('is-drop-target');
+              });
+              draggingPlan = null;
+            });
+          });
+          document.querySelectorAll('.drwp-archive-cal-cell[data-date]').forEach(function (cell) {
+            cell.addEventListener('dragenter', function (e) {
+              if (!draggingPlan) return;
+              e.preventDefault();
+              if (cell.dataset.date === draggingPlan.dataset.planDate) return;
+              cell.classList.add('is-drop-target');
+            });
+            cell.addEventListener('dragover', function (e) {
+              if (!draggingPlan) return;
+              e.preventDefault();
+              if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+            });
+            cell.addEventListener('dragleave', function (e) {
+              // dragleave fires when entering a child node too;
+              // only clear the highlight when we've truly left
+              // the cell (relatedTarget is outside).
+              if (!cell.contains(e.relatedTarget)) {
+                cell.classList.remove('is-drop-target');
+              }
+            });
+            cell.addEventListener('drop', function (e) {
+              e.preventDefault();
+              cell.classList.remove('is-drop-target');
+              if (!draggingPlan) return;
+              var date = cell.dataset.date;
+              var planId = draggingPlan.dataset.planId;
+              if (!date || !planId) return;
+              if (date === draggingPlan.dataset.planDate) return;
+              draggingPlan.style.opacity = '0.5';
+              fetch(cfg.restRoot + '/plans/' + encodeURIComponent(planId), {
+                method: 'PATCH',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+                body: JSON.stringify({ planned_date: date })
+              }).then(function (r) {
+                return r.json().then(function (j) {
+                  if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status);
+                  return j;
+                });
+              }).then(function () {
+                window.location.reload();
+              }).catch(function (err) {
+                window.alert(err.message || moveErrMsg);
+                if (draggingPlan) draggingPlan.style.opacity = '';
+              });
+            });
+          });
+
           // Click outside dialog content closes it.
           [viewDlg, formDlg, planDlg].forEach(function(dlg){
             if (!dlg) return;
@@ -761,7 +834,7 @@ class DRWP_Report_Archive {
               if ($date === $today) $cell_cls .= ' today';
               $items = $by_date[$date] ?? [];
             ?>
-              <div class="<?php echo esc_attr($cell_cls); ?>">
+              <div class="<?php echo esc_attr($cell_cls); ?>" data-date="<?php echo esc_attr($date); ?>">
                 <div class="drwp-archive-cal-day"><?php echo (int) $d; ?></div>
                 <?php foreach ($items as $r):
                   $proj = $r->project_id ? DRWP_Project::find((int) $r->project_id) : null;
