@@ -43,7 +43,7 @@ class DRWP_Audit_Admin {
                 (int) $row['id'],
                 (string) $row['created_at'],
                 (string) $row['event'],
-                (string) ($row['display_name'] ?: '#' . (int) $row['user_id']),
+                (string) (DRWP_User::display_name((int) $row['user_id']) ?: ($row['display_name'] ?: '#' . (int) $row['user_id'])),
                 (int) ($row['report_id'] ?? 0),
                 (string) $row['message'],
                 (string) ($row['meta_json'] ?? ''),

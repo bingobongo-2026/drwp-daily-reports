@@ -90,8 +90,10 @@ class DRWP_Print {
             $audit = $wpdb->prefix . 'drwp_audit_logs';
             $ids = array_map(fn($r) => (int) $r->id, $reports);
             $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+            // user_id を持ち回って、表示側で first_name + last_name に
+            // 解決する。SQL JOIN の display_name はフォールバック用。
             $rows = $wpdb->get_results($wpdb->prepare(
-                "SELECT a.report_id, a.created_at, u.display_name
+                "SELECT a.report_id, a.user_id, a.created_at, u.display_name
                    FROM (
                      SELECT report_id, MAX(id) AS id
                        FROM $audit

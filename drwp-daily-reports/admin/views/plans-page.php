@@ -115,11 +115,9 @@ $is_retired = DRWP_User::is_retired();
           ?>
         </td></tr>
       <?php else: foreach ($plans as $plan):
-        $assignee_name = '';
-        if (!empty($plan->user_id)) {
-            $u = get_userdata((int) $plan->user_id);
-            $assignee_name = $u ? $u->display_name : ('#' . (int) $plan->user_id);
-        }
+        $assignee_name = !empty($plan->user_id)
+            ? (DRWP_User::display_name((int) $plan->user_id) ?: ('#' . (int) $plan->user_id))
+            : '';
         $project_name = $plan->project_id ? ($project_map[(int) $plan->project_id] ?? '#' . (int) $plan->project_id) : '-';
         $time = '';
         if ($plan->started_at) $time .= substr((string) $plan->started_at, 0, 5);
@@ -219,7 +217,7 @@ $is_retired = DRWP_User::is_retired();
           <tr>
             <th><?php esc_html_e('担当者', 'drwp-daily-reports'); ?></th>
             <td>
-              <span><?php echo esc_html($current_user->display_name ?: $current_user->user_login); ?></span>
+              <span><?php echo esc_html(DRWP_User::display_name($current_user) ?: $current_user->user_login); ?></span>
               <p class="description"><?php esc_html_e('自分の予定として保存されます。', 'drwp-daily-reports'); ?></p>
             </td>
           </tr>

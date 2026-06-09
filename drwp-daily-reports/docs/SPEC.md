@@ -299,18 +299,30 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 `drwp_workers` ページ(`edit_others_posts`)。`edit_posts` を持つユーザー全員を「在籍 / 退職 / すべて」タブで一覧し、`drwp_retired` user_meta を退職トグルで切り替える。トグルすると `DRWP_Audit` に `user_retired` / `user_reactivated` イベントが残る。最終日報日と日報数も列で表示するので、操作前に「本当に書いていない人か」を確認できる。
 
-退職フラグの効果は **ログイン自体を遮断 + 既存セッション強制破棄**:
+退職フラグの効果は **ログイン拒否 + 各境界での明示的なメッセージ表示**。`wp-login.php` への自動リダイレクトはしない(現場の社員にとってあの画面は意味が伝わらないため):
 
-| 操作 | 退職時の挙動 |
+| 境界 | 退職時の挙動 |
 | --- | --- |
-| 新規ログイン (wp-login) | `authenticate` フィルタが `WP_Error('drwp_retired')` を返して拒否 |
-| 退職前から続いているセッション | `init` フックで `wp_logout()` 後、`?drwp_retired=1` 付きで `wp-login.php` にリダイレクト |
-| REST / admin-ajax / cron / WP-CLI | リダイレクトはせずに `wp_logout()` のみ。続く `permission_callback` が 401/403 を返す |
-| ログイン画面 (`?drwp_retired=1`) | `login_message` フィルタが「このアカウントは退職状態のため利用できません」のバナーを上に出す |
+| 新規ログイン(wp-login) | `authenticate` フィルタが `WP_Error('drwp_retired')` を返して拒否、フォーム上にエラー表示 |
+| `[drwp_report_archive]` ショートコード | エントリポイントで `is_retired()` を判定、データの代わりに「このアカウントは退職状態のため、ログインできません。」を `.drwp-archive-retired` で出す |
+| wp-admin の DRWP ページ(`?page=drwp_*`) | `admin_init` フックで `wp_die`(403、戻るリンクなし)。他の wp-admin ページは触らない |
+| REST `can_edit` / `can_view_one` / `can_review` | `is_retired()` で false 返却 → permission_callback で 401/403 |
 
-これでフロント・wp-admin・REST すべてに到達できなくなる。万一フックが何らかの理由で動かない場合の保険として、書き込み境界 (REST callback / `admin-post` / `template_redirect`) には `DRWP_User::block_write_rest()` / `block_write_or_die()` のガードを残してある(defense in depth)。
+これでフロント・wp-admin・REST すべて到達できないが、ユーザーは「ログイン状態を保ったまま」操作不能になる。万一フックが他プラグインで短絡された場合の保険として、書き込み境界 (REST callback / `admin-post` / `template_redirect`) には `DRWP_User::block_write_rest()` / `block_write_or_die()` のガードを残してある(defense in depth)。
 
-`DRWP_User::is_retired($uid = null)` が共通の判定。`force_logout_if_retired()` がリダイレクトループを避けるため `pagenow === 'wp-login.php'` と XHR/REST/CRON/CLI をスキップする点に注意。
+`DRWP_User::is_retired($uid = null)` が共通の判定。
+
+### 5.8 ユーザー名表示
+
+DRWP プラグイン全体で `display_name` を `DRWP_User::display_name($user_or_id)` 経由に統一。`first_name + last_name` を「姓 名」(日本語順)で返し、両方空のときだけ WordPress 標準の `display_name` → `user_login` にフォールバックする。
+
+- 一覧テーブル: 日報一覧 / 記事一覧 / 予定一覧 / 監査ログ / 出力 PDF
+- アーカイブ単一ビューの「作成者」
+- REST `/reports/{id}/comments` レスポンスの `display_name`
+- 日報編集ページの「報告者」とコメント / 監査ログ欄
+- ログインフォーム上の「○○ さんとしてログイン中」
+
+SQL JOIN で `u.display_name` を取得していた箇所(コメント / 監査ログ / 出力 PDF)は、`user_id` をビュー層に持ち越し、レンダリング時にヘルパーで姓名解決する形に切替。SQL 側の `display_name` はヘルパーが空文字を返したときの最終フォールバックとしてだけ残している。
 
 - 一覧テーブル: 日付 / 時間 / 案件 / 担当 / メモ / 状態 / 紐づく日報 / 操作
 - 作業員 (`edit_posts` のみ) は `user_id` または `created_by` が自分の予定だけ見える / 編集できる。担当者ドロップダウンは出さず保存時に自動で自分が `user_id` になる

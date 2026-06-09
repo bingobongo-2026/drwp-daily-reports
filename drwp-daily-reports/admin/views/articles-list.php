@@ -149,8 +149,7 @@
             <td><?php echo esc_html($report->id); ?></td>
             <td><?php echo esc_html(date_i18n('Y年n月j日', strtotime((string) $report->report_date))); ?></td>
             <td><?php
-              $author = get_userdata((int) $report->user_id);
-              echo esc_html($author ? $author->display_name : ('#' . (int) $report->user_id));
+              echo esc_html(DRWP_User::display_name((int) $report->user_id) ?: ('#' . (int) $report->user_id));
             ?></td>
             <td><?php
               $project_name = '-';

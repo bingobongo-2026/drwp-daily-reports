@@ -81,6 +81,13 @@ class DRWP_Report_Archive {
                 . esc_html__('閲覧にはログインが必要です。', 'drwp-daily-reports')
                 . '</p>');
         }
+        // 退職社員はここで打ち切り。データを 1 件も見せない代わ
+        // りに、wp-login.php に飛ばさずページ内で理由を案内する。
+        if (DRWP_User::is_retired()) {
+            return self::wrap('<p class="drwp-archive-message drwp-archive-retired">'
+                . esc_html__('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports')
+                . '</p>');
+        }
         if (!current_user_can('edit_posts')) {
             return self::wrap('<p class="drwp-archive-message">'
                 . esc_html__('閲覧する権限がありません。', 'drwp-daily-reports')
@@ -817,8 +824,7 @@ class DRWP_Report_Archive {
                 . '</p>');
         }
 
-        $author = get_userdata((int) $report->user_id);
-        $author_name = $author ? $author->display_name : '-';
+        $author_name = DRWP_User::display_name((int) $report->user_id) ?: '-';
         $back_url = esc_url(remove_query_arg('drwp_id'));
         $is_own_pending = ((int) $report->user_id === get_current_user_id())
                           && $report->review_status === 'pending'

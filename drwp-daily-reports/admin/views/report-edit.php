@@ -2,11 +2,9 @@
 <?php
 $report_id     = (int) ($report->id ?? 0);
 $review_status = (string) ($report->review_status ?? 'pending');
-$author_name   = '';
-if (!empty($report->user_id)) {
-    $author = get_userdata((int) $report->user_id);
-    if ($author) $author_name = (string) $author->display_name;
-}
+$author_name   = !empty($report->user_id)
+    ? DRWP_User::display_name((int) $report->user_id)
+    : '';
 ?>
 <div class="wrap drwp-report-edit">
   <h1><?php esc_html_e('日報新規・編集', 'drwp-daily-reports'); ?></h1>
@@ -333,7 +331,7 @@ if (!empty($report->user_id)) {
         <ul class="drwp-comment-list" style="padding:0;list-style:none;">
           <?php foreach ($comments as $comment): ?>
             <li>
-              <strong><?php echo esc_html($comment->display_name ?: __('（不明）', 'drwp-daily-reports')); ?></strong>
+              <strong><?php echo esc_html(DRWP_User::display_name((int) $comment->user_id) ?: __('（不明）', 'drwp-daily-reports')); ?></strong>
               <span style="color:#50575e;"> — <?php echo esc_html($comment->created_at); ?></span>
               <div><?php echo wp_kses_post(wpautop($comment->body)); ?></div>
             </li>
@@ -367,7 +365,7 @@ if (!empty($report->user_id)) {
               <tr>
                 <td><?php echo esc_html($row->created_at); ?></td>
                 <td><code><?php echo esc_html($row->event); ?></code></td>
-                <td><?php echo esc_html($row->display_name ?: ('#' . (int) $row->user_id)); ?></td>
+                <td><?php echo esc_html(DRWP_User::display_name((int) $row->user_id) ?: ('#' . (int) $row->user_id)); ?></td>
                 <td><?php echo esc_html($row->message); ?></td>
               </tr>
             <?php endforeach; ?>

@@ -400,3 +400,13 @@
     color: #1f2937; padding: 10px 12px; margin: 0 0 10px;
     border-radius: 4px; font-size: 0.9rem;
 }
+
+/* 退職社員専用ビュー — ショートコード本文の代わりに表示する
+   案内文。グレー寄りの目立たない見た目で、間違って業務画面と
+   混同しないようにしている。 */
+.drwp-archive-retired {
+    background: #f3f4f6; border-left: 4px solid #6b7280;
+    color: #1f2937; padding: 14px 16px; margin: 12px 0;
+    border-radius: 6px; font-size: 0.95rem; line-height: 1.6;
+}
+
