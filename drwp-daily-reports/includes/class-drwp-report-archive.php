@@ -797,11 +797,8 @@ class DRWP_Report_Archive {
                           data-plan-notes="<?php echo esc_attr((string) ($pl->notes ?? '')); ?>"
                           data-plan-linked="<?php echo (int) ($pl->linked_report_id ?? 0); ?>"
                           title="<?php echo esc_attr($tip); ?>">
-                    <span class="drwp-archive-cal-chip-time">📋</span>
-                    <span class="drwp-archive-cal-chip-text">
-                      <?php if ($ptime !== ''): ?><?php echo esc_html(substr($ptime, 0, 5)); ?> <?php endif; ?>
-                      <?php echo esc_html($pproj_name); ?>
-                    </span>
+                    <?php if ($ptime !== ''): ?><span class="drwp-archive-cal-chip-time"><?php echo esc_html(substr($ptime, 0, 5)); ?></span><?php endif; ?>
+                    <span class="drwp-archive-cal-chip-text"><?php echo esc_html($pproj_name); ?></span>
                   </button>
                 <?php endforeach; ?>
               </div>

@@ -279,7 +279,26 @@
 .drwp-archive-cal-cell.today { background: #eff6ff; }
 .drwp-archive-cal-cell.today .drwp-archive-cal-day { background: #2563eb; color: #fff; }
 .drwp-archive-cal-day { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; font-size: 0.85rem; font-weight: 600; border-radius: 50%; color: #1e293b; }
-.drwp-archive-cal-chip { display: flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; font-size: 0.78rem; color: #fff; text-decoration: none; background: #64748b; line-height: 1.3; overflow: hidden; }
+/* 日報チップ — solid colored bg ("これは実施済の記録")。予定チップと
+   同じ寸法 (font-size / padding / line-height) に揃え、`::before` で
+   📝 アイコンを必ず先頭につける。アイコンは flex item として常に
+   表示されるので、モバイルで time 列が消えても残る。 */
+.drwp-archive-cal-chip {
+    display: flex; align-items: center; gap: 4px;
+    width: 100%; margin-top: 2px;
+    padding: 2px 4px; border-radius: 4px;
+    font-size: 0.72rem; line-height: 1.2;
+    color: #fff; text-decoration: none;
+    background: #64748b;
+    overflow: hidden;
+    border: 0; text-align: left; cursor: pointer;
+}
+.drwp-archive-cal-chip::before {
+    content: '📝'; flex-shrink: 0; font-size: 0.95em; line-height: 1;
+    /* Solid background makes the emoji color clash; the slight
+       brightness boost keeps it from disappearing into the chip. */
+    filter: brightness(1.15) saturate(0.85);
+}
 .drwp-archive-cal-chip:hover { filter: brightness(0.92); color: #fff; }
 .drwp-archive-cal-chip.status-pending { background: #d97706; }
 .drwp-archive-cal-chip.status-approved { background: #059669; }
@@ -289,7 +308,8 @@
 .drwp-archive-cal-chip-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 @media (max-width: 640px) {
   .drwp-archive-cal-cell { min-height: 70px; padding: 4px; }
-  .drwp-archive-cal-chip { font-size: 0.7rem; padding: 1px 4px; }
+  .drwp-archive-cal-chip,
+  .drwp-archive-cal-plan-chip { font-size: 0.68rem; padding: 1px 4px; }
   .drwp-archive-cal-chip-time { display: none; }
   .drwp-archive-cal-day { width: 22px; height: 22px; font-size: 0.78rem; }
 }
@@ -305,8 +325,10 @@
 .drwp-archive-field-checkbox .drwp-archive-mine-wrap { display: inline-flex; align-items: center; gap: 6px; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; cursor: pointer; }
 .drwp-archive-field-checkbox input[type=checkbox] { margin: 0; }
 
-/* Chip as button */
-.drwp-archive-cal-chip { font: inherit; cursor: pointer; border: 0; text-align: left; width: 100%; }
+/* Chip as button — base button reset is now folded into the main
+   `.drwp-archive-cal-chip` rule above (border/cursor/etc), no need
+   to redeclare here. */
+.drwp-archive-cal-chip { font: inherit; }
 
 /* Modal dialogs (view / form) */
 .drwp-archive-dialog { padding: 0; border: 0; border-radius: 14px; max-width: 720px; width: 92vw; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
@@ -339,6 +361,10 @@
    calendar and sees at a glance which days have a planned visit
    on top of the actual reports. Linked-back plans get a darker
    fill so we don't keep luring the operator to re-create. */
+/* 予定チップ — pale bg + colored left border ("これは予定だよ")。
+   日報チップとフォントサイズ・パディングを揃えて、視覚的な差は
+   「solid colored 日報」vs「pale outlined 予定」+ 先頭アイコンの
+   📝 vs 📋 で出す。 */
 .drwp-archive-cal-plan-chip {
     display: flex; align-items: center; gap: 4px;
     width: 100%; margin-top: 2px;
@@ -349,6 +375,9 @@
     font-size: 0.72rem; line-height: 1.2;
     text-align: left; cursor: pointer;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.drwp-archive-cal-plan-chip::before {
+    content: '📋'; flex-shrink: 0; font-size: 0.95em; line-height: 1;
 }
 .drwp-archive-cal-plan-chip:hover { background: #d1fae5; }
 .drwp-archive-cal-plan-chip.is-linked { background: #f3f4f6; color: #6b7280; border-left-color: #9ca3af; }
