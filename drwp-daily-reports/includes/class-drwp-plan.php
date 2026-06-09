@@ -155,6 +155,28 @@ class DRWP_Plan {
         ));
     }
 
+    /**
+     * Plans inside a month window for the front-end archive
+     * calendar. Defaults to the same worker scope as everywhere
+     * else (workers see assigned-or-created plans, operators see
+     * all). `$self_only` forces the worker-style scope on top of
+     * that — used when the archive's `?drwp_mine=1` toggle is on
+     * so the overlay matches the report scoping.
+     */
+    public static function for_archive_month($month_start, $month_end, $self_only = false) {
+        global $wpdb;
+        $where = ["status = 'active'", 'planned_date >= %s', 'planned_date <= %s'];
+        $args  = [$month_start, $month_end];
+        if ($self_only || !self::can_view_all()) {
+            $uid = get_current_user_id();
+            $where[] = '(user_id = %d OR created_by = %d)';
+            $args[] = $uid; $args[] = $uid;
+        }
+        $sql = 'SELECT * FROM ' . self::table() . ' WHERE ' . implode(' AND ', $where)
+             . ' ORDER BY planned_date ASC, started_at ASC, id ASC';
+        return $wpdb->get_results($wpdb->prepare($sql, $args));
+    }
+
     public static function render_page() {
         if (!current_user_can(self::CAP_LIST)) {
             wp_die(esc_html__('forbidden', 'drwp-daily-reports'));

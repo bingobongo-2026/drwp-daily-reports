@@ -184,6 +184,50 @@ class DRWP_Report_Archive {
                 <?php echo DRWP_Report_Form::render_form(); ?>
             </div>
         </dialog>
+
+        <dialog id="drwp-archive-plan-dialog" class="drwp-archive-dialog">
+            <div class="drwp-archive-dialog-head">
+                <h3><?php esc_html_e('予定を登録', 'drwp-daily-reports'); ?></h3>
+                <button type="button" class="drwp-archive-dialog-close" aria-label="<?php esc_attr_e('閉じる', 'drwp-daily-reports'); ?>">×</button>
+            </div>
+            <div class="drwp-archive-dialog-body">
+                <form id="drwp-archive-plan-form" class="drwp-archive-plan-form">
+                    <label class="drwp-archive-plan-field">
+                        <span><?php esc_html_e('日付', 'drwp-daily-reports'); ?> <em>*</em></span>
+                        <input type="date" name="planned_date" value="<?php echo esc_attr(current_time('Y-m-d')); ?>" required />
+                    </label>
+                    <label class="drwp-archive-plan-field">
+                        <span><?php esc_html_e('案件', 'drwp-daily-reports'); ?></span>
+                        <select name="project_id">
+                            <option value=""><?php esc_html_e('（未設定）', 'drwp-daily-reports'); ?></option>
+                            <?php foreach (DRWP_Project::all(true) as $p): ?>
+                                <option value="<?php echo (int) $p->id; ?>"><?php echo esc_html($p->name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                    <div class="drwp-archive-plan-times">
+                        <label class="drwp-archive-plan-field">
+                            <span><?php esc_html_e('開始時刻', 'drwp-daily-reports'); ?></span>
+                            <input type="time" name="started_at" />
+                        </label>
+                        <label class="drwp-archive-plan-field">
+                            <span><?php esc_html_e('終了時刻', 'drwp-daily-reports'); ?></span>
+                            <input type="time" name="ended_at" />
+                        </label>
+                    </div>
+                    <label class="drwp-archive-plan-field">
+                        <span><?php esc_html_e('メモ', 'drwp-daily-reports'); ?></span>
+                        <textarea name="notes" rows="3" placeholder="<?php esc_attr_e('やること・持ち物・連絡事項など', 'drwp-daily-reports'); ?>"></textarea>
+                    </label>
+                    <div class="drwp-archive-plan-actions">
+                        <button type="submit" class="drwp-archive-new-btn">
+                            <?php esc_html_e('予定を登録', 'drwp-daily-reports'); ?>
+                        </button>
+                        <span class="drwp-archive-plan-status" data-role="status"></span>
+                    </div>
+                </form>
+            </div>
+        </dialog>
         <?php endif; ?>
 
         <script>
@@ -245,7 +289,58 @@ class DRWP_Report_Archive {
               });
           }
 
+          var planDlg = document.getElementById('drwp-archive-plan-dialog');
+
+          // Plan chip → open the report form with date / project /
+          // time pre-filled from the plan. The mobile-form.js submit
+          // handler reads form values straight off the inputs, so
+          // populating them here is enough; we don't need a separate
+          // wire-up. We also stash the linked-plan id on a hidden
+          // input the report submit can later send back if we ever
+          // want to auto-link the report on POST.
+          function openReportFromPlan(chip) {
+            if (!formDlg) return;
+            var d = chip.dataset;
+            var form = document.getElementById('drwp-mform');
+            if (form) {
+              if (form.report_date) form.report_date.value = d.planDate || '';
+              if (form.project_id) form.project_id.value  = d.planProjectId || '';
+              if (form.started_at) form.started_at.value  = d.planStart || '';
+              if (form.ended_at)   form.ended_at.value    = d.planEnd || '';
+              var hidden = form.querySelector('input[name="linked_plan_id"]');
+              if (!hidden) {
+                hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'linked_plan_id';
+                form.appendChild(hidden);
+              }
+              hidden.value = d.planId || '';
+            }
+            var body = formDlg.querySelector('.drwp-archive-dialog-body');
+            var prev = body.querySelector('.drwp-archive-plan-hint');
+            if (prev) prev.remove();
+            var hint = document.createElement('div');
+            hint.className = 'drwp-archive-plan-hint';
+            var lead = '📋 ' + '<?php echo esc_js(__('予定', 'drwp-daily-reports')); ?>' + ' #' + esc(d.planId)
+                     + ' ' + '<?php echo esc_js(__('からテンプレを読み込みました', 'drwp-daily-reports')); ?>';
+            hint.innerHTML = lead;
+            if (d.planNotes) {
+              var n = document.createElement('div');
+              n.className = 'drwp-archive-plan-hint-notes';
+              n.textContent = d.planNotes;
+              hint.appendChild(n);
+            }
+            body.insertBefore(hint, body.firstChild);
+            formDlg.showModal();
+          }
+
           document.addEventListener('click', function(e){
+            var planChip = e.target.closest('.drwp-archive-cal-plan-chip[data-plan-id]');
+            if (planChip) {
+              e.preventDefault();
+              openReportFromPlan(planChip);
+              return;
+            }
             var chip = e.target.closest('.drwp-archive-cal-chip[data-id]');
             if (chip) {
               e.preventDefault();
@@ -256,7 +351,22 @@ class DRWP_Report_Archive {
               var newBtn = e.target.closest('#drwp-archive-new-btn');
               if (newBtn) {
                 e.preventDefault();
+                // Manual open should not carry a stale plan hint.
+                var body = formDlg.querySelector('.drwp-archive-dialog-body');
+                var stale = body && body.querySelector('.drwp-archive-plan-hint');
+                if (stale) stale.remove();
+                var form = document.getElementById('drwp-mform');
+                var hidden = form && form.querySelector('input[name="linked_plan_id"]');
+                if (hidden) hidden.value = '';
                 formDlg.showModal();
+                return;
+              }
+            }
+            if (planDlg) {
+              var planBtn = e.target.closest('#drwp-archive-new-plan-btn');
+              if (planBtn) {
+                e.preventDefault();
+                planDlg.showModal();
                 return;
               }
             }
@@ -266,8 +376,45 @@ class DRWP_Report_Archive {
             }
           });
 
+          // Plan create — POST to REST /plans, then reload so the
+          // calendar reflects the new chip. Keeps the same patterns
+          // as mobile-form.js (status pill, disabled-while-sending).
+          var planForm = document.getElementById('drwp-archive-plan-form');
+          if (planForm) {
+            planForm.addEventListener('submit', function (e) {
+              e.preventDefault();
+              var st = planForm.querySelector('[data-role=status]');
+              var btn = planForm.querySelector('button[type=submit]');
+              if (st) { st.textContent = '<?php echo esc_js(__('送信中…', 'drwp-daily-reports')); ?>'; st.className = 'drwp-archive-plan-status'; }
+              if (btn) btn.disabled = true;
+              var payload = {
+                planned_date: planForm.planned_date.value,
+                project_id:   planForm.project_id.value ? Number(planForm.project_id.value) : null,
+                started_at:   planForm.started_at.value || null,
+                ended_at:     planForm.ended_at.value || null,
+                notes:        planForm.notes.value || ''
+              };
+              fetch(cfg.restRoot + '/plans', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+                body: JSON.stringify(payload)
+              }).then(function (r) {
+                return r.json().then(function (j) { if (!r.ok) throw new Error(j.message || ('HTTP ' + r.status)); return j; });
+              }).then(function () {
+                if (st) { st.textContent = '<?php echo esc_js(__('登録しました', 'drwp-daily-reports')); ?>'; st.className = 'drwp-archive-plan-status ok'; }
+                // Reload so the new plan shows up in the calendar +
+                // any other surfaces that read from server state.
+                window.location.reload();
+              }).catch(function (err) {
+                if (st) { st.textContent = err.message || '<?php echo esc_js(__('登録に失敗しました', 'drwp-daily-reports')); ?>'; st.className = 'drwp-archive-plan-status err'; }
+                if (btn) btn.disabled = false;
+              });
+            });
+          }
+
           // Click outside dialog content closes it.
-          [viewDlg, formDlg].forEach(function(dlg){
+          [viewDlg, formDlg, planDlg].forEach(function(dlg){
             if (!dlg) return;
             dlg.addEventListener('click', function(e){
               var rect = dlg.getBoundingClientRect();
@@ -361,6 +508,16 @@ class DRWP_Report_Archive {
             $by_date[(string) $r->report_date][] = $r;
         }
 
+        // 予定オーバーレイ — same month window, visibility scoped
+        // either to the toggled "自分のみ" view or the default
+        // worker/operator rule. Operators get every active plan;
+        // workers get the ones they own or were assigned.
+        $plans = DRWP_Plan::for_archive_month($month_start, $month_end, (bool) $opts['user_id']);
+        $plans_by_date = [];
+        foreach ($plans as $pl) {
+            $plans_by_date[(string) $pl->planned_date][] = $pl;
+        }
+
         // For the my-list view we restrict the project dropdown to
         // projects the worker has actually visited (plus the
         // currently-selected one, if any). Archive view shows all
@@ -388,6 +545,9 @@ class DRWP_Report_Archive {
                         <button type="button" id="drwp-archive-new-btn" class="drwp-archive-new-btn">
                             + <?php esc_html_e('日報を書く', 'drwp-daily-reports'); ?>
                         </button>
+                        <button type="button" id="drwp-archive-new-plan-btn" class="drwp-archive-new-btn drwp-archive-new-btn-secondary">
+                            + <?php esc_html_e('予定を書く', 'drwp-daily-reports'); ?>
+                        </button>
                     <?php else: ?>
                         <a class="drwp-archive-new-btn" href="<?php echo esc_url($opts['new_url']); ?>">
                             + <?php esc_html_e('日報を書く', 'drwp-daily-reports'); ?>
@@ -409,7 +569,7 @@ class DRWP_Report_Archive {
                 ?>
             </p>
 
-            <?php echo self::render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, ['q' => $q, 'project' => $project, 'status' => $status]); ?>
+            <?php echo self::render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, ['q' => $q, 'project' => $project, 'status' => $status], $plans_by_date); ?>
         </div>
         <?php
         return ob_get_clean();
@@ -514,7 +674,7 @@ class DRWP_Report_Archive {
         return ob_get_clean();
     }
 
-    private static function render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, $filters) {
+    private static function render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, $filters, $plans_by_date = []) {
         // Use the FULL REQUEST_URI as the base so add_query_arg merges
         // new args into the existing query string instead of replacing
         // it. This preserves params like ?page_id=N that WordPress
@@ -580,6 +740,35 @@ class DRWP_Report_Archive {
                           title="<?php echo esc_attr($proj_name . ($time ? ' / ' . $time : '')); ?>">
                     <?php if ($time !== ''): ?><span class="drwp-archive-cal-chip-time"><?php echo esc_html(substr($time, 0, 5)); ?></span><?php endif; ?>
                     <span class="drwp-archive-cal-chip-text"><?php echo esc_html($proj_name); ?></span>
+                  </button>
+                <?php endforeach; ?>
+
+                <?php
+                // 予定チップ — 緑系の見た目で日報チップと区別。
+                // クリックで日報フォームをこの予定の項目で開く。
+                $plan_items = $plans_by_date[$date] ?? [];
+                foreach ($plan_items as $pl):
+                  $pproj = $pl->project_id ? DRWP_Project::find((int) $pl->project_id) : null;
+                  $pproj_name = $pproj ? $pproj->name : __('（案件未設定）', 'drwp-daily-reports');
+                  $ptime = self::format_time_window($pl->started_at ?? '', $pl->ended_at ?? '');
+                  $tip = __('予定', 'drwp-daily-reports') . ': ' . $pproj_name . ($ptime ? ' / ' . $ptime : '');
+                  if (!empty($pl->linked_report_id)) $tip .= ' (' . __('日報 #', 'drwp-daily-reports') . (int) $pl->linked_report_id . ' に紐づき)';
+                ?>
+                  <button type="button" class="drwp-archive-cal-plan-chip<?php echo !empty($pl->linked_report_id) ? ' is-linked' : ''; ?>"
+                          data-plan-id="<?php echo (int) $pl->id; ?>"
+                          data-plan-date="<?php echo esc_attr((string) $pl->planned_date); ?>"
+                          data-plan-project-id="<?php echo (int) ($pl->project_id ?? 0); ?>"
+                          data-plan-project-name="<?php echo esc_attr($pproj_name); ?>"
+                          data-plan-start="<?php echo esc_attr(substr((string) ($pl->started_at ?? ''), 0, 5)); ?>"
+                          data-plan-end="<?php echo esc_attr(substr((string) ($pl->ended_at ?? ''), 0, 5)); ?>"
+                          data-plan-notes="<?php echo esc_attr((string) ($pl->notes ?? '')); ?>"
+                          data-plan-linked="<?php echo (int) ($pl->linked_report_id ?? 0); ?>"
+                          title="<?php echo esc_attr($tip); ?>">
+                    <span class="drwp-archive-cal-chip-time">📋</span>
+                    <span class="drwp-archive-cal-chip-text">
+                      <?php if ($ptime !== ''): ?><?php echo esc_html(substr($ptime, 0, 5)); ?> <?php endif; ?>
+                      <?php echo esc_html($pproj_name); ?>
+                    </span>
                   </button>
                 <?php endforeach; ?>
               </div>

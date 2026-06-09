@@ -333,3 +333,61 @@
    "back to list" link since the close button is the cancel action. */
 .drwp-archive-dialog-body .drwp-mform-back { display: none; }
 .drwp-archive-dialog-body .drwp-mform-wrap { padding: 0; max-width: none; }
+
+/* 予定チップ — visually distinct from report chips (green
+   left-border + lighter background) so the operator scans the
+   calendar and sees at a glance which days have a planned visit
+   on top of the actual reports. Linked-back plans get a darker
+   fill so we don't keep luring the operator to re-create. */
+.drwp-archive-cal-plan-chip {
+    display: flex; align-items: center; gap: 4px;
+    width: 100%; margin-top: 2px;
+    padding: 2px 4px;
+    border: 0; border-left: 3px solid #16a34a;
+    background: #ecfdf5; color: #064e3b;
+    border-radius: 4px;
+    font-size: 0.72rem; line-height: 1.2;
+    text-align: left; cursor: pointer;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.drwp-archive-cal-plan-chip:hover { background: #d1fae5; }
+.drwp-archive-cal-plan-chip.is-linked { background: #f3f4f6; color: #6b7280; border-left-color: #9ca3af; }
+.drwp-archive-cal-plan-chip .drwp-archive-cal-chip-time { font-weight: 600; flex-shrink: 0; }
+.drwp-archive-cal-plan-chip .drwp-archive-cal-chip-text { overflow: hidden; text-overflow: ellipsis; }
+
+/* Secondary new-button variant — outlined green for "予定を書く"
+   so it's clearly the planning action, distinct from the solid
+   primary "日報を書く" CTA. */
+.drwp-archive-new-btn-secondary {
+    background: #fff; color: #15803d;
+    border: 1px solid #16a34a;
+}
+.drwp-archive-new-btn-secondary:hover { background: #f0fdf4; }
+
+/* Plan hint banner injected into the report form dialog when the
+   user opened it by clicking a plan chip. */
+.drwp-archive-plan-hint {
+    background: #ecfdf5; border-left: 4px solid #16a34a;
+    color: #064e3b; padding: 8px 10px; margin: 0 0 10px;
+    border-radius: 4px; font-size: 0.85rem;
+}
+.drwp-archive-plan-hint-notes {
+    margin-top: 4px; color: #1f2937; font-size: 0.8rem;
+    white-space: pre-wrap;
+}
+
+/* +予定を書く dialog form. */
+.drwp-archive-plan-form { display: flex; flex-direction: column; gap: 10px; }
+.drwp-archive-plan-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; }
+.drwp-archive-plan-field > span { color: #475569; font-weight: 600; }
+.drwp-archive-plan-field > span em { color: #b91c1c; font-style: normal; }
+.drwp-archive-plan-field input, .drwp-archive-plan-field select, .drwp-archive-plan-field textarea {
+    width: 100%; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.95rem;
+    box-sizing: border-box;
+}
+.drwp-archive-plan-times { display: flex; gap: 10px; }
+.drwp-archive-plan-times .drwp-archive-plan-field { flex: 1; }
+.drwp-archive-plan-actions { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.drwp-archive-plan-status { font-size: 0.85rem; color: #64748b; }
+.drwp-archive-plan-status.ok { color: #15803d; }
+.drwp-archive-plan-status.err { color: #b91c1c; }
