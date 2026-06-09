@@ -9,6 +9,7 @@
 $project_map = [];
 foreach (($projects ?? []) as $p) $project_map[(int) $p->id] = (string) $p->name;
 $worker_map = $can_view_all ? $workers : [];
+$is_retired = DRWP_User::is_retired();
 ?>
 <div class="wrap">
   <h1><?php esc_html_e('予定', 'drwp-daily-reports'); ?></h1>
@@ -22,12 +23,17 @@ $worker_map = $can_view_all ? $workers : [];
   <?php if (!empty($_GET['error']) && $_GET['error'] === 'missing_date'): ?>
     <div class="notice notice-error"><p><?php esc_html_e('日付は必須です。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>
+  <?php if ($is_retired): ?>
+    <div class="notice notice-warning"><p><?php esc_html_e('このアカウントは退職状態のため、予定の追加・編集はできません。閲覧のみ可能です。', 'drwp-daily-reports'); ?></p></div>
+  <?php endif; ?>
 
+  <?php if (!$is_retired): ?>
   <p>
     <button type="button" class="button button-primary" id="drwp-plan-add-btn">
       + <?php esc_html_e('新しい予定を追加', 'drwp-daily-reports'); ?>
     </button>
   </p>
+  <?php endif; ?>
 
   <details class="drwp-card drwp-filter-card" <?php echo array_filter($filters) ? 'open' : ''; ?>>
     <summary><?php esc_html_e('検索・絞り込み', 'drwp-daily-reports'); ?></summary>

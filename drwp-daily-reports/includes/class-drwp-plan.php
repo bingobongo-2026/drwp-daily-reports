@@ -49,6 +49,9 @@ class DRWP_Plan {
     }
 
     public static function can_edit($plan) {
+        // 退職社員は予定の追加・編集・削除すべて不可。読み(行を見る
+        // ことそのもの) は許す。
+        if (DRWP_User::is_retired()) return false;
         if (!$plan) return current_user_can(self::CAP_LIST);
         if (self::can_view_all()) return true;
         $uid = get_current_user_id();
@@ -232,6 +235,7 @@ class DRWP_Plan {
         if (!current_user_can(self::CAP_LIST)) {
             wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         }
+        DRWP_User::block_write_or_die();
         check_admin_referer('drwp_save_plan');
 
         $id = absint($_POST['id'] ?? 0);
@@ -301,6 +305,7 @@ class DRWP_Plan {
         if (!current_user_can(self::CAP_LIST)) {
             wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
         }
+        DRWP_User::block_write_or_die();
         check_admin_referer('drwp_delete_plan');
         $id = absint($_POST['id'] ?? 0);
         $plan = $id ? self::find($id) : null;
