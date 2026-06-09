@@ -102,6 +102,12 @@ class DRWP_REST {
             'permission_callback' => [__CLASS__, 'can_edit'],
         ]);
 
+        register_rest_route(self::NS, '/plans/(?P<id>\d+)', [
+            'methods'             => 'PATCH',
+            'callback'            => [__CLASS__, 'update_plan'],
+            'permission_callback' => [__CLASS__, 'can_edit'],
+        ]);
+
         register_rest_route(self::NS, '/ai/briefing', [
             'methods'             => 'POST',
             'callback'            => [__CLASS__, 'ai_briefing'],
@@ -310,6 +316,73 @@ class DRWP_REST {
         $response = rest_ensure_response(['id' => $id]);
         $response->set_status(201);
         return $response;
+    }
+
+    /**
+     * Partial update for a 予定 row — used by the front-end
+     * calendar's drag-and-drop date change. The same endpoint
+     * accepts other field tweaks (started_at / ended_at / notes /
+     * status / linked_report_id) so we don't have to add another
+     * REST route every time the UI grows. Permission honors
+     * `DRWP_Plan::can_edit($plan)` so workers can only touch their
+     * own rows.
+     */
+    public static function update_plan(WP_REST_Request $request) {
+        if ($err = DRWP_User::block_write_rest()) return $err;
+        if (!DRWP_License::can_write()) return self::license_error();
+
+        $id = (int) $request['id'];
+        $plan = DRWP_Plan::find($id);
+        if (!$plan) {
+            return new WP_Error('drwp_not_found', 'Plan not found', ['status' => 404]);
+        }
+        if (!DRWP_Plan::can_edit($plan)) {
+            return new WP_Error('drwp_forbidden', 'Cannot edit this plan', ['status' => 403]);
+        }
+
+        $input = $request->get_json_params() ?: [];
+        $data  = [];
+
+        if (array_key_exists('planned_date', $input)) {
+            $date = sanitize_text_field((string) $input['planned_date']);
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                return new WP_Error('drwp_invalid', 'Invalid planned_date', ['status' => 400]);
+            }
+            $data['planned_date'] = $date;
+        }
+        if (array_key_exists('started_at', $input)) {
+            $data['started_at'] = self::sanitize_time_or_null($input['started_at']);
+        }
+        if (array_key_exists('ended_at', $input)) {
+            $data['ended_at'] = self::sanitize_time_or_null($input['ended_at']);
+        }
+        if (array_key_exists('notes', $input)) {
+            $data['notes'] = wp_kses_post((string) $input['notes']);
+        }
+        if (array_key_exists('status', $input)) {
+            $status = sanitize_text_field((string) $input['status']);
+            if (!array_key_exists($status, DRWP_Plan::status_labels())) {
+                return new WP_Error('drwp_invalid', 'Invalid status', ['status' => 400]);
+            }
+            $data['status'] = $status;
+        }
+        if (array_key_exists('linked_report_id', $input)) {
+            $data['linked_report_id'] = absint($input['linked_report_id']) ?: null;
+        }
+
+        if ($data) {
+            global $wpdb;
+            $wpdb->update(DRWP_Plan::table(), $data, ['id' => $id]);
+            DRWP_Audit::log('plan_updated', '予定を更新 (REST)', $id, [
+                'source' => 'rest',
+                'fields' => array_keys($data),
+            ]);
+        }
+
+        return rest_ensure_response([
+            'id'      => $id,
+            'updated' => array_keys($data),
+        ]);
     }
 
     private static function sanitize_time_or_null($v) {

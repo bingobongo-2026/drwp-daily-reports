@@ -381,6 +381,18 @@
 }
 .drwp-archive-cal-plan-chip:hover { background: #d1fae5; }
 .drwp-archive-cal-plan-chip.is-linked { background: #f3f4f6; color: #6b7280; border-left-color: #9ca3af; }
+/* Drag-to-reschedule affordance. The chip itself gets the grab
+   cursor when draggable, and a drop-target cell shows an amber
+   dashed outline so the worker can see exactly where the chip
+   will land before letting go. */
+.drwp-archive-cal-plan-chip[draggable="true"] { cursor: grab; }
+.drwp-archive-cal-plan-chip[draggable="true"]:active { cursor: grabbing; }
+.drwp-archive-cal-plan-chip.is-dragging { opacity: 0.4; }
+.drwp-archive-cal-cell.is-drop-target {
+    background: #fef3c7;
+    outline: 2px dashed #f59e0b;
+    outline-offset: -2px;
+}
 .drwp-archive-cal-plan-chip .drwp-archive-cal-chip-time { font-weight: 600; flex-shrink: 0; }
 .drwp-archive-cal-plan-chip .drwp-archive-cal-chip-text { overflow: hidden; text-overflow: ellipsis; }
 
