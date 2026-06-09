@@ -149,6 +149,12 @@ class DRWP_Admin {
             wp_enqueue_editor();
             return;
         }
+        // Customer photo gallery uses wp.media + Sortable inside the
+        // edit dialog. Library is loaded on the 顧客 page itself.
+        if (is_string($hook) && strpos($hook, 'drwp_customers') !== false) {
+            wp_enqueue_media();
+            return;
+        }
         if (!is_string($hook) || strpos($hook, 'drwp_report_edit') === false) return;
         wp_enqueue_media();
         wp_enqueue_style('drwp-admin', DRWP_URL . 'admin/assets/admin.css', [], DRWP_VERSION);

@@ -175,6 +175,19 @@
 
 レビュー・公開ライフサイクルは持たない。`DRWP_Plan::dates_for_calendar()` が日報一覧カレンダーの緑ドットオーバーレイ用のマップを返す。`DRWP_Plan::linkable_reports($plan)` は予定編集モーダルで「同日・同案件」の日報候補を出すために使う。
 
+### 3.11 `drwp_customer_photos` — 顧客の登録画像
+
+| カラム | 型 | 説明 |
+| --- | --- | --- |
+| `id` | BIGINT PK auto_inc | |
+| `customer_id` | BIGINT NOT NULL | `drwp_customers.id` |
+| `attachment_id` | BIGINT NOT NULL | WP メディアの attachment_id |
+| `caption` | VARCHAR(255) NULL | |
+| `sort_order` | INT UNSIGNED | |
+| `created_at` | DATETIME | |
+
+`drwp_report_photos` から `entry_id` を抜いた構造。`DRWP_Customer_Media::for_customer($id)` で行を取得、`sync($id, $rows)` で delete → bulk insert で置き換える。顧客一覧ページの「🖼 N」インジケータは `DRWP_Customer_Media::counts($ids)` で 1 クエリにまとめている。
+
 ### v1.11 で削除されたテーブル
 
 `drwp_report_entries` テーブル(v1.9〜1.10 の「1 日報 × N エントリ」用)は `DRWP_DB::maybe_upgrade()` で `DROP TABLE IF EXISTS` される。`drwp_report_photos.entry_id` はカラムは残るが、`UPDATE ... SET entry_id = NULL` で参照が外れる。
@@ -293,6 +306,8 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 - `DRWP_Customer::search($s, $customer_group_id)`: `name / address / 電話 / メール / 備考` を LIKE 横断、グループは `drwp_customer_group_map` の EXISTS で絞り込む。
 - `DRWP_Project::search($s, $customer_group_id, $project_group_id)`: 案件側の同様列に加えて JOIN した顧客名 `cu.name` も対象。顧客グループは `p.customer_id` 経由、案件グループは `p.id` 経由でそれぞれ EXISTS。
+
+顧客編集モーダルは住所・連絡先に加えて「画像」セクションを持つ。`wp_enqueue_media()` が顧客ページで読み込まれ、`wp.media` フレームで `attachment_ids[]` / `attachment_captions[]` を送る。`DRWP_Customer::save()` が `DRWP_Customer_Media::sync()` を呼んで `drwp_customer_photos` を入れ替える。顧客一覧テーブルには「🖼 N」チップで枚数だけ可視化。
 
 ### 5.5 PDF出力
 

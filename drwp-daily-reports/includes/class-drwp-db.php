@@ -50,6 +50,7 @@ class DRWP_DB {
         $comments = $wpdb->prefix . 'drwp_comments';
         $audit = $wpdb->prefix . 'drwp_audit_logs';
         $photos = $wpdb->prefix . 'drwp_report_photos';
+        $customer_photos = $wpdb->prefix . 'drwp_customer_photos';
 
         // Customer ("顧客") — owns address / phone / email and is
         // referenced by 0..N projects. Project-level address fields
@@ -225,6 +226,21 @@ class DRWP_DB {
             KEY group_id (group_id)
         ) $charset;";
         dbDelta($sql9);
+
+        // Customer photos — many-per-customer gallery (logo, 名刺,
+        // 外観 etc). Mirrors drwp_report_photos minus the entry_id
+        // legacy column. Captions are optional.
+        $sql_cp = "CREATE TABLE $customer_photos (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            customer_id BIGINT UNSIGNED NOT NULL,
+            attachment_id BIGINT UNSIGNED NOT NULL,
+            caption VARCHAR(255) NULL,
+            sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY customer_id (customer_id)
+        ) $charset;";
+        dbDelta($sql_cp);
 
         // 予定 — planned site visits, sibling to drwp_reports but
         // with no review / publish lifecycle. `user_id` is the
