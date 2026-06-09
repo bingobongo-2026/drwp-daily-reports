@@ -56,13 +56,14 @@
         <th><?php esc_html_e('住所', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('電話番号', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('メール', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('画像', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('状態', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('操作', 'drwp-daily-reports'); ?></th>
       </tr>
     </thead>
     <tbody>
       <?php if (empty($customers)): ?>
-        <tr><td colspan="8">
+        <tr><td colspan="9">
           <?php if ($filters['search'] !== '' || !empty($filters['group_id'])):
             esc_html_e('該当する顧客が見つかりません。', 'drwp-daily-reports');
           else:
@@ -96,10 +97,17 @@
           ?></td>
           <td><?php echo esc_html($c->phone ?: '-'); ?></td>
           <td><?php echo esc_html($c->email ?: '-'); ?></td>
+          <td><?php
+            $pcnt = (int) ($customer_photo_counts[$cid] ?? 0);
+            echo $pcnt > 0
+                ? '<span class="drwp-cust-photo-chip">🖼 ' . esc_html((string) $pcnt) . '</span>'
+                : '-';
+          ?></td>
           <td><?php echo esc_html(DRWP_Labels::project_status((string) $c->status)); ?></td>
           <td>
             <button type="button" class="button button-small drwp-customer-edit-btn"
                     data-id="<?php echo $cid; ?>"
+                    data-photos="<?php echo esc_attr(wp_json_encode($customer_photos[$cid] ?? [])); ?>"
                     data-name="<?php echo esc_attr($c->name); ?>"
                     data-status="<?php echo esc_attr($c->status); ?>"
                     data-postal_code="<?php echo esc_attr($c->postal_code ?? ''); ?>"
@@ -198,6 +206,18 @@
             </td>
           </tr>
           <tr>
+            <th><?php esc_html_e('画像', 'drwp-daily-reports'); ?></th>
+            <td>
+              <button type="button" class="button" id="drwp-cm-add-photo-btn">
+                + <?php esc_html_e('画像を追加', 'drwp-daily-reports'); ?>
+              </button>
+              <p class="description">
+                <?php esc_html_e('ロゴ・名刺・外観など複数登録できます。× で削除。', 'drwp-daily-reports'); ?>
+              </p>
+              <div id="drwp-cm-photo-list" class="drwp-cm-photo-list"></div>
+            </td>
+          </tr>
+          <tr>
             <th><label for="drwp-cm-notes"><?php esc_html_e('備考', 'drwp-daily-reports'); ?></label></th>
             <td><textarea id="drwp-cm-notes" name="notes" rows="3" class="large-text"></textarea></td>
           </tr>
@@ -242,6 +262,17 @@
    left blank renders the pill without a dot. */
 .drwp-cg-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 8px 1px 6px;margin:1px 4px 1px 0;background:#f1f5f9;border-radius:10px;font-size:11px;line-height:1.7;color:#1d2327;white-space:nowrap}
 .drwp-cg-chip-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#94a3b8;flex-shrink:0}
+.drwp-cust-photo-chip{display:inline-block;padding:1px 8px;background:#eef2ff;color:#3730a3;border-radius:10px;font-size:11px;font-weight:600}
+/* Photo gallery inside the customer edit dialog. Card structure
+   mirrors the report photo picker on `class-drwp-admin.js` so the
+   user-facing affordance stays familiar (drag to reorder, ×
+   removes, caption below the thumb). */
+.drwp-cm-photo-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;min-height:24px}
+.drwp-cm-photo-item{position:relative;width:120px;border:1px solid #d1d5db;border-radius:8px;padding:6px;background:#fff;cursor:grab}
+.drwp-cm-photo-item:active{cursor:grabbing}
+.drwp-cm-photo-item img{display:block;width:100%;height:90px;object-fit:cover;border-radius:4px;background:#f3f4f6}
+.drwp-cm-photo-item .drwp-cm-photo-remove{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;border:0;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}
+.drwp-cm-photo-item .drwp-cm-photo-caption{display:block;width:100%;margin-top:4px;font-size:11px;padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;box-sizing:border-box}
 </style>
 
 <script>
@@ -273,11 +304,65 @@
     });
   }
 
+  /* ---- 画像ピッカー ---- */
+  var photoList = document.getElementById('drwp-cm-photo-list');
+  var photoBtn  = document.getElementById('drwp-cm-add-photo-btn');
+  var mediaFrame;
+
+  function addPhotoCard(id, url, caption) {
+    var card = document.createElement('div');
+    card.className = 'drwp-cm-photo-item';
+    card.innerHTML =
+      '<button type="button" class="drwp-cm-photo-remove" aria-label="削除">×</button>' +
+      '<img alt="" />' +
+      '<input type="hidden" name="attachment_ids[]" />' +
+      '<input type="text" name="attachment_captions[]" class="drwp-cm-photo-caption" placeholder="キャプション" />';
+    card.querySelector('img').src = url;
+    card.querySelector('input[type=hidden]').value = String(id);
+    card.querySelector('input[type=text]').value = caption || '';
+    photoList.appendChild(card);
+  }
+
+  function clearPhotos() {
+    while (photoList.firstChild) photoList.removeChild(photoList.firstChild);
+  }
+
+  photoBtn.addEventListener('click', function () {
+    if (!window.wp || !window.wp.media) {
+      window.alert('メディアライブラリが読み込まれていません。ページを再読み込みしてください。');
+      return;
+    }
+    if (!mediaFrame) {
+      mediaFrame = wp.media({
+        title: '画像を選択',
+        button: { text: '追加する' },
+        multiple: true,
+        library: { type: 'image' },
+      });
+      mediaFrame.on('select', function () {
+        mediaFrame.state().get('selection').toJSON().forEach(function (att) {
+          var thumb = (att.sizes && (att.sizes.thumbnail || att.sizes.medium)) || att;
+          addPhotoCard(att.id, thumb.url || att.url, att.caption || '');
+        });
+      });
+    }
+    mediaFrame.open();
+  });
+
+  photoList.addEventListener('click', function (e) {
+    var btn = e.target.closest('.drwp-cm-photo-remove');
+    if (!btn) return;
+    e.preventDefault();
+    var card = btn.closest('.drwp-cm-photo-item');
+    if (card) card.parentNode.removeChild(card);
+  });
+
   function clearForm(){
     fields.forEach(function(f){ if(map[f]) map[f].value = ''; });
     if(map.status) map.status.value = 'active';
     if(map.id) map.id.value = '0';
     setGroupSelection([]);
+    clearPhotos();
   }
 
   document.getElementById('drwp-customer-add-btn').addEventListener('click', function(){
@@ -310,6 +395,14 @@
       try { gids = JSON.parse(d.group_ids) || []; } catch (e) { gids = []; }
     }
     setGroupSelection(gids);
+    clearPhotos();
+    if (d.photos) {
+      try {
+        (JSON.parse(d.photos) || []).forEach(function (p) {
+          addPhotoCard(p.id, p.url, p.caption || '');
+        });
+      } catch (e) {}
+    }
     dlg.showModal();
     map.name.focus();
   });

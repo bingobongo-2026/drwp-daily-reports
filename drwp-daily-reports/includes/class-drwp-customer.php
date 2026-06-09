@@ -50,6 +50,26 @@ class DRWP_Customer {
         foreach ($customer_groups as $cid => $gs) {
             $customer_group_ids[$cid] = array_map(fn($g) => (int) $g->id, $gs);
         }
+        // Photo data for the listing chip + edit modal preloading.
+        // Counts power the "🖼 N" indicator on the list; the per-id
+        // map (id, url, caption) seeds the dialog with existing
+        // thumbnails when the operator opens an edit row.
+        $customer_photo_counts = DRWP_Customer_Media::counts($customer_ids);
+        $customer_photos = [];
+        foreach ($customer_ids as $cid) {
+            $rows = DRWP_Customer_Media::for_customer($cid);
+            $payload = [];
+            foreach ($rows as $r) {
+                $url = wp_get_attachment_image_url((int) $r->attachment_id, 'thumbnail');
+                if (!$url) continue;
+                $payload[] = [
+                    'id'      => (int) $r->attachment_id,
+                    'url'     => $url,
+                    'caption' => (string) ($r->caption ?? ''),
+                ];
+            }
+            $customer_photos[$cid] = $payload;
+        }
         include DRWP_PATH . 'admin/views/customers-page.php';
     }
 
@@ -136,6 +156,20 @@ class DRWP_Customer {
             ? array_map('absint', (array) $_POST['group_ids'])
             : [];
         DRWP_Customer_Group::set_for_customer($saved_id, $group_ids);
+
+        // 画像 — same shape as the report photo picker: parallel
+        // attachment_ids[] / attachment_captions[] arrays in the
+        // order the operator arranged them in the dialog.
+        $attachment_ids = isset($_POST['attachment_ids']) ? (array) $_POST['attachment_ids'] : [];
+        $captions       = isset($_POST['attachment_captions']) ? (array) $_POST['attachment_captions'] : [];
+        $photo_rows = [];
+        foreach ($attachment_ids as $i => $aid) {
+            $photo_rows[] = [
+                'attachment_id' => (int) $aid,
+                'caption'       => (string) ($captions[$i] ?? ''),
+            ];
+        }
+        DRWP_Customer_Media::sync($saved_id, $photo_rows);
 
         wp_safe_redirect(admin_url('admin.php?page=drwp_customers&saved=1'));
         exit;

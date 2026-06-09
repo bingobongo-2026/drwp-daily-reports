@@ -14,6 +14,8 @@ $tables = [
     $wpdb->prefix . 'drwp_comments',
     $wpdb->prefix . 'drwp_audit_logs',
     $wpdb->prefix . 'drwp_report_photos',
+    $wpdb->prefix . 'drwp_customer_photos',
+    $wpdb->prefix . 'drwp_plans',
 ];
 foreach ($tables as $table) {
     // dbDelta only adds columns; we have to drop tables ourselves.
