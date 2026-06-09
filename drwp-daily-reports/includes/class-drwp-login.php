@@ -81,58 +81,78 @@ class DRWP_Login {
     }
 
     public static function shortcode($atts = []) {
-        wp_enqueue_style(self::HANDLE);
-
         // 退職社員はログインフォームそのものを見せない。マーカー
         // Cookie か URL の `?drwp_retired=1` を拾って、フォーム
         // の代わりに「ログインできません」を出す。
         $retired_marker = (DRWP_User::has_marker_cookie() || !empty($_GET['drwp_retired']))
                        && !is_user_logged_in();
         if ($retired_marker || (is_user_logged_in() && DRWP_User::is_retired())) {
+            wp_enqueue_style(self::HANDLE);
             return self::wrap('<p class="drwp-login-flash err drwp-login-retired">'
                 . esc_html__('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports')
                 . '</p>');
         }
 
         if (is_user_logged_in()) {
-            $user = wp_get_current_user();
-            // Render the logged-in indicator as a fixed top-of-page
-            // bar instead of inline where the shortcode sits. The
-            // operator's preferred layout puts the shortcode below
-            // the report form, but the "you are signed in as X"
-            // status is something the worker wants to see at a
-            // glance, not after scrolling to the bottom. Positioning
-            // is done in CSS (.drwp-login-bar) so the markup stays
-            // semantic.
-            return '<div class="drwp-login-bar">'
-                . '<span class="drwp-login-bar-text">'
-                . sprintf(
-                    /* translators: 1: display name */
-                    esc_html__('%s さんとしてログイン中', 'drwp-daily-reports'),
-                    esc_html(DRWP_User::display_name($user))
-                )
-                . '</span> '
-                . '<a class="drwp-login-bar-logout" href="' . esc_url(wp_logout_url(home_url('/'))) . '">'
-                . esc_html__('ログアウト', 'drwp-daily-reports')
-                . '</a>'
-                . '</div>';
+            return self::render_logged_in_bar(wp_get_current_user());
         }
+        return self::render_login_box();
+    }
+
+    /**
+     * Render-only helpers used by both `[drwp_login_form]` and
+     * `[drwp_report_archive]` so the operator can deploy just one
+     * shortcode and get login + data on the same page. Each one
+     * dedups via a static flag — if the operator happens to have
+     * both shortcodes on the page, only the first occurrence
+     * actually emits markup (matters for the bar, which is the
+     * one piece that would visually stack as 2 fixed bars
+     * otherwise).
+     */
+    private static $bar_rendered = false;
+    private static $box_rendered = false;
+
+    public static function render_logged_in_bar($user) {
+        if (self::$bar_rendered) return '';
+        self::$bar_rendered = true;
+        wp_enqueue_style(self::HANDLE);
+        // Fixed-position bar at the top of the page (positioned in
+        // CSS, not via flow), so wherever this gets emitted on the
+        // page it visually lands at the top.
+        return '<div class="drwp-login-bar">'
+            . '<span class="drwp-login-bar-text">'
+            . sprintf(
+                /* translators: 1: display name */
+                esc_html__('%s さんとしてログイン中', 'drwp-daily-reports'),
+                esc_html(DRWP_User::display_name($user))
+            )
+            . '</span> '
+            . '<a class="drwp-login-bar-logout" href="' . esc_url(wp_logout_url(home_url('/'))) . '">'
+            . esc_html__('ログアウト', 'drwp-daily-reports')
+            . '</a>'
+            . '</div>';
+    }
+
+    public static function render_login_box($redirect_to = null) {
+        if (self::$box_rendered) return '';
+        self::$box_rendered = true;
+        wp_enqueue_style(self::HANDLE);
 
         // redirect_to fallback chain:
-        //   1. ?redirect_to=... query (used when WP bounced the
-        //      user here from somewhere with a specific destination)
-        //   2. the current page itself (useful when this shortcode
-        //      lives on the same page as [drwp_report_form] — the
-        //      field worker logs in and stays on the form rather
-        //      than being kicked into /wp-admin)
-        //   3. the admin reports list as a generic fallback for
-        //      operators who land on the login page directly
-        if (!empty($_GET['redirect_to'])) {
-            $redirect_to = esc_url_raw(wp_unslash($_GET['redirect_to']));
-        } elseif (is_singular() && ($permalink = get_permalink())) {
-            $redirect_to = $permalink;
-        } else {
-            $redirect_to = admin_url('admin.php?page=drwp_reports');
+        //   1. caller-supplied(`[drwp_report_archive]` passes the
+        //      page's own permalink so logged-out workers land back
+        //      on the archive view after signing in)
+        //   2. ?redirect_to=... query
+        //   3. the current page itself
+        //   4. the admin reports list as a generic fallback
+        if ($redirect_to === null) {
+            if (!empty($_GET['redirect_to'])) {
+                $redirect_to = esc_url_raw(wp_unslash($_GET['redirect_to']));
+            } elseif (is_singular() && ($permalink = get_permalink())) {
+                $redirect_to = $permalink;
+            } else {
+                $redirect_to = admin_url('admin.php?page=drwp_reports');
+            }
         }
 
         $form = wp_login_form([
@@ -144,11 +164,6 @@ class DRWP_Login {
             'label_log_in'   => __('ログイン', 'drwp-daily-reports'),
         ]);
 
-        // Lost-password link: if the operator has set a front-side
-        // page in settings, point at it (so visitors never see
-        // /wp-login.php for the recovery flow). Otherwise fall back
-        // to WP's standard wp_lostpassword_url() which lives on
-        // /wp-login.php.
         $lost_page_id = (int) get_option(self::OPT_LOSTPASS_PAGE);
         if ($lost_page_id && ($lost_url = get_permalink($lost_page_id))) {
             $lost_href = $lost_url;
