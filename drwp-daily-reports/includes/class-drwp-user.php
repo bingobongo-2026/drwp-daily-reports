@@ -18,28 +18,47 @@ if (!defined('ABSPATH')) exit;
  * が他の作業員を退職にする経路は無い。
  */
 class DRWP_User {
-    const META_RETIRED = 'drwp_retired';
-    const CAP_MANAGE   = 'edit_others_posts';
+    const META_RETIRED  = 'drwp_retired';
+    const CAP_MANAGE    = 'edit_others_posts';
+    // Short-lived marker cookie set whenever we detect a retired
+    // session (either at logout time or right after a login attempt
+    // was rejected). The marker survives wp_logout / the redirect
+    // chain so the next page render — shortcode or wp-login bounce —
+    // can present the "退職" notice instead of a generic
+    // "please log in" affordance.
+    const COOKIE_MARKER = 'drwp_retired_seen';
 
     public static function init() {
         add_action('admin_post_drwp_set_retired', [__CLASS__, 'handle_set_retired']);
-        // 退職社員は閲覧含めて利用不可。
-        // - 新規ログインは `authenticate` フィルタで弾く
-        // - 既存セッションは個別の境界 (フロントショートコード /
-        //   wp-admin の DRWP ページ / REST) で「退職状態のため利用
-        //   できません」を表示する。wp-login.php に飛ばすのは UX が
-        //   悪い(現場の社員はそれが何かわからない)ので避ける。
-        add_filter('authenticate', [__CLASS__, 'block_retired_login'], 100, 1);
-        add_action('admin_init',   [__CLASS__, 'block_drwp_admin_pages_if_retired']);
+        // 退職社員はそもそもログインできない / 既存セッションも即破棄。
+        // - 新規ログイン: `authenticate` フィルタで `WP_Error` 返却
+        // - 既存セッション: `init` 早期に `wp_logout` + 退職マーカー
+        //   Cookie をセット。続くショートコードがそれを拾って
+        //   「ログインできません」を出す
+        // - wp-admin の DRWP ページ: `admin_init` で `wp_die`
+        // - wp-login.php(既存セッション → 管理画面行き 302 経由 /
+        //   ログイン失敗エラーページ): `login_init` で常時
+        //   ショートコードページに弾く(wp-login の画面は見せない)
+        add_filter('authenticate',     [__CLASS__, 'block_retired_login'], 100, 1);
+        add_action('init',             [__CLASS__, 'invalidate_session_if_retired'], 1);
+        add_action('admin_init',       [__CLASS__, 'block_drwp_admin_pages_if_retired']);
+        add_action('login_init',       [__CLASS__, 'redirect_wp_login_for_retired'], 1);
+        add_filter('wp_login_errors',  [__CLASS__, 'redirect_on_retired_error'], 1, 2);
+        add_action('wp_login',         [__CLASS__, 'clear_retired_marker_cookie_on_login'], 10, 2);
     }
 
     /**
      * Reject the login of a user who's flagged 退職. Runs at
      * priority 100 so the stock password/cookie checks have
      * already produced a WP_User before we look at the meta.
+     * Also drops the marker cookie so the subsequent redirect
+     * (`redirect_wp_login_for_retired`) can present the notice
+     * on the shortcode page instead of leaving the worker on
+     * wp-login.php's bare error screen.
      */
     public static function block_retired_login($user) {
         if ($user instanceof WP_User && self::is_retired((int) $user->ID)) {
+            self::set_marker_cookie();
             return new WP_Error(
                 'drwp_retired',
                 __('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports')
@@ -49,22 +68,153 @@ class DRWP_User {
     }
 
     /**
+     * Tear down the session of a retired worker who was still
+     * logged in when the operator flipped the switch. Fires very
+     * early on `init` so by the time auth_redirect / shortcode
+     * rendering sees the current user, they're already logged
+     * out. Front-end shortcodes pick up the marker cookie and
+     * render the "退職" notice; wp-admin requests fall through to
+     * the standard not-logged-in flow and get caught by our
+     * `login_init` redirect (so wp-login.php's UI never shows).
+     */
+    public static function invalidate_session_if_retired() {
+        if (!is_user_logged_in()) return;
+        if (!self::is_retired()) return;
+        self::set_marker_cookie();
+        wp_logout();
+    }
+
+    /**
      * Lock retired users out of every DRWP admin page (`?page=drwp_*`)
-     * with an in-place `wp_die` notice. We don't auto-logout because
-     * that cascades into a wp-login.php redirect — the operator-side
-     * "social" UX requested is "remain on the page they hit, show the
-     * notice in place". Other wp-admin pages (Posts, Media, ...) are
-     * untouched.
+     * with an in-place `wp_die` notice. Two scenarios:
+     * - `is_retired()` true: still-logged-in retired user. Rare
+     *   because `invalidate_session_if_retired` runs first, but
+     *   defense in depth.
+     * - Marker cookie present + not logged in: just-logged-out
+     *   retired user landed here via WP's auth_redirect. Bounce
+     *   them off wp-admin to the shortcode page (which renders
+     *   the notice) instead of WP redirecting on to wp-login.php.
      */
     public static function block_drwp_admin_pages_if_retired() {
-        if (!self::is_retired()) return;
-        $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : '';
-        if ($page === '' || strpos($page, 'drwp_') !== 0) return;
-        wp_die(
-            esc_html__('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports'),
-            esc_html__('退職', 'drwp-daily-reports'),
-            ['response' => 403, 'back_link' => false]
-        );
+        if (self::is_retired()) {
+            wp_die(
+                esc_html__('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports'),
+                esc_html__('退職', 'drwp-daily-reports'),
+                ['response' => 403, 'back_link' => false]
+            );
+        }
+        if (!is_user_logged_in() && self::has_marker_cookie()) {
+            $url = self::landing_url();
+            wp_safe_redirect(add_query_arg('drwp_retired', '1', $url));
+            exit;
+        }
+    }
+
+    /**
+     * Intercept wp-login.php loads and shove retired-marked
+     * visitors at the shortcode page instead. Triggers from both
+     * paths that would normally land on wp-login:
+     * - wp-admin auth_redirect after the init logout (cookie
+     *   carries the retired hint)
+     * - failed login attempt by a retired user (the
+     *   `authenticate` filter dropped the cookie before WP
+     *   re-rendered the form)
+     *
+     * Form POSTs are left alone — those have to flow through
+     * wp-login.php so wp_authenticate can run. We catch the
+     * resulting error one redirect later when the response form
+     * tries to render.
+     */
+    public static function redirect_wp_login_for_retired() {
+        if (!empty($_POST)) return;
+        // Logout / password reset confirmation / interim auth /
+        // 2FA challenges have to keep flowing through wp-login.php.
+        // Only intercept the bare login-form rendering.
+        $action = isset($_GET['action']) ? sanitize_key((string) $_GET['action']) : '';
+        if ($action !== '' && $action !== 'login') return;
+        if (!empty($_GET['interim-login'])) return;
+        $has_marker = self::has_marker_cookie() || !empty($_GET['drwp_retired']);
+        if (!$has_marker) return;
+        $url = self::landing_url();
+        if (!$url) return;
+        wp_safe_redirect(add_query_arg('drwp_retired', '1', $url));
+        exit;
+    }
+
+    /**
+     * Post-authentication error path on wp-login.php. When the
+     * error includes `drwp_retired`(set by `block_retired_login`),
+     * bounce to the landing page instead of letting wp-login.php
+     * render the form with the error. `login_init` skips POSTs so
+     * this hook is what covers the failed-login-by-retired case.
+     */
+    public static function redirect_on_retired_error($errors, $redirect_to) {
+        unset($redirect_to);
+        if (!is_wp_error($errors)) return $errors;
+        if (!in_array('drwp_retired', $errors->get_error_codes(), true)) return $errors;
+        $url = self::landing_url();
+        if ($url) {
+            wp_safe_redirect(add_query_arg('drwp_retired', '1', $url));
+            exit;
+        }
+        return $errors;
+    }
+
+    /**
+     * Successful login by a non-retired user — drop the marker
+     * cookie so the "退職" notice doesn't keep appearing for the
+     * next person on a shared device.
+     */
+    public static function clear_retired_marker_cookie_on_login($user_login, $user) {
+        unset($user_login);
+        if ($user instanceof WP_User && self::is_retired((int) $user->ID)) {
+            return; // shouldn't happen — authenticate would reject first
+        }
+        self::clear_marker_cookie();
+    }
+
+    /** Has the request shown signs of being retired-rejected? */
+    public static function has_marker_cookie() {
+        return !empty($_COOKIE[self::COOKIE_MARKER]);
+    }
+
+    private static function set_marker_cookie() {
+        if (headers_sent()) return;
+        setcookie(self::COOKIE_MARKER, '1', [
+            'expires'  => time() + HOUR_IN_SECONDS,
+            'path'     => '/',
+            'secure'   => is_ssl(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+        // Make the cookie available within the current request so
+        // shortcodes rendering on this same hit see the marker
+        // without waiting for the next round-trip.
+        $_COOKIE[self::COOKIE_MARKER] = '1';
+    }
+
+    private static function clear_marker_cookie() {
+        if (headers_sent()) return;
+        setcookie(self::COOKIE_MARKER, '', [
+            'expires'  => time() - HOUR_IN_SECONDS,
+            'path'     => '/',
+            'secure'   => is_ssl(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+        unset($_COOKIE[self::COOKIE_MARKER]);
+    }
+
+    /**
+     * Where to send a retired user instead of wp-login.php /
+     * wp-admin. Prefers the operator-configured login page (which
+     * usually hosts `[drwp_login_form]` + the report archive); falls
+     * back to the site root so we still avoid wp-login.
+     */
+    public static function landing_url() {
+        $page_id = (int) get_option('drwp_login_page_id');
+        if ($page_id && ($url = get_permalink($page_id))) return $url;
+        return home_url('/');
     }
 
     /**
