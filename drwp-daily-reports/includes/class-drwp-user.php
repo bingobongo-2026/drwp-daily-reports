@@ -23,6 +23,65 @@ class DRWP_User {
 
     public static function init() {
         add_action('admin_post_drwp_set_retired', [__CLASS__, 'handle_set_retired']);
+        // 退職社員は閲覧も含めて利用不可。新規ログインは
+        // `authenticate` で弾き、既存セッションは `init` で破棄して
+        // ログイン画面に戻す。`login_message` 経由で「退職状態」の
+        // 説明文を出して再ログインの再試行も諦めてもらう。
+        add_filter('authenticate',  [__CLASS__, 'block_retired_login'], 100, 1);
+        add_action('init',          [__CLASS__, 'force_logout_if_retired']);
+        add_filter('login_message', [__CLASS__, 'login_message_for_retired']);
+    }
+
+    /**
+     * Reject the login of a user who's flagged 退職. Runs at
+     * priority 100 so the stock password/cookie checks have
+     * already produced a WP_User before we look at the meta.
+     */
+    public static function block_retired_login($user) {
+        if ($user instanceof WP_User && self::is_retired((int) $user->ID)) {
+            return new WP_Error(
+                'drwp_retired',
+                __('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports')
+            );
+        }
+        return $user;
+    }
+
+    /**
+     * Tear down the session of a retired user who was logged in
+     * BEFORE the operator flipped the switch. Fires on every
+     * request — front, wp-admin, REST, admin-ajax. For non-XHR
+     * requests we redirect to the login screen with a marker so
+     * the user can see the explanation; XHR/REST just lose the
+     * session and let the downstream permission_callback return
+     * 401.
+     */
+    public static function force_logout_if_retired() {
+        if (!is_user_logged_in()) return;
+        if (!self::is_retired()) return;
+        wp_logout();
+        $is_xhr  = (function_exists('wp_doing_ajax') && wp_doing_ajax())
+                || (defined('REST_REQUEST') && REST_REQUEST)
+                || (defined('DOING_CRON')   && DOING_CRON)
+                || (defined('WP_CLI')       && WP_CLI);
+        if ($is_xhr) return;
+        // Avoid an infinite loop if we're already on wp-login.php.
+        if (isset($GLOBALS['pagenow']) && $GLOBALS['pagenow'] === 'wp-login.php') return;
+        wp_safe_redirect(add_query_arg('drwp_retired', '1', wp_login_url()));
+        exit;
+    }
+
+    /**
+     * Inject the explanation banner above the wp-login.php form
+     * when the user landed there via the force-logout redirect or
+     * was just rejected by `block_retired_login`.
+     */
+    public static function login_message_for_retired($message) {
+        if (empty($_GET['drwp_retired'])) return $message;
+        $notice = '<p class="message" style="border-left:4px solid #6b7280;">'
+                . esc_html__('このアカウントは退職状態のため、利用できません。詳しくは管理者にお問い合わせください。', 'drwp-daily-reports')
+                . '</p>';
+        return $notice . $message;
     }
 
     public static function is_retired($user_id = null) {

@@ -299,20 +299,18 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 `drwp_workers` ページ(`edit_others_posts`)。`edit_posts` を持つユーザー全員を「在籍 / 退職 / すべて」タブで一覧し、`drwp_retired` user_meta を退職トグルで切り替える。トグルすると `DRWP_Audit` に `user_retired` / `user_reactivated` イベントが残る。最終日報日と日報数も列で表示するので、操作前に「本当に書いていない人か」を確認できる。
 
-退職フラグの効果は **書き込みのみブロック**:
+退職フラグの効果は **ログイン自体を遮断 + 既存セッション強制破棄**:
 
 | 操作 | 退職時の挙動 |
 | --- | --- |
-| 過去日報の閲覧 (フロント / wp-admin) | 通す |
-| `[drwp_report_archive]` カレンダー | 通す。バナーで「退職状態」を告知、`+日報を書く` / `+予定を書く` ボタンは非表示 |
-| REST `POST /reports` / `PATCH /reports/{id}` | 403 (`drwp_retired`) |
-| REST `POST /plans` / `POST /upload-photo` / `POST /comments` / レビュー / convert | 403 |
-| `admin_post_drwp_save_plan` / `drwp_delete_plan` / `drwp_save_report` | `wp_die` 403 |
-| フロント編集 (`?drwp_id=N&drwp_edit=1`) | `wp_die` 403 + 案内文 |
-| wp-admin 予定ページ | 一覧は読める。追加/編集ボタンは消える |
-| wp-admin 日報編集ページ (`drwp_report_edit`) | `wp_die` 403 |
+| 新規ログイン (wp-login) | `authenticate` フィルタが `WP_Error('drwp_retired')` を返して拒否 |
+| 退職前から続いているセッション | `init` フックで `wp_logout()` 後、`?drwp_retired=1` 付きで `wp-login.php` にリダイレクト |
+| REST / admin-ajax / cron / WP-CLI | リダイレクトはせずに `wp_logout()` のみ。続く `permission_callback` が 401/403 を返す |
+| ログイン画面 (`?drwp_retired=1`) | `login_message` フィルタが「このアカウントは退職状態のため利用できません」のバナーを上に出す |
 
-`DRWP_User::is_retired($uid = null)` が共通の判定、`block_write_rest()` / `block_write_or_die()` が REST / WP 標準のエラー応答を返す。書き込み境界 (REST callback / `admin-post` / `template_redirect`) ごとに最初の行でこれを呼ぶ規約。
+これでフロント・wp-admin・REST すべてに到達できなくなる。万一フックが何らかの理由で動かない場合の保険として、書き込み境界 (REST callback / `admin-post` / `template_redirect`) には `DRWP_User::block_write_rest()` / `block_write_or_die()` のガードを残してある(defense in depth)。
+
+`DRWP_User::is_retired($uid = null)` が共通の判定。`force_logout_if_retired()` がリダイレクトループを避けるため `pagenow === 'wp-login.php'` と XHR/REST/CRON/CLI をスキップする点に注意。
 
 - 一覧テーブル: 日付 / 時間 / 案件 / 担当 / メモ / 状態 / 紐づく日報 / 操作
 - 作業員 (`edit_posts` のみ) は `user_id` または `created_by` が自分の予定だけ見える / 編集できる。担当者ドロップダウンは出さず保存時に自動で自分が `user_id` になる
