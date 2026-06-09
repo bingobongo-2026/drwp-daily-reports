@@ -83,6 +83,17 @@ class DRWP_Login {
     public static function shortcode($atts = []) {
         wp_enqueue_style(self::HANDLE);
 
+        // 退職社員はログインフォームそのものを見せない。マーカー
+        // Cookie か URL の `?drwp_retired=1` を拾って、フォーム
+        // の代わりに「ログインできません」を出す。
+        $retired_marker = (DRWP_User::has_marker_cookie() || !empty($_GET['drwp_retired']))
+                       && !is_user_logged_in();
+        if ($retired_marker || (is_user_logged_in() && DRWP_User::is_retired())) {
+            return self::wrap('<p class="drwp-login-flash err drwp-login-retired">'
+                . esc_html__('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports')
+                . '</p>');
+        }
+
         if (is_user_logged_in()) {
             $user = wp_get_current_user();
             // Render the logged-in indicator as a fixed top-of-page

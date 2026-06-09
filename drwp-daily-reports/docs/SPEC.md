@@ -299,18 +299,26 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 `drwp_workers` ページ(`edit_others_posts`)。`edit_posts` を持つユーザー全員を「在籍 / 退職 / すべて」タブで一覧し、`drwp_retired` user_meta を退職トグルで切り替える。トグルすると `DRWP_Audit` に `user_retired` / `user_reactivated` イベントが残る。最終日報日と日報数も列で表示するので、操作前に「本当に書いていない人か」を確認できる。
 
-退職フラグの効果は **ログイン拒否 + 各境界での明示的なメッセージ表示**。`wp-login.php` への自動リダイレクトはしない(現場の社員にとってあの画面は意味が伝わらないため):
+退職フラグの効果は **ログインそのものが不可能 + どこを触っても wp-login.php を見せない**。設計の柱は 1 時間有効の短命 Cookie `drwp_retired_seen` 1 つ。これを「直近で退職アカウントが何かを触った」のマーカーとして使い、各境界がそれを拾ってショートコードページに弾く。
 
-| 境界 | 退職時の挙動 |
+| 経路 | 挙動 |
 | --- | --- |
-| 新規ログイン(wp-login) | `authenticate` フィルタが `WP_Error('drwp_retired')` を返して拒否、フォーム上にエラー表示 |
-| `[drwp_report_archive]` ショートコード | エントリポイントで `is_retired()` を判定、データの代わりに「このアカウントは退職状態のため、ログインできません。」を `.drwp-archive-retired` で出す |
-| wp-admin の DRWP ページ(`?page=drwp_*`) | `admin_init` フックで `wp_die`(403、戻るリンクなし)。他の wp-admin ページは触らない |
-| REST `can_edit` / `can_view_one` / `can_review` | `is_retired()` で false 返却 → permission_callback で 401/403 |
+| 退職切替時点でログイン中だった既存セッション | `init`(priority 1) の `invalidate_session_if_retired` がマーカーを立てて `wp_logout`。続くショートコードがマーカーを拾って「ログインできません」を出す |
+| 新規ログイン試行 | `authenticate`(prio 100) が `WP_Error('drwp_retired')` を返す前にマーカー Cookie をセット。`wp_login_errors` フィルタがこのエラーを検知して `landing_url()` に `wp_safe_redirect`(wp-login のフォーム再描画は見せない) |
+| 既存セッションで wp-admin 行き → WP の `auth_redirect` で wp-login.php に到着 | `login_init`(prio 1) がマーカー Cookie を検出してショートコードページに `wp_safe_redirect`。`?action=logout` / `interim-login` / `resetpass` 等は素通し |
+| wp-admin の DRWP ページ(`?page=drwp_*`) | `admin_init` で 2 段階: ログイン中なら `wp_die`(403)、ログアウト済み + マーカーありならショートコードページに `wp_safe_redirect` |
+| `[drwp_report_archive]` / `[drwp_login_form]` ショートコード | ログイン中で退職 / ログアウト中でもマーカーあり、どちらも「このアカウントは退職状態のため、ログインできません。」をデータ / フォームの代わりに出す |
+| REST `can_edit` / `can_view_one` / `can_review` | `is_retired()` で false → permission_callback で 401/403 |
 
-これでフロント・wp-admin・REST すべて到達できないが、ユーザーは「ログイン状態を保ったまま」操作不能になる。万一フックが他プラグインで短絡された場合の保険として、書き込み境界 (REST callback / `admin-post` / `template_redirect`) には `DRWP_User::block_write_rest()` / `block_write_or_die()` のガードを残してある(defense in depth)。
+ランディング先は `DRWP_User::landing_url()`:
+- `drwp_login_page_id`(ログイン設定の固定ページ)が設定されていればそこ
+- 未設定なら `home_url('/')` にフォールバック(ショートコードが無いページに着く可能性はあるが、それでも wp-login.php は見せない)
 
-`DRWP_User::is_retired($uid = null)` が共通の判定。
+成功ログイン時(`wp_login` フック)に `clear_retired_marker_cookie_on_login` がマーカーを破棄するので、共有端末で別の在籍ユーザーが使うときに前回の退職メッセージが残らない。
+
+書き込み境界(REST callback / `admin-post` / `template_redirect`)の `DRWP_User::block_write_rest()` / `block_write_or_die()` ガードは defense in depth として残置 — 何らかの理由で `init` が他プラグインに短絡された場合の保険。
+
+`DRWP_User::is_retired($uid = null)` が共通の判定、`has_marker_cookie()` がマーカー検出用ヘルパー。
 
 ### 5.8 ユーザー名表示
 

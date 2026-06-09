@@ -10,7 +10,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('DRWP_VERSION', '1.26.0');
+define('DRWP_VERSION', '1.27.0');
 define('DRWP_PATH', plugin_dir_path(__FILE__));
 define('DRWP_URL', plugin_dir_url(__FILE__));
 

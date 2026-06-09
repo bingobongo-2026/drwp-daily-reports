@@ -76,16 +76,22 @@ class DRWP_Report_Archive {
     public static function shortcode($atts = []) {
         wp_enqueue_style(self::HANDLE);
 
+        // 退職アカウントは:
+        //   - すでに `invalidate_session_if_retired` で wp_logout 済み
+        //   - 退職マーカー Cookie が立っているか、認証直後のリダイレ
+        //     クトで `?drwp_retired=1` が乗っている
+        // どちらの経路でも「ログインできません」を出す。データに到
+        // 達する前にここで止める。
+        $retired_marker = !is_user_logged_in()
+                       && (DRWP_User::has_marker_cookie() || !empty($_GET['drwp_retired']));
+        if ($retired_marker || (is_user_logged_in() && DRWP_User::is_retired())) {
+            return self::wrap('<p class="drwp-archive-message drwp-archive-retired">'
+                . esc_html__('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports')
+                . '</p>');
+        }
         if (!is_user_logged_in()) {
             return self::wrap('<p class="drwp-archive-message">'
                 . esc_html__('閲覧にはログインが必要です。', 'drwp-daily-reports')
-                . '</p>');
-        }
-        // 退職社員はここで打ち切り。データを 1 件も見せない代わ
-        // りに、wp-login.php に飛ばさずページ内で理由を案内する。
-        if (DRWP_User::is_retired()) {
-            return self::wrap('<p class="drwp-archive-message drwp-archive-retired">'
-                . esc_html__('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports')
                 . '</p>');
         }
         if (!current_user_can('edit_posts')) {
