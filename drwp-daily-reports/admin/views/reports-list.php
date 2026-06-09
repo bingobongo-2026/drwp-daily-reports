@@ -140,7 +140,7 @@ $can_review = current_user_can('edit_others_posts');
             <td><input class="drwp-check" type="checkbox" name="report_ids[]" value="<?php echo (int) $report->id; ?>" /></td>
             <td><?php echo (int) $report->id; ?></td>
             <td><?php echo esc_html(date_i18n('Y年n月j日', strtotime((string) $report->report_date))); ?></td>
-            <td><?php echo esc_html($author ? $author->display_name : ('#' . (int) $report->user_id)); ?></td>
+            <td><?php echo esc_html(DRWP_User::display_name((int) $report->user_id) ?: ('#' . (int) $report->user_id)); ?></td>
             <td><?php echo esc_html($project_name); ?></td>
             <td><span class="drwp-page-status <?php echo esc_attr($status_class); ?>"><?php echo esc_html(DRWP_Labels::review_status((string) $report->review_status)); ?></span></td>
             <td style="white-space:nowrap;">

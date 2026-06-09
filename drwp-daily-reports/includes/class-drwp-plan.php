@@ -226,7 +226,7 @@ class DRWP_Plan {
         ]);
         $out = [];
         foreach ($users as $u) {
-            $out[(int) $u->ID] = $u->display_name ?: $u->user_login;
+            $out[(int) $u->ID] = DRWP_User::display_name((int) $u->ID) ?: $u->user_login;
         }
         return $out;
     }

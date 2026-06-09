@@ -110,7 +110,7 @@
               }
               $toc_ts = strtotime((string) $r->report_date);
               $toc_date = $toc_ts ? date_i18n('n/j', $toc_ts) : '';
-              $toc_meta_parts = array_filter([$toc_project, $toc_author ? $toc_author->display_name : '']);
+              $toc_meta_parts = array_filter([$toc_project, $toc_author ? DRWP_User::display_name($toc_author) : '']);
             ?>
             <li>
               <a href="#drwp-sheet-<?php echo (int) $i; ?>" data-index="<?php echo (int) $i; ?>">
@@ -200,7 +200,7 @@
             </tr>
             <tr>
               <th><?php esc_html_e('報告者', 'drwp-daily-reports'); ?></th>
-              <td><?php echo esc_html($author ? $author->display_name : ''); ?></td>
+              <td><?php echo esc_html($author ? DRWP_User::display_name($author) : ''); ?></td>
               <th><?php esc_html_e('提出日', 'drwp-daily-reports'); ?></th>
               <td>
                 <?php
@@ -242,7 +242,7 @@
             <?php if ($approval):
               $approved_ts = strtotime((string) $approval->created_at);
               $approved_date = $approved_ts ? date_i18n('Y 年 n 月 j 日', $approved_ts) : '';
-              $approver = $approval->display_name ?: __('（不明）', 'drwp-daily-reports');
+              $approver = DRWP_User::display_name((int) $approval->user_id) ?: __('（不明）', 'drwp-daily-reports');
             ?>
               <?php echo esc_html($approved_date); ?>　<?php esc_html_e('確認者：', 'drwp-daily-reports'); ?><?php echo esc_html($approver); ?>
             <?php else: ?>

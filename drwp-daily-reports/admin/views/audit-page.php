@@ -63,7 +63,7 @@
           <td><?php echo (int) $log['id']; ?></td>
           <td><?php echo esc_html($log['created_at']); ?></td>
           <td><code><?php echo esc_html($log['event']); ?></code> <?php echo esc_html($events[$log['event']] ?? ''); ?></td>
-          <td><?php echo esc_html($log['display_name'] ?: '#' . (int) $log['user_id']); ?></td>
+          <td><?php echo esc_html(DRWP_User::display_name((int) $log['user_id']) ?: ('#' . (int) $log['user_id'])); ?></td>
           <td>
             <?php if (!empty($log['report_id'])): ?>
               <a href="<?php echo esc_url(admin_url('admin.php?page=drwp_report_edit&id=' . (int) $log['report_id'])); ?>">#<?php echo (int) $log['report_id']; ?></a>

@@ -168,7 +168,7 @@ class DRWP_CLI {
                 'id'         => (int) $r['id'],
                 'created_at' => $r['created_at'],
                 'event'      => $r['event'],
-                'user'       => $r['display_name'] ?: '#' . (int) $r['user_id'],
+                'user'       => DRWP_User::display_name((int) $r['user_id']) ?: ($r['display_name'] ?: '#' . (int) $r['user_id']),
                 'report_id'  => (int) ($r['report_id'] ?? 0),
                 'message'    => $r['message'],
             ];

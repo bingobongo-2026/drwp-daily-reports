@@ -23,13 +23,14 @@ class DRWP_User {
 
     public static function init() {
         add_action('admin_post_drwp_set_retired', [__CLASS__, 'handle_set_retired']);
-        // 退職社員は閲覧も含めて利用不可。新規ログインは
-        // `authenticate` で弾き、既存セッションは `init` で破棄して
-        // ログイン画面に戻す。`login_message` 経由で「退職状態」の
-        // 説明文を出して再ログインの再試行も諦めてもらう。
-        add_filter('authenticate',  [__CLASS__, 'block_retired_login'], 100, 1);
-        add_action('init',          [__CLASS__, 'force_logout_if_retired']);
-        add_filter('login_message', [__CLASS__, 'login_message_for_retired']);
+        // 退職社員は閲覧含めて利用不可。
+        // - 新規ログインは `authenticate` フィルタで弾く
+        // - 既存セッションは個別の境界 (フロントショートコード /
+        //   wp-admin の DRWP ページ / REST) で「退職状態のため利用
+        //   できません」を表示する。wp-login.php に飛ばすのは UX が
+        //   悪い(現場の社員はそれが何かわからない)ので避ける。
+        add_filter('authenticate', [__CLASS__, 'block_retired_login'], 100, 1);
+        add_action('admin_init',   [__CLASS__, 'block_drwp_admin_pages_if_retired']);
     }
 
     /**
@@ -48,40 +49,52 @@ class DRWP_User {
     }
 
     /**
-     * Tear down the session of a retired user who was logged in
-     * BEFORE the operator flipped the switch. Fires on every
-     * request — front, wp-admin, REST, admin-ajax. For non-XHR
-     * requests we redirect to the login screen with a marker so
-     * the user can see the explanation; XHR/REST just lose the
-     * session and let the downstream permission_callback return
-     * 401.
+     * Lock retired users out of every DRWP admin page (`?page=drwp_*`)
+     * with an in-place `wp_die` notice. We don't auto-logout because
+     * that cascades into a wp-login.php redirect — the operator-side
+     * "social" UX requested is "remain on the page they hit, show the
+     * notice in place". Other wp-admin pages (Posts, Media, ...) are
+     * untouched.
      */
-    public static function force_logout_if_retired() {
-        if (!is_user_logged_in()) return;
+    public static function block_drwp_admin_pages_if_retired() {
         if (!self::is_retired()) return;
-        wp_logout();
-        $is_xhr  = (function_exists('wp_doing_ajax') && wp_doing_ajax())
-                || (defined('REST_REQUEST') && REST_REQUEST)
-                || (defined('DOING_CRON')   && DOING_CRON)
-                || (defined('WP_CLI')       && WP_CLI);
-        if ($is_xhr) return;
-        // Avoid an infinite loop if we're already on wp-login.php.
-        if (isset($GLOBALS['pagenow']) && $GLOBALS['pagenow'] === 'wp-login.php') return;
-        wp_safe_redirect(add_query_arg('drwp_retired', '1', wp_login_url()));
-        exit;
+        $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : '';
+        if ($page === '' || strpos($page, 'drwp_') !== 0) return;
+        wp_die(
+            esc_html__('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports'),
+            esc_html__('退職', 'drwp-daily-reports'),
+            ['response' => 403, 'back_link' => false]
+        );
     }
 
     /**
-     * Inject the explanation banner above the wp-login.php form
-     * when the user landed there via the force-logout redirect or
-     * was just rejected by `block_retired_login`.
+     * Resolve a worker's display name as "last_name first_name"
+     * (姓 名). Falls through to `display_name` then `user_login`
+     * when the user profile hasn't filled in the meta. Accepts a
+     * WP_User, user_id int, or stdClass row with `ID`.
      */
-    public static function login_message_for_retired($message) {
-        if (empty($_GET['drwp_retired'])) return $message;
-        $notice = '<p class="message" style="border-left:4px solid #6b7280;">'
-                . esc_html__('このアカウントは退職状態のため、利用できません。詳しくは管理者にお問い合わせください。', 'drwp-daily-reports')
-                . '</p>';
-        return $notice . $message;
+    public static function display_name($user_or_id) {
+        if (is_object($user_or_id)) {
+            $uid = (int) (isset($user_or_id->ID) ? $user_or_id->ID : ($user_or_id->id ?? 0));
+            $user = $uid ? get_userdata($uid) : null;
+            if (!$user && isset($user_or_id->display_name)) {
+                // Fallback for already-shaped rows (e.g. SQL JOIN
+                // results) that pre-resolved display_name.
+                return (string) $user_or_id->display_name;
+            }
+        } else {
+            $user = get_userdata((int) $user_or_id);
+        }
+        if (!$user) return '';
+        $first = trim((string) get_user_meta($user->ID, 'first_name', true));
+        $last  = trim((string) get_user_meta($user->ID, 'last_name', true));
+        // 姓 名 — Japanese convention. Falling out cleanly for the
+        // common "either-or-neither" data shapes the operator has
+        // in the wild.
+        $full = trim($last . ' ' . $first);
+        if ($full !== '') return $full;
+        if (!empty($user->display_name)) return (string) $user->display_name;
+        return (string) $user->user_login;
     }
 
     public static function is_retired($user_id = null) {
@@ -159,7 +172,7 @@ class DRWP_User {
             $stats = $last_by_uid[(int) $u->ID] ?? ['last' => '', 'cnt' => 0];
             $out[] = (object) [
                 'id'         => (int) $u->ID,
-                'name'       => $u->display_name ?: $u->user_login,
+                'name'       => self::display_name($u),
                 'email'      => (string) $u->user_email,
                 'roles'      => $u->roles,
                 'retired'    => $retired,

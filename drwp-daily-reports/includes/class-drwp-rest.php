@@ -138,14 +138,17 @@ class DRWP_REST {
     }
 
     public static function can_edit() {
+        if (DRWP_User::is_retired()) return false;
         return current_user_can('edit_posts');
     }
 
     public static function can_review() {
+        if (DRWP_User::is_retired()) return false;
         return current_user_can('edit_others_posts');
     }
 
     public static function can_view_one(WP_REST_Request $request) {
+        if (DRWP_User::is_retired()) return false;
         if (!current_user_can('edit_posts')) return false;
         $report = self::find_report((int) $request['id']);
         if (!$report) return new WP_Error('drwp_not_found', 'Report not found', ['status' => 404]);
@@ -523,7 +526,7 @@ class DRWP_REST {
                 'id'           => (int) $c->id,
                 'report_id'    => (int) $c->report_id,
                 'user_id'      => (int) $c->user_id,
-                'display_name' => (string) ($c->display_name ?? ''),
+                'display_name' => DRWP_User::display_name((int) $c->user_id) ?: (string) ($c->display_name ?? ''),
                 'body'         => (string) $c->body,
                 'created_at'   => (string) $c->created_at,
             ];

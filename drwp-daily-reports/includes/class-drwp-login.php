@@ -98,7 +98,7 @@ class DRWP_Login {
                 . sprintf(
                     /* translators: 1: display name */
                     esc_html__('%s さんとしてログイン中', 'drwp-daily-reports'),
-                    esc_html($user->display_name)
+                    esc_html(DRWP_User::display_name($user))
                 )
                 . '</span> '
                 . '<a class="drwp-login-bar-logout" href="' . esc_url(wp_logout_url(home_url('/'))) . '">'
