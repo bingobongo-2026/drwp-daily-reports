@@ -287,7 +287,10 @@
     display: flex; align-items: center; gap: 4px;
     width: 100%; margin-top: 2px;
     padding: 2px 4px; border-radius: 4px;
-    font-size: 0.72rem; line-height: 1.2;
+    /* `font-family: inherit` だけ親から取る。`font: inherit` の
+       ショートハンドだと font-size まで継承されて、ボタンが
+       親要素のフォントサイズで巨大化するので絶対に使わない。 */
+    font-family: inherit; font-size: 0.72rem; line-height: 1.2;
     color: #fff; text-decoration: none;
     background: #64748b;
     overflow: hidden;
@@ -325,10 +328,7 @@
 .drwp-archive-field-checkbox .drwp-archive-mine-wrap { display: inline-flex; align-items: center; gap: 6px; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; cursor: pointer; }
 .drwp-archive-field-checkbox input[type=checkbox] { margin: 0; }
 
-/* Chip as button — base button reset is now folded into the main
-   `.drwp-archive-cal-chip` rule above (border/cursor/etc), no need
-   to redeclare here. */
-.drwp-archive-cal-chip { font: inherit; }
+
 
 /* Modal dialogs (view / form) */
 .drwp-archive-dialog { padding: 0; border: 0; border-radius: 14px; max-width: 720px; width: 92vw; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
