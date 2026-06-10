@@ -393,6 +393,13 @@
     outline: 2px dashed #f59e0b;
     outline-offset: -2px;
 }
+/* "予定はタップで…" の操作ヒント。カレンダー下、控えめに。 */
+.drwp-archive-cal-hint {
+    margin: 8px 0 0; padding: 6px 10px;
+    font-size: 0.78rem; line-height: 1.5;
+    color: #475569; background: #f8fafc;
+    border-radius: 6px; text-align: center;
+}
 .drwp-archive-cal-plan-chip .drwp-archive-cal-chip-time { font-weight: 600; flex-shrink: 0; }
 .drwp-archive-cal-plan-chip .drwp-archive-cal-chip-text { overflow: hidden; text-overflow: ellipsis; }
 

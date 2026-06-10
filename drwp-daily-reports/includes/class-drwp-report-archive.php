@@ -218,6 +218,42 @@ class DRWP_Report_Archive {
             </div>
         </dialog>
 
+        <dialog id="drwp-archive-plan-edit-dialog" class="drwp-archive-dialog">
+            <div class="drwp-archive-dialog-head">
+                <h3><?php esc_html_e('予定を編集', 'drwp-daily-reports'); ?></h3>
+                <button type="button" class="drwp-archive-dialog-close" aria-label="<?php esc_attr_e('閉じる', 'drwp-daily-reports'); ?>">×</button>
+            </div>
+            <div class="drwp-archive-dialog-body">
+                <form id="drwp-archive-plan-edit-form" class="drwp-archive-plan-form">
+                    <input type="hidden" name="id" value="" />
+                    <label class="drwp-archive-plan-field">
+                        <span><?php esc_html_e('日付', 'drwp-daily-reports'); ?> <em>*</em></span>
+                        <input type="date" name="planned_date" required />
+                    </label>
+                    <div class="drwp-archive-plan-times">
+                        <label class="drwp-archive-plan-field">
+                            <span><?php esc_html_e('開始時刻', 'drwp-daily-reports'); ?></span>
+                            <input type="time" name="started_at" />
+                        </label>
+                        <label class="drwp-archive-plan-field">
+                            <span><?php esc_html_e('終了時刻', 'drwp-daily-reports'); ?></span>
+                            <input type="time" name="ended_at" />
+                        </label>
+                    </div>
+                    <label class="drwp-archive-plan-field">
+                        <span><?php esc_html_e('メモ', 'drwp-daily-reports'); ?></span>
+                        <textarea name="notes" rows="3"></textarea>
+                    </label>
+                    <div class="drwp-archive-plan-actions">
+                        <button type="submit" class="drwp-archive-new-btn">
+                            <?php esc_html_e('保存', 'drwp-daily-reports'); ?>
+                        </button>
+                        <span class="drwp-archive-plan-status" data-role="status"></span>
+                    </div>
+                </form>
+            </div>
+        </dialog>
+
         <dialog id="drwp-archive-plan-dialog" class="drwp-archive-dialog">
             <div class="drwp-archive-dialog-head">
                 <h3><?php esc_html_e('予定を登録', 'drwp-daily-reports'); ?></h3>
@@ -519,8 +555,108 @@ class DRWP_Report_Archive {
             });
           });
 
+          // 予定の編集 — 長押し(touch / mouse 両対応)で編集ダイ
+          // アログを開く。タップ = 「予定→日報テンプレ」、ドラッグ
+          // = 日付変更、長押し = 編集の3経路を共存させる。
+          // 500ms 経過前にドラッグが始まったり指を離したりしたら、
+          // 長押し判定はキャンセル(= 普通のクリック / ドラッグへ
+          // 自然にフォールバック)。
+          var planEditDlg  = document.getElementById('drwp-archive-plan-edit-dialog');
+          var planEditForm = document.getElementById('drwp-archive-plan-edit-form');
+          var updateErrMsg = <?php echo wp_json_encode(__('予定の更新に失敗しました', 'drwp-daily-reports')); ?>;
+
+          function openPlanEditDialog(chip) {
+            if (!planEditDlg || !planEditForm) return;
+            planEditForm.id.value           = chip.dataset.planId || '';
+            planEditForm.planned_date.value = chip.dataset.planDate || '';
+            planEditForm.started_at.value   = chip.dataset.planStart || '';
+            planEditForm.ended_at.value     = chip.dataset.planEnd || '';
+            planEditForm.notes.value        = chip.dataset.planNotes || '';
+            var st = planEditForm.querySelector('[data-role=status]');
+            if (st) { st.textContent = ''; st.className = 'drwp-archive-plan-status'; }
+            var btn = planEditForm.querySelector('button[type=submit]');
+            if (btn) btn.disabled = false;
+            planEditDlg.showModal();
+          }
+
+          function setupLongPress(el, onLongPress) {
+            var timer = null, startX = 0, startY = 0, fired = false;
+            function start(e) {
+              fired = false;
+              var t = e.touches ? e.touches[0] : e;
+              startX = t.clientX; startY = t.clientY;
+              if (timer) clearTimeout(timer);
+              timer = setTimeout(function () {
+                fired = true;
+                timer = null;
+                onLongPress();
+              }, 500);
+            }
+            function move(e) {
+              if (!timer) return;
+              var t = e.touches ? e.touches[0] : e;
+              if (Math.abs(t.clientX - startX) > 8 || Math.abs(t.clientY - startY) > 8) {
+                clearTimeout(timer); timer = null;
+              }
+            }
+            function cancel() {
+              if (timer) { clearTimeout(timer); timer = null; }
+            }
+            el.addEventListener('touchstart',  start,  { passive: true });
+            el.addEventListener('touchmove',   move,   { passive: true });
+            el.addEventListener('touchend',    cancel);
+            el.addEventListener('touchcancel', cancel);
+            el.addEventListener('mousedown',   start);
+            el.addEventListener('mousemove',   move);
+            el.addEventListener('mouseup',     cancel);
+            el.addEventListener('mouseleave',  cancel);
+            // ドラッグが始まったら長押しはキャンセル(D&D 優先)。
+            el.addEventListener('dragstart',   cancel);
+            // 長押しが発火したら、その直後の click は飲み込む
+            // (タップ後の意図しない「日報テンプレ作成」を防ぐ)。
+            el.addEventListener('click', function (e) {
+              if (fired) { e.preventDefault(); e.stopPropagation(); fired = false; }
+            }, true);
+          }
+
+          document.querySelectorAll('.drwp-archive-cal-plan-chip:not(.is-linked)').forEach(function (chip) {
+            setupLongPress(chip, function () { openPlanEditDialog(chip); });
+          });
+
+          if (planEditForm) {
+            planEditForm.addEventListener('submit', function (e) {
+              e.preventDefault();
+              var st = planEditForm.querySelector('[data-role=status]');
+              var btn = planEditForm.querySelector('button[type=submit]');
+              if (st) { st.textContent = '<?php echo esc_js(__('送信中…', 'drwp-daily-reports')); ?>'; st.className = 'drwp-archive-plan-status'; }
+              if (btn) btn.disabled = true;
+              var payload = {
+                planned_date: planEditForm.planned_date.value,
+                started_at:   planEditForm.started_at.value || null,
+                ended_at:     planEditForm.ended_at.value || null,
+                notes:        planEditForm.notes.value || ''
+              };
+              fetch(cfg.restRoot + '/plans/' + encodeURIComponent(planEditForm.id.value), {
+                method: 'PATCH',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+                body: JSON.stringify(payload)
+              }).then(function (r) {
+                return r.json().then(function (j) {
+                  if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status);
+                  return j;
+                });
+              }).then(function () {
+                window.location.reload();
+              }).catch(function (err) {
+                if (st) { st.textContent = err.message || updateErrMsg; st.className = 'drwp-archive-plan-status err'; }
+                if (btn) btn.disabled = false;
+              });
+            });
+          }
+
           // Click outside dialog content closes it.
-          [viewDlg, formDlg, planDlg].forEach(function(dlg){
+          [viewDlg, formDlg, planDlg, planEditDlg].forEach(function(dlg){
             if (!dlg) return;
             dlg.addEventListener('click', function(e){
               var rect = dlg.getBoundingClientRect();
@@ -884,6 +1020,9 @@ class DRWP_Report_Archive {
               <div class="drwp-archive-cal-cell empty"></div>
             <?php endfor; ?>
           </div>
+          <p class="drwp-archive-cal-hint">
+            <?php esc_html_e('💡 予定はタップで日報作成、長押しで編集、ドラッグ&ドロップで日付を変更できます。', 'drwp-daily-reports'); ?>
+          </p>
         </div>
         <?php
         return ob_get_clean();
