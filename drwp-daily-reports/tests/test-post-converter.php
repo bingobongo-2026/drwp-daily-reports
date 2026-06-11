@@ -47,6 +47,60 @@ class Test_DRWP_Post_Converter extends WP_UnitTestCase {
         $this->assertStringContainsString('次回', $html);
     }
 
+    public function test_build_content_unknown_template_falls_back_to_standard() {
+        $report = (object) [
+            'public_intro'     => 'a',
+            'public_body'      => 'b',
+            'public_next_plan' => 'c',
+            'post_template'    => 'made_up_value',
+        ];
+        // 不明な値は標準扱い — `本日の作業内容` の h2 が出るのが目印。
+        $html = DRWP_Post_Converter::build_content($report);
+        $this->assertStringContainsString('本日の作業内容', $html);
+        $this->assertStringNotContainsString('案件名', $html);
+    }
+
+    public function test_build_content_site_report_emits_meta_table() {
+        $report = (object) [
+            'public_intro'     => '点検開始',
+            'public_body'      => '異常なし',
+            'public_next_plan' => '',
+            'post_template'    => 'site_report',
+            'project_id'       => null,
+            'user_id'          => 0,
+            'report_date'      => '2026-06-15',
+            'started_at'       => '09:00:00',
+            'ended_at'         => '12:00:00',
+        ];
+        $html = DRWP_Post_Converter::build_content($report);
+        // メタ表のラベル + 標準テンプレと違って `本日の作業内容` でな
+        // く `作業内容` の h2 が出ることを確認。
+        $this->assertStringContainsString('案件名', $html);
+        $this->assertStringContainsString('報告日', $html);
+        $this->assertStringContainsString('作業時間', $html);
+        $this->assertStringContainsString('09:00 〜 12:00', $html);
+        $this->assertStringContainsString('<h2>作業内容</h2>', $html);
+        $this->assertStringNotContainsString('本日の作業内容', $html);
+    }
+
+    public function test_build_content_before_after_renders_without_photos() {
+        // 写真ゼロのときは Before/After grid は出ないが、テンプレ自体
+        // は通常通り intro / body / next_plan を吐く。
+        $report = (object) [
+            'public_intro'     => '点検レポート',
+            'public_body'      => '所見',
+            'public_next_plan' => '次回',
+            'post_template'    => 'before_after',
+            'id'               => 0,
+        ];
+        $html = DRWP_Post_Converter::build_content($report);
+        $this->assertStringContainsString('点検レポート', $html);
+        $this->assertStringContainsString('<h2>作業内容</h2>', $html);
+        $this->assertStringContainsString('所見', $html);
+        $this->assertStringContainsString('<h2>今後の予定</h2>', $html);
+        $this->assertStringNotContainsString('Before / After', $html);
+    }
+
     public function test_sync_post_blocks_when_license_inactive() {
         global $wpdb;
         $table = $wpdb->prefix . 'drwp_reports';

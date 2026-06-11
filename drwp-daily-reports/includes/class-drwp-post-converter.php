@@ -14,7 +14,34 @@ class DRWP_Post_Converter {
         return array_values(array_unique($tags));
     }
 
+    /**
+     * Build the post HTML body. Dispatches on `post_template`:
+     *
+     * - `standard`     : 既定 — public_intro → 作業内容 → 写真 → 今後の予定
+     * - `site_report`  : 案件レポート — 冒頭に案件メタ表(案件名 / 報告日
+     *                    / 作業時間 / 報告者)、その下は標準と同じ
+     * - `before_after` : ビフォーアフター — 写真ギャラリーを Before / After
+     *                    の 2 列ペアに並べる。キャプション先頭の
+     *                    `B:` `Before:` / `A:` `After:` で振り分け、
+     *                    どちらの prefix も無ければ「前半 Before / 後半
+     *                    After」に半分割する
+     *
+     * Each template returns a self-contained HTML string. Inline
+     * styles are used for the structural pieces (meta table, paired
+     * grid) so the post looks decent in any theme without depending
+     * on additional CSS.
+     */
     public static function build_content($report) {
+        $template = (string) ($report->post_template ?? 'standard');
+        switch ($template) {
+            case 'site_report':  return self::template_site_report($report);
+            case 'before_after': return self::template_before_after($report);
+            case 'standard':
+            default:             return self::template_standard($report);
+        }
+    }
+
+    protected static function template_standard($report) {
         $html = '';
         if (!empty($report->public_intro)) {
             $html .= wp_kses_post(wpautop($report->public_intro));
@@ -27,6 +54,167 @@ class DRWP_Post_Converter {
         if (!empty($report->public_next_plan)) {
             $html .= '<h2>' . esc_html__('今後の予定', 'drwp-daily-reports') . '</h2>';
             $html .= wp_kses_post(wpautop($report->public_next_plan));
+        }
+        return $html;
+    }
+
+    protected static function template_site_report($report) {
+        $html = self::build_meta_table($report);
+        if (!empty($report->public_intro)) {
+            $html .= wp_kses_post(wpautop($report->public_intro));
+        }
+        if (!empty($report->public_body)) {
+            $html .= '<h2>' . esc_html__('作業内容', 'drwp-daily-reports') . '</h2>';
+            $html .= wp_kses_post(wpautop($report->public_body));
+        }
+        $html .= self::build_photo_gallery($report);
+        if (!empty($report->public_next_plan)) {
+            $html .= '<h2>' . esc_html__('今後の予定', 'drwp-daily-reports') . '</h2>';
+            $html .= wp_kses_post(wpautop($report->public_next_plan));
+        }
+        return $html;
+    }
+
+    protected static function template_before_after($report) {
+        $html = '';
+        if (!empty($report->public_intro)) {
+            $html .= wp_kses_post(wpautop($report->public_intro));
+        }
+        $html .= self::build_before_after_grid($report);
+        if (!empty($report->public_body)) {
+            $html .= '<h2>' . esc_html__('作業内容', 'drwp-daily-reports') . '</h2>';
+            $html .= wp_kses_post(wpautop($report->public_body));
+        }
+        if (!empty($report->public_next_plan)) {
+            $html .= '<h2>' . esc_html__('今後の予定', 'drwp-daily-reports') . '</h2>';
+            $html .= wp_kses_post(wpautop($report->public_next_plan));
+        }
+        return $html;
+    }
+
+    /**
+     * 案件メタ表 — 案件レポートテンプレートの冒頭ヘッダー。案件名は
+     * `drwp_projects` から、報告者は `DRWP_User::display_name()` から
+     * 引く。フロント記事に出る表なので `is_admin()` ゲート無しの姓名
+     * 解決(社員名を漏らさない)が走る。
+     */
+    protected static function build_meta_table($report) {
+        $project_name = '';
+        if (!empty($report->project_id)) {
+            $proj = DRWP_Project::find((int) $report->project_id);
+            if ($proj) $project_name = (string) $proj->name;
+        }
+        $author = !empty($report->user_id)
+            ? DRWP_User::display_name((int) $report->user_id)
+            : '';
+        $report_date = !empty($report->report_date)
+            ? date_i18n('Y年n月j日', strtotime((string) $report->report_date))
+            : '';
+        $time = '';
+        $s = substr((string) ($report->started_at ?? ''), 0, 5);
+        $e = substr((string) ($report->ended_at ?? ''), 0, 5);
+        if ($s !== '' && $e !== '') $time = $s . ' 〜 ' . $e;
+        elseif ($s !== '')          $time = $s;
+        elseif ($e !== '')          $time = $e;
+
+        $row = function ($label, $value) {
+            return '<tr>'
+                 . '<th style="background:#f1f5f9;border:1px solid #cbd5e1;padding:6px 10px;text-align:left;width:30%;font-weight:600;">'
+                 . esc_html($label) . '</th>'
+                 . '<td style="border:1px solid #cbd5e1;padding:6px 10px;">'
+                 . esc_html($value !== '' ? $value : '-') . '</td>'
+                 . '</tr>';
+        };
+        return '<table class="drwp-public-meta" style="border-collapse:collapse;width:100%;margin:0 0 16px;font-size:.95em;">'
+             . '<tbody>'
+             . $row(__('案件名', 'drwp-daily-reports'), $project_name)
+             . $row(__('報告日', 'drwp-daily-reports'), $report_date)
+             . $row(__('作業時間', 'drwp-daily-reports'), $time)
+             . $row(__('報告者', 'drwp-daily-reports'), $author)
+             . '</tbody></table>';
+    }
+
+    /**
+     * Before / After ペアグリッド。キャプション先頭の `B:`
+     * `Before:` / `A:` `After:` (全角コロン許容、大小文字無視)で
+     * 振り分け、どちらの prefix も無ければ前半 Before / 後半
+     * After に半分割。ペアにできなかった残りは末尾に並べる。
+     */
+    protected static function build_before_after_grid($report) {
+        if (empty($report->id)) return '';
+        $photos = DRWP_Media::for_report((int) $report->id);
+        if (empty($photos)) return '';
+
+        $before = [];
+        $after  = [];
+        $other  = [];
+        foreach ($photos as $p) {
+            $caption = (string) ($p->caption ?? '');
+            if (preg_match('/^(?:Before|B)[:：]\s*(.*)$/iu', $caption, $m)) {
+                $p->display_caption = trim($m[1]);
+                $before[] = $p;
+            } elseif (preg_match('/^(?:After|A)[:：]\s*(.*)$/iu', $caption, $m)) {
+                $p->display_caption = trim($m[1]);
+                $after[] = $p;
+            } else {
+                $p->display_caption = $caption;
+                $other[] = $p;
+            }
+        }
+        // どちらの prefix も使われていなければ前後で半分割。奇数なら
+        // Before 側に 1 枚多めに振る(作業前のほうが基準写真として
+        // 多くなりがちな現場感に合わせる)。
+        if (!$before && !$after) {
+            $half = (int) ceil(count($other) / 2);
+            $before = array_slice($other, 0, $half);
+            $after  = array_slice($other, $half);
+            $other  = [];
+        }
+
+        $cell_style = 'flex:1 1 calc(50% - 8px);min-width:0;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:6px;padding:8px;background:#fff;';
+        $img_style  = 'display:block;width:100%;height:auto;border-radius:4px;';
+        $label_b = 'background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:999px;font-size:.78em;font-weight:700;display:inline-block;margin-bottom:6px;';
+        $label_a = 'background:#dcfce7;color:#166534;padding:2px 8px;border-radius:999px;font-size:.78em;font-weight:700;display:inline-block;margin-bottom:6px;';
+        $caption_style = 'font-size:.85em;color:#475569;margin-top:4px;line-height:1.4;';
+        $row_style = 'display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;';
+
+        $render_cell = function ($photo, $label, $label_style) use ($cell_style, $img_style, $caption_style) {
+            $url = $photo ? wp_get_attachment_image_url((int) $photo->attachment_id, 'large') : '';
+            if (!$photo || !$url) {
+                return '<figure style="' . $cell_style . 'opacity:.4;text-align:center;color:#94a3b8;">'
+                     . '<span style="' . $label_style . '">' . esc_html($label) . '</span>'
+                     . '<div style="padding:24px 0;">—</div></figure>';
+            }
+            $caption = (string) ($photo->display_caption ?? $photo->caption ?? '');
+            $alt = $caption !== '' ? $caption : $label;
+            $html = '<figure style="' . $cell_style . 'margin:0;">';
+            $html .= '<span style="' . $label_style . '">' . esc_html($label) . '</span>';
+            $html .= '<img src="' . esc_url($url) . '" alt="' . esc_attr($alt) . '" style="' . $img_style . '" />';
+            if ($caption !== '') {
+                $html .= '<figcaption style="' . $caption_style . '">' . esc_html($caption) . '</figcaption>';
+            }
+            $html .= '</figure>';
+            return $html;
+        };
+
+        $html  = '<h2>' . esc_html__('Before / After', 'drwp-daily-reports') . '</h2>';
+        $html .= '<div class="drwp-public-before-after">';
+        $pairs = max(count($before), count($after));
+        for ($i = 0; $i < $pairs; $i++) {
+            $html .= '<div style="' . $row_style . '">';
+            $html .= $render_cell($before[$i] ?? null, __('Before', 'drwp-daily-reports'), $label_b);
+            $html .= $render_cell($after[$i] ?? null,  __('After',  'drwp-daily-reports'), $label_a);
+            $html .= '</div>';
+        }
+        $html .= '</div>';
+
+        // ペアに入らなかった "その他" の写真は末尾に通常ギャラリー風で。
+        if (!empty($other)) {
+            $html .= '<div class="drwp-public-photos" style="margin-top:8px;">';
+            foreach ($other as $photo) {
+                $html .= DRWP_Media::render_figure($photo, 'large');
+            }
+            $html .= '</div>';
         }
         return $html;
     }

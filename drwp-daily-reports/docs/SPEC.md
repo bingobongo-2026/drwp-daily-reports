@@ -562,12 +562,48 @@ PATCH は部分更新。`attachment_ids` キーが含まれていれば写真リ
 
 ### 9.1 タイトル / 本文の組み立て
 
-- タイトル: `report.public_title`(空欄なら「現場レポート」)
-- 本文:
-  1. `public_intro`(設定があれば `<p>` で出力)
-  2. `<h2>本日の作業内容</h2>` + `public_body`(`public_body` が設定されている時のみ)
-  3. 写真ギャラリー(`drwp_report_photos`)
-  4. `<h2>今後の予定</h2>` + `public_next_plan`(設定があれば)
+タイトルは `report.public_title`(空欄なら「現場レポート」)。本文は `report.post_template` 列でテンプレートを切り替える。未知の値は `standard` 扱い。
+
+#### 9.1.1 `standard` (標準)
+
+1. `public_intro`(設定があれば `<p>` で出力)
+2. `<h2>本日の作業内容</h2>` + `public_body`(`public_body` が設定されている時のみ)
+3. 写真ギャラリー(`drwp_report_photos`)
+4. `<h2>今後の予定</h2>` + `public_next_plan`(設定があれば)
+
+#### 9.1.2 `site_report` (案件レポート)
+
+冒頭に案件メタ表(`<table class="drwp-public-meta">`、inline style 付き)を 1 つ。続いて `standard` と同じ構成だが、作業内容の見出しは `<h2>作業内容</h2>` (「本日の」が外れる)。
+
+メタ表は 4 行 2 列:
+
+| ラベル | 値 |
+| --- | --- |
+| 案件名 | `DRWP_Project::find($report->project_id)->name` |
+| 報告日 | `date_i18n('Y年n月j日', $report->report_date)` |
+| 作業時間 | `started_at 〜 ended_at` (片方だけならその時刻) |
+| 報告者 | `DRWP_User::display_name($report->user_id)` — `is_admin()` false なので姓名解決(社員名は出ない) |
+
+値が空のセルは `-`。
+
+#### 9.1.3 `before_after` (ビフォーアフター)
+
+1. `public_intro`(あれば)
+2. `<h2>Before / After</h2>` + ペアグリッド
+3. `<h2>作業内容</h2>` + `public_body`(あれば)
+4. `<h2>今後の予定</h2>` + `public_next_plan`(あれば)
+
+ペアグリッドは Before / After を 1 行 2 列で並べたものを N 行積む。振り分けは写真キャプションの prefix:
+
+- `B:` / `Before:` (半角・全角コロン、大小文字無視) → Before 列
+- `A:` / `After:` → After 列
+- prefix 無しが混在 → 末尾に通常ギャラリー風で並べる
+
+どの写真にも prefix が無い場合は **前半 Before / 後半 After に半分割**。奇数枚なら Before に 1 枚多めに振る(現場感に合わせた「作業前の基準写真が多くなりがち」を仮定)。ペアの片側が足りない行は空セル(`—`)を出して位置が崩れないようにする。
+
+#### 9.1.4 共通
+
+写真は `large` サイズの URL を使う。承認済みでない日報は記事化されない(`DRWP_Post_Converter::sync_post` が `DRWP_License::can_convert` を経由するため)。`DRWP_Output::auto_thumbnail()` ON 時、最初の写真がアイキャッチに(既存があれば上書きしない)。
 
 ### 9.2 投稿メタの反映
 
