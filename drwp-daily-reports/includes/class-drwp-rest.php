@@ -111,7 +111,7 @@ class DRWP_REST {
         register_rest_route(self::NS, '/ai/briefing', [
             'methods'             => 'POST',
             'callback'            => [__CLASS__, 'ai_briefing'],
-            'permission_callback' => [__CLASS__, 'can_edit'],
+            'permission_callback' => [__CLASS__, 'can_use_ai'],
         ]);
     }
 
@@ -146,6 +146,25 @@ class DRWP_REST {
     public static function can_edit() {
         if (DRWP_User::is_retired()) return false;
         return current_user_can('edit_posts');
+    }
+
+    /**
+     * AI endpoints — same edit cap as the rest of the API, plus a
+     * plan gate. Returns a 403 `WP_Error` instead of a bare false
+     * when the caller is authenticated but on a plan that doesn't
+     * include AI, so a UI that hasn't been refreshed since a plan
+     * downgrade can show a clean message instead of "?".
+     */
+    public static function can_use_ai() {
+        if (!self::can_edit()) return false;
+        if (!DRWP_License::plan_allows('ai')) {
+            return new WP_Error(
+                'drwp_plan_locked',
+                __('AI 機能は Pro プランで利用可能です。', 'drwp-daily-reports'),
+                ['status' => 403]
+            );
+        }
+        return true;
     }
 
     public static function can_review() {

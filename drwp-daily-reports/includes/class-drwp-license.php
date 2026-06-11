@@ -78,6 +78,38 @@ class DRWP_License {
     }
 
     /**
+     * Normalised plan slug — lowercased + trimmed so server-side
+     * casing (`Pro`, `PRO`, `pro`) all compare the same way.
+     */
+    public static function plan() {
+        return strtolower(trim((string) get_option(self::OPT_PLAN, '')));
+    }
+
+    /**
+     * Plan-based feature gate. Returns true iff the license is in
+     * a state that allows writes AND the resolved plan grants the
+     * requested feature.
+     *
+     * Plans (extend the matrix as we add tiers):
+     *   - `basic` : everything except AI
+     *   - `pro`   : everything including AI
+     *
+     * Unknown / empty plan = treated as basic (most restrictive
+     * thing that still lets the site keep working post-downgrade).
+     * No license at all = nothing is allowed (matches can_write).
+     */
+    public static function plan_allows($feature) {
+        if (!self::can_write()) return false;
+        $matrix = [
+            'basic' => [],
+            'pro'   => ['ai'],
+        ];
+        $plan = self::plan();
+        if (!isset($matrix[$plan])) $plan = 'basic';
+        return in_array((string) $feature, $matrix[$plan], true);
+    }
+
+    /**
      * HTML for a wp_die() message that explains why the license is
      * blocking the action and links to the settings page. Allows the
      * 'a' tag with href so the user can click through.

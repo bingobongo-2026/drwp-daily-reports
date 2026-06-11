@@ -72,7 +72,26 @@
     <tbody>
       <tr><th><?php esc_html_e('有効判定', 'drwp-daily-reports'); ?></th><td><?php echo esc_html($license['status']); ?></td></tr>
       <tr><th><?php esc_html_e('サーバ応答', 'drwp-daily-reports'); ?></th><td><?php echo esc_html($license['raw_status'] ?: '-'); ?></td></tr>
-      <tr><th><?php esc_html_e('プラン', 'drwp-daily-reports'); ?></th><td><?php echo esc_html($license['plan'] ?: '-'); ?></td></tr>
+      <tr>
+        <th><?php esc_html_e('プラン', 'drwp-daily-reports'); ?></th>
+        <td>
+          <?php
+            $plan_slug = strtolower(trim((string) $license['plan']));
+            if ($plan_slug === 'pro') {
+                echo '<span class="drwp-plan-pill is-pro">Pro</span>';
+                echo ' <span class="description">' . esc_html__('AI 機能を含むすべての機能が利用できます。', 'drwp-daily-reports') . '</span>';
+            } elseif ($plan_slug === 'basic') {
+                echo '<span class="drwp-plan-pill is-basic">Basic</span>';
+                echo ' <span class="description">' . esc_html__('AI 以外の機能が利用できます。', 'drwp-daily-reports') . '</span>';
+            } elseif ($plan_slug !== '') {
+                echo esc_html($license['plan']);
+                echo ' <span class="description">' . esc_html__('未知のプラン名のため Basic として扱われます。', 'drwp-daily-reports') . '</span>';
+            } else {
+                echo '-';
+            }
+          ?>
+        </td>
+      </tr>
       <tr><th><?php esc_html_e('有効期限', 'drwp-daily-reports'); ?></th><td><?php echo esc_html($license['expires_at'] ?: '-'); ?></td></tr>
       <tr><th><?php esc_html_e('最終照会', 'drwp-daily-reports'); ?></th><td><?php echo $license['checked_at'] ? esc_html(wp_date('Y-m-d H:i:s', $license['checked_at'])) : '-'; ?></td></tr>
       <tr><th><?php esc_html_e('最終有効', 'drwp-daily-reports'); ?></th><td><?php echo $license['last_valid_at'] ? esc_html(wp_date('Y-m-d H:i:s', $license['last_valid_at'])) : '-'; ?></td></tr>
@@ -105,3 +124,9 @@
     </tbody>
   </table>
 </div>
+
+<style>
+.drwp-plan-pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.8em;font-weight:700;color:#fff;letter-spacing:.04em}
+.drwp-plan-pill.is-pro{background:linear-gradient(135deg,#6366f1,#8b5cf6)}
+.drwp-plan-pill.is-basic{background:#475569}
+</style>

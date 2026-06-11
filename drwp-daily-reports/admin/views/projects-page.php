@@ -141,12 +141,22 @@
                     data-project_group_ids="<?php echo esc_attr(wp_json_encode($pg_ids)); ?>">
               <?php esc_html_e('編集', 'drwp-daily-reports'); ?>
             </button>
-            <?php if (DRWP_AI::is_enabled()): ?>
+            <?php if (DRWP_AI::is_enabled()):
+              $ai_unlocked = DRWP_License::plan_allows('ai');
+            ?>
+            <?php if ($ai_unlocked): ?>
             <button type="button" class="button button-small drwp-ai-briefing-btn"
                     data-id="<?php echo (int) $project->id; ?>"
                     data-name="<?php echo esc_attr($project->name); ?>">
               <?php esc_html_e('AI ブリーフィング', 'drwp-daily-reports'); ?>
             </button>
+            <?php else: ?>
+            <button type="button" class="button button-small drwp-ai-briefing-btn-locked" disabled
+                    title="<?php esc_attr_e('Pro プランで利用可能', 'drwp-daily-reports'); ?>">
+              <?php esc_html_e('AI ブリーフィング', 'drwp-daily-reports'); ?>
+              <span class="drwp-pro-badge"><?php esc_html_e('Pro', 'drwp-daily-reports'); ?></span>
+            </button>
+            <?php endif; ?>
             <?php endif; ?>
           </td>
         </tr>
@@ -316,6 +326,11 @@
 </div>
 
 <style>
+/* AI 機能ロック表示 — basic プランで AI ボタンを押せない状態を
+   見せるための disabled ボタン + Pro バッジ。 */
+.drwp-ai-briefing-btn-locked{opacity:.55;cursor:not-allowed;display:inline-flex;align-items:center;gap:6px}
+.drwp-pro-badge{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.72em;font-weight:700;padding:1px 7px;border-radius:999px;letter-spacing:.04em;line-height:1.4}
+
 .drwp-project-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:640px;width:90vw}
 .drwp-project-modal::backdrop{background:rgba(0,0,0,.45)}
 .drwp-project-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e5e7eb}
