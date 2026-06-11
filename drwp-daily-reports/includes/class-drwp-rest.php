@@ -191,10 +191,20 @@ class DRWP_REST {
                 'caption'       => (string) ($ph->caption ?? ''),
             ];
         }
+        // Resolve project + author for the front-end view modal so
+        // it doesn't have to fan out additional REST calls.
+        $project_name = null;
+        if ($r->project_id) {
+            $proj = DRWP_Project::find((int) $r->project_id);
+            if ($proj) $project_name = (string) $proj->name;
+        }
+        $author_name = DRWP_User::display_name((int) $r->user_id);
         return [
             'id'                => (int) $r->id,
             'project_id'        => $r->project_id ? (int) $r->project_id : null,
+            'project_name'      => $project_name,
             'user_id'           => (int) $r->user_id,
+            'author_name'       => $author_name ?: null,
             'report_date'       => (string) $r->report_date,
             'started_at'        => $r->started_at ?: null,
             'ended_at'          => $r->ended_at ?: null,
