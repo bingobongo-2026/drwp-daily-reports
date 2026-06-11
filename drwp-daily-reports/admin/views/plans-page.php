@@ -35,9 +35,9 @@ $is_retired = DRWP_User::is_retired();
   </p>
   <?php endif; ?>
 
-  <details class="drwp-card drwp-filter-card" <?php echo array_filter($filters) ? 'open' : ''; ?>>
-    <summary><?php esc_html_e('検索・絞り込み', 'drwp-daily-reports'); ?></summary>
-    <form method="get" class="drwp-filter-form" style="padding:12px 14px;">
+  <details class="drwp-filter" <?php echo array_filter($filters) ? 'open' : ''; ?>>
+    <summary class="drwp-filter-summary"><?php esc_html_e('検索・絞り込み', 'drwp-daily-reports'); ?></summary>
+    <form method="get" class="drwp-filter-form">
       <input type="hidden" name="page" value="drwp_plans" />
       <div class="drwp-row">
         <input type="search" name="s" value="<?php echo esc_attr($filters['search']); ?>"
@@ -72,10 +72,10 @@ $is_retired = DRWP_User::is_retired();
       </div>
       <div class="drwp-row">
         <input type="date" name="date_from" value="<?php echo esc_attr($filters['date_from']); ?>" />
-        〜
+        <span>〜</span>
         <input type="date" name="date_to" value="<?php echo esc_attr($filters['date_to']); ?>" />
         <button class="button button-primary"><?php esc_html_e('検索', 'drwp-daily-reports'); ?></button>
-        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_plans')); ?>"><?php esc_html_e('クリア', 'drwp-daily-reports'); ?></a>
+        <a class="button-link" href="<?php echo esc_url(admin_url('admin.php?page=drwp_plans')); ?>"><?php esc_html_e('クリア', 'drwp-daily-reports'); ?></a>
       </div>
     </form>
   </details>
@@ -271,12 +271,15 @@ $is_retired = DRWP_User::is_retired();
 </div>
 
 <style>
-.drwp-card{background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:0;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-.drwp-card>summary{cursor:pointer;padding:10px 14px;font-weight:600;color:#1d2327;list-style:none;display:flex;align-items:center;gap:6px}
-.drwp-card>summary::before{content:'▸';font-size:.8em;color:#6b7280;transition:transform .15s}
-.drwp-card[open]>summary::before{transform:rotate(90deg)}
-.drwp-card>summary:hover{color:#2271b1}
-.drwp-filter-card{background:#f0f6fc;border-left:4px solid #2271b1}
+/* 検索・絞り込み — 日報一覧と同じ薄いグレー枠の details。 */
+.drwp-filter{margin-bottom:10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff}
+.drwp-filter-summary{cursor:pointer;font-weight:600;color:#1d2327;list-style:none;display:flex;align-items:center;gap:6px;padding:8px 12px}
+.drwp-filter-summary::-webkit-details-marker{display:none}
+.drwp-filter-summary::before{content:'▸';font-size:.8em;color:#6b7280;transition:transform .15s}
+.drwp-filter[open] .drwp-filter-summary{border-bottom:1px solid #f1f5f9}
+.drwp-filter[open] .drwp-filter-summary::before{transform:rotate(90deg)}
+.drwp-filter-summary:hover{color:#2271b1}
+.drwp-filter-form{padding:10px 12px}
 .drwp-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
 .drwp-row:last-child{margin-bottom:0}
 .drwp-search-input{min-width:200px;flex:1}

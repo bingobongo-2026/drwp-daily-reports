@@ -299,13 +299,16 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 `drwp_workers` ページ(`edit_others_posts`)。サイドバーの位置はグループの下・PDF出力の上。`edit_posts` を持つユーザー全員を「在籍 / 退職 / すべて」タブで一覧し、`drwp_retired` user_meta を退職トグルで切り替える。トグルすると `DRWP_Audit` に `user_retired` / `user_reactivated` イベントが残る。最終日報日と日報数も列で表示するので、操作前に「本当に書いていない人か」を確認できる。
 
-**社員プロフィール(任意 3 項目)**: 行の「編集」ボタン → モーダルで編集。すべて user_meta:
+**社員プロフィール(任意項目)**: 行の「編集」ボタン → モーダルで編集。すべて user_meta:
 
 | 項目 | meta key | 表示 |
 | --- | --- | --- |
+| 社員名 | `drwp_worker_name` | 管理画面内のみの表示名。`DRWP_User::display_name()` が `is_admin()` のときだけこれを優先する。フロント(アーカイブの作成者・ログインバー・REST 経由のモーダル)には出ない |
 | 所属 | `drwp_department` | 一覧の専用列 |
 | 入社日 | `drwp_hired_at` (YYYY-MM-DD) | 一覧の専用列 (`date_i18n('Y/n/j')`) |
 | 備考 | `drwp_notes` | 表示名の隣に 💬 アイコン、hover の title で本文 |
+
+**絞り込み**: 在籍/退職/すべて タブに加えて、薄いグレー枠の `<details>` 検索フォーム(他の一覧ページと同デザイン)。フリーテキスト(社員名・姓名・メール・所属・備考を横断)+ 所属ドロップダウン(全社員の distinct 値)。社員数は高々数十なので PHP 側でフィルタする。
 
 保存は `admin_post_drwp_save_worker`。空欄で保存するとその meta 行は `delete_user_meta` で消す('' の行を userbase に溜めない)。`入社日` は YYYY-MM-DD 以外が POST されたら空扱い。退職トグルと同じく `user_can($u, 'edit_posts')` でない user_id への POST は拒否。保存で `worker_profile_updated` の監査ログが残る。
 
@@ -332,7 +335,14 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 ### 5.8 ユーザー名表示
 
-DRWP プラグイン全体で `display_name` を `DRWP_User::display_name($user_or_id)` 経由に統一。`first_name + last_name` を「姓 名」(日本語順)で返し、両方空のときだけ WordPress 標準の `display_name` → `user_login` にフォールバックする。
+DRWP プラグイン全体で `display_name` を `DRWP_User::display_name($user_or_id)` 経由に統一。解決順:
+
+1. `is_admin()` のときのみ: 社員ページで設定した `drwp_worker_name`(社員名)
+2. `first_name + last_name` の「姓 名」(日本語順)
+3. WordPress 標準の `display_name`
+4. `user_login`
+
+社員名が wp-admin 限定なのは意図的 — 事務所内のあだ名・呼称をフロント(公開アーカイブやログインバー)に漏らさないため。REST 経由のレンダリング(フロントのモーダル等)は `is_admin()` false なので姓名解決のまま。
 
 - 一覧テーブル: 日報一覧 / 記事一覧 / 予定一覧 / 監査ログ / 出力 PDF
 - アーカイブ単一ビューの「作成者」
