@@ -393,74 +393,96 @@
 .drwp-archive-dialog-photos figcaption { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
 .drwp-archive-dialog-actions { margin-top: 18px; text-align: right; }
 
-/* === 日報の内容モーダル — view モード ============================
-   "あっさりしすぎ" だった旧テーブル + h4 構造を、ヒーロー(案件 +
-   ステータスピル) + メタ行 + アイコン付きセクション + 写真グリッ
-   ドのカード型レイアウトに置き換え。 */
-.drwp-archive-view-hero {
-    display: flex; align-items: center; gap: 12px;
-    padding: 14px 16px; margin: -18px -22px 14px;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    border-bottom: 1px solid #e2e8f0;
+/* === 日報の内容モーダル — 紙面風レイアウト ========================
+   wp-admin の「確認」モーダル(`.drwp-page` 系)と同じ見た目に揃え
+   て、admin/フロントで日報の見え方を統一する。タイトル帯 + 太い枠
+   のメタ表 + セクションごとの帯ヘッダー + 写真グリッドの 4 ブロッ
+   クから成る。 */
+.drwp-archive-page {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    font-family: "Hiragino Sans","Yu Gothic","Noto Sans JP",sans-serif;
+    color: #1f2937;
 }
-.drwp-archive-view-hero-title {
-    flex: 1; min-width: 0;
-    font-size: 1.1rem; font-weight: 700; color: #0f172a;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.drwp-archive-page-title {
+    text-align: center;
+    font-size: 1.2em; font-weight: 700;
+    background: #e5e7eb;
+    border: 1px solid #1f2937;
+    padding: 6px 0;
+    margin: 0 0 12px;
 }
-.drwp-archive-status-pill {
-    display: inline-flex; align-items: center;
-    padding: 4px 10px; border-radius: 999px;
-    font-size: 0.78rem; font-weight: 700; color: #fff;
-    white-space: nowrap; flex-shrink: 0;
+.drwp-archive-page-meta {
+    width: 100%; border-collapse: collapse;
+    margin-bottom: 4px; table-layout: fixed;
 }
-.drwp-archive-status-pill.status-pending        { background: #d97706; }
-.drwp-archive-status-pill.status-approved       { background: #059669; }
-.drwp-archive-status-pill.status-needs_revision { background: #dc2626; }
-.drwp-archive-status-pill.status-edit_requested { background: #2563eb; }
+.drwp-archive-page-meta th,
+.drwp-archive-page-meta td {
+    border: 1px solid #1f2937;
+    padding: 6px 10px; font-size: .92em;
+    vertical-align: middle;
+}
+.drwp-archive-page-meta th {
+    background: #e5e7eb;
+    text-align: center; font-weight: 600;
+    white-space: nowrap;
+}
+.drwp-archive-meta-col-head { width: 14%; }
+.drwp-archive-meta-col-val  { width: 36%; }
+.drwp-archive-page-status {
+    display: inline-block;
+    padding: 2px 10px; border-radius: 999px;
+    font-size: .8em; font-weight: 600;
+    background: #f1f5f9; color: #475569;
+}
+.drwp-archive-page-status.is-approved       { background: #dcfce7; color: #166534; }
+.drwp-archive-page-status.is-needs_revision { background: #fee2e2; color: #991b1b; }
+.drwp-archive-page-status.is-edit_requested { background: #fef3c7; color: #92400e; }
+.drwp-archive-page-status.is-pending        { background: #e0e7ff; color: #3730a3; }
 
-.drwp-archive-view-meta {
-    display: flex; flex-wrap: wrap; gap: 6px 14px;
-    padding: 0 0 14px; margin: 0 0 14px;
-    border-bottom: 1px dashed #e2e8f0;
-    font-size: 0.88rem; color: #475569;
+.drwp-archive-page-section {
+    width: 100%; border-collapse: collapse;
+    margin-top: 10px; table-layout: fixed;
 }
-.drwp-archive-view-meta-item { white-space: nowrap; }
-
-.drwp-archive-view-section { margin: 0 0 14px; }
-.drwp-archive-view-section-head {
-    display: flex; align-items: center; gap: 6px;
-    margin: 0 0 6px; padding: 4px 10px;
-    font-size: 0.88rem; font-weight: 700; color: #1e293b;
-    background: #f1f5f9; border-left: 4px solid #2271b1;
-    border-radius: 0 6px 6px 0;
+.drwp-archive-page-section-head {
+    background: #e5e7eb;
+    border: 1px solid #1f2937;
+    text-align: center; font-weight: 700;
+    font-size: .95em; padding: 5px;
 }
-.drwp-archive-view-section-body {
-    padding: 4px 12px 4px 14px;
-    white-space: pre-wrap; line-height: 1.7; color: #0f172a;
-    font-size: 0.95rem;
+.drwp-archive-page-section-body {
+    border: 1px solid #1f2937;
+    padding: 12px 14px; vertical-align: top;
+    min-height: 60px;
 }
-
-.drwp-archive-view-photos {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 10px; padding: 4px 0 0 14px;
+.drwp-archive-page-text {
+    white-space: pre-wrap; line-height: 1.6; color: #1f2937;
 }
-.drwp-archive-view-photos figure { margin: 0; }
-.drwp-archive-view-photos a { display: block; }
-.drwp-archive-view-photos img {
+.drwp-archive-page-empty {
+    color: #94a3b8; font-style: italic;
+}
+.drwp-archive-page-photos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+}
+.drwp-archive-page-photos figure { margin: 0; }
+.drwp-archive-page-photos a { display: block; }
+.drwp-archive-page-photos img {
     width: 100%; aspect-ratio: 1; object-fit: cover;
-    border-radius: 8px; border: 1px solid #e5e7eb;
-    transition: transform .15s, box-shadow .15s;
+    border: 1px solid #c3c4c7; display: block;
+    transition: opacity .15s;
 }
-.drwp-archive-view-photos a:hover img {
-    transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,.08);
-}
-.drwp-archive-view-photos figcaption {
-    font-size: 0.78rem; color: #64748b; margin-top: 4px;
+.drwp-archive-page-photos a:hover img { opacity: 0.85; }
+.drwp-archive-page-photos figcaption {
+    font-size: .8em; color: #64748b; margin-top: 2px;
 }
 
 .drwp-archive-view-actions {
-    margin-top: 18px; padding-top: 14px;
+    margin-top: 14px; padding-top: 14px;
     border-top: 1px solid #e5e7eb;
     text-align: right;
 }
