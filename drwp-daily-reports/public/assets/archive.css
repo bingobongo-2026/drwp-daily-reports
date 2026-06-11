@@ -10,13 +10,38 @@
 .drwp-archive-message { padding: 24px; text-align: center; color: #475569; }
 .drwp-archive-empty { padding: 24px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 10px; }
 
-/* ---- Filter form ---- */
-.drwp-archive-filter {
+/* ---- Filter form ----
+   `<details>` でラップして折りたたみ可能に。デフォルト閉。
+   いずれかの絞り込み条件が有効なら `[open]` で開く。 */
+.drwp-archive-filter-card {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    padding: 14px 16px;
     margin-bottom: 16px;
+}
+.drwp-archive-filter-summary {
+    cursor: pointer;
+    padding: 12px 16px;
+    font-weight: 700; color: #1e293b;
+    list-style: none;
+    display: flex; align-items: center; gap: 10px;
+    user-select: none;
+}
+.drwp-archive-filter-summary::-webkit-details-marker { display: none; }
+.drwp-archive-filter-summary::before {
+    content: '▸'; font-size: 0.85em; color: #6b7280;
+    transition: transform .15s;
+}
+.drwp-archive-filter-card[open] .drwp-archive-filter-summary::before { transform: rotate(90deg); }
+.drwp-archive-filter-summary:hover { color: #2271b1; }
+.drwp-archive-filter-summary-text { flex: 1; }
+.drwp-archive-filter-summary-badge {
+    padding: 2px 8px; border-radius: 999px;
+    background: #2271b1; color: #fff;
+    font-size: 0.72rem; font-weight: 700;
+}
+.drwp-archive-filter {
+    padding: 4px 16px 14px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -325,8 +350,24 @@
 .drwp-mform-status.ok { padding: 10px 14px; background: #ecfdf5; border: 1px solid #86efac; color: #166534; border-radius: 10px; margin: 0 0 12px; font-weight: 600; }
 
 /* "自分のみ" checkbox styling */
-.drwp-archive-field-checkbox .drwp-archive-mine-wrap { display: inline-flex; align-items: center; gap: 6px; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; cursor: pointer; }
-.drwp-archive-field-checkbox input[type=checkbox] { margin: 0; }
+/* 自分のみ — 他のフィールドと違って「タイトル + 入力」の2段構造を
+   持たないので、独立スタイルでチップ風の単一行ボタンに。前は label
+   slot に &nbsp; を入れて空けていたせいで縦に伸びて間延びしてた。 */
+.drwp-archive-field-mine {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 14px;
+    background: #fff; border: 1px solid #cbd5e1; border-radius: 8px;
+    font-size: 0.9rem; color: #1e293b;
+    white-space: nowrap; cursor: pointer;
+    align-self: flex-end;
+    transition: background .15s, border-color .15s;
+}
+.drwp-archive-field-mine:hover { background: #f1f5f9; border-color: #94a3b8; }
+.drwp-archive-field-mine input[type=checkbox] {
+    margin: 0; width: 16px; height: 16px;
+    accent-color: #2271b1;
+}
+.drwp-archive-field-mine input[type=checkbox]:checked + span { color: #2271b1; font-weight: 700; }
 
 
 
@@ -351,6 +392,139 @@
 .drwp-archive-dialog-photos img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; }
 .drwp-archive-dialog-photos figcaption { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
 .drwp-archive-dialog-actions { margin-top: 18px; text-align: right; }
+
+/* === 日報の内容モーダル — view モード ============================
+   "あっさりしすぎ" だった旧テーブル + h4 構造を、ヒーロー(案件 +
+   ステータスピル) + メタ行 + アイコン付きセクション + 写真グリッ
+   ドのカード型レイアウトに置き換え。 */
+.drwp-archive-view-hero {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; margin: -18px -22px 14px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+}
+.drwp-archive-view-hero-title {
+    flex: 1; min-width: 0;
+    font-size: 1.1rem; font-weight: 700; color: #0f172a;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.drwp-archive-status-pill {
+    display: inline-flex; align-items: center;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 0.78rem; font-weight: 700; color: #fff;
+    white-space: nowrap; flex-shrink: 0;
+}
+.drwp-archive-status-pill.status-pending        { background: #d97706; }
+.drwp-archive-status-pill.status-approved       { background: #059669; }
+.drwp-archive-status-pill.status-needs_revision { background: #dc2626; }
+.drwp-archive-status-pill.status-edit_requested { background: #2563eb; }
+
+.drwp-archive-view-meta {
+    display: flex; flex-wrap: wrap; gap: 6px 14px;
+    padding: 0 0 14px; margin: 0 0 14px;
+    border-bottom: 1px dashed #e2e8f0;
+    font-size: 0.88rem; color: #475569;
+}
+.drwp-archive-view-meta-item { white-space: nowrap; }
+
+.drwp-archive-view-section { margin: 0 0 14px; }
+.drwp-archive-view-section-head {
+    display: flex; align-items: center; gap: 6px;
+    margin: 0 0 6px; padding: 4px 10px;
+    font-size: 0.88rem; font-weight: 700; color: #1e293b;
+    background: #f1f5f9; border-left: 4px solid #2271b1;
+    border-radius: 0 6px 6px 0;
+}
+.drwp-archive-view-section-body {
+    padding: 4px 12px 4px 14px;
+    white-space: pre-wrap; line-height: 1.7; color: #0f172a;
+    font-size: 0.95rem;
+}
+
+.drwp-archive-view-photos {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px; padding: 4px 0 0 14px;
+}
+.drwp-archive-view-photos figure { margin: 0; }
+.drwp-archive-view-photos a { display: block; }
+.drwp-archive-view-photos img {
+    width: 100%; aspect-ratio: 1; object-fit: cover;
+    border-radius: 8px; border: 1px solid #e5e7eb;
+    transition: transform .15s, box-shadow .15s;
+}
+.drwp-archive-view-photos a:hover img {
+    transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,.08);
+}
+.drwp-archive-view-photos figcaption {
+    font-size: 0.78rem; color: #64748b; margin-top: 4px;
+}
+
+.drwp-archive-view-actions {
+    margin-top: 18px; padding-top: 14px;
+    border-top: 1px solid #e5e7eb;
+    text-align: right;
+}
+
+/* === インライン編集モード ====================================
+   "編集する" ボタンを押すと同じモーダルの中で view → edit に切替。
+   別ページ ?drwp_edit=1 に飛ばさないことでカレンダーに戻る手間が
+   消える。 */
+.drwp-archive-inline-edit { display: flex; flex-direction: column; gap: 12px; }
+.drwp-archive-inline-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.88rem; }
+.drwp-archive-inline-field > span { font-weight: 700; color: #475569; }
+.drwp-archive-inline-field > span em { color: #b91c1c; font-style: normal; }
+.drwp-archive-inline-field input,
+.drwp-archive-inline-field select,
+.drwp-archive-inline-field textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px;
+    font-size: 0.95rem; box-sizing: border-box; font-family: inherit;
+}
+.drwp-archive-inline-times { display: flex; gap: 12px; }
+.drwp-archive-inline-times .drwp-archive-inline-field { flex: 1; }
+.drwp-archive-inline-photos {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px; margin-bottom: 6px;
+}
+.drwp-archive-inline-photo-item {
+    position: relative; padding: 6px; border: 1px solid #d1d5db;
+    border-radius: 8px; background: #fff;
+}
+.drwp-archive-inline-photo-item img {
+    display: block; width: 100%; height: 80px; object-fit: cover;
+    border-radius: 4px; background: #f3f4f6;
+}
+.drwp-archive-inline-photo-item input[type=text] {
+    width: 100%; margin-top: 4px; padding: 4px 6px;
+    border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.78rem;
+    box-sizing: border-box;
+}
+.drwp-archive-inline-photo-remove {
+    position: absolute; top: -6px; right: -6px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #ef4444; color: #fff; border: 0;
+    font-size: 14px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+}
+.drwp-archive-inline-photo-pick {
+    display: inline-block; padding: 6px 12px;
+    background: #f1f5f9; border: 1px dashed #94a3b8;
+    border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: #1e293b;
+}
+.drwp-archive-inline-photo-pick input { display: none; }
+.drwp-archive-inline-photo-status { margin: 4px 0 0; font-size: 0.8rem; color: #64748b; }
+.drwp-archive-inline-actions {
+    display: flex; align-items: center; gap: 10px;
+    padding-top: 10px; border-top: 1px solid #e5e7eb;
+}
+.drwp-archive-inline-cancel {
+    background: transparent; border: 1px solid #cbd5e1;
+    color: #1e293b; padding: 8px 14px; border-radius: 8px;
+    cursor: pointer; font-size: 0.9rem;
+}
+.drwp-archive-inline-cancel:hover { background: #f1f5f9; }
+.drwp-archive-inline-status { font-size: 0.85rem; color: #64748b; flex: 1; text-align: right; }
+.drwp-archive-inline-status.err { color: #b91c1c; }
+
 /* The new-report form is rendered inside the form dialog. Hide its
    "back to list" link since the close button is the cancel action. */
 .drwp-archive-dialog-body .drwp-mform-back { display: none; }
@@ -392,6 +566,13 @@
     background: #fef3c7;
     outline: 2px dashed #f59e0b;
     outline-offset: -2px;
+}
+/* "予定はタップで…" の操作ヒント。カレンダー下、控えめに。 */
+.drwp-archive-cal-hint {
+    margin: 8px 0 0; padding: 6px 10px;
+    font-size: 0.78rem; line-height: 1.5;
+    color: #475569; background: #f8fafc;
+    border-radius: 6px; text-align: center;
 }
 .drwp-archive-cal-plan-chip .drwp-archive-cal-chip-time { font-weight: 600; flex-shrink: 0; }
 .drwp-archive-cal-plan-chip .drwp-archive-cal-chip-text { overflow: hidden; text-overflow: ellipsis; }
