@@ -187,7 +187,7 @@ class DRWP_Admin {
 
         $list_label = __('日報一覧', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $list_label, $list_label, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page']);
-        $plans = __('予定', 'drwp-daily-reports');
+        $plans = __('予定一覧', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $plans, $plans, DRWP_Plan::CAP_LIST, 'drwp_plans', ['DRWP_Plan', 'render_page']);
         $articles = __('記事作成', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $articles, $articles, self::CAP_CONVERT, 'drwp_articles', [__CLASS__, 'articles_page']);
@@ -361,29 +361,9 @@ class DRWP_Admin {
         $query_args[] = $offset;
         $reports = $wpdb->get_results($wpdb->prepare($sql, $query_args));
 
-        // Calendar data: all report dates in scope (respecting permissions
-        // but ignoring filters) so users can navigate freely without
-        // re-fetching per month.
-        $cal_where = '1=1';
-        $cal_args  = [];
-        if (!current_user_can(self::CAP_REVIEW)) {
-            $cal_where .= ' AND user_id = %d';
-            $cal_args[] = get_current_user_id();
-        }
-        $cal_sql = "SELECT report_date, COUNT(*) AS cnt FROM $table WHERE $cal_where GROUP BY report_date";
-        $cal_rows = $cal_args
-            ? $wpdb->get_results($wpdb->prepare($cal_sql, $cal_args))
-            : $wpdb->get_results($cal_sql);
-        $report_dates = [];
-        foreach ($cal_rows as $row) $report_dates[(string) $row->report_date] = (int) $row->cnt;
-
         $projects = DRWP_Project::all();
         $customer_groups = DRWP_Customer_Group::all(true);
         $project_groups  = DRWP_Project_Group::all(true);
-        // Plan dates overlay on the calendar — separate dot color
-        // from report dates so the operator can see at a glance
-        // which future days already have a planned visit.
-        $plan_dates = DRWP_Plan::dates_for_calendar();
 
         include DRWP_PATH . 'admin/views/reports-list.php';
     }
