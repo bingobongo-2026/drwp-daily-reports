@@ -30,9 +30,9 @@ $can_review = current_user_can('edit_others_posts');
     </p></div>
   <?php endif; ?>
 
-  <!-- 検索・絞り込み -->
-  <details class="drwp-card drwp-filter-card" <?php echo ($filters['search'] || $filters['review_status'] || $filters['project_id'] || !empty($filters['customer_group_id']) || !empty($filters['project_group_id']) || $filters['date_from'] || $filters['date_to']) ? 'open' : ''; ?>>
-    <summary><?php esc_html_e('検索・絞り込み', 'drwp-daily-reports'); ?></summary>
+  <!-- 検索・絞り込み — details で折りたたみ、条件があれば自動展開 -->
+  <details class="drwp-filter" <?php echo ($filters['search'] || $filters['review_status'] || $filters['project_id'] || !empty($filters['customer_group_id']) || !empty($filters['project_group_id']) || $filters['date_from'] || $filters['date_to']) ? 'open' : ''; ?>>
+    <summary class="drwp-filter-summary"><?php esc_html_e('検索・絞り込み', 'drwp-daily-reports'); ?></summary>
     <form method="get" class="drwp-filter-form">
       <input type="hidden" name="page" value="drwp_reports" />
       <div class="drwp-row">
@@ -67,20 +67,11 @@ $can_review = current_user_can('edit_others_posts');
         <?php endif; ?>
       </div>
       <div class="drwp-row">
-        <input type="date" name="date_from" id="drwp-date-from" value="<?php echo esc_attr($filters['date_from']); ?>" />
-        〜
-        <input type="date" name="date_to" id="drwp-date-to" value="<?php echo esc_attr($filters['date_to']); ?>" />
+        <input type="date" name="date_from" value="<?php echo esc_attr($filters['date_from']); ?>" />
+        <span>〜</span>
+        <input type="date" name="date_to" value="<?php echo esc_attr($filters['date_to']); ?>" />
         <button class="button button-primary"><?php esc_html_e('検索', 'drwp-daily-reports'); ?></button>
-        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_reports')); ?>"><?php esc_html_e('クリア', 'drwp-daily-reports'); ?></a>
-      </div>
-      <div class="drwp-cal-wrap">
-        <div class="drwp-cal-head">
-          <button type="button" class="button button-small" id="drwp-cal-prev">‹</button>
-          <span id="drwp-cal-title"></span>
-          <button type="button" class="button button-small" id="drwp-cal-next">›</button>
-          <span class="drwp-cal-hint"><?php esc_html_e('日付をクリックで開始日 / 範囲指定', 'drwp-daily-reports'); ?></span>
-        </div>
-        <div class="drwp-cal-grid" id="drwp-cal-grid"></div>
+        <a class="button-link" href="<?php echo esc_url(admin_url('admin.php?page=drwp_reports')); ?>"><?php esc_html_e('クリア', 'drwp-daily-reports'); ?></a>
       </div>
     </form>
   </details>
@@ -99,17 +90,15 @@ $can_review = current_user_can('edit_others_posts');
     <input type="hidden" name="action" value="drwp_bulk_reports" />
     <input type="hidden" name="redirect_page" value="drwp_reports" />
 
-    <div class="drwp-card drwp-bulk-card">
-      <h3><?php esc_html_e('一括操作', 'drwp-daily-reports'); ?></h3>
-      <div class="drwp-row">
-        <select name="bulk_action">
-          <option value=""><?php esc_html_e('操作を選択', 'drwp-daily-reports'); ?></option>
-          <option value="bulk_approve"><?php esc_html_e('一括承認', 'drwp-daily-reports'); ?></option>
-          <option value="bulk_revision"><?php esc_html_e('一括差し戻し', 'drwp-daily-reports'); ?></option>
-          <option value="bulk_export_csv"><?php esc_html_e('選択した日報をCSV出力', 'drwp-daily-reports'); ?></option>
-        </select>
-        <button class="button button-primary"><?php esc_html_e('実行', 'drwp-daily-reports'); ?></button>
-      </div>
+    <div class="drwp-bulk-inline">
+      <label for="drwp-bulk-action"><?php esc_html_e('一括操作:', 'drwp-daily-reports'); ?></label>
+      <select name="bulk_action" id="drwp-bulk-action">
+        <option value=""><?php esc_html_e('操作を選択', 'drwp-daily-reports'); ?></option>
+        <option value="bulk_approve"><?php esc_html_e('一括承認', 'drwp-daily-reports'); ?></option>
+        <option value="bulk_revision"><?php esc_html_e('一括差し戻し', 'drwp-daily-reports'); ?></option>
+        <option value="bulk_export_csv"><?php esc_html_e('選択した日報をCSV出力', 'drwp-daily-reports'); ?></option>
+      </select>
+      <button class="button"><?php esc_html_e('実行', 'drwp-daily-reports'); ?></button>
     </div>
 
     <table class="widefat striped" id="drwp-reports-table">
@@ -313,40 +302,24 @@ $can_review = current_user_can('edit_others_posts');
 </div>
 
 <style>
-.drwp-card{background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:12px 16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-.drwp-card>summary{cursor:pointer;font-weight:600;color:#1d2327;list-style:none;display:flex;align-items:center;gap:6px;margin:-12px -16px 0;padding:10px 14px}
-.drwp-card>summary::before{content:'▸';font-size:.8em;color:#6b7280;transition:transform .15s}
-.drwp-card[open]>summary{margin-bottom:8px;border-bottom:1px solid #f1f5f9}
-.drwp-card[open]>summary::before{transform:rotate(90deg)}
-.drwp-card>summary:hover{color:#2271b1}
-.drwp-card>h3{margin:0 0 6px;font-size:.95em;color:#1d2327;border-bottom:1px solid #f1f5f9;padding-bottom:6px}
-.drwp-filter-card{background:#f0f6fc;border-left:4px solid #2271b1}
-.drwp-bulk-card{background:#fefce8;border-left:4px solid #d97706}
+/* 検索・絞り込み — `<details>` で控えめにまとめる。アクセントカラ
+   ーを使わず、薄いグレーの枠だけで囲んで「補助領域」感を出す。 */
+.drwp-filter{margin-bottom:10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff}
+.drwp-filter-summary{cursor:pointer;font-weight:600;color:#1d2327;list-style:none;display:flex;align-items:center;gap:6px;padding:8px 12px}
+.drwp-filter-summary::-webkit-details-marker{display:none}
+.drwp-filter-summary::before{content:'▸';font-size:.8em;color:#6b7280;transition:transform .15s}
+.drwp-filter[open] .drwp-filter-summary{border-bottom:1px solid #f1f5f9}
+.drwp-filter[open] .drwp-filter-summary::before{transform:rotate(90deg)}
+.drwp-filter-summary:hover{color:#2271b1}
+.drwp-filter-form{padding:10px 12px}
 .drwp-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
 .drwp-row:last-child{margin-bottom:0}
 .drwp-search-input{min-width:240px;flex:1}
-.drwp-cal-wrap{margin-top:6px}
-.drwp-cal-head{display:flex;gap:8px;align-items:center;margin-bottom:6px}
-.drwp-cal-head #drwp-cal-title{font-weight:600;min-width:120px;text-align:center}
-.drwp-cal-hint{font-size:.8em;color:#64748b;margin-left:8px}
-.drwp-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:4px;max-width:380px}
-.drwp-cal-grid .dow{text-align:center;font-size:.75em;color:#64748b;font-weight:600;padding:4px 0}
-.drwp-cal-grid .dow.sun{color:#dc2626}
-.drwp-cal-grid .dow.sat{color:#2563eb}
-.drwp-cal-day{position:relative;text-align:center;padding:6px 0;font-size:.85em;border-radius:4px;cursor:pointer;border:0;background:transparent;color:#374151;transition:background .1s}
-.drwp-cal-day.empty{visibility:hidden}
-.drwp-cal-day:hover:not(.empty){background:#e0f2fe}
-.drwp-cal-day.has-reports{font-weight:600;color:#0f172a}
-/* Two-dot row at the bottom of a day: blue = report, green = plan.
-   Single dot centered when only one exists; spread apart when both. */
-.drwp-cal-day.has-reports::after{content:'';position:absolute;left:50%;bottom:2px;margin-left:-2px;width:4px;height:4px;border-radius:50%;background:#2271b1}
-.drwp-cal-day.has-plans::before{content:'';position:absolute;left:50%;bottom:2px;margin-left:-2px;width:4px;height:4px;border-radius:50%;background:#16a34a}
-.drwp-cal-day.has-reports.has-plans::after{margin-left:-6px}
-.drwp-cal-day.has-reports.has-plans::before{margin-left:2px}
-.drwp-cal-day.today{outline:1px solid #2271b1}
-.drwp-cal-day.in-range{background:#dbeafe}
-.drwp-cal-day.range-edge{background:#2271b1;color:#fff}
-.drwp-cal-day.range-edge::after{background:#fff}
+
+/* 一括操作 — もうカードにしない。テーブル直上のインライン行で十分。 */
+.drwp-bulk-inline{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 0;font-size:.92em;color:#475569}
+.drwp-bulk-inline label{font-weight:600;color:#1d2327}
+
 .drwp-counter-line{margin:8px 0;color:#64748b;font-size:.9em}
 
 /* 共通モーダル — 確認 / 編集 で同じスタイル */
@@ -391,104 +364,6 @@ $can_review = current_user_can('edit_others_posts');
 .drwp-comment-meta{font-size:.8em;color:#64748b;margin-bottom:2px}
 .drwp-comment-body{white-space:pre-wrap;font-size:.92em;color:#1f2937}
 </style>
-
-<script>
-(function(){
-  /* ---- カレンダー ---- */
-  var dates = <?php echo wp_json_encode((object) ($report_dates ?? [])); ?>;
-  // Planned-visit overlay — separate dot color so days with a
-  // 予定 row show up alongside actual report dates.
-  var planDates = <?php echo wp_json_encode((object) ($plan_dates ?? [])); ?>;
-  var fromEl = document.getElementById('drwp-date-from');
-  var toEl = document.getElementById('drwp-date-to');
-  var grid = document.getElementById('drwp-cal-grid');
-  var titleEl = document.getElementById('drwp-cal-title');
-  if (!grid) return;
-
-  function pad(n){return n<10?('0'+n):(''+n);}
-  function fmt(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
-  function parseDate(s){
-    if(!s)return null;
-    var m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if(!m)return null;
-    return new Date(parseInt(m[1],10),parseInt(m[2],10)-1,parseInt(m[3],10));
-  }
-  function startOfMonth(y,m){return new Date(y,m,1);}
-
-  var init = parseDate(fromEl.value) || parseDate(toEl.value) || new Date();
-  var cursor = startOfMonth(init.getFullYear(), init.getMonth());
-  var pendingStart = null;
-
-  function render(){
-    var y = cursor.getFullYear(), m = cursor.getMonth();
-    titleEl.textContent = y + '年 ' + (m+1) + '月';
-    grid.innerHTML = '';
-    var dows = ['日','月','火','水','木','金','土'];
-    dows.forEach(function(d,i){
-      var el = document.createElement('div');
-      el.className = 'dow' + (i===0?' sun':(i===6?' sat':''));
-      el.textContent = d;
-      grid.appendChild(el);
-    });
-    var firstDow = new Date(y,m,1).getDay();
-    var daysInMonth = new Date(y,m+1,0).getDate();
-    var today = fmt(new Date());
-    var fromVal = fromEl.value, toVal = toEl.value;
-    for (var i=0;i<firstDow;i++){
-      var emp = document.createElement('div'); emp.className='drwp-cal-day empty'; grid.appendChild(emp);
-    }
-    for (var d=1; d<=daysInMonth; d++){
-      var date = new Date(y,m,d);
-      var key = fmt(date);
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'drwp-cal-day';
-      btn.textContent = d;
-      btn.dataset.date = key;
-      if (dates[key]) btn.classList.add('has-reports');
-      if (planDates[key]) btn.classList.add('has-plans');
-      if (key === today) btn.classList.add('today');
-      if (fromVal && toVal) {
-        if (key >= fromVal && key <= toVal) btn.classList.add('in-range');
-        if (key === fromVal || key === toVal) btn.classList.add('range-edge');
-      } else if (pendingStart && pendingStart === key) {
-        btn.classList.add('range-edge');
-      }
-      grid.appendChild(btn);
-    }
-  }
-
-  grid.addEventListener('click', function(e){
-    var btn = e.target.closest('.drwp-cal-day');
-    if (!btn || btn.classList.contains('empty')) return;
-    var key = btn.dataset.date;
-    if (!pendingStart && !(fromEl.value && toEl.value && fromEl.value !== toEl.value)) {
-      pendingStart = key;
-      fromEl.value = key;
-      toEl.value = key;
-    } else {
-      var anchor = pendingStart || fromEl.value;
-      if (key < anchor) { fromEl.value = key; toEl.value = anchor; }
-      else { fromEl.value = anchor; toEl.value = key; }
-      pendingStart = null;
-    }
-    render();
-  });
-
-  document.getElementById('drwp-cal-prev').addEventListener('click', function(){
-    cursor = startOfMonth(cursor.getFullYear(), cursor.getMonth()-1); render();
-  });
-  document.getElementById('drwp-cal-next').addEventListener('click', function(){
-    cursor = startOfMonth(cursor.getFullYear(), cursor.getMonth()+1); render();
-  });
-
-  [fromEl, toEl].forEach(function(el){
-    el.addEventListener('change', function(){ pendingStart = null; render(); });
-  });
-
-  render();
-})();
-</script>
 
 <script>
 (function(){

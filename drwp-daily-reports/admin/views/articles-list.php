@@ -14,15 +14,13 @@
 
   <p class="description"><?php esc_html_e('承認済みの日報のみ表示されます。', 'drwp-daily-reports'); ?></p>
 
-  <!-- ============================================================
-       検索・絞り込み
-       ============================================================ -->
-  <div class="drwp-list-card drwp-list-search">
-    <h2><?php esc_html_e('検索・絞り込み', 'drwp-daily-reports'); ?></h2>
-    <form method="get" class="drwp-list-search-form">
+  <!-- 検索・絞り込み — details で折りたたみ、条件があれば自動展開 -->
+  <details class="drwp-list-filter" <?php echo ($filters['search'] || $filters['post_status'] || $filters['project_id'] || $filters['date_from'] || $filters['date_to']) ? 'open' : ''; ?>>
+    <summary class="drwp-list-filter-summary"><?php esc_html_e('検索・絞り込み', 'drwp-daily-reports'); ?></summary>
+    <form method="get" class="drwp-list-filter-form">
       <input type="hidden" name="page" value="drwp_articles" />
-      <div class="drwp-list-search-row">
-        <input type="search" name="s" value="<?php echo esc_attr($filters['search']); ?>" placeholder="<?php esc_attr_e('本文・公開タイトル・タグ検索', 'drwp-daily-reports'); ?>" class="drwp-list-search-input" />
+      <div class="drwp-list-filter-row">
+        <input type="search" name="s" value="<?php echo esc_attr($filters['search']); ?>" placeholder="<?php esc_attr_e('本文・公開タイトル・タグ検索', 'drwp-daily-reports'); ?>" class="drwp-list-filter-input" />
         <select name="post_status">
           <option value=""><?php esc_html_e('投稿状態すべて', 'drwp-daily-reports'); ?></option>
           <?php
@@ -43,15 +41,15 @@
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="drwp-list-search-row">
+      <div class="drwp-list-filter-row">
         <input type="date" name="date_from" value="<?php echo esc_attr($filters['date_from']); ?>" />
         <span>〜</span>
         <input type="date" name="date_to" value="<?php echo esc_attr($filters['date_to']); ?>" />
         <button class="button button-primary"><?php esc_html_e('検索', 'drwp-daily-reports'); ?></button>
-        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_articles')); ?>"><?php esc_html_e('クリア', 'drwp-daily-reports'); ?></a>
+        <a class="button-link" href="<?php echo esc_url(admin_url('admin.php?page=drwp_articles')); ?>"><?php esc_html_e('クリア', 'drwp-daily-reports'); ?></a>
       </div>
     </form>
-  </div>
+  </details>
 
   <p class="description" style="margin:8px 0;">
     <?php
@@ -67,64 +65,59 @@
     <input type="hidden" name="action" value="drwp_bulk_reports" />
     <input type="hidden" name="redirect_page" value="drwp_articles" />
 
-    <!-- ============================================================
-         一括操作
-         ============================================================ -->
-    <div class="drwp-list-card drwp-list-bulk">
-      <h2><?php esc_html_e('一括操作', 'drwp-daily-reports'); ?></h2>
-      <div class="drwp-list-bulk-row">
-        <select name="bulk_action" id="drwp-bulk-action-select">
-          <option value=""><?php esc_html_e('操作を選択', 'drwp-daily-reports'); ?></option>
-          <option value="bulk_convert"><?php esc_html_e('一括で記事作成/更新', 'drwp-daily-reports'); ?></option>
-          <option value="bulk_update_publish"><?php esc_html_e('一括で公開設定を更新', 'drwp-daily-reports'); ?></option>
-          <option value="bulk_export_csv"><?php esc_html_e('選択した日報をCSV出力', 'drwp-daily-reports'); ?></option>
-        </select>
-        <button class="button button-primary"><?php esc_html_e('実行', 'drwp-daily-reports'); ?></button>
-      </div>
-
-      <div id="drwp-bulk-publish-opts" class="drwp-list-bulk-sub" style="display:none;">
-        <p class="drwp-bulk-sub-label"><?php esc_html_e('記事作成/公開設定に使う値:', 'drwp-daily-reports'); ?></p>
-        <div class="drwp-list-bulk-row">
-          <label>
-            <span><?php esc_html_e('テンプレート', 'drwp-daily-reports'); ?></span>
-            <select name="bulk_post_template">
-              <?php foreach (DRWP_Labels::post_template_options() as $key => $label): ?>
-                <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option>
-              <?php endforeach; ?>
-            </select>
-          </label>
-          <label>
-            <span><?php esc_html_e('カテゴリ', 'drwp-daily-reports'); ?></span>
-            <?php
-              wp_dropdown_categories([
-                'show_option_all' => __('カテゴリを選択', 'drwp-daily-reports'),
-                'hide_empty'      => 0,
-                'name'            => 'bulk_post_category_id',
-                'selected'        => 0,
-                'taxonomy'        => 'category',
-                'value_field'     => 'term_id',
-              ]);
-            ?>
-          </label>
-          <label>
-            <span><?php esc_html_e('タグ', 'drwp-daily-reports'); ?></span>
-            <input type="text" name="bulk_post_tags" placeholder="<?php esc_attr_e('カンマ区切り', 'drwp-daily-reports'); ?>" />
-          </label>
-          <label>
-            <span><?php esc_html_e('投稿状態', 'drwp-daily-reports'); ?></span>
-            <select name="bulk_post_status">
-              <option value="draft"><?php echo esc_html(DRWP_Labels::post_status('draft')); ?></option>
-              <option value="pending"><?php echo esc_html(DRWP_Labels::post_status('pending')); ?></option>
-              <option value="future"><?php echo esc_html(DRWP_Labels::post_status('future')); ?></option>
-            </select>
-          </label>
-          <label>
-            <span><?php esc_html_e('予約日時', 'drwp-daily-reports'); ?></span>
-            <input type="datetime-local" name="bulk_scheduled_at" />
-          </label>
-        </div>
-      </div>
+    <div class="drwp-list-bulk-inline">
+      <label for="drwp-bulk-action-select"><?php esc_html_e('一括操作:', 'drwp-daily-reports'); ?></label>
+      <select name="bulk_action" id="drwp-bulk-action-select">
+        <option value=""><?php esc_html_e('操作を選択', 'drwp-daily-reports'); ?></option>
+        <option value="bulk_convert"><?php esc_html_e('一括で記事作成/更新', 'drwp-daily-reports'); ?></option>
+        <option value="bulk_update_publish"><?php esc_html_e('一括で公開設定を更新', 'drwp-daily-reports'); ?></option>
+        <option value="bulk_export_csv"><?php esc_html_e('選択した日報をCSV出力', 'drwp-daily-reports'); ?></option>
+      </select>
+      <button class="button"><?php esc_html_e('実行', 'drwp-daily-reports'); ?></button>
     </div>
+
+    <details id="drwp-bulk-publish-opts" class="drwp-list-bulk-sub" style="display:none;">
+      <summary class="drwp-list-bulk-sub-summary"><?php esc_html_e('記事作成/公開設定に使う値', 'drwp-daily-reports'); ?></summary>
+      <div class="drwp-list-bulk-sub-row">
+        <label>
+          <span><?php esc_html_e('テンプレート', 'drwp-daily-reports'); ?></span>
+          <select name="bulk_post_template">
+            <?php foreach (DRWP_Labels::post_template_options() as $key => $label): ?>
+              <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </label>
+        <label>
+          <span><?php esc_html_e('カテゴリ', 'drwp-daily-reports'); ?></span>
+          <?php
+            wp_dropdown_categories([
+              'show_option_all' => __('カテゴリを選択', 'drwp-daily-reports'),
+              'hide_empty'      => 0,
+              'name'            => 'bulk_post_category_id',
+              'selected'        => 0,
+              'taxonomy'        => 'category',
+              'value_field'     => 'term_id',
+            ]);
+          ?>
+        </label>
+        <label>
+          <span><?php esc_html_e('タグ', 'drwp-daily-reports'); ?></span>
+          <input type="text" name="bulk_post_tags" placeholder="<?php esc_attr_e('カンマ区切り', 'drwp-daily-reports'); ?>" />
+        </label>
+        <label>
+          <span><?php esc_html_e('投稿状態', 'drwp-daily-reports'); ?></span>
+          <select name="bulk_post_status">
+            <option value="draft"><?php echo esc_html(DRWP_Labels::post_status('draft')); ?></option>
+            <option value="pending"><?php echo esc_html(DRWP_Labels::post_status('pending')); ?></option>
+            <option value="future"><?php echo esc_html(DRWP_Labels::post_status('future')); ?></option>
+          </select>
+        </label>
+        <label>
+          <span><?php esc_html_e('予約日時', 'drwp-daily-reports'); ?></span>
+          <input type="datetime-local" name="bulk_scheduled_at" />
+        </label>
+      </div>
+    </details>
 
     <table class="widefat striped" id="drwp-articles-table">
       <thead>
@@ -326,17 +319,32 @@
   </dialog>
 
   <style>
-  .drwp-list-card{border:1px solid #c3c4c7;border-radius:8px;padding:12px 16px;margin-bottom:12px}
-  .drwp-list-card>h2{margin:0 0 8px;font-size:.95em;color:#1d2327;border-bottom:1px solid #e5e7eb;padding-bottom:6px}
-  .drwp-list-search{background:#f0f6fc;border-left:4px solid #2271b1}
-  .drwp-list-bulk{background:#fefce8;border-left:4px solid #d97706}
-  .drwp-list-search-form,.drwp-list-bulk-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
-  .drwp-list-bulk-sub{margin-top:10px;padding-top:10px;border-top:1px dashed #d97706}
-  .drwp-bulk-sub-label{margin:0 0 6px;font-size:.85em;color:#92400e;font-weight:600}
-  .drwp-list-bulk-row label{display:flex;flex-direction:column;gap:2px;min-width:120px}
-  .drwp-list-bulk-row label>span{font-size:.8em;color:#50575e;font-weight:600}
-  .drwp-list-search-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%}
-  .drwp-list-search-input{min-width:200px;flex:1}
+  /* 検索・絞り込み — details で折りたたみ、アクセントカラー無しの
+     薄いグレー枠だけで囲って補助領域感を出す。 */
+  .drwp-list-filter{margin-bottom:10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff}
+  .drwp-list-filter-summary{cursor:pointer;font-weight:600;color:#1d2327;list-style:none;display:flex;align-items:center;gap:6px;padding:8px 12px}
+  .drwp-list-filter-summary::-webkit-details-marker{display:none}
+  .drwp-list-filter-summary::before{content:'▸';font-size:.8em;color:#6b7280;transition:transform .15s}
+  .drwp-list-filter[open] .drwp-list-filter-summary{border-bottom:1px solid #f1f5f9}
+  .drwp-list-filter[open] .drwp-list-filter-summary::before{transform:rotate(90deg)}
+  .drwp-list-filter-summary:hover{color:#2271b1}
+  .drwp-list-filter-form{padding:10px 12px}
+  .drwp-list-filter-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%;margin-bottom:8px}
+  .drwp-list-filter-row:last-child{margin-bottom:0}
+  .drwp-list-filter-input{min-width:200px;flex:1}
+
+  /* 一括操作 — カード化はやめてテーブル直上のインライン行に。
+     公開設定の追加項目だけ details で畳んでおく。 */
+  .drwp-list-bulk-inline{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 0;font-size:.92em;color:#475569}
+  .drwp-list-bulk-inline label{font-weight:600;color:#1d2327}
+  .drwp-list-bulk-sub{margin-bottom:10px;padding:0 0 0 4px;border-left:2px solid #e5e7eb}
+  .drwp-list-bulk-sub-summary{cursor:pointer;font-size:.88em;color:#475569;font-weight:600;padding:4px 8px;list-style:none}
+  .drwp-list-bulk-sub-summary::-webkit-details-marker{display:none}
+  .drwp-list-bulk-sub-summary::before{content:'▸';font-size:.8em;color:#6b7280;margin-right:4px;transition:transform .15s}
+  .drwp-list-bulk-sub[open] .drwp-list-bulk-sub-summary::before{transform:rotate(90deg)}
+  .drwp-list-bulk-sub-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:4px 8px 8px}
+  .drwp-list-bulk-sub-row label{display:flex;flex-direction:column;gap:2px;min-width:120px}
+  .drwp-list-bulk-sub-row label>span{font-size:.8em;color:#50575e;font-weight:600}
   .drwp-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:640px;width:90vw}
   .drwp-modal-wide{max-width:780px}
   .drwp-modal::backdrop{background:rgba(0,0,0,.45)}
@@ -364,7 +372,11 @@
     if(!sel||!opts)return;
     function toggle(){
       var v=sel.value;
-      opts.style.display=(v==='bulk_convert'||v==='bulk_update_publish')?'':'none';
+      var show=(v==='bulk_convert'||v==='bulk_update_publish');
+      opts.style.display=show?'':'none';
+      // Auto-expand when relevant so the operator doesn't have to
+      // click the summary every time. Leave alone when hidden.
+      if(show) opts.open=true;
     }
     sel.addEventListener('change',toggle);
     toggle();

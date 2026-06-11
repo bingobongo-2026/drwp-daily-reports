@@ -237,7 +237,7 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 | スラッグ | ラベル | 必須 cap | 担当クラス |
 | --- | --- | --- | --- |
 | `drwp_reports` | 日報一覧 | `edit_posts` | `DRWP_Admin::reports_page` |
-| `drwp_plans` | 予定 | `edit_posts` | `DRWP_Plan::render_page` |
+| `drwp_plans` | 予定一覧 | `edit_posts` | `DRWP_Plan::render_page` |
 | `drwp_articles` | 記事作成 | `publish_posts` | `DRWP_Admin::articles_page` |
 | `drwp_projects` | 案件 | `manage_options` | `DRWP_Project::render_page` |
 | `drwp_customers` | 顧客 | `manage_options` | `DRWP_Customer::render_page` |
@@ -289,7 +289,7 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 旧 `drwp_operations` スラッグはメニュー登録を撤去し、`operations_page()` メソッドも削除済み。`bulk_reports` ハンドラの `redirect_page` ホワイトリストから `drwp_operations` が外れ、未知の値は `drwp_reports` にフォールバックする。
 
-カレンダーには `report_dates` と `plan_dates` の 2 つのマップが渡される。`has-reports` クラス（青ドット）と `has-plans` クラス（緑ドット）が同じ日に両方付くケースは CSS の `::before` / `::after` の `margin-left` で左右にずらして 2 つ並べる。
+日報一覧の検索フォーム内にあった月カレンダー(`report_dates` / `plan_dates` を表示)は v1.35 で撤去。アーカイブ画面側のカレンダーが充実したのと、絞り込みフォームが視覚的に重くなりすぎていたのが理由。日付範囲は date input 2 つだけで指定する。検索/絞り込みと一括操作はそれぞれ `<details>` 折りたたみとテーブル直上のインライン行に簡素化し、`drwp-filter-card` / `drwp-bulk-card` の青/黄アクセントを廃止して薄いグレー枠の `drwp-filter` / `drwp-bulk-inline` に統一。記事作成ページも同じ pattern。
 
 ### 5.6 予定
 
