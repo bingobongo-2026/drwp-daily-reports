@@ -4,9 +4,17 @@
 // edited via a modal. The retired flag blocks all DRWP write paths
 // but keeps the user's past reports + attribution intact.
 $visible = [];
+$needle = function_exists('mb_strtolower') ? mb_strtolower($search ?? '') : strtolower($search ?? '');
 foreach ($workers as $w) {
     if ($filter === 'active'  && $w->retired) continue;
     if ($filter === 'retired' && !$w->retired) continue;
+    if (($department_filter ?? '') !== '' && $w->department !== $department_filter) continue;
+    if ($needle !== '') {
+        $hay = function_exists('mb_strtolower')
+            ? mb_strtolower($w->name . ' ' . $w->worker_name . ' ' . $w->email . ' ' . $w->department . ' ' . $w->notes)
+            : strtolower($w->name . ' ' . $w->worker_name . ' ' . $w->email . ' ' . $w->department . ' ' . $w->notes);
+        if (strpos($hay, $needle) === false) continue;
+    }
     $visible[] = $w;
 }
 ?>
@@ -33,7 +41,32 @@ foreach ($workers as $w) {
            class="<?php echo $filter === 'all' ? 'current' : ''; ?>"><?php esc_html_e('すべて', 'drwp-daily-reports'); ?></a></li>
   </ul>
 
-  <table class="widefat striped" style="clear:both;margin-top:8px;">
+  <details class="drwp-filter" style="clear:both;" <?php echo ($search !== '' || $department_filter !== '') ? 'open' : ''; ?>>
+    <summary class="drwp-filter-summary"><?php esc_html_e('検索・絞り込み', 'drwp-daily-reports'); ?></summary>
+    <form method="get" class="drwp-filter-form">
+      <input type="hidden" name="page" value="drwp_workers" />
+      <input type="hidden" name="view" value="<?php echo esc_attr($filter); ?>" />
+      <div class="drwp-row">
+        <input type="search" name="s" value="<?php echo esc_attr($search); ?>"
+               placeholder="<?php esc_attr_e('社員名・メール・所属・備考検索', 'drwp-daily-reports'); ?>"
+               class="drwp-search-input" />
+        <?php if (!empty($departments)): ?>
+        <select name="department">
+          <option value=""><?php esc_html_e('所属すべて', 'drwp-daily-reports'); ?></option>
+          <?php foreach ($departments as $dep): ?>
+            <option value="<?php echo esc_attr($dep); ?>" <?php selected($department_filter, $dep); ?>>
+              <?php echo esc_html($dep); ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+        <?php endif; ?>
+        <button class="button button-primary"><?php esc_html_e('検索', 'drwp-daily-reports'); ?></button>
+        <a class="button-link" href="<?php echo esc_url(admin_url('admin.php?page=drwp_workers&view=' . $filter)); ?>"><?php esc_html_e('クリア', 'drwp-daily-reports'); ?></a>
+      </div>
+    </form>
+  </details>
+
+  <table class="widefat striped" style="margin-top:8px;">
     <thead>
       <tr>
         <th><?php esc_html_e('表示名', 'drwp-daily-reports'); ?></th>
@@ -77,6 +110,7 @@ foreach ($workers as $w) {
             <button type="button" class="button button-small drwp-worker-edit-btn"
                     data-id="<?php echo (int) $w->id; ?>"
                     data-name="<?php echo esc_attr($w->name); ?>"
+                    data-worker_name="<?php echo esc_attr($w->worker_name); ?>"
                     data-department="<?php echo esc_attr($w->department); ?>"
                     data-hired_at="<?php echo esc_attr($w->hired_at); ?>"
                     data-notes="<?php echo esc_attr($w->notes); ?>">
@@ -121,6 +155,14 @@ foreach ($workers as $w) {
       <div class="drwp-worker-modal-body">
         <table class="form-table">
           <tr>
+            <th><label for="drwp-worker-name"><?php esc_html_e('社員名', 'drwp-daily-reports'); ?></label></th>
+            <td>
+              <input type="text" id="drwp-worker-name" name="worker_name" class="regular-text"
+                     placeholder="<?php esc_attr_e('例: 山田（東京）', 'drwp-daily-reports'); ?>" />
+              <p class="description"><?php esc_html_e('管理画面内だけで使う表示名。空欄なら WP プロフィールの姓名で表示されます。フロント側には出ません。', 'drwp-daily-reports'); ?></p>
+            </td>
+          </tr>
+          <tr>
             <th><label for="drwp-worker-department"><?php esc_html_e('所属', 'drwp-daily-reports'); ?></label></th>
             <td><input type="text" id="drwp-worker-department" name="department" class="regular-text"
                        placeholder="<?php esc_attr_e('例: 工事部 / 営業 / 外注', 'drwp-daily-reports'); ?>" /></td>
@@ -146,6 +188,18 @@ foreach ($workers as $w) {
 </div>
 
 <style>
+/* 検索・絞り込み — 日報一覧と同じ薄いグレー枠の details。 */
+.drwp-filter{margin:8px 0 10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff}
+.drwp-filter-summary{cursor:pointer;font-weight:600;color:#1d2327;list-style:none;display:flex;align-items:center;gap:6px;padding:8px 12px}
+.drwp-filter-summary::-webkit-details-marker{display:none}
+.drwp-filter-summary::before{content:'▸';font-size:.8em;color:#6b7280;transition:transform .15s}
+.drwp-filter[open] .drwp-filter-summary{border-bottom:1px solid #f1f5f9}
+.drwp-filter[open] .drwp-filter-summary::before{transform:rotate(90deg)}
+.drwp-filter-summary:hover{color:#2271b1}
+.drwp-filter-form{padding:10px 12px}
+.drwp-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.drwp-search-input{min-width:220px;flex:1}
+
 .drwp-worker-row.is-retired td { color: #6b7280; }
 .drwp-worker-badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; font-weight:600; }
 .drwp-worker-badge.is-active  { background:#dcfce7; color:#166534; }
@@ -168,6 +222,7 @@ foreach ($workers as $w) {
   var dlg = document.getElementById('drwp-worker-dialog');
   if (!dlg) return;
   var idEl    = document.getElementById('drwp-worker-id');
+  var wnameEl = document.getElementById('drwp-worker-name');
   var deptEl  = document.getElementById('drwp-worker-department');
   var hiredEl = document.getElementById('drwp-worker-hired');
   var notesEl = document.getElementById('drwp-worker-notes');
@@ -179,12 +234,13 @@ foreach ($workers as $w) {
     if (!btn) return;
     var d = btn.dataset;
     idEl.value    = d.id;
+    wnameEl.value = d.worker_name || '';
     deptEl.value  = d.department || '';
     hiredEl.value = d.hired_at || '';
     notesEl.value = d.notes || '';
     titleEl.textContent = editTitle + ' — ' + (d.name || '#' + d.id);
     dlg.showModal();
-    deptEl.focus();
+    wnameEl.focus();
   });
 
   dlg.addEventListener('click', function (e) {

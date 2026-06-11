@@ -19,10 +19,11 @@ if (!defined('ABSPATH')) exit;
  */
 class DRWP_User {
     const META_RETIRED  = 'drwp_retired';
-    // 任意の社員プロフィール 3 項目。WP の user_meta にそのまま持つ。
-    const META_DEPARTMENT = 'drwp_department'; // 所属
-    const META_HIRED_AT   = 'drwp_hired_at';   // 入社日 (YYYY-MM-DD)
-    const META_NOTES      = 'drwp_notes';      // 備考
+    // 任意の社員プロフィール項目。WP の user_meta にそのまま持つ。
+    const META_WORKER_NAME = 'drwp_worker_name'; // 社員名(管理画面内のみの表示名)
+    const META_DEPARTMENT  = 'drwp_department';  // 所属
+    const META_HIRED_AT    = 'drwp_hired_at';    // 入社日 (YYYY-MM-DD)
+    const META_NOTES       = 'drwp_notes';       // 備考
     const CAP_MANAGE    = 'edit_others_posts';
     // Short-lived marker cookie set whenever we detect a retired
     // session (either at logout time or right after a login attempt
@@ -269,6 +270,14 @@ class DRWP_User {
             $user = get_userdata((int) $user_or_id);
         }
         if (!$user) return '';
+        // 社員名 — admin-only override set on the 社員 page. Front
+        // surfaces (archive author, login bar, REST-rendered modals)
+        // keep the 姓名 / display_name resolution so a nickname the
+        // office uses internally never leaks to the public site.
+        if (is_admin()) {
+            $worker_name = trim((string) get_user_meta($user->ID, self::META_WORKER_NAME, true));
+            if ($worker_name !== '') return $worker_name;
+        }
         $first = trim((string) get_user_meta($user->ID, 'first_name', true));
         $last  = trim((string) get_user_meta($user->ID, 'last_name', true));
         // 姓 名 — Japanese convention. Falling out cleanly for the
@@ -354,16 +363,17 @@ class DRWP_User {
             $retired = self::is_retired((int) $u->ID);
             $stats = $last_by_uid[(int) $u->ID] ?? ['last' => '', 'cnt' => 0];
             $out[] = (object) [
-                'id'         => (int) $u->ID,
-                'name'       => self::display_name($u),
-                'email'      => (string) $u->user_email,
-                'roles'      => $u->roles,
-                'retired'    => $retired,
-                'last_date'  => $stats['last'],
-                'report_cnt' => $stats['cnt'],
-                'department' => (string) get_user_meta((int) $u->ID, self::META_DEPARTMENT, true),
-                'hired_at'   => (string) get_user_meta((int) $u->ID, self::META_HIRED_AT, true),
-                'notes'      => (string) get_user_meta((int) $u->ID, self::META_NOTES, true),
+                'id'          => (int) $u->ID,
+                'name'        => self::display_name($u),
+                'email'       => (string) $u->user_email,
+                'roles'       => $u->roles,
+                'retired'     => $retired,
+                'last_date'   => $stats['last'],
+                'report_cnt'  => $stats['cnt'],
+                'worker_name' => (string) get_user_meta((int) $u->ID, self::META_WORKER_NAME, true),
+                'department'  => (string) get_user_meta((int) $u->ID, self::META_DEPARTMENT, true),
+                'hired_at'    => (string) get_user_meta((int) $u->ID, self::META_HIRED_AT, true),
+                'notes'       => (string) get_user_meta((int) $u->ID, self::META_NOTES, true),
             ];
         }
         // Sort: active first (by name), then retired (by name).
@@ -381,6 +391,18 @@ class DRWP_User {
         $workers = self::workers_with_stats();
         $filter  = isset($_GET['view']) ? sanitize_key((string) $_GET['view']) : 'active';
         if (!in_array($filter, ['active', 'retired', 'all'], true)) $filter = 'active';
+        // Free-text search — matches 社員名 / 姓名 / email / 所属 /
+        // 備考. Done in PHP over the already-fetched list because the
+        // worker count is small (a handful of users, not thousands).
+        $search = isset($_GET['s']) ? sanitize_text_field(wp_unslash((string) $_GET['s'])) : '';
+        $department_filter = isset($_GET['department']) ? sanitize_text_field(wp_unslash((string) $_GET['department'])) : '';
+        // Department dropdown options — distinct non-empty values
+        // across all workers (unfiltered, so picking one doesn't
+        // make the others vanish from the list).
+        $departments = array_values(array_unique(array_filter(array_map(
+            fn($w) => (string) $w->department, $workers
+        ))));
+        sort($departments);
 
         include DRWP_PATH . 'admin/views/workers-page.php';
     }
@@ -404,17 +426,19 @@ class DRWP_User {
             exit;
         }
 
-        $department = sanitize_text_field(wp_unslash((string) ($_POST['department'] ?? '')));
-        $hired_at   = sanitize_text_field(wp_unslash((string) ($_POST['hired_at'] ?? '')));
+        $worker_name = sanitize_text_field(wp_unslash((string) ($_POST['worker_name'] ?? '')));
+        $department  = sanitize_text_field(wp_unslash((string) ($_POST['department'] ?? '')));
+        $hired_at    = sanitize_text_field(wp_unslash((string) ($_POST['hired_at'] ?? '')));
         if ($hired_at !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $hired_at)) {
             $hired_at = '';
         }
         $notes = sanitize_textarea_field(wp_unslash((string) ($_POST['notes'] ?? '')));
 
         $fields = [
-            self::META_DEPARTMENT => $department,
-            self::META_HIRED_AT   => $hired_at,
-            self::META_NOTES      => $notes,
+            self::META_WORKER_NAME => $worker_name,
+            self::META_DEPARTMENT  => $department,
+            self::META_HIRED_AT    => $hired_at,
+            self::META_NOTES       => $notes,
         ];
         foreach ($fields as $key => $value) {
             if ($value === '') {
