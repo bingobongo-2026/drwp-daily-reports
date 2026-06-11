@@ -680,6 +680,31 @@ PATCH は部分更新。`attachment_ids` キーが含まれていれば写真リ
 
 ライセンスサーバから署名付きの状態を受け取り、`drwp_license_*` オプションに保存。`active` / `inactive` / `unknown`(API 失敗時、`drwp_license_last_valid_at` から猶予期間内なら書込 OK)の 3 状態。API 応答は `drwp_license_public_key` で署名検証する。
 
+### プランによる機能ゲート
+
+ライセンスサーバの `plan` 値を `drwp_license_plan` に保存。`DRWP_License::plan()` で正規化(lowercase + trim)済みのスラッグを取得、`DRWP_License::plan_allows($feature)` で機能ごとに boolean を返す。
+
+| プラン | 利用可能機能 |
+| --- | --- |
+| `basic` | AI 以外すべて |
+| `pro`   | AI を含むすべて |
+| 不明値 / 空 | `basic` 扱い(保守的フォールバック) |
+| ライセンス無効 (`can_write` が false) | 何も許可しない |
+
+現状ゲート対象の `$feature` は `ai` のみ。今後追加するときは `class-drwp-license.php` の `plan_allows()` 内の `$matrix` に項目を増やす。
+
+**AI のゲート箇所**:
+
+| サーフェス | 挙動 |
+| --- | --- |
+| REST `POST /ai/briefing` | permission_callback `can_use_ai` で `WP_Error('drwp_plan_locked', 403)` |
+| `admin.php?page=drwp_ai` (AI 設定) | `DRWP_AI_Admin::render_page` で `ai-settings-locked.php` の Pro アップセル画面に差し替え |
+| `admin_post_drwp_save_ai_settings` / `drwp_ai_test` | `wp_die(403)` (UI を回避した直接 POST 対策) |
+| 案件ページの「AI ブリーフィング」ボタン | `disabled` + `.drwp-pro-badge` で「Pro」表示、tooltip「Pro プランで利用可能」 |
+| ライセンス管理ページ | プラン値を `.drwp-plan-pill.is-pro` / `.is-basic` の pill で表示、許可される機能を併記 |
+
+設定値(プロバイダ・URL・モデル・API キー)はプランダウングレード時も**消さない** — 再びプロに戻したら既存設定で動く。
+
 ---
 
 ## 12. 監査ログ

@@ -9,6 +9,14 @@ class DRWP_AI_Admin {
 
     public static function render_page() {
         if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        // Pro プラン以外はアップセル画面に差し替え。設定値そのもの
+        // は触らない(過去にプロだった環境がダウングレードしたとき
+        // 設定が消えるとプラン戻したときに再入力させてしまうので)。
+        $plan_locked = !DRWP_License::plan_allows('ai');
+        if ($plan_locked) {
+            include DRWP_PATH . 'admin/views/ai-settings-locked.php';
+            return;
+        }
         $provider = DRWP_AI::provider();
         $url      = DRWP_AI::url();
         $model    = DRWP_AI::model();
@@ -26,6 +34,14 @@ class DRWP_AI_Admin {
 
     public static function save() {
         if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        // Pro 以外は admin-post でも書き込みを拒否(UI を出していな
+        // くても直接 POST してくる可能性に備える)。
+        if (!DRWP_License::plan_allows('ai')) {
+            wp_die(
+                esc_html__('AI 機能は Pro プランで利用可能です。', 'drwp-daily-reports'),
+                '', ['response' => 403, 'back_link' => true]
+            );
+        }
         check_admin_referer('drwp_save_ai_settings');
         $provider = sanitize_text_field(wp_unslash($_POST['provider'] ?? 'ollama'));
         if (!in_array($provider, ['ollama', 'openai', 'anthropic'], true)) $provider = 'ollama';
@@ -47,6 +63,12 @@ class DRWP_AI_Admin {
 
     public static function test() {
         if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!DRWP_License::plan_allows('ai')) {
+            wp_die(
+                esc_html__('AI 機能は Pro プランで利用可能です。', 'drwp-daily-reports'),
+                '', ['response' => 403, 'back_link' => true]
+            );
+        }
         check_admin_referer('drwp_ai_test');
         $result = DRWP_AI::test_connection();
         if (is_wp_error($result)) {

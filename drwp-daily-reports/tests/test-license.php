@@ -82,6 +82,40 @@ class Test_DRWP_License extends WP_UnitTestCase {
         $this->assertTrue(DRWP_License::can_convert());
     }
 
+    public function test_plan_allows_pro_unlocks_ai() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_PLAN, 'pro');
+        $this->assertSame('pro', DRWP_License::plan());
+        $this->assertTrue(DRWP_License::plan_allows('ai'));
+    }
+
+    public function test_plan_allows_basic_blocks_ai() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_PLAN, 'basic');
+        $this->assertFalse(DRWP_License::plan_allows('ai'));
+    }
+
+    public function test_plan_allows_normalises_case_and_whitespace() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_PLAN, '  PRO ');
+        $this->assertSame('pro', DRWP_License::plan());
+        $this->assertTrue(DRWP_License::plan_allows('ai'));
+    }
+
+    public function test_plan_allows_unknown_plan_falls_back_to_basic() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_PLAN, 'enterprise');
+        // 不明プランは保守的に basic 扱い — AI は使えない。
+        $this->assertFalse(DRWP_License::plan_allows('ai'));
+    }
+
+    public function test_plan_allows_blocks_everything_when_license_inactive() {
+        update_option(DRWP_License::OPT_STATUS, 'inactive');
+        update_option(DRWP_License::OPT_PLAN, 'pro');
+        // ライセンス自体が無効 = AI を含め何も許可しない。
+        $this->assertFalse(DRWP_License::plan_allows('ai'));
+    }
+
     public function test_grace_window_lets_writes_through_after_recent_active_check() {
         update_option(DRWP_License::OPT_STATUS, 'inactive');
         update_option(DRWP_License::OPT_LAST_VALID_AT, time() - 2 * DAY_IN_SECONDS);
