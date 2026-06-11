@@ -189,8 +189,6 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $list_label, $list_label, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page']);
         $plans = __('予定', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $plans, $plans, DRWP_Plan::CAP_LIST, 'drwp_plans', ['DRWP_Plan', 'render_page']);
-        $workers = __('社員', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $workers, $workers, DRWP_User::CAP_MANAGE, 'drwp_workers', ['DRWP_User', 'render_page']);
         $articles = __('記事作成', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $articles, $articles, self::CAP_CONVERT, 'drwp_articles', [__CLASS__, 'articles_page']);
         $proj = __('案件', 'drwp-daily-reports');
@@ -199,6 +197,8 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $cust, $cust, 'manage_options', 'drwp_customers', ['DRWP_Customer', 'render_page']);
         $grp = __('グループ', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $grp, $grp, 'manage_options', DRWP_Groups_Admin::SLUG, ['DRWP_Groups_Admin', 'render_page']);
+        $workers = __('社員', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $workers, $workers, DRWP_User::CAP_MANAGE, 'drwp_workers', ['DRWP_User', 'render_page']);
         $pdf = __('PDF出力', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $pdf, $pdf, self::CAP_EDIT, 'drwp_print', ['DRWP_Print', 'render_page']);
 

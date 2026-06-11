@@ -1,7 +1,8 @@
 <?php if (!defined('ABSPATH')) exit;
 // 社員 admin page — list every `edit_posts` user with a 退職 /
-// 復帰 toggle. The retired flag blocks all DRWP write paths but
-// keeps the user's past reports + attribution intact.
+// 復帰 toggle plus an optional profile trio (所属 / 入社日 / 備考)
+// edited via a modal. The retired flag blocks all DRWP write paths
+// but keeps the user's past reports + attribution intact.
 $visible = [];
 foreach ($workers as $w) {
     if ($filter === 'active'  && $w->retired) continue;
@@ -13,7 +14,7 @@ foreach ($workers as $w) {
   <h1><?php esc_html_e('社員', 'drwp-daily-reports'); ?></h1>
 
   <?php if (!empty($_GET['saved'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('社員の状態を更新しました。', 'drwp-daily-reports'); ?></p></div>
+    <div class="notice notice-success"><p><?php esc_html_e('社員の情報を更新しました。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>
   <?php if (!empty($_GET['err']) && $_GET['err'] === 'invalid'): ?>
     <div class="notice notice-error"><p><?php esc_html_e('対象のユーザーは作業員ではありません。', 'drwp-daily-reports'); ?></p></div>
@@ -37,6 +38,8 @@ foreach ($workers as $w) {
       <tr>
         <th><?php esc_html_e('表示名', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('メール', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('所属', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('入社日', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('ロール', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('最終日報', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('日報数', 'drwp-daily-reports'); ?></th>
@@ -46,13 +49,20 @@ foreach ($workers as $w) {
     </thead>
     <tbody>
       <?php if (empty($visible)): ?>
-        <tr><td colspan="7"><?php esc_html_e('該当する社員が見つかりません。', 'drwp-daily-reports'); ?></td></tr>
+        <tr><td colspan="9"><?php esc_html_e('該当する社員が見つかりません。', 'drwp-daily-reports'); ?></td></tr>
       <?php else: foreach ($visible as $w):
         $roles = implode(', ', array_map('esc_html', $w->roles ?: []));
       ?>
         <tr class="drwp-worker-row <?php echo $w->retired ? 'is-retired' : ''; ?>">
-          <td><strong><?php echo esc_html($w->name); ?></strong></td>
+          <td>
+            <strong><?php echo esc_html($w->name); ?></strong>
+            <?php if ($w->notes !== ''): ?>
+              <span class="drwp-worker-note-icon" title="<?php echo esc_attr($w->notes); ?>">💬</span>
+            <?php endif; ?>
+          </td>
           <td><?php echo esc_html($w->email); ?></td>
+          <td><?php echo esc_html($w->department ?: '-'); ?></td>
+          <td><?php echo $w->hired_at ? esc_html(date_i18n('Y/n/j', strtotime($w->hired_at))) : '-'; ?></td>
           <td><?php echo $roles ?: '-'; ?></td>
           <td><?php echo $w->last_date ? esc_html(date_i18n('Y/n/j', strtotime($w->last_date))) : '-'; ?></td>
           <td><?php echo (int) $w->report_cnt; ?></td>
@@ -63,7 +73,15 @@ foreach ($workers as $w) {
               <span class="drwp-worker-badge is-active"><?php esc_html_e('在籍', 'drwp-daily-reports'); ?></span>
             <?php endif; ?>
           </td>
-          <td>
+          <td style="white-space:nowrap;">
+            <button type="button" class="button button-small drwp-worker-edit-btn"
+                    data-id="<?php echo (int) $w->id; ?>"
+                    data-name="<?php echo esc_attr($w->name); ?>"
+                    data-department="<?php echo esc_attr($w->department); ?>"
+                    data-hired_at="<?php echo esc_attr($w->hired_at); ?>"
+                    data-notes="<?php echo esc_attr($w->notes); ?>">
+              <?php esc_html_e('編集', 'drwp-daily-reports'); ?>
+            </button>
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;">
               <?php wp_nonce_field('drwp_set_retired'); ?>
               <input type="hidden" name="action" value="drwp_set_retired" />
@@ -87,6 +105,44 @@ foreach ($workers as $w) {
       <?php endforeach; endif; ?>
     </tbody>
   </table>
+
+  <!-- 社員情報編集モーダル (所属 / 入社日 / 備考 — すべて任意) -->
+  <dialog id="drwp-worker-dialog" class="drwp-worker-modal">
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+      <?php wp_nonce_field('drwp_save_worker'); ?>
+      <input type="hidden" name="action" value="drwp_save_worker" />
+      <input type="hidden" name="user_id" id="drwp-worker-id" value="0" />
+
+      <div class="drwp-worker-modal-header">
+        <h2 id="drwp-worker-title"><?php esc_html_e('社員情報を編集', 'drwp-daily-reports'); ?></h2>
+        <button type="button" class="drwp-worker-modal-close" aria-label="<?php esc_attr_e('閉じる', 'drwp-daily-reports'); ?>">&times;</button>
+      </div>
+
+      <div class="drwp-worker-modal-body">
+        <table class="form-table">
+          <tr>
+            <th><label for="drwp-worker-department"><?php esc_html_e('所属', 'drwp-daily-reports'); ?></label></th>
+            <td><input type="text" id="drwp-worker-department" name="department" class="regular-text"
+                       placeholder="<?php esc_attr_e('例: 工事部 / 営業 / 外注', 'drwp-daily-reports'); ?>" /></td>
+          </tr>
+          <tr>
+            <th><label for="drwp-worker-hired"><?php esc_html_e('入社日', 'drwp-daily-reports'); ?></label></th>
+            <td><input type="date" id="drwp-worker-hired" name="hired_at" /></td>
+          </tr>
+          <tr>
+            <th><label for="drwp-worker-notes"><?php esc_html_e('備考', 'drwp-daily-reports'); ?></label></th>
+            <td><textarea id="drwp-worker-notes" name="notes" rows="3" class="large-text"
+                          placeholder="<?php esc_attr_e('資格・連絡事項など', 'drwp-daily-reports'); ?>"></textarea></td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="drwp-worker-modal-footer">
+        <button type="submit" class="button button-primary"><?php esc_html_e('保存', 'drwp-daily-reports'); ?></button>
+        <button type="button" class="button drwp-worker-modal-close"><?php esc_html_e('キャンセル', 'drwp-daily-reports'); ?></button>
+      </div>
+    </form>
+  </dialog>
 </div>
 
 <style>
@@ -94,4 +150,46 @@ foreach ($workers as $w) {
 .drwp-worker-badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; font-weight:600; }
 .drwp-worker-badge.is-active  { background:#dcfce7; color:#166534; }
 .drwp-worker-badge.is-retired { background:#f3f4f6; color:#6b7280; }
+.drwp-worker-note-icon { cursor: help; margin-left: 4px; }
+
+.drwp-worker-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:560px;width:90vw}
+.drwp-worker-modal::backdrop{background:rgba(0,0,0,.45)}
+.drwp-worker-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e5e7eb}
+.drwp-worker-modal-header h2{margin:0;font-size:1.1em}
+.drwp-worker-modal-close{background:transparent;border:0;font-size:1.6em;cursor:pointer;color:#50575e;line-height:1;padding:0 4px}
+.drwp-worker-modal-body{padding:16px 20px}
+.drwp-worker-modal-body .form-table th{width:90px;padding:6px 0;vertical-align:top}
+.drwp-worker-modal-body .form-table td{padding:6px 0}
+.drwp-worker-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
 </style>
+
+<script>
+(function () {
+  var dlg = document.getElementById('drwp-worker-dialog');
+  if (!dlg) return;
+  var idEl    = document.getElementById('drwp-worker-id');
+  var deptEl  = document.getElementById('drwp-worker-department');
+  var hiredEl = document.getElementById('drwp-worker-hired');
+  var notesEl = document.getElementById('drwp-worker-notes');
+  var titleEl = document.getElementById('drwp-worker-title');
+  var editTitle = <?php echo wp_json_encode(__('社員情報を編集', 'drwp-daily-reports')); ?>;
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.drwp-worker-edit-btn');
+    if (!btn) return;
+    var d = btn.dataset;
+    idEl.value    = d.id;
+    deptEl.value  = d.department || '';
+    hiredEl.value = d.hired_at || '';
+    notesEl.value = d.notes || '';
+    titleEl.textContent = editTitle + ' — ' + (d.name || '#' + d.id);
+    dlg.showModal();
+    deptEl.focus();
+  });
+
+  dlg.addEventListener('click', function (e) {
+    if (e.target.classList.contains('drwp-worker-modal-close')) dlg.close();
+    if (e.target === dlg) dlg.close();
+  });
+})();
+</script>

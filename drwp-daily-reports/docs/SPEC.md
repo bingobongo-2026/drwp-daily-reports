@@ -238,11 +238,11 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 | --- | --- | --- | --- |
 | `drwp_reports` | 日報一覧 | `edit_posts` | `DRWP_Admin::reports_page` |
 | `drwp_plans` | 予定 | `edit_posts` | `DRWP_Plan::render_page` |
-| `drwp_workers` | 社員 | `edit_others_posts` | `DRWP_User::render_page` |
 | `drwp_articles` | 記事作成 | `publish_posts` | `DRWP_Admin::articles_page` |
 | `drwp_projects` | 案件 | `manage_options` | `DRWP_Project::render_page` |
 | `drwp_customers` | 顧客 | `manage_options` | `DRWP_Customer::render_page` |
 | `drwp_groups` | グループ | `manage_options` | `DRWP_Groups_Admin::render_page` |
+| `drwp_workers` | 社員 | `edit_others_posts` | `DRWP_User::render_page` |
 | `drwp_print` | PDF出力 | `edit_posts` | `DRWP_Print::render_page` |
 | `drwp_output` | 公開設定 | `manage_options` | `DRWP_Output_Admin::render_page` |
 | `drwp_login_settings` | ログイン設定 | `manage_options` | `DRWP_Login::render_settings_page` |
@@ -295,9 +295,19 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 `drwp_plans` を管理する独立ページ。サイドバーは日報一覧の直下、`edit_posts` 必須なので作業員もアクセス可。退職社員は `+ 新しい予定を追加` ボタンと行ごとの「編集」ボタンが消えて、上部に「退職状態のため…」の warning notice が出る。
 
-### 5.7 社員 — 退職フラグ
+### 5.7 社員 — 退職フラグ + プロフィール
 
-`drwp_workers` ページ(`edit_others_posts`)。`edit_posts` を持つユーザー全員を「在籍 / 退職 / すべて」タブで一覧し、`drwp_retired` user_meta を退職トグルで切り替える。トグルすると `DRWP_Audit` に `user_retired` / `user_reactivated` イベントが残る。最終日報日と日報数も列で表示するので、操作前に「本当に書いていない人か」を確認できる。
+`drwp_workers` ページ(`edit_others_posts`)。サイドバーの位置はグループの下・PDF出力の上。`edit_posts` を持つユーザー全員を「在籍 / 退職 / すべて」タブで一覧し、`drwp_retired` user_meta を退職トグルで切り替える。トグルすると `DRWP_Audit` に `user_retired` / `user_reactivated` イベントが残る。最終日報日と日報数も列で表示するので、操作前に「本当に書いていない人か」を確認できる。
+
+**社員プロフィール(任意 3 項目)**: 行の「編集」ボタン → モーダルで編集。すべて user_meta:
+
+| 項目 | meta key | 表示 |
+| --- | --- | --- |
+| 所属 | `drwp_department` | 一覧の専用列 |
+| 入社日 | `drwp_hired_at` (YYYY-MM-DD) | 一覧の専用列 (`date_i18n('Y/n/j')`) |
+| 備考 | `drwp_notes` | 表示名の隣に 💬 アイコン、hover の title で本文 |
+
+保存は `admin_post_drwp_save_worker`。空欄で保存するとその meta 行は `delete_user_meta` で消す('' の行を userbase に溜めない)。`入社日` は YYYY-MM-DD 以外が POST されたら空扱い。退職トグルと同じく `user_can($u, 'edit_posts')` でない user_id への POST は拒否。保存で `worker_profile_updated` の監査ログが残る。
 
 退職フラグの効果は **ログインそのものが不可能 + どこを触っても wp-login.php を見せない**。設計の柱は 1 時間有効の短命 Cookie `drwp_retired_seen` 1 つ。Cookie の値は退職社員の `user_id` で、これを「直近で退職アカウントが何かを触った」のマーカーとして使い、各境界がそれを拾ってショートコードページに弾く。`has_marker_cookie()` は Cookie の `user_id` をデコードして「**今もその user は退職中か**」を毎回確認する — 操作員が「復帰させる」を押した直後は、ブラウザ側に Cookie が残っていても次のリクエストで自動破棄されるので、復帰がすぐ反映される。
 

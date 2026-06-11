@@ -19,6 +19,10 @@ if (!defined('ABSPATH')) exit;
  */
 class DRWP_User {
     const META_RETIRED  = 'drwp_retired';
+    // 任意の社員プロフィール 3 項目。WP の user_meta にそのまま持つ。
+    const META_DEPARTMENT = 'drwp_department'; // 所属
+    const META_HIRED_AT   = 'drwp_hired_at';   // 入社日 (YYYY-MM-DD)
+    const META_NOTES      = 'drwp_notes';      // 備考
     const CAP_MANAGE    = 'edit_others_posts';
     // Short-lived marker cookie set whenever we detect a retired
     // session (either at logout time or right after a login attempt
@@ -29,7 +33,8 @@ class DRWP_User {
     const COOKIE_MARKER = 'drwp_retired_seen';
 
     public static function init() {
-        add_action('admin_post_drwp_set_retired', [__CLASS__, 'handle_set_retired']);
+        add_action('admin_post_drwp_set_retired',  [__CLASS__, 'handle_set_retired']);
+        add_action('admin_post_drwp_save_worker',  [__CLASS__, 'handle_save_worker']);
         // 退職社員はそもそもログインできない / 既存セッションも即破棄。
         // - 新規ログイン: `authenticate` フィルタで `WP_Error` 返却
         // - 既存セッション: `init` 早期に `wp_logout` + 退職マーカー
@@ -356,6 +361,9 @@ class DRWP_User {
                 'retired'    => $retired,
                 'last_date'  => $stats['last'],
                 'report_cnt' => $stats['cnt'],
+                'department' => (string) get_user_meta((int) $u->ID, self::META_DEPARTMENT, true),
+                'hired_at'   => (string) get_user_meta((int) $u->ID, self::META_HIRED_AT, true),
+                'notes'      => (string) get_user_meta((int) $u->ID, self::META_NOTES, true),
             ];
         }
         // Sort: active first (by name), then retired (by name).
@@ -375,6 +383,50 @@ class DRWP_User {
         if (!in_array($filter, ['active', 'retired', 'all'], true)) $filter = 'active';
 
         include DRWP_PATH . 'admin/views/workers-page.php';
+    }
+
+    /**
+     * Save the optional worker-profile trio (所属 / 入社日 / 備考).
+     * All three are optional — empty input deletes the meta row so
+     * we don't accumulate rows of '' across the userbase. Operator
+     * only (`edit_others_posts`), and the target must actually be a
+     * worker, mirroring the retire toggle's defenses.
+     */
+    public static function handle_save_worker() {
+        if (!current_user_can(self::CAP_MANAGE)) {
+            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        }
+        check_admin_referer('drwp_save_worker');
+        $user_id = absint($_POST['user_id'] ?? 0);
+        $u = $user_id ? get_userdata($user_id) : null;
+        if (!$u || !user_can($u, 'edit_posts')) {
+            wp_safe_redirect(admin_url('admin.php?page=drwp_workers&err=invalid'));
+            exit;
+        }
+
+        $department = sanitize_text_field(wp_unslash((string) ($_POST['department'] ?? '')));
+        $hired_at   = sanitize_text_field(wp_unslash((string) ($_POST['hired_at'] ?? '')));
+        if ($hired_at !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $hired_at)) {
+            $hired_at = '';
+        }
+        $notes = sanitize_textarea_field(wp_unslash((string) ($_POST['notes'] ?? '')));
+
+        $fields = [
+            self::META_DEPARTMENT => $department,
+            self::META_HIRED_AT   => $hired_at,
+            self::META_NOTES      => $notes,
+        ];
+        foreach ($fields as $key => $value) {
+            if ($value === '') {
+                delete_user_meta($user_id, $key);
+            } else {
+                update_user_meta($user_id, $key, $value);
+            }
+        }
+
+        DRWP_Audit::log('worker_profile_updated', '社員情報を更新', 0, ['user_id' => $user_id]);
+        wp_safe_redirect(admin_url('admin.php?page=drwp_workers&saved=1'));
+        exit;
     }
 
     public static function handle_set_retired() {
