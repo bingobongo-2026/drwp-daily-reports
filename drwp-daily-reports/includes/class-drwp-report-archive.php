@@ -343,44 +343,59 @@ class DRWP_Report_Archive {
               });
           }
 
-          // Card-style read-only render — hero (project + status pill),
-          // meta row (date / time / author), then content blocks with
-          // colored left borders and a photo grid. "編集する" swaps to
-          // renderEditMode in place instead of navigating away.
+          // 紙面風ビュー — 管理画面の「確認」モーダルと同じレイア
+          // ウト (「作業日報」タイトル → 案件/日付/作業時間/報告者
+          // /レビュー のメタ表 → 作業内容 / 特記事項 / 次回予定 /
+          // 写真 の section テーブル) で揃える。「編集する」は同じ
+          // ダイアログの body を renderEditMode に差し替えるので、
+          // 別ページに遷移しない。
           function renderViewMode(d) {
             var time = '';
             if (d.started_at) time += fmtTime(d.started_at);
             if (d.started_at && d.ended_at) time += ' 〜 ';
             if (d.ended_at) time += fmtTime(d.ended_at);
             var statusLabel = (cfg.labels && cfg.labels[d.review_status]) || d.review_status;
+            var emptyTxt = '<?php echo esc_js(__('（記載なし）', 'drwp-daily-reports')); ?>';
 
             var html = '';
-            html += '<div class="drwp-archive-view-hero">';
-            html += '<div class="drwp-archive-view-hero-title">' + esc(d.project_name || '<?php echo esc_js(__('（案件未設定）', 'drwp-daily-reports')); ?>') + '</div>';
-            html += '<span class="drwp-archive-status-pill status-' + esc(d.review_status) + '">' + esc(statusLabel) + '</span>';
-            html += '</div>';
+            html += '<article class="drwp-archive-page">';
+            html += '<div class="drwp-archive-page-title"><?php echo esc_js(__('作業日報', 'drwp-daily-reports')); ?></div>';
 
-            html += '<div class="drwp-archive-view-meta">';
-            html += '<span class="drwp-archive-view-meta-item">📅 ' + esc(fmtDate(d.report_date)) + '</span>';
-            if (time) html += '<span class="drwp-archive-view-meta-item">⏱ ' + esc(time) + '</span>';
-            if (d.author_name) html += '<span class="drwp-archive-view-meta-item">👤 ' + esc(d.author_name) + '</span>';
-            html += '</div>';
+            html += '<table class="drwp-archive-page-meta"><colgroup>';
+            html += '<col class="drwp-archive-meta-col-head"/><col class="drwp-archive-meta-col-val"/>';
+            html += '<col class="drwp-archive-meta-col-head"/><col class="drwp-archive-meta-col-val"/>';
+            html += '</colgroup>';
+            html += '<tr><th><?php echo esc_js(__('案件名', 'drwp-daily-reports')); ?></th>'
+                  + '<td colspan="3">' + esc(d.project_name || '<?php echo esc_js(__('（案件未設定）', 'drwp-daily-reports')); ?>') + '</td></tr>';
+            html += '<tr><th><?php echo esc_js(__('日付', 'drwp-daily-reports')); ?></th><td>' + esc(fmtDate(d.report_date)) + '</td>'
+                  + '<th><?php echo esc_js(__('作業時間', 'drwp-daily-reports')); ?></th><td>' + esc(time || '-') + '</td></tr>';
+            html += '<tr><th><?php echo esc_js(__('報告者', 'drwp-daily-reports')); ?></th><td>' + esc(d.author_name || '-') + '</td>'
+                  + '<th><?php echo esc_js(__('レビュー', 'drwp-daily-reports')); ?></th>'
+                  + '<td><span class="drwp-archive-page-status is-' + esc(d.review_status) + '">' + esc(statusLabel) + '</span></td></tr>';
+            html += '</table>';
 
-            if (d.work_description) html += renderSection('📝', '<?php echo esc_js(__('作業内容', 'drwp-daily-reports')); ?>', nl2br(d.work_description));
-            if (d.issues)           html += renderSection('💬', '<?php echo esc_js(__('特記事項', 'drwp-daily-reports')); ?>', nl2br(d.issues));
-            if (d.next_plan)        html += renderSection('📋', '<?php echo esc_js(__('次回予定', 'drwp-daily-reports')); ?>', nl2br(d.next_plan));
+            html += renderPageSection('<?php echo esc_js(__('作業内容', 'drwp-daily-reports')); ?>',
+                    d.work_description ? nl2br(d.work_description) : '<span class="drwp-archive-page-empty">' + emptyTxt + '</span>');
+            html += renderPageSection('<?php echo esc_js(__('特記事項（反省・連絡・相談・提案）', 'drwp-daily-reports')); ?>',
+                    d.issues ? nl2br(d.issues) : '<span class="drwp-archive-page-empty">' + emptyTxt + '</span>');
+            html += renderPageSection('<?php echo esc_js(__('次回予定', 'drwp-daily-reports')); ?>',
+                    d.next_plan ? nl2br(d.next_plan) : '<span class="drwp-archive-page-empty">' + emptyTxt + '</span>');
 
+            var photosHtml = '';
             if (d.photos && d.photos.length) {
-              html += '<section class="drwp-archive-view-section">';
-              html += '<h4 class="drwp-archive-view-section-head">📷 <?php echo esc_js(__('写真', 'drwp-daily-reports')); ?></h4>';
-              html += '<div class="drwp-archive-view-photos">';
+              photosHtml += '<div class="drwp-archive-page-photos">';
               d.photos.forEach(function(p){
-                html += '<figure><a href="' + esc(p.url) + '" target="_blank" rel="noopener"><img src="' + esc(p.url) + '" alt=""></a>';
-                if (p.caption) html += '<figcaption>' + esc(p.caption) + '</figcaption>';
-                html += '</figure>';
+                photosHtml += '<figure><a href="' + esc(p.url) + '" target="_blank" rel="noopener"><img src="' + esc(p.url) + '" alt=""></a>';
+                if (p.caption) photosHtml += '<figcaption>' + esc(p.caption) + '</figcaption>';
+                photosHtml += '</figure>';
               });
-              html += '</div></section>';
+              photosHtml += '</div>';
+            } else {
+              photosHtml = '<span class="drwp-archive-page-empty">' + emptyTxt + '</span>';
             }
+            html += renderPageSection('<?php echo esc_js(__('写真', 'drwp-daily-reports')); ?>', photosHtml);
+
+            html += '</article>';
 
             if (d.review_status === 'pending' && !cfg.isRetired) {
               html += '<div class="drwp-archive-view-actions">';
@@ -392,11 +407,11 @@ class DRWP_Report_Archive {
             viewBody.innerHTML = html;
           }
 
-          function renderSection(icon, title, bodyHtml) {
-            return '<section class="drwp-archive-view-section">'
-                 + '<h4 class="drwp-archive-view-section-head">' + esc(icon) + ' ' + esc(title) + '</h4>'
-                 + '<div class="drwp-archive-view-section-body">' + bodyHtml + '</div>'
-                 + '</section>';
+          function renderPageSection(title, bodyHtml) {
+            return '<table class="drwp-archive-page-section">'
+                 + '<tr><th class="drwp-archive-page-section-head">' + esc(title) + '</th></tr>'
+                 + '<tr><td class="drwp-archive-page-section-body"><div class="drwp-archive-page-text">' + bodyHtml + '</div></td></tr>'
+                 + '</table>';
           }
 
           // Inline edit form swap — same dialog, same backdrop, no page
