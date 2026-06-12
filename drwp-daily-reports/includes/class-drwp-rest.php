@@ -413,7 +413,19 @@ class DRWP_REST {
             $data['status'] = $status;
         }
         if (array_key_exists('linked_report_id', $input)) {
-            $data['linked_report_id'] = absint($input['linked_report_id']) ?: null;
+            // Match the admin save path: only store a link that points
+            // at a real report, otherwise drop it rather than persist
+            // a dangling pointer.
+            $rid = absint($input['linked_report_id']);
+            if ($rid) {
+                global $wpdb;
+                $reports_t = $wpdb->prefix . 'drwp_reports';
+                $exists = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM $reports_t WHERE id = %d", $rid
+                ));
+                $rid = $exists ? $rid : 0;
+            }
+            $data['linked_report_id'] = $rid ?: null;
         }
 
         if ($data) {

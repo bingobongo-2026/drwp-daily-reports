@@ -115,50 +115,6 @@ class DRWP_Plan {
     }
 
     /**
-     * planned_date => N map for calendar dot rendering on the daily
-     * report list. Honors the same worker scope as search().
-     */
-    public static function dates_for_calendar() {
-        global $wpdb;
-        $where = "status = 'active'";
-        $args  = [];
-        if (!self::can_view_all()) {
-            $where .= ' AND (user_id = %d OR created_by = %d)';
-            $uid = get_current_user_id();
-            $args[] = $uid; $args[] = $uid;
-        }
-        $sql = 'SELECT planned_date, COUNT(*) AS cnt FROM ' . self::table()
-             . ' WHERE ' . $where . ' GROUP BY planned_date';
-        $rows = $args
-            ? $wpdb->get_results($wpdb->prepare($sql, $args))
-            : $wpdb->get_results($sql);
-        $out = [];
-        foreach ($rows as $row) $out[(string) $row->planned_date] = (int) $row->cnt;
-        return $out;
-    }
-
-    /**
-     * Reports candidate for linking from the plan edit modal — same
-     * date + same project. Helps operators tie 「予定どおりやった」
-     * cases together without typing a report id.
-     */
-    public static function linkable_reports($plan) {
-        if (!$plan || empty($plan->planned_date) || empty($plan->project_id)) {
-            return [];
-        }
-        global $wpdb;
-        $reports_t = $wpdb->prefix . 'drwp_reports';
-        return $wpdb->get_results($wpdb->prepare(
-            "SELECT id, user_id, started_at, ended_at, review_status
-               FROM $reports_t
-              WHERE report_date = %s AND project_id = %d
-              ORDER BY id DESC",
-            (string) $plan->planned_date,
-            (int) $plan->project_id
-        ));
-    }
-
-    /**
      * Plans inside a month window for the front-end archive
      * calendar. Defaults to the same worker scope as everywhere
      * else (workers see assigned-or-created plans, operators see
