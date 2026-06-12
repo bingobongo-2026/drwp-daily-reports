@@ -10,7 +10,7 @@
   <li><strong>キー</strong> — WordPress プラグインの「ライセンスキー」欄に入れる値です。</li>
   <li><strong>ドメイン</strong> — このキーを使ってよいサイトのホスト名 (例 <code>example.com</code>)。</li>
   <li><strong>ユーザー名</strong> — ライセンスの利用者(会社名・個人名)。</li>
-  <li><strong>プラン</strong> — <code>standard</code> や <code>pro</code> など任意のラベル。</li>
+  <li><strong>プラン</strong> — <code>basic</code>（ベーシック）か <code>pro</code>（プロ）。プロのみ AI 機能が利用できます。</li>
   <li><strong>状態</strong> — <span class="pill active">active</span> 以外はプラグイン側で書き込み・記事化がブロックされます。</li>
 </ul>
 
@@ -57,7 +57,7 @@
         <td>{{ it.domain }}</td>
         <td>{{ it.user_name or '—' }}</td>
         <td>{{ it.contact_person or '—' }}</td>
-        <td>{{ it.plan }}</td>
+        <td>{{ it.plan|plan_label }}</td>
         <td><span class="pill {{ 'active' if it.status == 'active' else 'inactive' }}">{{ it.status }}</span></td>
         <td class="mono">{{ it.expires_at or '—' }}</td>
         <td class="row">

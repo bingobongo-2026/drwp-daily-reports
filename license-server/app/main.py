@@ -21,6 +21,25 @@ templates = Jinja2Templates(
     directory=os.path.join(os.path.dirname(__file__), "templates")
 )
 
+# プラン slug → 日本語ラベルへの変換。テンプレートでは
+# `{{ plan|plan_label }}` で参照する。slug 側は英小文字の
+# `basic` / `pro` をそのまま使い、ユーザー向けの表示だけ
+# 日本語化することで API レスポンスや DB 値は触らずに済む。
+_PLAN_LABELS = {
+    "basic": "ベーシック",
+    "pro": "プロ",
+}
+
+
+def _plan_label(slug: str) -> str:
+    if slug is None:
+        return ""
+    s = str(slug).strip().lower()
+    return _PLAN_LABELS.get(s, str(slug))
+
+
+templates.env.filters["plan_label"] = _plan_label
+
 _FLASH = {
     "created": ("作成しました。", "ok"),
     "updated": ("更新しました。", "ok"),
@@ -123,7 +142,7 @@ class CheckRequest(BaseModel):
 class LicenseIn(BaseModel):
     license_key: str
     domain: str
-    plan: str = "standard"
+    plan: str = "basic"
     status: str = "active"
     expires_at: Optional[str] = None
     user_name: str = ""
@@ -309,7 +328,7 @@ def ui_new(request: Request, msg: Optional[str] = None, _: str = Depends(require
 def ui_create(
     license_key: str = Form(...),
     domain: str = Form(...),
-    plan: str = Form("standard"),
+    plan: str = Form("basic"),
     status_: str = Form("active", alias="status"),
     expires_at: Optional[str] = Form(None),
     user_name: str = Form(""),
@@ -330,7 +349,7 @@ def ui_create(
     db.create_license(
         license_key=key,
         domain=domain.strip(),
-        plan=plan.strip() or "standard",
+        plan=plan.strip() or "basic",
         status=status_.strip() or "active",
         expires_at=_normalize_expires(expires_at),
         user_name=user_name.strip(),
@@ -379,7 +398,7 @@ def ui_edit(
 def ui_update(
     license_key: str,
     domain: str = Form(...),
-    plan: str = Form("standard"),
+    plan: str = Form("basic"),
     status_: str = Form("active", alias="status"),
     expires_at: Optional[str] = Form(None),
     user_name: str = Form(""),
@@ -394,7 +413,7 @@ def ui_update(
     updated = db.update_license(
         license_key,
         domain=domain.strip(),
-        plan=plan.strip() or "standard",
+        plan=plan.strip() or "basic",
         status=status_.strip() or "active",
         expires_at=_normalize_expires(expires_at) or "",
         user_name=user_name.strip(),

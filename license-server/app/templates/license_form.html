@@ -6,7 +6,7 @@
 <ul>
   <li><strong>ライセンスキー</strong> — 任意の文字列。重複不可。{% if license %}編集時は変更できません。{% endif %}</li>
   <li><strong>ドメイン</strong> — プラグインが動く WordPress サイトのホスト名。<code>https://</code> や末尾の <code>/</code> は付けません。</li>
-  <li><strong>プラン</strong> — <code>standard</code> / <code>pro</code> から選択。</li>
+  <li><strong>プラン</strong> — <code>basic</code>（ベーシック）/ <code>pro</code>（プロ）から選択。プロのみ AI 機能が利用できます。</li>
   <li><strong>状態</strong> — <code>active</code> が有効、<code>inactive</code> はブロック。</li>
   <li><strong>有効期限</strong> — 空欄は無期限。ISO 8601 形式。</li>
 </ul>
@@ -31,8 +31,9 @@
 
     <label for="plan">プラン</label>
     <select id="plan" name="plan">
-      {% for p in ['standard', 'pro'] %}
-        <option value="{{ p }}" {% if license and license.plan == p %}selected{% endif %}>{{ p }}</option>
+      {# slug は英小文字、表示は plan_label フィルタで日本語化 #}
+      {% for p in ['basic', 'pro'] %}
+        <option value="{{ p }}" {% if license and license.plan == p %}selected{% endif %}>{{ p|plan_label }}</option>
       {% endfor %}
     </select>
 

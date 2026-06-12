@@ -29,7 +29,7 @@ def init_db() -> None:
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 license_key TEXT NOT NULL UNIQUE,
                 domain      TEXT NOT NULL,
-                plan        TEXT NOT NULL DEFAULT 'standard',
+                plan        TEXT NOT NULL DEFAULT 'basic',
                 status      TEXT NOT NULL DEFAULT 'active',
                 expires_at  TEXT,
                 user_name       TEXT DEFAULT '',
@@ -58,6 +58,12 @@ def init_db() -> None:
         )
         # Migration for existing DBs: add columns if missing.
         _migrate_add_columns(c)
+        # Migration for existing DBs: rename the legacy `standard`
+        # plan slug to `basic`. The plugin side (#129) ships a plan
+        # matrix that only recognises `basic` / `pro`; anything else
+        # falls back to basic-with-a-warning. Idempotent — re-running
+        # touches zero rows once everyone is on `basic`.
+        c.execute("UPDATE licenses SET plan = 'basic' WHERE plan = 'standard'")
 
 
 def get_setting(key: str) -> Optional[str]:
@@ -143,7 +149,7 @@ def create_license(
     *,
     license_key: str,
     domain: str,
-    plan: str = "standard",
+    plan: str = "basic",
     status: str = "active",
     expires_at: Optional[str] = None,
     **extra,
