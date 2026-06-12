@@ -152,6 +152,24 @@ $author_name   = !empty($report->user_id)
     <div class="drwp-section">
       <h3><?php esc_html_e('公開用コンテンツ', 'drwp-daily-reports'); ?></h3>
       <p class="description"><?php esc_html_e('記事化するときに使われる見出しと本文です。空欄のままでも記事は作成できます。', 'drwp-daily-reports'); ?></p>
+      <?php
+        $ai_draft_on = DRWP_AI::is_enabled() && DRWP_License::plan_allows('ai');
+        if (DRWP_AI::is_enabled()):
+      ?>
+      <p>
+        <?php if ($ai_draft_on): ?>
+          <button type="button" class="button" id="drwp-ai-draft-btn" data-report="<?php echo (int) $report_id; ?>">
+            ✨ <?php esc_html_e('AI で下書きを生成', 'drwp-daily-reports'); ?>
+          </button>
+          <span id="drwp-ai-draft-status" class="description" style="margin-left:8px;"></span>
+        <?php else: ?>
+          <button type="button" class="button" disabled style="opacity:.55;cursor:not-allowed;">
+            ✨ <?php esc_html_e('AI で下書きを生成', 'drwp-daily-reports'); ?>
+            <span style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.72em;font-weight:700;padding:1px 7px;border-radius:999px;margin-left:4px;">Pro</span>
+          </button>
+        <?php endif; ?>
+      </p>
+      <?php endif; ?>
       <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <?php wp_nonce_field('drwp_save_report'); ?>
         <input type="hidden" name="action" value="drwp_save_report" />
@@ -376,6 +394,50 @@ $author_name   = !empty($report->user_id)
   </div>
   <?php endif; ?>
 </div>
+
+<?php if (!empty($ai_draft_on)): ?>
+<script>
+(function () {
+  var btn = document.getElementById('drwp-ai-draft-btn');
+  if (!btn || !window.drwpRest) return;
+  var statusEl = document.getElementById('drwp-ai-draft-status');
+  // 公開フォーム内の各フィールド(name 属性で取得)。
+  var form = btn.closest('.drwp-section');
+  function field(name) { return form.querySelector('[name="' + name + '"]'); }
+
+  btn.addEventListener('click', function () {
+    var anyFilled = ['public_title','public_intro','public_body','public_next_plan']
+      .some(function (n) { var el = field(n); return el && el.value.trim() !== ''; });
+    if (anyFilled && !window.confirm('<?php echo esc_js(__('入力済みの公開フィールドを AI の下書きで上書きします。よろしいですか？', 'drwp-daily-reports')); ?>')) {
+      return;
+    }
+    btn.disabled = true;
+    statusEl.style.color = '#64748b';
+    statusEl.textContent = '<?php echo esc_js(__('生成中… 数秒〜数分かかる場合があります', 'drwp-daily-reports')); ?>';
+    fetch(window.drwpRest.url + '/ai/draft-report', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.drwpRest.nonce },
+      body: JSON.stringify({ report_id: Number(btn.dataset.report) })
+    }).then(function (r) {
+      return r.json().then(function (j) { if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status); return j; });
+    }).then(function (d) {
+      if (field('public_title') && d.public_title)        field('public_title').value = d.public_title;
+      if (field('public_intro'))                          field('public_intro').value = d.public_intro || '';
+      if (field('public_body'))                           field('public_body').value = d.public_body || '';
+      if (field('public_next_plan'))                      field('public_next_plan').value = d.public_next_plan || '';
+      statusEl.style.color = '#15803d';
+      statusEl.textContent = '<?php echo esc_js(__('下書きを生成しました。内容を確認して保存してください。', 'drwp-daily-reports')); ?>';
+      btn.disabled = false;
+    }).catch(function (err) {
+      statusEl.style.color = '#991b1b';
+      statusEl.textContent = 'エラー: ' + err.message;
+      btn.disabled = false;
+    });
+  });
+})();
+</script>
+<?php endif; ?>
 
 <style>
 .drwp-group { margin-bottom: 24px; border-radius: 10px; padding: 4px 0; }

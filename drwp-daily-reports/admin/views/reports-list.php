@@ -19,6 +19,24 @@ $can_review = current_user_can('edit_others_posts');
 <div class="wrap">
   <h1><?php esc_html_e('日報一覧', 'drwp-daily-reports'); ?></h1>
 
+  <?php if (DRWP_AI::is_enabled()): ?>
+    <?php if (DRWP_License::plan_allows('ai')): ?>
+      <p>
+        <button type="button" class="button" id="drwp-ai-alerts-btn">
+          ⚠️ <?php esc_html_e('AI 対応アラート', 'drwp-daily-reports'); ?>
+        </button>
+        <span class="description"><?php esc_html_e('特記事項から、事務所が対応すべき項目を抽出します。', 'drwp-daily-reports'); ?></span>
+      </p>
+    <?php else: ?>
+      <p>
+        <button type="button" class="button" disabled style="opacity:.55;cursor:not-allowed;">
+          ⚠️ <?php esc_html_e('AI 対応アラート', 'drwp-daily-reports'); ?>
+          <span style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.72em;font-weight:700;padding:1px 7px;border-radius:999px;margin-left:4px;">Pro</span>
+        </button>
+      </p>
+    <?php endif; ?>
+  <?php endif; ?>
+
   <?php if (isset($_GET['updated'])): ?>
     <div class="notice notice-success"><p>
       <?php
@@ -307,6 +325,29 @@ $can_review = current_user_can('edit_others_posts');
       <span id="drwp-edit-status" style="margin-left:12px;"></span>
     </div>
   </dialog>
+
+  <?php if (DRWP_AI::is_enabled() && DRWP_License::plan_allows('ai')): ?>
+  <!-- AI 対応アラート モーダル -->
+  <dialog id="drwp-ai-alerts-dialog" class="drwp-modal drwp-modal-wide">
+    <div class="drwp-modal-header">
+      <h2><?php esc_html_e('AI 対応アラート', 'drwp-daily-reports'); ?></h2>
+      <button type="button" class="drwp-modal-close" aria-label="<?php esc_attr_e('閉じる', 'drwp-daily-reports'); ?>">&times;</button>
+    </div>
+    <div class="drwp-modal-body">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+        <input type="date" id="drwp-ai-alerts-from" value="<?php echo esc_attr(date('Y-m-d', strtotime('-30 days'))); ?>" />
+        〜
+        <input type="date" id="drwp-ai-alerts-to" value="<?php echo esc_attr(date('Y-m-d')); ?>" />
+        <button type="button" class="button button-primary" id="drwp-ai-alerts-run"><?php esc_html_e('抽出', 'drwp-daily-reports'); ?></button>
+      </div>
+      <div id="drwp-ai-alerts-status" style="margin:6px 0;color:#64748b;"></div>
+      <div id="drwp-ai-alerts-output" style="white-space:pre-wrap;font-family:inherit;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px;min-height:160px;line-height:1.7;"></div>
+    </div>
+    <div class="drwp-modal-footer">
+      <button type="button" class="button drwp-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
+    </div>
+  </dialog>
+  <?php endif; ?>
 </div>
 
 <style>
@@ -685,8 +726,42 @@ $can_review = current_user_can('edit_others_posts');
     });
   }
 
+  /* ---- AI 対応アラート ---- */
+  var alertsBtn = document.getElementById('drwp-ai-alerts-btn');
+  var alertsDlg = document.getElementById('drwp-ai-alerts-dialog');
+  if (alertsBtn && alertsDlg) {
+    alertsBtn.addEventListener('click', function () { alertsDlg.showModal(); });
+    document.getElementById('drwp-ai-alerts-run').addEventListener('click', function () {
+      var st = document.getElementById('drwp-ai-alerts-status');
+      var out = document.getElementById('drwp-ai-alerts-output');
+      var from = document.getElementById('drwp-ai-alerts-from').value;
+      var to = document.getElementById('drwp-ai-alerts-to').value;
+      st.style.color = '#64748b';
+      st.textContent = '<?php echo esc_js(__('抽出中… 数秒〜数分かかる場合があります', 'drwp-daily-reports')); ?>';
+      out.textContent = '';
+      this.disabled = true;
+      var self = this;
+      fetch(rest.url + '/ai/alerts', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': rest.nonce },
+        body: JSON.stringify({ date_from: from, date_to: to })
+      }).then(function (r) {
+        return r.json().then(function (j) { if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status); return j; });
+      }).then(function (d) {
+        st.textContent = (d.date_from && d.date_to) ? ('対象: ' + d.date_from + ' 〜 ' + d.date_to) : '';
+        out.textContent = d.response || '（応答なし）';
+        self.disabled = false;
+      }).catch(function (err) {
+        st.style.color = '#991b1b';
+        st.textContent = 'エラー: ' + err.message;
+        self.disabled = false;
+      });
+    });
+  }
+
   /* ---- モーダル共通: × ボタン / 背景クリック ---- */
-  [viewDlg, editDlg].forEach(function (dlg) {
+  [viewDlg, editDlg, alertsDlg].forEach(function (dlg) {
     if (!dlg) return;
     dlg.addEventListener('click', function (e) {
       if (e.target.classList.contains('drwp-modal-close')) dlg.close();

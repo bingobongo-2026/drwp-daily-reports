@@ -150,6 +150,11 @@
                     data-name="<?php echo esc_attr($project->name); ?>">
               <?php esc_html_e('AI ブリーフィング', 'drwp-daily-reports'); ?>
             </button>
+            <button type="button" class="button button-small drwp-ai-summary-btn"
+                    data-id="<?php echo (int) $project->id; ?>"
+                    data-name="<?php echo esc_attr($project->name); ?>">
+              <?php esc_html_e('AI サマリ', 'drwp-daily-reports'); ?>
+            </button>
             <?php else: ?>
             <button type="button" class="button button-small drwp-ai-briefing-btn-locked" disabled
                     title="<?php esc_attr_e('Pro プランで利用可能', 'drwp-daily-reports'); ?>">
@@ -317,6 +322,33 @@
       <p class="description" id="drwp-ai-briefing-meta"></p>
       <div id="drwp-ai-briefing-status" style="margin:8px 0;"></div>
       <div id="drwp-ai-briefing-output" style="white-space:pre-wrap;font-family:inherit;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px;min-height:200px;line-height:1.6;"></div>
+    </div>
+    <div class="drwp-project-modal-footer">
+      <button type="button" class="button drwp-project-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
+    </div>
+  </dialog>
+
+  <dialog id="drwp-ai-summary-dialog" class="drwp-project-modal">
+    <div class="drwp-project-modal-header">
+      <h2 id="drwp-ai-summary-title"><?php esc_html_e('AI サマリ', 'drwp-daily-reports'); ?></h2>
+      <button type="button" class="drwp-project-modal-close">&times;</button>
+    </div>
+    <div class="drwp-project-modal-body">
+      <p class="description" id="drwp-ai-summary-meta"></p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0;">
+        <label><?php esc_html_e('期間', 'drwp-daily-reports'); ?>
+          <select id="drwp-ai-summary-period">
+            <option value="month"><?php esc_html_e('月次', 'drwp-daily-reports'); ?></option>
+            <option value="quarter"><?php esc_html_e('四半期', 'drwp-daily-reports'); ?></option>
+          </select>
+        </label>
+        <label><?php esc_html_e('対象月', 'drwp-daily-reports'); ?>
+          <input type="month" id="drwp-ai-summary-anchor" value="<?php echo esc_attr(date('Y-m')); ?>" />
+        </label>
+        <button type="button" class="button button-primary" id="drwp-ai-summary-run"><?php esc_html_e('生成', 'drwp-daily-reports'); ?></button>
+      </div>
+      <div id="drwp-ai-summary-status" style="margin:8px 0;"></div>
+      <div id="drwp-ai-summary-output" style="white-space:pre-wrap;font-family:inherit;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px;min-height:160px;line-height:1.6;"></div>
     </div>
     <div class="drwp-project-modal-footer">
       <button type="button" class="button drwp-project-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
@@ -497,6 +529,54 @@
     }).catch(function(err){
       statusEl.textContent = 'エラー: ' + err.message;
       statusEl.style.color = '#991b1b';
+    });
+  });
+
+  /* ---- AI サマリ（月次/四半期） ---- */
+  var sumDlg = document.getElementById('drwp-ai-summary-dialog');
+  var sumCfg = <?php echo wp_json_encode([
+      'url'   => esc_url_raw(rest_url('drwp/v1/ai/project-summary')),
+      'nonce' => wp_create_nonce('wp_rest'),
+  ]); ?>;
+  var sumProjectId = 0;
+  sumDlg.addEventListener('click', function(e){
+    if (e.target.classList.contains('drwp-project-modal-close')) sumDlg.close();
+    if (e.target === sumDlg) sumDlg.close();
+  });
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.drwp-ai-summary-btn');
+    if (!btn) return;
+    sumProjectId = Number(btn.dataset.id);
+    document.getElementById('drwp-ai-summary-meta').textContent = '案件: ' + btn.dataset.name;
+    document.getElementById('drwp-ai-summary-output').textContent = '';
+    document.getElementById('drwp-ai-summary-status').textContent = '';
+    sumDlg.showModal();
+  });
+  document.getElementById('drwp-ai-summary-run').addEventListener('click', function(){
+    var statusEl = document.getElementById('drwp-ai-summary-status');
+    var outEl = document.getElementById('drwp-ai-summary-output');
+    var period = document.getElementById('drwp-ai-summary-period').value;
+    var anchor = document.getElementById('drwp-ai-summary-anchor').value;
+    statusEl.style.color = '#64748b';
+    statusEl.textContent = '生成中… 数秒〜数分かかる場合があります';
+    outEl.textContent = '';
+    this.disabled = true;
+    var self = this;
+    fetch(sumCfg.url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type':'application/json','X-WP-Nonce':sumCfg.nonce},
+      body: JSON.stringify({project_id: sumProjectId, period: period, anchor: anchor}),
+    }).then(function(r){
+      return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'HTTP '+r.status);return j;});
+    }).then(function(d){
+      statusEl.textContent = d.range ? ('対象: ' + d.range) : '';
+      outEl.textContent = d.response || '（応答なし）';
+      self.disabled = false;
+    }).catch(function(err){
+      statusEl.textContent = 'エラー: ' + err.message;
+      statusEl.style.color = '#991b1b';
+      self.disabled = false;
     });
   });
   <?php endif; ?>
