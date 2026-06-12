@@ -1,6 +1,6 @@
 {
   "name": "drwp/daily-reports",
-  "description": "DRWP Daily Reports plugin tests",
+  "description": "日報マン (Nippoman / DRWP Daily Reports) plugin tests",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
   "config": {

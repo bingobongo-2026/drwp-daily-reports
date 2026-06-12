@@ -97,4 +97,53 @@ class Test_DRWP_Audit extends WP_UnitTestCase {
         $this->assertArrayHasKey('review_status_changed', $map);
         $this->assertArrayHasKey('post_resynced', $map);
     }
+
+    public function test_retention_default_when_unset() {
+        delete_option(DRWP_Audit::OPT_RETENTION_DAYS);
+        $this->assertSame(DRWP_Audit::DEFAULT_RETENTION_DAYS, DRWP_Audit::retention_days());
+    }
+
+    public function test_retention_zero_means_forever() {
+        update_option(DRWP_Audit::OPT_RETENTION_DAYS, 0);
+        $this->assertSame(0, DRWP_Audit::retention_days());
+    }
+
+    public function test_purge_older_than_keeps_recent_rows() {
+        global $wpdb;
+        $now    = current_time('mysql', true); // UTC like the column
+        $old    = gmdate('Y-m-d H:i:s', time() - 400 * DAY_IN_SECONDS);
+        $recent = gmdate('Y-m-d H:i:s', time() -  10 * DAY_IN_SECONDS);
+        $wpdb->insert(DRWP_Audit::table(), ['event' => 'x', 'user_id' => 1, 'created_at' => $old]);
+        $wpdb->insert(DRWP_Audit::table(), ['event' => 'y', 'user_id' => 1, 'created_at' => $recent]);
+        $wpdb->insert(DRWP_Audit::table(), ['event' => 'z', 'user_id' => 1, 'created_at' => $now]);
+        // 365 日基準 — `x` だけ落ちる。
+        $deleted = DRWP_Audit::purge_older_than(365);
+        $this->assertSame(1, $deleted);
+        $events = $wpdb->get_col('SELECT event FROM ' . DRWP_Audit::table() . ' ORDER BY created_at ASC');
+        $this->assertSame(['y', 'z'], $events);
+    }
+
+    public function test_purge_with_zero_days_is_noop() {
+        global $wpdb;
+        $wpdb->insert(DRWP_Audit::table(), [
+            'event' => 'x', 'user_id' => 1,
+            'created_at' => gmdate('Y-m-d H:i:s', time() - 9999 * DAY_IN_SECONDS),
+        ]);
+        $this->assertSame(0, DRWP_Audit::purge_older_than(0));
+        $this->assertSame(1, (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . DRWP_Audit::table()));
+    }
+
+    public function test_cron_purge_writes_an_audit_row_when_it_deletes_anything() {
+        global $wpdb;
+        update_option(DRWP_Audit::OPT_RETENTION_DAYS, 30);
+        $wpdb->insert(DRWP_Audit::table(), [
+            'event' => 'old', 'user_id' => 1,
+            'created_at' => gmdate('Y-m-d H:i:s', time() - 60 * DAY_IN_SECONDS),
+        ]);
+        DRWP_Audit::cron_purge();
+        // 削除サマリのログ行が必ず残る — 「いつ・何件消えたか」を
+        // 操作員が後追いできるように。
+        $purged = $wpdb->get_row('SELECT * FROM ' . DRWP_Audit::table() . " WHERE event = 'audit_purged'");
+        $this->assertNotNull($purged);
+    }
 }

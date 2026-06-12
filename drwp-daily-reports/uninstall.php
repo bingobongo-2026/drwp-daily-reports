@@ -27,6 +27,7 @@ foreach ($tables as $table) {
 }
 
 wp_unschedule_hook('drwp_license_check');
+wp_unschedule_hook('drwp_audit_purge_daily');
 
 $options = [
     'drwp_schema_version',
@@ -64,6 +65,8 @@ $options = [
     'drwp_login_lostpass_page_id',
     'drwp_login_admin_lockdown',
     'drwp_login_logo_url',
+    // Audit log retention
+    'drwp_audit_retention_days',
     // Legacy
     'drwp_public_key',
 ];

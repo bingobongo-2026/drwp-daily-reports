@@ -1,0 +1,56 @@
+日報マン (Nippoman) — DRWP Daily Reports
+Copyright (c) 2026 日報マン
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License, version 2, as
+published by the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+The full text of the GNU General Public License v2 is available at:
+https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+
+
+=== 商標 / Trademark Notice ===
+
+"日報マン" および "Nippoman" は本プラグインの提供元が留保する商号 /
+商標です。GPLv2 はソースコードの自由な改変・再配布を許諾しますが、
+商標権そのものは GPL によって付与されません。改変版を配布する場合、
+ユーザーが提供元の公式リリースと混同しないよう、配布物の名称・ブランド
+表記から「日報マン」「Nippoman」の表記を除いてください。
+
+"日報マン" and "Nippoman" are trade names / trademarks reserved by the
+plugin's vendor. GPLv2 grants freedom to modify and redistribute the
+source code, but does not grant trademark rights. If you distribute a
+modified build, please remove the "日報マン" / "Nippoman" name and brand
+from the distribution so users will not confuse your fork with the
+upstream official release.
+
+
+=== 商用ライセンスキー / Commercial License Key ===
+
+本プラグインの「書込・公開記事化・AI 機能」は、提供元が発行する
+ライセンスキーとライセンスサーバの Ed25519 署名応答により有効化されます。
+ライセンスキーは商用ライセンス契約に基づき別途販売されるものであり、
+本 GPLv2 ライセンスの対象には含まれません。
+
+GPLv2 上、ユーザーがソースコードを改変してライセンス検証を取り除く
+ことは禁止されていません。ただし、そのような改変版は商標条項の下で
+「日報マン」「Nippoman」を名乗ることはできません。
+
+The plugin's write / post-conversion / AI features are gated by a
+license key issued by the vendor and an Ed25519-signed response from
+the vendor's license server. License keys are sold under a separate
+commercial license agreement and are not covered by this GPLv2 grant.
+
+GPLv2 does not forbid users from modifying the source to bypass the
+license check; however such a modified build may not, under the
+trademark clause above, be distributed under the "日報マン" /
+"Nippoman" name.

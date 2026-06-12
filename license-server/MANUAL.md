@@ -1,4 +1,4 @@
-# DRWP License Server 利用マニュアル
+# 日報マン ライセンスサーバー 利用マニュアル
 
 このドキュメントは「License Server を初めて触る運用担当者」向けの
 操作手順書です。エンドポイント定義などのリファレンスは
@@ -175,7 +175,7 @@ curl -u admin:$TOKEN -X DELETE $BASE/admin/licenses/ACME-001
 
 ## 5. WordPress プラグインとの紐付け
 
-プラグイン側の手順は WordPress 管理画面 → 「DRWP Daily Reports」 →
+プラグイン側の手順は WordPress 管理画面 → 「日報マン」 →
 「ライセンス」ページから行います。
 
 `scripts/docker-setup.sh` で立ち上げた場合は既に紐付け済みなので、
