@@ -5,8 +5,8 @@ if (!defined('ABSPATH')) exit;
  * AI backend abstraction.
  *
  * Implementations adapt the plugin's provider-agnostic "chat with
- * messages" call to the wire format of a specific service (Ollama,
- * OpenAI, Anthropic, etc.). The plugin's high-level features
+ * messages" call to the wire format of a specific service
+ * (OpenAI, Anthropic, etc.). The plugin's high-level features
  * (briefings, etc.) only ever talk to this interface.
  */
 interface DRWP_AI_Backend {

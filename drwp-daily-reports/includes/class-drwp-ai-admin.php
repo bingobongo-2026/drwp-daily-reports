@@ -23,7 +23,6 @@ class DRWP_AI_Admin {
         $api_key  = DRWP_AI::api_key();
         $enabled  = DRWP_AI::is_enabled();
         $defaults = [
-            'ollama'    => DRWP_AI::defaults('ollama'),
             'openai'    => DRWP_AI::defaults('openai'),
             'anthropic' => DRWP_AI::defaults('anthropic'),
         ];
@@ -43,8 +42,8 @@ class DRWP_AI_Admin {
             );
         }
         check_admin_referer('drwp_save_ai_settings');
-        $provider = sanitize_text_field(wp_unslash($_POST['provider'] ?? 'ollama'));
-        if (!in_array($provider, ['ollama', 'openai', 'anthropic'], true)) $provider = 'ollama';
+        $provider = sanitize_text_field(wp_unslash($_POST['provider'] ?? 'openai'));
+        if (!in_array($provider, ['openai', 'anthropic'], true)) $provider = 'openai';
         update_option(DRWP_AI::OPT_PROVIDER, $provider);
         update_option(DRWP_AI::OPT_URL, esc_url_raw(wp_unslash($_POST['url'] ?? '')));
         update_option(DRWP_AI::OPT_MODEL, sanitize_text_field(wp_unslash($_POST['model'] ?? '')));
