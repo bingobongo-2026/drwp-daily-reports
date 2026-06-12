@@ -474,9 +474,36 @@ class DRWP_REST {
         self::sync_photos_from_input($id, $input);
         DRWP_Audit::log('report_created', '日報を作成 (REST)', $id, ['source' => 'rest']);
 
+        // 予定チップから作成された日報なら、その予定に紐づけて
+        // 「完了」にする。編集権限のある自分の予定で、まだ未リンク
+        // のものだけが対象(他人の予定や済んだ予定は触らない)。
+        self::link_plan_to_report($input['linked_plan_id'] ?? 0, $id);
+
         $response = rest_ensure_response(self::shape_report(self::find_report($id)));
         $response->set_status(201);
         return $response;
+    }
+
+    /**
+     * Tie a just-created report back to the 予定 it was spawned from:
+     * set the plan's `linked_report_id` + flip it to `completed`.
+     * No-op unless the plan exists, the caller can edit it, and it
+     * isn't already linked.
+     */
+    private static function link_plan_to_report($plan_id, $report_id) {
+        $plan_id = absint($plan_id);
+        if (!$plan_id) return;
+        $plan = DRWP_Plan::find($plan_id);
+        if (!$plan || !DRWP_Plan::can_edit($plan)) return;
+        if (!empty($plan->linked_report_id)) return;
+        global $wpdb;
+        $wpdb->update(DRWP_Plan::table(), [
+            'linked_report_id' => (int) $report_id,
+            'status'           => 'completed',
+        ], ['id' => $plan_id]);
+        DRWP_Audit::log('plan_linked_to_report', '予定を日報に紐づけ完了', $report_id, [
+            'plan_id' => $plan_id,
+        ]);
     }
 
     public static function update_report(WP_REST_Request $request) {

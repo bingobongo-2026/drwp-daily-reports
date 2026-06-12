@@ -634,7 +634,7 @@ class DRWP_Report_Archive {
             var hint = document.createElement('div');
             hint.className = 'drwp-archive-plan-hint';
             var lead = '📋 ' + '<?php echo esc_js(__('予定', 'drwp-daily-reports')); ?>' + ' #' + esc(d.planId)
-                     + ' ' + '<?php echo esc_js(__('からテンプレを読み込みました', 'drwp-daily-reports')); ?>';
+                     + ' ' + '<?php echo esc_js(__('からテンプレを読み込みました（保存するとこの予定は完了になります）', 'drwp-daily-reports')); ?>';
             hint.innerHTML = lead;
             if (d.planNotes) {
               var n = document.createElement('div');
