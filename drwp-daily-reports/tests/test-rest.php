@@ -110,6 +110,71 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         $this->assertSame('更新', $patched->get_data()['public_body']);
     }
 
+    public function test_patch_plan_lets_operator_reassign_project_and_user() {
+        global $wpdb;
+        $admin_id = $this->make_admin();
+        $other_uid = self::factory()->user->create(['role' => 'contributor']);
+        $this->activate_license();
+        $plans = $wpdb->prefix . 'drwp_plans';
+        $proj1 = $this->make_project('案件A');
+        $proj2 = $this->make_project('案件B');
+        $wpdb->insert($plans, [
+            'planned_date' => '2026-05-10',
+            'project_id'   => $proj1,
+            'user_id'      => $admin_id,
+            'created_by'   => $admin_id,
+            'status'       => 'active',
+        ]);
+        $plan_id = (int) $wpdb->insert_id;
+
+        $patched = $this->call('PATCH', "/drwp/v1/plans/$plan_id", [
+            'project_id' => $proj2,
+            'user_id'    => $other_uid,
+        ]);
+        $this->assertSame(200, $patched->get_status());
+        $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM $plans WHERE id = %d", $plan_id));
+        $this->assertSame((string) $proj2, (string) $row->project_id);
+        $this->assertSame((string) $other_uid, (string) $row->user_id);
+    }
+
+    public function test_patch_plan_rejects_user_id_change_from_non_operator() {
+        global $wpdb;
+        $worker_id = $this->make_subscriber_with_edit();
+        $this->activate_license();
+        $plans = $wpdb->prefix . 'drwp_plans';
+        $wpdb->insert($plans, [
+            'planned_date' => '2026-05-11',
+            'user_id'      => $worker_id,
+            'created_by'   => $worker_id,
+            'status'       => 'active',
+        ]);
+        $plan_id = (int) $wpdb->insert_id;
+
+        $patched = $this->call('PATCH', "/drwp/v1/plans/$plan_id", [
+            'user_id' => 99999,
+        ]);
+        $this->assertSame(403, $patched->get_status());
+    }
+
+    public function test_patch_plan_rejects_unknown_project_id() {
+        global $wpdb;
+        $uid = $this->make_admin();
+        $this->activate_license();
+        $plans = $wpdb->prefix . 'drwp_plans';
+        $wpdb->insert($plans, [
+            'planned_date' => '2026-05-12',
+            'user_id'      => $uid,
+            'created_by'   => $uid,
+            'status'       => 'active',
+        ]);
+        $plan_id = (int) $wpdb->insert_id;
+
+        $patched = $this->call('PATCH', "/drwp/v1/plans/$plan_id", [
+            'project_id' => 99999,
+        ]);
+        $this->assertSame(400, $patched->get_status());
+    }
+
     public function test_create_with_linked_plan_id_completes_the_plan() {
         global $wpdb;
         $uid = $this->make_admin();

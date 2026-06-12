@@ -194,11 +194,19 @@ class DRWP_Report_Archive {
             return ['id' => (int) $p->id, 'name' => (string) $p->name];
         }, DRWP_Project::all(true));
 
+        // 担当者ドロップダウン — 事務所(`edit_others_posts`)だけが
+        // 予定の assignee を変えられる。作業員は自分の予定の担当を
+        // 書き換える権利を持たない(REST 側もここで弾く)ので、UI も
+        // 事務所にだけ出す。
+        $can_assign_plans = current_user_can('edit_others_posts');
+        $worker_options = $can_assign_plans ? DRWP_Plan::worker_options() : [];
+
         $cfg = wp_json_encode([
             'restRoot'  => $rest_root,
             'nonce'     => $nonce,
             'labels'    => $labels,
             'projects'  => $project_list,
+            'canAssignPlans' => $can_assign_plans,
             // The archive's edit flow uses ?drwp_id=N&drwp_edit=1
             // (see shortcode() dispatch); we build a link template
             // with __ID__ that JS replaces per-report.
@@ -242,6 +250,26 @@ class DRWP_Report_Archive {
                         <span><?php esc_html_e('日付', 'drwp-daily-reports'); ?> <em>*</em></span>
                         <input type="date" name="planned_date" required />
                     </label>
+                    <label class="drwp-archive-plan-field">
+                        <span><?php esc_html_e('案件', 'drwp-daily-reports'); ?></span>
+                        <select name="project_id">
+                            <option value=""><?php esc_html_e('（未設定）', 'drwp-daily-reports'); ?></option>
+                            <?php foreach ($project_list as $p): ?>
+                                <option value="<?php echo (int) $p['id']; ?>"><?php echo esc_html($p['name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                    <?php if ($can_assign_plans && !empty($worker_options)): ?>
+                    <label class="drwp-archive-plan-field">
+                        <span><?php esc_html_e('担当者', 'drwp-daily-reports'); ?></span>
+                        <select name="user_id">
+                            <option value=""><?php esc_html_e('（未割当）', 'drwp-daily-reports'); ?></option>
+                            <?php foreach ($worker_options as $wid => $wname): ?>
+                                <option value="<?php echo (int) $wid; ?>"><?php echo esc_html($wname); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                    <?php endif; ?>
                     <div class="drwp-archive-plan-times">
                         <label class="drwp-archive-plan-field">
                             <span><?php esc_html_e('開始時刻', 'drwp-daily-reports'); ?></span>
@@ -819,6 +847,19 @@ class DRWP_Report_Archive {
             planEditForm.started_at.value   = chip.dataset.planStart || '';
             planEditForm.ended_at.value     = chip.dataset.planEnd || '';
             planEditForm.notes.value        = chip.dataset.planNotes || '';
+            // 案件 select は全員あり。data-plan-project-id がある時だけ
+            // selected を当てる(無いと "（未設定）" が選ばれる)。
+            if (planEditForm.project_id) {
+              var pid = chip.dataset.planProjectId || '';
+              planEditForm.project_id.value = (pid && pid !== '0') ? pid : '';
+            }
+            // 担当者 select は事務所だけ。データ属性は data-plan-user-id
+            // で出してる(case-sensitive で正規化済み — dataset は
+            // kebab → camel)。
+            if (planEditForm.user_id) {
+              var uid = chip.dataset.planUserId || '';
+              planEditForm.user_id.value = (uid && uid !== '0') ? uid : '';
+            }
             var st = planEditForm.querySelector('[data-role=status]');
             if (st) { st.textContent = ''; st.className = 'drwp-archive-plan-status'; }
             var btn = planEditForm.querySelector('button[type=submit]');
@@ -883,6 +924,17 @@ class DRWP_Report_Archive {
                 ended_at:     planEditForm.ended_at.value || null,
                 notes:        planEditForm.notes.value || ''
               };
+              // project_id は誰でも変更可能(空 = 案件解除)。
+              if (planEditForm.project_id) {
+                payload.project_id = planEditForm.project_id.value
+                  ? Number(planEditForm.project_id.value) : null;
+              }
+              // user_id は事務所のみ送る(REST 側でも edit_others_posts
+              // でないリクエストは弾く)。空 = 担当解除。
+              if (planEditForm.user_id && cfg.canAssignPlans) {
+                payload.user_id = planEditForm.user_id.value
+                  ? Number(planEditForm.user_id.value) : null;
+              }
               fetch(cfg.restRoot + '/plans/' + encodeURIComponent(planEditForm.id.value), {
                 method: 'PATCH',
                 credentials: 'same-origin',
@@ -1258,6 +1310,7 @@ class DRWP_Report_Archive {
                           data-plan-date="<?php echo esc_attr((string) $pl->planned_date); ?>"
                           data-plan-project-id="<?php echo (int) ($pl->project_id ?? 0); ?>"
                           data-plan-project-name="<?php echo esc_attr($pproj_name); ?>"
+                          data-plan-user-id="<?php echo (int) ($pl->user_id ?? 0); ?>"
                           data-plan-start="<?php echo esc_attr(substr((string) ($pl->started_at ?? ''), 0, 5)); ?>"
                           data-plan-end="<?php echo esc_attr(substr((string) ($pl->ended_at ?? ''), 0, 5)); ?>"
                           data-plan-notes="<?php echo esc_attr((string) ($pl->notes ?? '')); ?>"
