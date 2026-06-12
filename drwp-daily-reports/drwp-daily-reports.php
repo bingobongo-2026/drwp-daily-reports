@@ -99,6 +99,7 @@ add_action('plugins_loaded', function () {
     DRWP_Report_Archive::init();
     DRWP_Login::init();
     DRWP_AI_Admin::init();
+    DRWP_Help::init();
 
     add_action(DRWP_License::CRON_HOOK, ['DRWP_License', 'check_now']);
     DRWP_License::schedule_cron();
