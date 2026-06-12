@@ -50,6 +50,7 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         $wpdb->query('DELETE FROM ' . $wpdb->prefix . 'drwp_audit_logs');
         $wpdb->query('DELETE FROM ' . $wpdb->prefix . 'drwp_report_photos');
         $wpdb->query('DELETE FROM ' . $wpdb->prefix . 'drwp_projects');
+        $wpdb->query('DELETE FROM ' . $wpdb->prefix . 'drwp_plans');
         $this->deactivate_license();
     }
 
@@ -107,6 +108,58 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         ]);
         $this->assertSame(200, $patched->get_status());
         $this->assertSame('更新', $patched->get_data()['public_body']);
+    }
+
+    public function test_create_with_linked_plan_id_completes_the_plan() {
+        global $wpdb;
+        $uid = $this->make_admin();
+        $this->activate_license();
+        $plans = $wpdb->prefix . 'drwp_plans';
+        $wpdb->insert($plans, [
+            'planned_date' => '2026-05-01',
+            'user_id'      => $uid,
+            'created_by'   => $uid,
+            'status'       => 'active',
+        ]);
+        $plan_id = (int) $wpdb->insert_id;
+
+        $created = $this->call('POST', '/drwp/v1/reports', [
+            'report_date'     => '2026-05-01',
+            'work_description' => 'やった',
+            'linked_plan_id'  => $plan_id,
+        ]);
+        $this->assertSame(201, $created->get_status());
+        $report_id = $created->get_data()['id'];
+
+        $plan = $wpdb->get_row($wpdb->prepare("SELECT * FROM $plans WHERE id = %d", $plan_id));
+        $this->assertSame((string) $report_id, (string) $plan->linked_report_id);
+        $this->assertSame('completed', $plan->status);
+    }
+
+    public function test_create_with_linked_plan_id_skips_already_linked_plan() {
+        global $wpdb;
+        $uid = $this->make_admin();
+        $this->activate_license();
+        $plans = $wpdb->prefix . 'drwp_plans';
+        $wpdb->insert($plans, [
+            'planned_date'     => '2026-05-02',
+            'user_id'          => $uid,
+            'created_by'       => $uid,
+            'status'           => 'active',
+            'linked_report_id' => 999, // already linked
+        ]);
+        $plan_id = (int) $wpdb->insert_id;
+
+        $this->call('POST', '/drwp/v1/reports', [
+            'report_date'     => '2026-05-02',
+            'work_description' => 'x',
+            'linked_plan_id'  => $plan_id,
+        ]);
+
+        $plan = $wpdb->get_row($wpdb->prepare("SELECT * FROM $plans WHERE id = %d", $plan_id));
+        // Untouched: still points at the original report, still active.
+        $this->assertSame('999', (string) $plan->linked_report_id);
+        $this->assertSame('active', $plan->status);
     }
 
     public function test_create_with_attachment_ids_links_photos() {

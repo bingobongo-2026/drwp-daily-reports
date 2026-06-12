@@ -185,7 +185,10 @@
                     issues:              form.issues.value || '',
                     next_plan:           form.next_plan.value || '',
                     attachment_ids:      attachmentIds,
-                    attachment_captions: attachmentCaptions
+                    attachment_captions: attachmentCaptions,
+                    // 予定チップから開いたときだけ値が入る。新しい日報を
+                    // その予定に紐づけ、予定を「完了」にするのに使う。
+                    linked_plan_id:      (form.linked_plan_id && form.linked_plan_id.value) || null
                 })
             }).then(function (r) {
                 return r.json().then(function (j) {
