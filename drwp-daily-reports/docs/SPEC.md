@@ -1,8 +1,8 @@
-# DRWP Daily Reports — 仕様書
+# 日報マン — 仕様書
 
 | 項目 | 値 |
 | --- | --- |
-| プラグイン名 | DRWP Daily Reports |
+| プラグイン名 | 日報マン (内部識別子: DRWP Daily Reports) |
 | バージョン | 1.11.0 |
 | Text Domain | `drwp-daily-reports` |
 | 対象 | WordPress 上で日報の入力 → レビュー → 公開記事化までを一気通貫で扱う業務プラグイン |
@@ -220,7 +220,7 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 
 ## 5. 管理画面 (Admin)
 
-トップメニューは `drwp_reports`(ラベル: 「日報管理」、icon: `dashicons-media-spreadsheet`) のみ。WP の標準ホバー・フライアウト挙動に乗るため、サブメニューは全て同階層のフラット構成で並べる。「日報管理」にマウスホバーすると 日報一覧 〜 操作履歴 までが順に表示される。
+トップメニューは `drwp_reports`(ラベル: 「日報マン」、icon: `dashicons-media-spreadsheet`) のみ。WP の標準ホバー・フライアウト挙動に乗るため、サブメニューは全て同階層のフラット構成で並べる。「日報マン」にマウスホバーすると 日報一覧 〜 操作履歴 までが順に表示される。
 
 「グループ」は `DRWP_Groups_Admin::render_page()` が描画する 1 ページで、`?tab=customer` / `?tab=project` で顧客グループと案件グループの 2 タブを切り替える。タブの中身は `admin/views/customer-groups-page.php` / `admin/views/project-groups-page.php` をそれぞれ include する形で、保存ハンドラ (`DRWP_Customer_Group::save` / `DRWP_Project_Group::save`) は対応するタブに `?saved=1` を付けてリダイレクトする。
 
@@ -232,7 +232,7 @@ REST 側も同等のロジック (`can_view_one` / `can_edit_one`) を持つ。
 - `DRWP_Admin::settings_section_css` が `admin_head` で、設定系行をやや字下げ、先頭行に上罫線 + `::before` で「設定」ラベルを表示するスタイルを出力する。
 - サブメニュー登録順序や構造には触らないので、WP のホバーフライアウトはそのまま全 12 項目を表示する。
 
-### 日報管理 配下
+### 日報マン 配下
 
 | スラッグ | ラベル | 必須 cap | 担当クラス |
 | --- | --- | --- | --- |
@@ -730,9 +730,18 @@ POST のみ `linked_plan_id`(任意)も受け付ける — 予定チップから
 
 `drwp_audit_logs` テーブル。`DRWP_Audit::log($event, $message, $report_id, $meta)` を各所から呼ぶ。
 
-主なイベント: `report_created` / `report_updated` / `photos_updated` / `review_status_changed` / `comment_added` / `report_edited_frontend` / `post_created_from_report` / `post_resynced`。
+主なイベント: `report_created` / `report_updated` / `photos_updated` / `review_status_changed` / `comment_added` / `report_edited_frontend` / `post_created_from_report` / `post_resynced` / `audit_purged`。
 
 管理画面の「操作履歴」で全ログを閲覧、`/wp-json/drwp/v1/reports/{id}/audit` でログを取得。
+
+### 12.1 保存期間と自動削除
+
+`drwp_audit_logs` は放置すると毎月数千〜数万行に達するため、保存期間ベースの自動削除を備える。
+
+* 設定オプション: `drwp_audit_retention_days`（既定値 365、`0` = 永久保存、上限 3650）
+* 日次 cron `drwp_audit_purge_daily` が `DRWP_Audit::cron_purge()` を実行し、`created_at` がしきい値より古い行を削除する
+* 削除が発生した場合は `audit_purged` イベントを 1 行残し、いつ・何件・何日基準で消したかを後追いできるようにする
+* 管理者は「操作履歴」ページ上部の `⚙️ 保存期間と自動削除` パネルから、プリセット（30 / 90 / 180 / 365 / 730 / 1095 日 / 永久保存）の切替と「今すぐ削除」を行える
 
 ---
 

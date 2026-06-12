@@ -3,6 +3,102 @@
   <h1 class="wp-heading-inline"><?php esc_html_e('操作履歴', 'drwp-daily-reports'); ?></h1>
   <hr class="wp-header-end">
 
+  <?php if (current_user_can('manage_options')):
+    $retention = DRWP_Audit::retention_days();
+    $grand_total = DRWP_Audit::count();
+    $oldest = DRWP_Audit::oldest_at();
+    $next_run = wp_next_scheduled(DRWP_Audit::CRON_HOOK);
+  ?>
+  <?php if (!empty($_GET['retention_saved'])): ?>
+    <div class="notice notice-success is-dismissible"><p><?php esc_html_e('保存期間を更新しました。', 'drwp-daily-reports'); ?></p></div>
+  <?php endif; ?>
+  <?php if (isset($_GET['purged'])): ?>
+    <div class="notice notice-success is-dismissible">
+      <p><?php
+        $n = max(0, (int) $_GET['purged']);
+        if ($n === 0) {
+            esc_html_e('削除対象の古い履歴はありませんでした。', 'drwp-daily-reports');
+        } else {
+            /* translators: %d: deleted row count */
+            printf(esc_html(_n('%d 件の古い履歴を削除しました。', '%d 件の古い履歴を削除しました。', $n, 'drwp-daily-reports')), $n);
+        }
+      ?></p>
+    </div>
+  <?php endif; ?>
+  <details class="drwp-audit-retention" style="margin:12px 0;border:1px solid #c3c4c7;border-radius:8px;padding:0 14px;">
+    <summary style="cursor:pointer;padding:10px 0;font-weight:600;color:#1d2327;">
+      ⚙️ <?php esc_html_e('保存期間と自動削除', 'drwp-daily-reports'); ?>
+      <span style="color:#646970;font-weight:400;font-size:.92em;">
+        ／
+        <?php
+          /* translators: %d: total stored rows */
+          printf(esc_html__('現在 %s 件', 'drwp-daily-reports'), number_format_i18n((int) $grand_total));
+        ?>
+        ／
+        <?php
+          if ($retention === 0) {
+              esc_html_e('永久保存', 'drwp-daily-reports');
+          } else {
+              /* translators: %d: retention day count */
+              printf(esc_html__('%d 日で自動削除', 'drwp-daily-reports'), $retention);
+          }
+        ?>
+      </span>
+    </summary>
+    <div style="padding:6px 0 14px;display:flex;flex-direction:column;gap:10px;">
+      <p class="description" style="margin:0;">
+        <?php
+          if ($oldest !== '') {
+              printf(
+                  esc_html__('最古の記録: %s', 'drwp-daily-reports'),
+                  esc_html(wp_date('Y-m-d H:i', strtotime($oldest)))
+              );
+              echo ' ／ ';
+          }
+          if ($next_run) {
+              printf(
+                  esc_html__('次回の自動削除: %s', 'drwp-daily-reports'),
+                  esc_html(wp_date('Y-m-d H:i', (int) $next_run))
+              );
+          }
+        ?>
+      </p>
+      <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <?php wp_nonce_field('drwp_save_audit_retention'); ?>
+        <input type="hidden" name="action" value="drwp_save_audit_retention" />
+        <label for="drwp-audit-retention-days"><?php esc_html_e('保存期間', 'drwp-daily-reports'); ?></label>
+        <select id="drwp-audit-retention-days" name="retention_days">
+          <?php
+            $presets = [
+                30   => __('30 日', 'drwp-daily-reports'),
+                90   => __('90 日', 'drwp-daily-reports'),
+                180  => __('180 日', 'drwp-daily-reports'),
+                365  => __('365 日（推奨）', 'drwp-daily-reports'),
+                730  => __('2 年（730 日）', 'drwp-daily-reports'),
+                1095 => __('3 年（1095 日）', 'drwp-daily-reports'),
+                0    => __('永久保存（自動削除しない）', 'drwp-daily-reports'),
+            ];
+            foreach ($presets as $val => $label): ?>
+            <option value="<?php echo (int) $val; ?>" <?php selected($retention, $val); ?>><?php echo esc_html($label); ?></option>
+          <?php endforeach; ?>
+        </select>
+        <button class="button button-primary"><?php esc_html_e('保存', 'drwp-daily-reports'); ?></button>
+        <span class="description"><?php esc_html_e('1 日 1 回、設定期間より古い履歴を自動的に削除します。', 'drwp-daily-reports'); ?></span>
+      </form>
+      <?php if ($retention > 0 && $grand_total > 0): ?>
+      <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:flex;gap:8px;align-items:center;">
+        <?php wp_nonce_field('drwp_purge_audit_now'); ?>
+        <input type="hidden" name="action" value="drwp_purge_audit_now" />
+        <button type="submit" class="button button-link-delete"
+                onclick="return confirm('<?php echo esc_js(__('現在の保存期間より古い履歴を今すぐ削除します。よろしいですか？', 'drwp-daily-reports')); ?>');">
+          <?php esc_html_e('今すぐ古い履歴を削除', 'drwp-daily-reports'); ?>
+        </button>
+      </form>
+      <?php endif; ?>
+    </div>
+  </details>
+  <?php endif; ?>
+
   <form method="get" style="margin:12px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
     <input type="hidden" name="page" value="drwp_audit" />
     <input type="search" name="s" value="<?php echo esc_attr($filters['search']); ?>" placeholder="<?php esc_attr_e('メッセージ / meta / ユーザー名', 'drwp-daily-reports'); ?>" style="min-width:240px;" />

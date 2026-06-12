@@ -10,7 +10,7 @@ class DRWP_Dashboard {
         if (!current_user_can('edit_posts')) return;
         wp_add_dashboard_widget(
             'drwp_dashboard_widget',
-            __('日報管理', 'drwp-daily-reports'),
+            __('日報マン', 'drwp-daily-reports'),
             [__CLASS__, 'render_widget']
         );
     }

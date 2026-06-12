@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from . import db, signing
 
-app = FastAPI(title="DRWP License Server v1.9")
+app = FastAPI(title="Nippoman License Server v1.9")
 
 db.init_db()
 

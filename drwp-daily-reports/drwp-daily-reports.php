@@ -1,16 +1,33 @@
 <?php
 /**
- * Plugin Name: DRWP Daily Reports
- * Description: Daily reports, review workflow, and conversion to WordPress posts with license checks.
- * Version: 1.47.0
- * Author: DRWP Prototype
+ * Plugin Name: 日報マン
+ * Plugin URI: https://nippoman.example.com/
+ * Description: 現場日報のレビュー・写真添付・公開記事化を一体化したライセンス制プラグイン。ライセンスサーバと連動して書込・記事化を有効化します。
+ * Version: 1.48.0
+ * Author: 日報マン
+ * Author URI: https://nippoman.example.com/
  * Text Domain: drwp-daily-reports
  * Domain Path: /languages
+ * Requires at least: 6.0
+ * Requires PHP: 7.4
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ *
+ * Copyright (c) 2026 日報マン
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2,
+ * as published by the Free Software Foundation. See LICENSE.
+ *
+ * Internal slugs / class prefixes (DRWP_*, drwp_*, drwp-daily-reports
+ * text domain, REST namespace drwp/v1, DB prefix drwp_*) are kept as
+ * stable identifiers across the 日報マン rename to avoid breaking
+ * options / DB rows / saved settings on existing installs.
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('DRWP_VERSION', '1.47.0');
+define('DRWP_VERSION', '1.48.0');
 define('DRWP_PATH', plugin_dir_path(__FILE__));
 define('DRWP_URL', plugin_dir_url(__FILE__));
 
@@ -70,6 +87,7 @@ add_action('plugins_loaded', function () {
     DRWP_Plan::init();
     DRWP_User::init();
     DRWP_Review::init();
+    DRWP_Audit::init();
     DRWP_Audit_Admin::init();
     DRWP_Dashboard::init();
     DRWP_REST::init();

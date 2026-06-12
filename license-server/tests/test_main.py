@@ -222,7 +222,7 @@ def test_ui_list_renders_html(client):
     r = client.get("/admin/ui/licenses", auth=auth)
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/html")
-    assert "DRWP License Server" in r.text
+    assert "日報マン ライセンスサーバー" in r.text
     assert "ライセンスがありません" in r.text
 
 

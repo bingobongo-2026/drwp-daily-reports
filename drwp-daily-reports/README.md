@@ -1,7 +1,9 @@
-# DRWP Daily Reports
+# 日報マン (Nippoman) — DRWP Daily Reports
 
 A WordPress plugin for capturing field/site daily reports with a review
 workflow, photo attachments, and one-click conversion into public posts.
+Marketed under the brand name **日報マン**; the internal slug
+`drwp-daily-reports` is kept for backwards compatibility.
 Pairs with a standalone license server (`../license-server/`) that signs
 its responses with Ed25519 so a tampered status can't unlock features.
 
@@ -69,10 +71,10 @@ its responses with Ed25519 so a tampered status can't unlock features.
 ## Install
 
 1. Drop the plugin folder into `wp-content/plugins/`.
-2. Activate via `Plugins → DRWP Daily Reports`. Activation creates the
+2. Activate via `Plugins → 日報マン`. Activation creates the
    five `wp_drwp_*` tables (reports, projects, comments, audit_logs,
    report_photos).
-3. Visit `日報管理 → ライセンス`, set the API URL and license key,
+3. Visit `日報マン → ライセンス`, set the API URL and license key,
    click "公開鍵を取得", then "いま照会する". `signature_valid` should
    read `valid`. Without a license, REST writes return HTTP 402 and
    the report editor blocks save.

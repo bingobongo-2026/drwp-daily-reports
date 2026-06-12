@@ -117,7 +117,7 @@ class DRWP_Admin {
             // Non-admins see a soft notice without the link.
             ?>
             <div class="notice notice-warning"><p>
-              <?php esc_html_e('DRWP Daily Reports: ライセンスが有効になっていないため、日報の保存・記事化はできません。サイト管理者に連絡してください。', 'drwp-daily-reports'); ?>
+              <?php esc_html_e('日報マン: ライセンスが有効になっていないため、日報の保存・記事化はできません。サイト管理者に連絡してください。', 'drwp-daily-reports'); ?>
             </p></div>
             <?php
             return;
@@ -125,11 +125,11 @@ class DRWP_Admin {
 
         $url = admin_url('admin.php?page=drwp_license');
         if (!$is_configured) {
-            $msg = __('DRWP Daily Reports: ライセンスが未設定です。日報の保存・記事化を行うには、API URL とライセンスキーを設定してください。', 'drwp-daily-reports');
+            $msg = __('日報マン: ライセンスが未設定です。日報の保存・記事化を行うには、API URL とライセンスキーを設定してください。', 'drwp-daily-reports');
         } elseif ($public_key === '') {
-            $msg = __('DRWP Daily Reports: 公開鍵が未取得のため署名検証が無効です。「公開鍵を取得」を実行してください。', 'drwp-daily-reports');
+            $msg = __('日報マン: 公開鍵が未取得のため署名検証が無効です。「公開鍵を取得」を実行してください。', 'drwp-daily-reports');
         } else {
-            $msg = __('DRWP Daily Reports: ライセンスがアクティブではありません。「いま照会する」を実行するか、ライセンスサーバの状態を確認してください。', 'drwp-daily-reports');
+            $msg = __('日報マン: ライセンスがアクティブではありません。「いま照会する」を実行するか、ライセンスサーバの状態を確認してください。', 'drwp-daily-reports');
         }
         ?>
         <div class="notice notice-warning">
@@ -190,7 +190,10 @@ class DRWP_Admin {
         // child of `drwp_reports` lets WP's default hover flyout
         // surface the entire list (日報一覧 〜 操作履歴) when the
         // sidebar is in its collapsed/non-current state.
-        $reports = __('日報管理', 'drwp-daily-reports');
+        // サイドバー親メニュー: サービス名「日報マン」をそのまま出す。
+        // 中の slug (`drwp_reports`) はそのままなので、既存リンクは壊
+        // れない。
+        $reports = __('日報マン', 'drwp-daily-reports');
         add_menu_page($reports, $reports, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page'], 'dashicons-media-spreadsheet');
 
         $list_label = __('日報一覧', 'drwp-daily-reports');
