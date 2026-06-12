@@ -108,6 +108,7 @@ class DRWP_Dashboard {
           <p style="margin-top:12px;">
             <a class="button button-primary button-small" href="<?php echo esc_url(admin_url('admin.php?page=drwp_report_edit')); ?>"><?php esc_html_e('日報を作成', 'drwp-daily-reports'); ?></a>
             <a class="button button-small" href="<?php echo esc_url($list_url); ?>"><?php esc_html_e('一覧を開く', 'drwp-daily-reports'); ?></a>
+            <a class="button button-small" href="<?php echo esc_url(admin_url('admin.php?page=drwp_help')); ?>"><?php esc_html_e('使い方', 'drwp-daily-reports'); ?></a>
           </p>
         </div>
         <?php

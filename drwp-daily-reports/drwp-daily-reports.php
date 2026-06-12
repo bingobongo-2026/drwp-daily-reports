@@ -65,6 +65,7 @@ require_once DRWP_PATH . 'includes/class-drwp-ai-backend-openai.php';
 require_once DRWP_PATH . 'includes/class-drwp-ai-backend-anthropic.php';
 require_once DRWP_PATH . 'includes/class-drwp-ai.php';
 require_once DRWP_PATH . 'includes/class-drwp-ai-admin.php';
+require_once DRWP_PATH . 'includes/class-drwp-help.php';
 
 if (defined('WP_CLI') && WP_CLI) {
     require_once DRWP_PATH . 'includes/class-drwp-cli.php';
