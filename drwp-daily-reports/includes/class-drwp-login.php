@@ -81,16 +81,27 @@ class DRWP_Login {
     }
 
     public static function shortcode($atts = []) {
-        // 退職社員はログインフォームそのものを見せない。マーカー
-        // Cookie か URL の `?drwp_retired=1` を拾って、フォーム
-        // の代わりに「ログインできません」を出す。
-        $retired_marker = (DRWP_User::has_marker_cookie() || !empty($_GET['drwp_retired']))
-                       && !is_user_logged_in();
-        if ($retired_marker || (is_user_logged_in() && DRWP_User::is_retired())) {
+        // 現にログイン中の退職者(init ログアウト前のレース) — フォー
+        // ムを出しても意味がないので通知だけ。
+        if (is_user_logged_in() && DRWP_User::is_retired()) {
             wp_enqueue_style(self::HANDLE);
             return self::wrap('<p class="drwp-login-flash err drwp-login-retired">'
                 . esc_html__('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports')
                 . '</p>');
+        }
+        // ログアウト済み + 退職マーカー: 退職者がログアウトさせられた
+        // 直後。通知は出すが、ログインフォームも**併せて**出す — 共有
+        // 端末で別の社員がそのままログインできるようにするため(通知だ
+        // け出してフォームを隠すと、マーカー Cookie が切れる 1 時間
+        // まで誰もそのページからログインできなくなる)。
+        $retired_marker = (DRWP_User::has_marker_cookie() || !empty($_GET['drwp_retired']))
+                       && !is_user_logged_in();
+        if ($retired_marker) {
+            wp_enqueue_style(self::HANDLE);
+            $notice = '<div class="drwp-login-wrap"><p class="drwp-login-flash err drwp-login-retired">'
+                . esc_html__('前回のアカウントは退職状態のためログインできません。別のアカウントでログインしてください。', 'drwp-daily-reports')
+                . '</p></div>';
+            return $notice . self::render_login_box();
         }
 
         if (is_user_logged_in()) {

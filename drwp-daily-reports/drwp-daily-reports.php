@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DRWP Daily Reports
  * Description: Daily reports, review workflow, and conversion to WordPress posts with license checks.
- * Version: 1.40.0
+ * Version: 1.41.0
  * Author: DRWP Prototype
  * Text Domain: drwp-daily-reports
  * Domain Path: /languages
@@ -10,7 +10,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('DRWP_VERSION', '1.40.0');
+define('DRWP_VERSION', '1.41.0');
 define('DRWP_PATH', plugin_dir_path(__FILE__));
 define('DRWP_URL', plugin_dir_url(__FILE__));
 

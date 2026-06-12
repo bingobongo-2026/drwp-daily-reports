@@ -76,18 +76,25 @@ class DRWP_Report_Archive {
     public static function shortcode($atts = []) {
         wp_enqueue_style(self::HANDLE);
 
-        // 退職アカウントは:
-        //   - すでに `invalidate_session_if_retired` で wp_logout 済み
-        //   - 退職マーカー Cookie が立っているか、認証直後のリダイレ
-        //     クトで `?drwp_retired=1` が乗っている
-        // どちらの経路でも「ログインできません」を出す。データに到
-        // 達する前にここで止める。
-        $retired_marker = !is_user_logged_in()
-                       && (DRWP_User::has_marker_cookie() || !empty($_GET['drwp_retired']));
-        if ($retired_marker || (is_user_logged_in() && DRWP_User::is_retired())) {
+        // 現にログイン中の退職者(init ログアウト前のレース) — データ
+        // に到達する前に通知だけ出して止める。
+        if (is_user_logged_in() && DRWP_User::is_retired()) {
             return self::wrap('<p class="drwp-archive-message drwp-archive-retired">'
                 . esc_html__('このアカウントは退職状態のため、ログインできません。', 'drwp-daily-reports')
                 . '</p>');
+        }
+        // ログアウト済み + 退職マーカー: 退職者がログアウトさせられた
+        // 直後。通知を出しつつ、ログインフォームも併せて出す — 共有端末
+        // で別の社員がそのままログインできるようにする(通知だけ出して
+        // フォームを隠すと、マーカー Cookie が切れるまで誰もログインで
+        // きなくなる)。
+        $retired_marker = !is_user_logged_in()
+                       && (DRWP_User::has_marker_cookie() || !empty($_GET['drwp_retired']));
+        if ($retired_marker) {
+            $notice = self::wrap('<p class="drwp-archive-message drwp-archive-retired">'
+                . esc_html__('前回のアカウントは退職状態のためログインできません。別のアカウントでログインしてください。', 'drwp-daily-reports')
+                . '</p>');
+            return $notice . DRWP_Login::render_login_box(get_permalink() ?: null);
         }
         // 未ログイン時はログインフォームを埋め込んで返す。これで
         // 「[drwp_login_form] と [drwp_report_archive] の 2 つを別
@@ -640,7 +647,11 @@ class DRWP_Report_Archive {
           }
 
           document.addEventListener('click', function(e){
-            var planChip = e.target.closest('.drwp-archive-cal-plan-chip[data-plan-id]');
+            // Tap a plan chip → open the report form pre-filled from it.
+            // Linked plans (already tied to a report) are excluded:
+            // they're non-draggable / non-editable, so they should not
+            // spawn a second report either.
+            var planChip = e.target.closest('.drwp-archive-cal-plan-chip[data-plan-id]:not(.is-linked)');
             if (planChip) {
               e.preventDefault();
               openReportFromPlan(planChip);
