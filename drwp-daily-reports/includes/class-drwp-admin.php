@@ -230,6 +230,9 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $lic, $lic, 'manage_options', 'drwp_license', ['DRWP_License_Admin', 'render_page']);
         $audit = __('操作履歴', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $audit, $audit, 'manage_options', 'drwp_audit', ['DRWP_Audit_Admin', 'render_page']);
+        // 使い方ガイドは社員でも開けるように CAP_EDIT で出す。
+        $help = __('使い方', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $help, $help, self::CAP_EDIT, DRWP_Help::SLUG, ['DRWP_Help', 'render_page']);
 
         // Hidden pages (parent = null): reachable only via direct links
         // from the dashboard / review redirects / notification emails /
