@@ -405,6 +405,39 @@ class DRWP_REST {
         if (array_key_exists('notes', $input)) {
             $data['notes'] = wp_kses_post((string) $input['notes']);
         }
+        if (array_key_exists('project_id', $input)) {
+            // 案件は誰でも変更可能(空 = 案件解除)。存在チェックして、
+            // 不正な ID は弾く(無効値で「案件未設定」になる事故を防ぐ)。
+            $pid = absint($input['project_id']);
+            if ($pid) {
+                global $wpdb;
+                $proj_t = $wpdb->prefix . 'drwp_projects';
+                $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $proj_t WHERE id = %d", $pid));
+                if (!$exists) {
+                    return new WP_Error('drwp_invalid', 'Invalid project_id', ['status' => 400]);
+                }
+            }
+            $data['project_id'] = $pid ?: null;
+        }
+        if (array_key_exists('user_id', $input)) {
+            // 担当者の付け替えは事務所(edit_others_posts)だけ。作業員
+            // が他社員に振り直すのを REST 側でも止める。
+            if (!current_user_can('edit_others_posts')) {
+                return new WP_Error(
+                    'drwp_forbidden',
+                    __('担当者の変更は事務所のみ可能です。', 'drwp-daily-reports'),
+                    ['status' => 403]
+                );
+            }
+            $uid = absint($input['user_id']);
+            if ($uid) {
+                $target = get_userdata($uid);
+                if (!$target || !user_can($target, 'edit_posts')) {
+                    return new WP_Error('drwp_invalid', 'Invalid user_id', ['status' => 400]);
+                }
+            }
+            $data['user_id'] = $uid ?: null;
+        }
         if (array_key_exists('status', $input)) {
             $status = sanitize_text_field((string) $input['status']);
             if (!array_key_exists($status, DRWP_Plan::status_labels())) {
