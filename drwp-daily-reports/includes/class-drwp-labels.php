@@ -77,4 +77,18 @@ class DRWP_Labels {
             'before_after' => self::post_template('before_after'),
         ];
     }
+
+    /**
+     * Coerce an arbitrary post_template value to a known key,
+     * defaulting to `standard`. Used at every write boundary so the
+     * column never stores junk (the converter already defaults
+     * unknown values to standard at render time, but storing the
+     * canonical value keeps the DB clean + the edit UI honest).
+     */
+    public static function sanitize_post_template($value) {
+        $value = (string) $value;
+        return array_key_exists($value, self::post_template_options())
+            ? $value
+            : 'standard';
+    }
 }

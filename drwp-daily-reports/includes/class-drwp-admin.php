@@ -220,6 +220,11 @@ class DRWP_Admin {
         $audit = __('操作履歴', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $audit, $audit, 'manage_options', 'drwp_audit', ['DRWP_Audit_Admin', 'render_page']);
 
+        // Hidden pages (parent = null): reachable only via direct links
+        // from the dashboard / review redirects / notification emails /
+        // audit log, not from the sidebar.
+        $edit = __('日報編集', 'drwp-daily-reports');
+        add_submenu_page(null, $edit, $edit, self::CAP_EDIT, 'drwp_report_edit', [__CLASS__, 'report_edit_page']);
         $prev = __('公開プレビュー', 'drwp-daily-reports');
         add_submenu_page(null, $prev, $prev, self::CAP_EDIT, 'drwp_report_preview', [__CLASS__, 'report_preview_page']);
     }
@@ -485,7 +490,7 @@ class DRWP_Admin {
             'public_intro' => wp_kses_post(wp_unslash($_POST['public_intro'] ?? '')),
             'public_body' => wp_kses_post(wp_unslash($_POST['public_body'] ?? '')),
             'public_next_plan' => wp_kses_post(wp_unslash($_POST['public_next_plan'] ?? '')),
-            'post_template' => sanitize_text_field($_POST['post_template'] ?? 'standard'),
+            'post_template' => DRWP_Labels::sanitize_post_template($_POST['post_template'] ?? 'standard'),
             'post_category_id' => absint($_POST['post_category_id'] ?? 0) ?: null,
             'post_tags' => sanitize_text_field($_POST['post_tags'] ?? ''),
             'post_status' => sanitize_text_field($_POST['post_status'] ?? 'draft'),
@@ -575,7 +580,7 @@ class DRWP_Admin {
                 if (!is_wp_error($result)) $count++;
             } elseif ($action === 'bulk_update_publish') {
                 $data = [
-                    'post_template' => sanitize_text_field($_POST['bulk_post_template'] ?? 'standard'),
+                    'post_template' => DRWP_Labels::sanitize_post_template($_POST['bulk_post_template'] ?? 'standard'),
                     'post_category_id' => absint($_POST['bulk_post_category_id'] ?? 0) ?: null,
                     'post_tags' => sanitize_text_field($_POST['bulk_post_tags'] ?? ''),
                     'post_status' => sanitize_text_field($_POST['bulk_post_status'] ?? 'draft'),

@@ -344,6 +344,8 @@ DRWP プラグイン全体で `display_name` を `DRWP_User::display_name($user_
 
 社員名が wp-admin 限定なのは意図的 — 事務所内のあだ名・呼称をフロント(公開アーカイブやログインバー)に漏らさないため。REST 経由のレンダリング(フロントのモーダル等)は `is_admin()` false なので姓名解決のまま。
 
+**`DRWP_User::public_name($user_or_id)`**: `is_admin()` に関係なく社員名を**絶対に使わない**版(姓名 → display_name → user_login)。公開記事の本文になる場所では必ずこちらを使う。記事変換は wp-admin の記事作成ボタン(`admin-post.php`)からも走り `is_admin()` が true になるため、`display_name()` のままだと案件レポートの「報告者」に社員名が焼き込まれて公開面に漏れる。`build_meta_table()` は `public_name()` を使う。
+
 - 一覧テーブル: 日報一覧 / 記事一覧 / 予定一覧 / 監査ログ / 出力 PDF
 - アーカイブ単一ビューの「作成者」
 - REST `/reports/{id}/comments` レスポンスの `display_name`
@@ -535,7 +537,7 @@ namespace: `drwp/v1`(`/wp-json/drwp/v1/...`)、認証は WP の Cookie + REST no
 | GET | `/reports` | `edit_posts` | 一覧取得(自分のみ or 全件は権限次第) |
 | POST | `/reports` | `edit_posts` + ライセンス | 新規投稿 |
 | GET | `/reports/{id}` | 閲覧可能か(自分の or `edit_others_posts`) | 単一取得 |
-| PATCH | `/reports/{id}` | 編集可能か(自分の or `edit_others_posts`) + ライセンス | 部分更新 |
+| PATCH | `/reports/{id}` | `edit_others_posts` は任意ステータス / 一般ユーザーは自分の `pending` のみ + ライセンス | 部分更新。`post_template` は既知の値に正規化 |
 | POST | `/reports/{id}/review` | `edit_others_posts` + ライセンス | 承認/差戻し |
 | GET | `/reports/{id}/comments` | 閲覧可能か | コメント一覧 |
 | POST | `/reports/{id}/comments` | 閲覧可能か + ライセンス | コメント追加 |
@@ -582,7 +584,7 @@ PATCH は部分更新。`attachment_ids` キーが含まれていれば写真リ
 | 案件名 | `DRWP_Project::find($report->project_id)->name` |
 | 報告日 | `date_i18n('Y年n月j日', $report->report_date)` |
 | 作業時間 | `started_at 〜 ended_at` (片方だけならその時刻) |
-| 報告者 | `DRWP_User::display_name($report->user_id)` — `is_admin()` false なので姓名解決(社員名は出ない) |
+| 報告者 | `DRWP_User::public_name($report->user_id)` — 社員名を使わない解決(公開面に社内呼称を出さない) |
 
 値が空のセルは `-`。
 
