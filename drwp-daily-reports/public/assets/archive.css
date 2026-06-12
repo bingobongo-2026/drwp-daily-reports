@@ -297,12 +297,27 @@
 .drwp-archive-cal-dow { background: #f8fafc; text-align: center; font-size: 0.8rem; font-weight: 600; color: #475569; padding: 6px 0; }
 .drwp-archive-cal-dow.sun { color: #dc2626; }
 .drwp-archive-cal-dow.sat { color: #2563eb; }
-.drwp-archive-cal-cell { background: #fff; min-height: 110px; padding: 6px 6px 8px; display: flex; flex-direction: column; gap: 3px; }
+.drwp-archive-cal-cell { background: #fff; min-height: 110px; padding: 6px 6px 8px; display: flex; flex-direction: column; gap: 3px; position: relative; }
 .drwp-archive-cal-cell.empty { background: #f8fafc; }
 .drwp-archive-cal-cell.sun .drwp-archive-cal-day { color: #dc2626; }
 .drwp-archive-cal-cell.sat .drwp-archive-cal-day { color: #2563eb; }
-.drwp-archive-cal-cell.today { background: #eff6ff; }
-.drwp-archive-cal-cell.today .drwp-archive-cal-day { background: #2563eb; color: #fff; }
+/* 当日セル — 一目で判別できるように:
+   - 背景を `#dbeafe`(従来より一段濃い水色)に
+   - 内側に細い青のリングを入れる(box-shadow inset)
+   - 右上に「今日」のピル
+   日付丸の青ベタは従来通り。 */
+.drwp-archive-cal-cell.today { background: #dbeafe; box-shadow: inset 0 0 0 2px #2563eb; }
+.drwp-archive-cal-cell.today .drwp-archive-cal-day { background: #2563eb; color: #fff; box-shadow: 0 1px 3px rgba(37, 99, 235, .35); }
+.drwp-archive-cal-cell.today::after {
+    content: '今日';
+    position: absolute;
+    top: 4px; right: 6px;
+    background: #2563eb; color: #fff;
+    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em;
+    padding: 1px 6px; border-radius: 999px;
+    line-height: 1.4;
+    pointer-events: none;
+}
 .drwp-archive-cal-day { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; font-size: 0.85rem; font-weight: 600; border-radius: 50%; color: #1e293b; }
 /* 日報チップ — solid colored bg ("これは実施済の記録")。予定チップと
    同じ寸法 (font-size / padding / line-height) に揃え、`::before` で
