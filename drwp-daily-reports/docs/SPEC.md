@@ -712,7 +712,7 @@ POST のみ `linked_plan_id`(任意)も受け付ける — 予定チップから
 
 ### 11.1 AI 機能
 
-`class-drwp-ai.php` がプロバイダ非依存のアプリ層、`class-drwp-ai-backend-*.php` が各プロバイダ(Ollama / OpenAI 互換 / Anthropic)のワイヤ実装。`DRWP_AI::backend()` が `drwp_ai_backend` フィルタを通すのでテストや高度な統合でバックエンドを差し替えられる。すべて **AI設定で有効化 + Pro プラン**(`can_use_ai`)が前提。
+`class-drwp-ai.php` がプロバイダ非依存のアプリ層、`class-drwp-ai-backend-*.php` が各プロバイダ(OpenAI 互換 / Anthropic)のワイヤ実装。`DRWP_AI::backend()` が `drwp_ai_backend` フィルタを通すのでテストや高度な統合でバックエンドを差し替えられる。すべて **AI設定で有効化 + Pro プラン**(`can_use_ai`)が前提。
 
 | 機能 | メソッド | REST | UI 配置 | 出力 |
 | --- | --- | --- | --- | --- |

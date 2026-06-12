@@ -6,7 +6,7 @@
     <div class="notice notice-success"><p><?php esc_html_e('保存しました。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>
 
-  <p><?php esc_html_e('日報を AI に渡して、文章生成・要約・チェックを行います。バックエンドはローカル (Ollama) / クラウド (OpenAI / Anthropic) から選択できます。', 'drwp-daily-reports'); ?></p>
+  <p><?php esc_html_e('日報を AI に渡して、文章生成・要約・チェックを行います。バックエンドは OpenAI 互換 / Anthropic から選択できます。', 'drwp-daily-reports'); ?></p>
 
   <div class="notice notice-info inline" style="margin:8px 0;">
     <p style="margin:.5em 0;"><strong><?php esc_html_e('有効にすると、次の場所に AI ボタンが表示されます（Pro プラン）:', 'drwp-daily-reports'); ?></strong></p>
@@ -34,10 +34,6 @@
       <tr>
         <th><?php esc_html_e('バックエンド', 'drwp-daily-reports'); ?></th>
         <td>
-          <label style="margin-right:14px;">
-            <input type="radio" name="provider" value="ollama" data-needs-key="0" <?php checked($provider, 'ollama'); ?> />
-            Ollama <span class="description">（ローカル）</span>
-          </label>
           <label style="margin-right:14px;">
             <input type="radio" name="provider" value="openai" data-needs-key="1" <?php checked($provider, 'openai'); ?> />
             OpenAI 互換 <span class="description">（OpenAI / Groq / Together など）</span>
@@ -73,7 +69,7 @@
               <?php esc_html_e('キーを削除', 'drwp-daily-reports'); ?>
             </label>
           <?php endif; ?>
-          <p class="description"><?php esc_html_e('OpenAI / Anthropic で必要。Ollama では不要。', 'drwp-daily-reports'); ?></p>
+          <p class="description"><?php esc_html_e('OpenAI / Anthropic で必要。', 'drwp-daily-reports'); ?></p>
         </td>
       </tr>
     </table>
@@ -115,14 +111,6 @@
 
   <h2><?php esc_html_e('セットアップガイド', 'drwp-daily-reports'); ?></h2>
   <details>
-    <summary><strong>Ollama（ローカル）</strong></summary>
-    <ol>
-      <li><a href="https://ollama.com/download" target="_blank" rel="noopener">Ollama</a> を WordPress と同じマシンにインストール</li>
-      <li>ターミナルで <code>ollama pull gemma3:4b</code></li>
-      <li>このページで URL <code>http://localhost:11434</code>、モデル <code>gemma3:4b</code></li>
-    </ol>
-  </details>
-  <details>
     <summary><strong>OpenAI / 互換サービス</strong></summary>
     <ol>
       <li>API キーを取得（<a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI</a> / <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a> など）</li>
@@ -153,11 +141,12 @@
   function apply(){
     var picked = document.querySelector('input[name="provider"]:checked');
     if (!picked) return;
-    var p = picked.value;
-    var d = defaults[p];
+    var d = defaults[picked.value];
     urlHint.textContent = '推奨: ' + d.url;
     modelHint.textContent = '推奨: ' + d.model;
-    keyRow.style.display = picked.dataset.needsKey === '1' ? '' : 'none';
+    // 残った両プロバイダ(OpenAI / Anthropic)とも API キー必須なので
+    // 常時 keyRow を見せる。data-needs-key 切替は廃止。
+    keyRow.style.display = '';
   }
 
   // If the URL/model fields are empty when switching, prefill with defaults.

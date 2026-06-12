@@ -22,19 +22,17 @@ class DRWP_AI {
     /** Provider defaults — used when the user hasn't filled the field. */
     public static function defaults($provider) {
         switch ($provider) {
-            case 'openai':
-                return ['url' => 'https://api.openai.com', 'model' => 'gpt-4o-mini'];
             case 'anthropic':
                 return ['url' => 'https://api.anthropic.com', 'model' => 'claude-haiku-4-5-20251001'];
-            case 'ollama':
+            case 'openai':
             default:
-                return ['url' => 'http://localhost:11434', 'model' => 'gemma3:4b'];
+                return ['url' => 'https://api.openai.com', 'model' => 'gpt-4o-mini'];
         }
     }
 
     public static function provider() {
-        $p = (string) get_option(self::OPT_PROVIDER, 'ollama');
-        return in_array($p, ['ollama', 'openai', 'anthropic'], true) ? $p : 'ollama';
+        $p = (string) get_option(self::OPT_PROVIDER, 'openai');
+        return in_array($p, ['openai', 'anthropic'], true) ? $p : 'openai';
     }
 
     public static function url() {
@@ -63,9 +61,9 @@ class DRWP_AI {
             'api_key' => self::api_key(),
         ];
         switch (self::provider()) {
-            case 'openai':    $backend = new DRWP_AI_Backend_OpenAI($cfg); break;
             case 'anthropic': $backend = new DRWP_AI_Backend_Anthropic($cfg); break;
-            default:          $backend = new DRWP_AI_Backend_Ollama($cfg); break;
+            case 'openai':
+            default:          $backend = new DRWP_AI_Backend_OpenAI($cfg); break;
         }
         // Lets tests / advanced integrations substitute a backend that
         // implements DRWP_AI_Backend without hitting the network.

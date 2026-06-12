@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DRWP Daily Reports
  * Description: Daily reports, review workflow, and conversion to WordPress posts with license checks.
- * Version: 1.45.0
+ * Version: 1.46.0
  * Author: DRWP Prototype
  * Text Domain: drwp-daily-reports
  * Domain Path: /languages
@@ -10,7 +10,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('DRWP_VERSION', '1.45.0');
+define('DRWP_VERSION', '1.46.0');
 define('DRWP_PATH', plugin_dir_path(__FILE__));
 define('DRWP_URL', plugin_dir_url(__FILE__));
 
@@ -44,7 +44,6 @@ require_once DRWP_PATH . 'includes/class-drwp-report-archive.php';
 require_once DRWP_PATH . 'includes/class-drwp-login.php';
 require_once DRWP_PATH . 'includes/class-drwp-print.php';
 require_once DRWP_PATH . 'includes/class-drwp-ai-backend.php';
-require_once DRWP_PATH . 'includes/class-drwp-ai-backend-ollama.php';
 require_once DRWP_PATH . 'includes/class-drwp-ai-backend-openai.php';
 require_once DRWP_PATH . 'includes/class-drwp-ai-backend-anthropic.php';
 require_once DRWP_PATH . 'includes/class-drwp-ai.php';
