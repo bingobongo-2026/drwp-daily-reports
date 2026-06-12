@@ -131,6 +131,12 @@ class DRWP_REST {
             'callback'            => [__CLASS__, 'ai_alerts'],
             'permission_callback' => [__CLASS__, 'can_use_ai'],
         ]);
+
+        register_rest_route(self::NS, '/ai/advise', [
+            'methods'             => 'POST',
+            'callback'            => [__CLASS__, 'ai_advise'],
+            'permission_callback' => [__CLASS__, 'can_use_ai'],
+        ]);
     }
 
     public static function ai_briefing(WP_REST_Request $request) {
@@ -188,8 +194,11 @@ class DRWP_REST {
         $to   = sanitize_text_field((string) ($input['date_to'] ?? ''));
         $project_id = absint($input['project_id'] ?? 0);
         // Default to the last 30 days when no range is supplied.
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) $from = date('Y-m-d', strtotime('-30 days'));
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to))   $to   = date('Y-m-d');
+        // current_time() is site-TZ aware; raw date() / strtotime()
+        // would run in the server TZ.
+        $now_ts = (int) current_time('timestamp');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) $from = date('Y-m-d', $now_ts - 30 * DAY_IN_SECONDS);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to))   $to   = date('Y-m-d', $now_ts);
         if (!DRWP_AI::is_enabled()) {
             return new WP_Error('drwp_ai_disabled', 'AI機能が無効です。AI設定で有効にしてください。', ['status' => 503]);
         }
@@ -198,6 +207,40 @@ class DRWP_REST {
             return new WP_Error($result->get_error_code(), $result->get_error_message(), ['status' => 500]);
         }
         return ['response' => $result, 'date_from' => $from, 'date_to' => $to];
+    }
+
+    /**
+     * 振り返りアドバイス — 操作員が日報一覧で絞り込んだ結果の
+     * report_ids 配列を受け取って AI のアドバイスを返す。可視性
+     * は AI 側でなく呼び出し側(reports-list)が絞り込み済みと
+     *想定するが、念のため non-operator は自分の日報以外を弾く。
+     */
+    public static function ai_advise(WP_REST_Request $request) {
+        $input = $request->get_json_params() ?: [];
+        $ids = array_values(array_filter(array_map('intval', (array) ($input['report_ids'] ?? []))));
+        if (!$ids) {
+            return new WP_Error('drwp_invalid', 'report_ids is required', ['status' => 400]);
+        }
+        if (!DRWP_AI::is_enabled()) {
+            return new WP_Error('drwp_ai_disabled', 'AI機能が無効です。AI設定で有効にしてください。', ['status' => 503]);
+        }
+        if (!current_user_can('edit_others_posts')) {
+            global $wpdb;
+            $place = implode(',', array_fill(0, count($ids), '%d'));
+            $allowed = array_map('intval', (array) $wpdb->get_col($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}drwp_reports WHERE id IN ($place) AND user_id = %d",
+                array_merge($ids, [get_current_user_id()])
+            )));
+            $ids = array_values(array_intersect($ids, $allowed));
+            if (!$ids) {
+                return new WP_Error('drwp_forbidden', '対象の日報を閲覧する権限がありません', ['status' => 403]);
+            }
+        }
+        $result = DRWP_AI::advise_on_reports($ids);
+        if (is_wp_error($result)) {
+            return new WP_Error($result->get_error_code(), $result->get_error_message(), ['status' => 500]);
+        }
+        return ['response' => $result, 'count' => count($ids)];
     }
 
     /**

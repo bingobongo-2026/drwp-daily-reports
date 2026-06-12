@@ -303,4 +303,74 @@ class DRWP_AI {
             ['role' => 'user',   'content' => $user],
         ]);
     }
+
+    /* ------------------------------------------------------------
+     * 機能5: 振り返りアドバイス — 操作員が日報一覧で絞り込んだ
+     * 結果(report_ids 配列)を渡すと、作業内容/特記事項/次回予定
+     * を横断的に読み、成功例・失敗例・案件への向き合い方を
+     * Markdown でまとめる。Markdown 文字列を返す(失敗時 WP_Error)。
+     * ------------------------------------------------------------ */
+    const ADVISE_MAX = 60;
+
+    public static function advise_on_reports(array $report_ids) {
+        if (!self::is_enabled()) {
+            return new WP_Error('drwp_ai_disabled', 'AI機能が無効です');
+        }
+        $report_ids = array_values(array_unique(array_filter(array_map('intval', $report_ids))));
+        if (!$report_ids) {
+            return new WP_Error('drwp_ai_no_reports', '対象の日報がありません');
+        }
+        // Cap at ADVISE_MAX so a "クリア" with thousands of rows doesn't
+        // blow past the LLM's context. The newest rows survive.
+        if (count($report_ids) > self::ADVISE_MAX) {
+            $report_ids = array_slice($report_ids, 0, self::ADVISE_MAX);
+        }
+        global $wpdb;
+        $table = $wpdb->prefix . 'drwp_reports';
+        $place = implode(',', array_fill(0, count($report_ids), '%d'));
+        $reports = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table WHERE id IN ($place) ORDER BY report_date DESC, id DESC",
+            $report_ids
+        ));
+        if (empty($reports)) {
+            return new WP_Error('drwp_ai_no_reports', '対象の日報がありません');
+        }
+
+        // Resolve project names once per id to avoid N+1 lookups in
+        // the prompt-building loop.
+        $proj_ids = array_unique(array_filter(array_map(fn($r) => (int) $r->project_id, $reports)));
+        $proj_names = [];
+        foreach ($proj_ids as $pid) {
+            $p = DRWP_Project::find($pid);
+            if ($p) $proj_names[$pid] = (string) $p->name;
+        }
+
+        $lines = '';
+        foreach ($reports as $r) {
+            $pname = !empty($r->project_id) && isset($proj_names[(int) $r->project_id])
+                ? $proj_names[(int) $r->project_id] : '（案件未設定）';
+            $lines .= "\n--- 日報#{$r->id} / {$r->report_date} / {$pname} ---\n";
+            if (!empty($r->work_description)) $lines .= '作業: ' . $r->work_description . "\n";
+            if (!empty($r->issues))           $lines .= '特記: ' . $r->issues . "\n";
+            if (!empty($r->next_plan))        $lines .= '次回: ' . $r->next_plan . "\n";
+        }
+        $count = count($reports);
+        $project_count = count($proj_names);
+
+        $system = 'あなたは建設・サービス業の案件担当を支援するベテランアドバイザーです。'
+            . '過去の日報を横断的に読み、現場のパターンを抽出して今後の動き方を助言します。'
+            . '日報に書かれていない事実を作らないでください。個人名や個人を特定できる情報は含めないでください。'
+            . "出力は Markdown で、必ず次の 4 セクションに分けてください:\n"
+            . "## 成功例から見えるパターン\n"
+            . "## つまずきや失敗から学べること\n"
+            . "## 今後の向き合い方の提案\n"
+            . "## 次の一手(具体アクション)\n"
+            . '各セクションは簡潔な箇条書き(3〜5項目)で、根拠の日報を「(日報#ID)」で添えてください。';
+        $user = "【対象】案件 {$project_count} 件 × 日報 {$count} 件\n【日報（新しい順）】{$lines}";
+
+        return self::backend()->chat([
+            ['role' => 'system', 'content' => $system],
+            ['role' => 'user',   'content' => $user],
+        ]);
+    }
 }

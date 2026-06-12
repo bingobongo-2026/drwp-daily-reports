@@ -343,7 +343,7 @@
           </select>
         </label>
         <label><?php esc_html_e('対象月', 'drwp-daily-reports'); ?>
-          <input type="month" id="drwp-ai-summary-anchor" value="<?php echo esc_attr(date('Y-m')); ?>" />
+          <input type="month" id="drwp-ai-summary-anchor" value="<?php echo esc_attr(current_time('Y-m')); ?>" />
         </label>
         <button type="button" class="button button-primary" id="drwp-ai-summary-run"><?php esc_html_e('生成', 'drwp-daily-reports'); ?></button>
       </div>

@@ -13,7 +13,7 @@
     <ul style="margin:0 0 .5em 1.4em;list-style:disc;">
       <li><?php esc_html_e('案件ページ — 各案件の行に「AI ブリーフィング」「AI サマリ」', 'drwp-daily-reports'); ?></li>
       <li><?php esc_html_e('日報編集ページ — 「公開用コンテンツ」に「AI で下書きを生成」', 'drwp-daily-reports'); ?></li>
-      <li><?php esc_html_e('日報一覧ページ — 上部に「AI 対応アラート」', 'drwp-daily-reports'); ?></li>
+      <li><?php esc_html_e('日報一覧ページ — 上部に「AI 対応アラート」と「AI 振り返りアドバイス」(絞り込み中の最新60件をAIが読んで成功例・失敗例・今後の動き方を提案)', 'drwp-daily-reports'); ?></li>
     </ul>
   </div>
 
