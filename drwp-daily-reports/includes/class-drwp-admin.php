@@ -155,6 +155,14 @@ class DRWP_Admin {
             wp_enqueue_media();
             return;
         }
+        // 日報一覧 page: the inline edit modal supports adding photos
+        // via the REST upload endpoint, mirroring the front-end
+        // archive's edit flow. Only the media library helpers are
+        // needed (no wp.media picker) but enqueuing media gives us
+        // the same affordances regardless.
+        if (is_string($hook) && (strpos($hook, 'drwp_reports') !== false || $hook === 'toplevel_page_drwp_reports')) {
+            wp_enqueue_media();
+        }
         if (!is_string($hook) || strpos($hook, 'drwp_report_edit') === false) return;
         wp_enqueue_media();
         wp_enqueue_style('drwp-admin', DRWP_URL . 'admin/assets/admin.css', [], DRWP_VERSION);

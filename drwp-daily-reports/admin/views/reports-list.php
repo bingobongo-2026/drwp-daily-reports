@@ -291,6 +291,14 @@ $can_review = current_user_can('edit_others_posts');
             <td><textarea id="drwp-edit-issues" rows="3" class="large-text"></textarea></td></tr>
         <tr><th><?php esc_html_e('次回予定', 'drwp-daily-reports'); ?></th>
             <td><textarea id="drwp-edit-next" rows="3" class="large-text"></textarea></td></tr>
+        <tr><th><?php esc_html_e('写真', 'drwp-daily-reports'); ?></th>
+            <td>
+              <div id="drwp-edit-photos" class="drwp-edit-photo-list"></div>
+              <label class="drwp-edit-photo-pick">+ <?php esc_html_e('写真を追加', 'drwp-daily-reports'); ?>
+                <input type="file" accept="image/*" multiple id="drwp-edit-photo-input" />
+              </label>
+              <p class="description" id="drwp-edit-photo-status"></p>
+            </td></tr>
       </table>
     </div>
     <div class="drwp-modal-footer">
@@ -334,6 +342,16 @@ $can_review = current_user_can('edit_others_posts');
 .drwp-modal-body .form-table td{padding:6px 0}
 .drwp-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
 .drwp-view-loading{color:#64748b;text-align:center;padding:32px 0}
+
+/* 編集モーダル — 写真リスト + 追加ボタン */
+.drwp-edit-photo-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:6px}
+.drwp-edit-photo-item{position:relative;padding:6px;border:1px solid #d1d5db;border-radius:8px;background:#fff}
+.drwp-edit-photo-item img{display:block;width:100%;height:80px;object-fit:cover;border-radius:4px;background:#f3f4f6}
+.drwp-edit-photo-item input[type=text]{width:100%;margin-top:4px;padding:4px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:.78em;box-sizing:border-box}
+.drwp-edit-photo-remove{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#ef4444;color:#fff;border:0;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.drwp-edit-photo-pick{display:inline-block;padding:6px 12px;background:#f1f5f9;border:1px dashed #94a3b8;border-radius:6px;cursor:pointer;font-size:.9em;color:#1e293b}
+.drwp-edit-photo-pick input{display:none}
+#drwp-edit-photo-status{margin:4px 0 0;font-size:.85em;color:#64748b;min-height:1.2em}
 
 /* 紙面風表示 — 確認モーダル内 */
 .drwp-page{background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:20px 24px;margin-bottom:14px;font-family:"Hiragino Sans","Yu Gothic","Noto Sans JP",sans-serif;color:#1f2937}
@@ -535,12 +553,82 @@ $can_review = current_user_can('edit_others_posts');
   /* ---- 編集モーダル ---- */
   var editDlg = document.getElementById('drwp-edit-dialog');
 
+  /* ---- 写真リスト helpers ---- */
+  var photosEl = document.getElementById('drwp-edit-photos');
+  var photoInput = document.getElementById('drwp-edit-photo-input');
+  var photoStatus = document.getElementById('drwp-edit-photo-status');
+
+  function renderEditPhoto(id, url, caption) {
+    var div = document.createElement('div');
+    div.className = 'drwp-edit-photo-item';
+    div.innerHTML =
+      '<img alt="" />' +
+      '<input type="hidden" name="attachment_ids" />' +
+      '<input type="text" name="attachment_captions" placeholder="<?php echo esc_js(__('キャプション', 'drwp-daily-reports')); ?>" />' +
+      '<button type="button" class="drwp-edit-photo-remove" aria-label="<?php echo esc_js(__('削除', 'drwp-daily-reports')); ?>">×</button>';
+    div.querySelector('img').src = url || '';
+    div.querySelector('input[type=hidden]').value = String(id);
+    div.querySelector('input[type=text]').value = caption || '';
+    return div;
+  }
+
+  function clearEditPhotos() {
+    while (photosEl.firstChild) photosEl.removeChild(photosEl.firstChild);
+  }
+
+  // 既存写真の click → 削除
+  photosEl.addEventListener('click', function (e) {
+    if (e.target.classList.contains('drwp-edit-photo-remove')) {
+      var item = e.target.closest('.drwp-edit-photo-item');
+      if (item) item.remove();
+    }
+  });
+
+  // ファイル選択 → REST /upload-photo に逐次アップロードしてリストに追加
+  photoInput.addEventListener('change', function () {
+    var files = Array.from(this.files || []);
+    if (!files.length) return;
+    var input = this;
+    var i = 0;
+    function next() {
+      if (i >= files.length) {
+        input.value = '';
+        photoStatus.textContent = '';
+        return;
+      }
+      var f = files[i++];
+      photoStatus.textContent = '<?php echo esc_js(__('アップロード中…', 'drwp-daily-reports')); ?> (' + i + '/' + files.length + ')';
+      var body = new FormData();
+      body.append('file', f, f.name);
+      fetch(rest.url + '/upload-photo', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-WP-Nonce': rest.nonce },
+        body: body
+      }).then(function (r) {
+        return r.json().then(function (j) {
+          if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status);
+          return j;
+        });
+      }).then(function (j) {
+        photosEl.appendChild(renderEditPhoto(j.id, j.thumbnail_url || j.full_url || '', ''));
+        next();
+      }).catch(function (err) {
+        photoStatus.textContent = err.message || '<?php echo esc_js(__('アップロード失敗', 'drwp-daily-reports')); ?>';
+        input.value = '';
+      });
+    }
+    next();
+  });
+
   function openEditModal(id) {
     document.getElementById('drwp-edit-id').value = id;
     document.getElementById('drwp-edit-status').textContent = '';
     ['drwp-edit-date','drwp-edit-started','drwp-edit-ended'].forEach(function (k) { document.getElementById(k).value = ''; });
     ['drwp-edit-work','drwp-edit-issues','drwp-edit-next'].forEach(function (k) { document.getElementById(k).value = ''; });
     document.getElementById('drwp-edit-project').value = '';
+    clearEditPhotos();
+    photoStatus.textContent = '';
     editDlg.showModal();
     api('/reports/' + id).then(function (d) {
       document.getElementById('drwp-edit-date').value = d.report_date || '';
@@ -550,6 +638,9 @@ $can_review = current_user_can('edit_others_posts');
       document.getElementById('drwp-edit-work').value = d.work_description || '';
       document.getElementById('drwp-edit-issues').value = d.issues || '';
       document.getElementById('drwp-edit-next').value = d.next_plan || '';
+      (d.photos || []).forEach(function (p) {
+        photosEl.appendChild(renderEditPhoto(p.attachment_id, p.url, p.caption || ''));
+      });
     }).catch(function (err) {
       document.getElementById('drwp-edit-status').textContent = err.message;
     });
@@ -561,17 +652,23 @@ $can_review = current_user_can('edit_others_posts');
     st.textContent = '<?php echo esc_js(__('保存中…', 'drwp-daily-reports')); ?>';
     this.disabled = true;
     var self = this;
+    // 写真リストを attachment_ids / attachment_captions の並列配列に。
+    // 並びは photosEl の DOM 順をそのまま使う(既存 + 新規追加分)。
+    var ids = Array.from(photosEl.querySelectorAll('input[name="attachment_ids"]')).map(function (i) { return Number(i.value); });
+    var caps = Array.from(photosEl.querySelectorAll('input[name="attachment_captions"]')).map(function (i) { return i.value; });
     api('/reports/' + id, {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        report_date:      document.getElementById('drwp-edit-date').value,
-        project_id:       Number(document.getElementById('drwp-edit-project').value) || null,
-        started_at:       document.getElementById('drwp-edit-started').value || null,
-        ended_at:         document.getElementById('drwp-edit-ended').value || null,
-        work_description: document.getElementById('drwp-edit-work').value,
-        issues:           document.getElementById('drwp-edit-issues').value,
-        next_plan:        document.getElementById('drwp-edit-next').value
+        report_date:         document.getElementById('drwp-edit-date').value,
+        project_id:          Number(document.getElementById('drwp-edit-project').value) || null,
+        started_at:          document.getElementById('drwp-edit-started').value || null,
+        ended_at:            document.getElementById('drwp-edit-ended').value || null,
+        work_description:    document.getElementById('drwp-edit-work').value,
+        issues:              document.getElementById('drwp-edit-issues').value,
+        next_plan:           document.getElementById('drwp-edit-next').value,
+        attachment_ids:      ids,
+        attachment_captions: caps
       })
     }).then(function () { editDlg.close(); location.reload(); })
       .catch(function (err) { st.textContent = err.message; self.disabled = false; });
