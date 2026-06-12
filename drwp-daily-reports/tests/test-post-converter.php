@@ -101,6 +101,32 @@ class Test_DRWP_Post_Converter extends WP_UnitTestCase {
         $this->assertStringNotContainsString('Before / After', $html);
     }
 
+    public function test_site_report_meta_table_does_not_leak_admin_only_worker_name() {
+        // The admin-only 社員名 (drwp_worker_name) must never reach a
+        // published post, even though conversion runs in admin context
+        // (admin-post.php → is_admin() true).
+        $uid = self::factory()->user->create([
+            'first_name'   => '太郎',
+            'last_name'    => '山田',
+            'display_name' => 'tworker',
+        ]);
+        update_user_meta($uid, 'drwp_worker_name', '社内呼称ヤマちゃん');
+        set_current_screen('toplevel_page_drwp_articles'); // force is_admin() true
+        $report = (object) [
+            'post_template' => 'site_report',
+            'project_id'    => null,
+            'user_id'       => $uid,
+            'report_date'   => '2026-06-15',
+            'started_at'    => '09:00:00',
+            'ended_at'      => '12:00:00',
+            'public_body'   => 'x',
+        ];
+        $html = DRWP_Post_Converter::build_content($report);
+        $this->assertStringContainsString('山田 太郎', $html);
+        $this->assertStringNotContainsString('社内呼称ヤマちゃん', $html);
+        set_current_screen('front');
+    }
+
     public function test_sync_post_blocks_when_license_inactive() {
         global $wpdb;
         $table = $wpdb->prefix . 'drwp_reports';

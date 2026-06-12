@@ -94,9 +94,11 @@ class DRWP_Post_Converter {
 
     /**
      * 案件メタ表 — 案件レポートテンプレートの冒頭ヘッダー。案件名は
-     * `drwp_projects` から、報告者は `DRWP_User::display_name()` から
-     * 引く。フロント記事に出る表なので `is_admin()` ゲート無しの姓名
-     * 解決(社員名を漏らさない)が走る。
+     * `drwp_projects` から、報告者は `DRWP_User::public_name()` から
+     * 引く。この HTML は公開記事の本文になり、変換は wp-admin
+     * (`admin-post.php`、`is_admin()` true) からも走るため、
+     * `display_name()` ではなく社員名を絶対に使わない `public_name()`
+     * を使う(社内呼称が公開面に漏れないようにする)。
      */
     protected static function build_meta_table($report) {
         $project_name = '';
@@ -105,7 +107,7 @@ class DRWP_Post_Converter {
             if ($proj) $project_name = (string) $proj->name;
         }
         $author = !empty($report->user_id)
-            ? DRWP_User::display_name((int) $report->user_id)
+            ? DRWP_User::public_name((int) $report->user_id)
             : '';
         $report_date = !empty($report->report_date)
             ? date_i18n('Y年n月j日', strtotime((string) $report->report_date))

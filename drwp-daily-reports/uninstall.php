@@ -16,6 +16,10 @@ $tables = [
     $wpdb->prefix . 'drwp_report_photos',
     $wpdb->prefix . 'drwp_customer_photos',
     $wpdb->prefix . 'drwp_plans',
+    $wpdb->prefix . 'drwp_customer_groups',
+    $wpdb->prefix . 'drwp_customer_group_map',
+    $wpdb->prefix . 'drwp_project_groups',
+    $wpdb->prefix . 'drwp_project_group_map',
 ];
 foreach ($tables as $table) {
     // dbDelta only adds columns; we have to drop tables ourselves.
@@ -54,6 +58,12 @@ $options = [
     'drwp_notify_on_review',
     'drwp_notify_on_comment',
     'drwp_notify_from_email',
+    // Login / front-end gateway settings
+    'drwp_login_page_id',
+    'drwp_login_redirect_enabled',
+    'drwp_login_lostpass_page_id',
+    'drwp_login_admin_lockdown',
+    'drwp_login_logo_url',
     // Legacy
     'drwp_public_key',
 ];

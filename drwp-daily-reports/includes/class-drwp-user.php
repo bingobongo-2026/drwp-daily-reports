@@ -258,25 +258,42 @@ class DRWP_User {
      * WP_User, user_id int, or stdClass row with `ID`.
      */
     public static function display_name($user_or_id) {
-        if (is_object($user_or_id)) {
-            $uid = (int) (isset($user_or_id->ID) ? $user_or_id->ID : ($user_or_id->id ?? 0));
-            $user = $uid ? get_userdata($uid) : null;
-            if (!$user && isset($user_or_id->display_name)) {
-                // Fallback for already-shaped rows (e.g. SQL JOIN
-                // results) that pre-resolved display_name.
+        $user = self::resolve_user($user_or_id);
+        if (!$user) {
+            // Fallback for already-shaped rows (e.g. SQL JOIN results)
+            // that pre-resolved display_name.
+            if (is_object($user_or_id) && isset($user_or_id->display_name)) {
                 return (string) $user_or_id->display_name;
             }
-        } else {
-            $user = get_userdata((int) $user_or_id);
+            return '';
         }
-        if (!$user) return '';
-        // 社員名 — admin-only override set on the 社員 page. Front
-        // surfaces (archive author, login bar, REST-rendered modals)
-        // keep the 姓名 / display_name resolution so a nickname the
-        // office uses internally never leaks to the public site.
+        // 社員名 — admin-only override set on the 社員 page. Only
+        // honored inside wp-admin display surfaces (listings, edit
+        // pages). Public-facing surfaces must use `public_name()`
+        // instead so an internal nickname never reaches the front
+        // end or a published post.
         if (is_admin()) {
             $worker_name = trim((string) get_user_meta($user->ID, self::META_WORKER_NAME, true));
             if ($worker_name !== '') return $worker_name;
+        }
+        return self::public_name($user);
+    }
+
+    /**
+     * Public-facing name — 姓 名 → display_name → user_login. Never
+     * uses the admin-only 社員名, regardless of `is_admin()`. Use this
+     * for anything that ends up on the front end or in published post
+     * content (e.g. the 案件レポート meta table), where conversion may
+     * run in admin context (`admin-post.php`) and `display_name()`
+     * would otherwise leak the internal nickname.
+     */
+    public static function public_name($user_or_id) {
+        $user = self::resolve_user($user_or_id);
+        if (!$user) {
+            if (is_object($user_or_id) && isset($user_or_id->display_name)) {
+                return (string) $user_or_id->display_name;
+            }
+            return '';
         }
         $first = trim((string) get_user_meta($user->ID, 'first_name', true));
         $last  = trim((string) get_user_meta($user->ID, 'last_name', true));
@@ -287,6 +304,16 @@ class DRWP_User {
         if ($full !== '') return $full;
         if (!empty($user->display_name)) return (string) $user->display_name;
         return (string) $user->user_login;
+    }
+
+    /** Accepts a WP_User, user_id int, or stdClass row with ID. */
+    private static function resolve_user($user_or_id) {
+        if (is_object($user_or_id)) {
+            if ($user_or_id instanceof WP_User) return $user_or_id;
+            $uid = (int) (isset($user_or_id->ID) ? $user_or_id->ID : ($user_or_id->id ?? 0));
+            return $uid ? get_userdata($uid) : null;
+        }
+        return get_userdata((int) $user_or_id) ?: null;
     }
 
     public static function is_retired($user_id = null) {

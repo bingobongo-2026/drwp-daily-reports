@@ -184,7 +184,24 @@ class DRWP_REST {
     }
 
     public static function can_edit_one(WP_REST_Request $request) {
-        return self::can_view_one($request);
+        $base = self::can_view_one($request);
+        if ($base !== true) return $base;
+        // Operators (`edit_others_posts`) can edit any report in any
+        // state — that's the review/fix-up workflow. Everyone else
+        // (a worker editing their own report) is restricted to
+        // `pending`, matching every front-end edit form. Without this
+        // a contributor could PATCH their own already-approved report
+        // — and replace its photos — straight past the review gate.
+        if (current_user_can('edit_others_posts')) return true;
+        $report = self::find_report((int) $request['id']);
+        if ($report && (string) $report->review_status !== 'pending') {
+            return new WP_Error(
+                'drwp_forbidden',
+                __('レビュー待ちの日報のみ編集できます。', 'drwp-daily-reports'),
+                ['status' => 403]
+            );
+        }
+        return true;
     }
 
     public static function can_convert(WP_REST_Request $request) {
@@ -568,6 +585,11 @@ class DRWP_REST {
         $out = [];
         foreach ($allowed_string as $k) {
             if (isset($input[$k])) $out[$k] = sanitize_text_field((string) $input[$k]);
+        }
+        // post_template is a closed set; coerce unknown values to
+        // `standard` instead of storing whatever the client sent.
+        if (isset($out['post_template'])) {
+            $out['post_template'] = DRWP_Labels::sanitize_post_template($out['post_template']);
         }
         foreach ($allowed_kses as $k) {
             if (isset($input[$k])) $out[$k] = wp_kses_post((string) $input[$k]);
