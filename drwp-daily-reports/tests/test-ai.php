@@ -108,4 +108,34 @@ class Test_DRWP_AI extends WP_UnitTestCase {
         $this->assertIsString($out);
         $this->assertStringContainsString('追加工事', $out);
     }
+
+    public function test_advise_on_reports_errors_when_ids_are_empty() {
+        $out = DRWP_AI::advise_on_reports([]);
+        $this->assertWPError($out);
+        $this->assertSame('drwp_ai_no_reports', $out->get_error_code());
+    }
+
+    public function test_advise_on_reports_returns_string_for_valid_ids() {
+        $pid = $this->make_project();
+        $r1 = $this->make_report($pid, '2026-07-01', ['work_description' => '丁寧に下処理した']);
+        $r2 = $this->make_report($pid, '2026-07-02', ['issues' => '材料が足りず途中で中断']);
+        $this->fake_response = "## 成功例から見えるパターン\n- 下処理が成功要因 (日報#" . $r1 . ")";
+        $out = DRWP_AI::advise_on_reports([$r1, $r2]);
+        $this->assertIsString($out);
+        $this->assertStringContainsString('成功例', $out);
+    }
+
+    public function test_advise_on_reports_caps_at_ADVISE_MAX() {
+        // 60 件以上渡しても先頭 60 件で打ち切られ、エラーにはならない。
+        $pid = $this->make_project();
+        $ids = [];
+        for ($i = 0; $i < DRWP_AI::ADVISE_MAX + 5; $i++) {
+            $ids[] = $this->make_report($pid, '2026-08-' . str_pad((($i % 28) + 1), 2, '0', STR_PAD_LEFT), [
+                'work_description' => 'x' . $i,
+            ]);
+        }
+        $this->fake_response = '## 成功例から見えるパターン\n- ok';
+        $out = DRWP_AI::advise_on_reports($ids);
+        $this->assertIsString($out);
+    }
 }

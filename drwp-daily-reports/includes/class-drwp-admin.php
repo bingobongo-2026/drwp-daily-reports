@@ -294,6 +294,7 @@ class DRWP_Admin {
             'review_status' => isset($_GET['review_status']) ? sanitize_text_field(wp_unslash($_GET['review_status'])) : '',
             'post_status'   => isset($_GET['post_status']) ? sanitize_text_field(wp_unslash($_GET['post_status'])) : '',
             'project_id'    => isset($_GET['project_id']) ? absint($_GET['project_id']) : 0,
+            'user_id'       => isset($_GET['user_id']) ? absint($_GET['user_id']) : 0,
             'customer_group_id' => isset($_GET['customer_group_id']) ? absint($_GET['customer_group_id']) : (isset($_GET['group_id']) ? absint($_GET['group_id']) : 0),
             'project_group_id'  => isset($_GET['project_group_id']) ? absint($_GET['project_group_id']) : 0,
             'date_from'     => isset($_GET['date_from']) ? sanitize_text_field(wp_unslash($_GET['date_from'])) : '',
@@ -357,6 +358,10 @@ class DRWP_Admin {
             $where .= ' AND report_date <= %s';
             $args[] = $filters['date_to'];
         }
+        if ($filters['user_id']) {
+            $where .= ' AND user_id = %d';
+            $args[] = $filters['user_id'];
+        }
 
         $count_sql = "SELECT COUNT(*) FROM $table WHERE $where";
         $total = $args
@@ -373,6 +378,34 @@ class DRWP_Admin {
         $query_args[] = self::PER_PAGE;
         $query_args[] = $offset;
         $reports = $wpdb->get_results($wpdb->prepare($sql, $query_args));
+
+        // 振り返りアドバイス用に、フィルタ条件にマッチする全 ID を
+        // 先頭から最大 DRWP_AI::ADVISE_MAX 件まで集める。pagination
+        // を跨いで「絞り込んだ集合全体」を AI に渡せる。
+        $advise_max = class_exists('DRWP_AI') ? DRWP_AI::ADVISE_MAX : 60;
+        $ids_sql = "SELECT id FROM $table WHERE $where ORDER BY report_date DESC, id DESC LIMIT %d";
+        $ids_args = array_merge($args, [$advise_max]);
+        $filtered_ids = array_map('intval', (array) $wpdb->get_col($wpdb->prepare($ids_sql, $ids_args)));
+
+        // Reporter dropdown — only users who actually wrote a report
+        // (DISTINCT user_id). Honors the same visibility scope so
+        // workers only see themselves and operators see everyone.
+        $reporter_where = '1=1';
+        $reporter_args = [];
+        if (!current_user_can(self::CAP_REVIEW)) {
+            $reporter_where .= ' AND user_id = %d';
+            $reporter_args[] = get_current_user_id();
+        }
+        $reporter_ids = $reporter_args
+            ? $wpdb->get_col($wpdb->prepare("SELECT DISTINCT user_id FROM $table WHERE $reporter_where", $reporter_args))
+            : $wpdb->get_col("SELECT DISTINCT user_id FROM $table WHERE $reporter_where");
+        $reporters = [];
+        foreach ($reporter_ids as $uid) {
+            $name = DRWP_User::display_name((int) $uid);
+            if ($name === '') $name = '#' . (int) $uid;
+            $reporters[(int) $uid] = $name;
+        }
+        natcasesort($reporters);
 
         $projects = DRWP_Project::all();
         $customer_groups = DRWP_Customer_Group::all(true);

@@ -25,12 +25,29 @@ $can_review = current_user_can('edit_others_posts');
         <button type="button" class="button" id="drwp-ai-alerts-btn">
           ⚠️ <?php esc_html_e('AI 対応アラート', 'drwp-daily-reports'); ?>
         </button>
-        <span class="description"><?php esc_html_e('特記事項から、事務所が対応すべき項目を抽出します。', 'drwp-daily-reports'); ?></span>
+        <button type="button" class="button" id="drwp-ai-advise-btn"
+                <?php echo empty($filtered_ids) ? 'disabled' : ''; ?>>
+          🧭 <?php esc_html_e('AI 振り返りアドバイス', 'drwp-daily-reports'); ?>
+        </button>
+        <span class="description">
+          <?php esc_html_e('特記事項から、事務所が対応すべき項目を抽出します。', 'drwp-daily-reports'); ?>
+          <?php if (!empty($filtered_ids)):
+            $advise_n = min(count($filtered_ids), DRWP_AI::ADVISE_MAX);
+            /* translators: %d is the number of reports the advisor will read */
+            printf(' / ' . esc_html__('絞り込み中の最新 %d 件を読んでアドバイス。', 'drwp-daily-reports'), $advise_n);
+          else:
+            esc_html_e(' / 振り返りは対象が空のため利用できません。', 'drwp-daily-reports');
+          endif; ?>
+        </span>
       </p>
     <?php else: ?>
       <p>
         <button type="button" class="button" disabled style="opacity:.55;cursor:not-allowed;">
           ⚠️ <?php esc_html_e('AI 対応アラート', 'drwp-daily-reports'); ?>
+          <span style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.72em;font-weight:700;padding:1px 7px;border-radius:999px;margin-left:4px;">Pro</span>
+        </button>
+        <button type="button" class="button" disabled style="opacity:.55;cursor:not-allowed;">
+          🧭 <?php esc_html_e('AI 振り返りアドバイス', 'drwp-daily-reports'); ?>
           <span style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.72em;font-weight:700;padding:1px 7px;border-radius:999px;margin-left:4px;">Pro</span>
         </button>
       </p>
@@ -49,7 +66,7 @@ $can_review = current_user_can('edit_others_posts');
   <?php endif; ?>
 
   <!-- 検索・絞り込み — details で折りたたみ、条件があれば自動展開 -->
-  <details class="drwp-filter" <?php echo ($filters['search'] || $filters['review_status'] || $filters['project_id'] || !empty($filters['customer_group_id']) || !empty($filters['project_group_id']) || $filters['date_from'] || $filters['date_to']) ? 'open' : ''; ?>>
+  <details class="drwp-filter" <?php echo ($filters['search'] || $filters['review_status'] || $filters['project_id'] || !empty($filters['customer_group_id']) || !empty($filters['project_group_id']) || $filters['date_from'] || $filters['date_to'] || !empty($filters['user_id'])) ? 'open' : ''; ?>>
     <summary class="drwp-filter-summary"><?php esc_html_e('検索・絞り込み', 'drwp-daily-reports'); ?></summary>
     <form method="get" class="drwp-filter-form">
       <input type="hidden" name="page" value="drwp_reports" />
@@ -67,6 +84,14 @@ $can_review = current_user_can('edit_others_posts');
             <option value="<?php echo (int) $project->id; ?>" <?php selected((int) $filters['project_id'], (int) $project->id); ?>><?php echo esc_html($project->name); ?></option>
           <?php endforeach; ?>
         </select>
+        <?php if (!empty($reporters)): ?>
+        <select name="user_id">
+          <option value="0"><?php esc_html_e('報告者すべて', 'drwp-daily-reports'); ?></option>
+          <?php foreach ($reporters as $uid => $rname): ?>
+            <option value="<?php echo (int) $uid; ?>" <?php selected((int) ($filters['user_id'] ?? 0), (int) $uid); ?>><?php echo esc_html($rname); ?></option>
+          <?php endforeach; ?>
+        </select>
+        <?php endif; ?>
         <?php if (!empty($project_groups)): ?>
         <select name="project_group_id">
           <option value="0"><?php esc_html_e('案件グループすべて', 'drwp-daily-reports'); ?></option>
@@ -335,13 +360,45 @@ $can_review = current_user_can('edit_others_posts');
     </div>
     <div class="drwp-modal-body">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
-        <input type="date" id="drwp-ai-alerts-from" value="<?php echo esc_attr(date('Y-m-d', strtotime('-30 days'))); ?>" />
+        <?php $alert_now_ts = (int) current_time('timestamp'); ?>
+        <input type="date" id="drwp-ai-alerts-from" value="<?php echo esc_attr(date('Y-m-d', $alert_now_ts - 30 * DAY_IN_SECONDS)); ?>" />
         〜
-        <input type="date" id="drwp-ai-alerts-to" value="<?php echo esc_attr(date('Y-m-d')); ?>" />
+        <input type="date" id="drwp-ai-alerts-to" value="<?php echo esc_attr(date('Y-m-d', $alert_now_ts)); ?>" />
         <button type="button" class="button button-primary" id="drwp-ai-alerts-run"><?php esc_html_e('抽出', 'drwp-daily-reports'); ?></button>
       </div>
       <div id="drwp-ai-alerts-status" style="margin:6px 0;color:#64748b;"></div>
       <div id="drwp-ai-alerts-output" style="white-space:pre-wrap;font-family:inherit;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px;min-height:160px;line-height:1.7;"></div>
+    </div>
+    <div class="drwp-modal-footer">
+      <button type="button" class="button drwp-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
+    </div>
+  </dialog>
+
+  <!-- AI 振り返りアドバイス モーダル -->
+  <dialog id="drwp-ai-advise-dialog" class="drwp-modal drwp-modal-wide">
+    <div class="drwp-modal-header">
+      <h2><?php esc_html_e('AI 振り返りアドバイス', 'drwp-daily-reports'); ?></h2>
+      <button type="button" class="drwp-modal-close" aria-label="<?php esc_attr_e('閉じる', 'drwp-daily-reports'); ?>">&times;</button>
+    </div>
+    <div class="drwp-modal-body">
+      <p class="description" style="margin:0 0 8px;">
+        <?php esc_html_e('画面で絞り込み中の日報から、成功例 / つまずき / 今後の向き合い方を AI がまとめます。', 'drwp-daily-reports'); ?>
+      </p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+        <button type="button" class="button button-primary" id="drwp-ai-advise-run"
+                <?php echo empty($filtered_ids) ? 'disabled' : ''; ?>>
+          <?php esc_html_e('アドバイスを生成', 'drwp-daily-reports'); ?>
+        </button>
+        <span class="description">
+          <?php if (!empty($filtered_ids)):
+            printf(esc_html__('対象: 最新 %d 件', 'drwp-daily-reports'), min(count($filtered_ids), DRWP_AI::ADVISE_MAX));
+          else:
+            esc_html_e('対象がありません。絞り込み条件を見直してください。', 'drwp-daily-reports');
+          endif; ?>
+        </span>
+      </div>
+      <div id="drwp-ai-advise-status" style="margin:6px 0;color:#64748b;"></div>
+      <div id="drwp-ai-advise-output" style="white-space:pre-wrap;font-family:inherit;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px;min-height:200px;line-height:1.7;"></div>
     </div>
     <div class="drwp-modal-footer">
       <button type="button" class="button drwp-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
@@ -760,8 +817,46 @@ $can_review = current_user_can('edit_others_posts');
     });
   }
 
+  /* ---- AI 振り返りアドバイス ---- */
+  var adviseBtn = document.getElementById('drwp-ai-advise-btn');
+  var adviseDlg = document.getElementById('drwp-ai-advise-dialog');
+  // フィルタ条件にマッチした日報 ID 配列(コントローラーが先頭から
+  // ADVISE_MAX 件まで詰めて渡してくれる)。これを丸ごと POST する。
+  var adviseIds = <?php echo wp_json_encode(array_values($filtered_ids ?? [])); ?>;
+  if (adviseBtn && adviseDlg) {
+    adviseBtn.addEventListener('click', function () { adviseDlg.showModal(); });
+    var adviseRun = document.getElementById('drwp-ai-advise-run');
+    if (adviseRun) {
+      adviseRun.addEventListener('click', function () {
+        var st = document.getElementById('drwp-ai-advise-status');
+        var out = document.getElementById('drwp-ai-advise-output');
+        st.style.color = '#64748b';
+        st.textContent = '<?php echo esc_js(__('生成中… 数秒〜数分かかる場合があります', 'drwp-daily-reports')); ?>';
+        out.textContent = '';
+        this.disabled = true;
+        var self = this;
+        fetch(rest.url + '/ai/advise', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': rest.nonce },
+          body: JSON.stringify({ report_ids: adviseIds })
+        }).then(function (r) {
+          return r.json().then(function (j) { if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status); return j; });
+        }).then(function (d) {
+          st.textContent = d.count ? ('読み込み: ' + d.count + ' 件') : '';
+          out.textContent = d.response || '（応答なし）';
+          self.disabled = false;
+        }).catch(function (err) {
+          st.style.color = '#991b1b';
+          st.textContent = 'エラー: ' + err.message;
+          self.disabled = false;
+        });
+      });
+    }
+  }
+
   /* ---- モーダル共通: × ボタン / 背景クリック ---- */
-  [viewDlg, editDlg, alertsDlg].forEach(function (dlg) {
+  [viewDlg, editDlg, alertsDlg, adviseDlg].forEach(function (dlg) {
     if (!dlg) return;
     dlg.addEventListener('click', function (e) {
       if (e.target.classList.contains('drwp-modal-close')) dlg.close();

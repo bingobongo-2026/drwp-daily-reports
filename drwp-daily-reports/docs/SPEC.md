@@ -720,6 +720,7 @@ POST のみ `linked_plan_id`(任意)も受け付ける — 予定チップから
 | 公開記事の下書き生成 | `draft_public_post($report_id)` | `POST /ai/draft-report` | 日報編集の「公開用コンテンツ」上「AI で下書きを生成」 | `public_title` / `public_intro` / `public_body` / `public_next_plan` の連想配列。`===TITLE===`/`===INTRO===`/`===BODY===`/`===NEXT===` のデリミタ形式で返させて `parse_delimited_draft()` でパース。デリミタが無ければ全文を body に入れる |
 | 案件サマリ(月次/四半期) | `project_summary($pid, $from, $to, $label)` | `POST /ai/project-summary` | 案件ページ行「AI サマリ」(期間 select + 対象月) | Markdown(主な作業 / 課題・対応 / 次の動き)。`resolve_period()` が `month`/`quarter` + `YYYY-MM` アンカーを from/to に解決 |
 | 対応必須アラート抽出 | `extract_alerts($from, $to, $pid=0)` | `POST /ai/alerts` | 日報一覧上部「AI 対応アラート」(日付範囲、既定は直近30日) | Markdown 箇条書き(🔴至急 / 🟡要対応 + 日報#ID)。`issues` が非空の日報だけを最大100件対象 |
+| 振り返りアドバイス | `advise_on_reports($report_ids[])` | `POST /ai/advise` | 日報一覧上部「AI 振り返りアドバイス」(絞り込み条件にマッチした最新 `DRWP_AI::ADVISE_MAX`(=60) 件の ID をコントローラーが渡す) | Markdown(成功例 / つまずき / 向き合い方 / 次の一手 の4節)。Non-operator は自分の日報以外を REST 側で弾く |
 
 捏造防止・個人情報非掲載をシステムプロンプトで指示。下書き生成は写真キャプションも文脈に含める。報告者名など個人情報は下書きに出さない方針。
 

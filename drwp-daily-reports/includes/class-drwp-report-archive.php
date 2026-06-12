@@ -1012,13 +1012,16 @@ class DRWP_Report_Archive {
         // opens on "今月". URL state lets users bookmark a specific month.
         $month_param = isset($_GET['drwp_month']) ? sanitize_text_field((string) $_GET['drwp_month']) : '';
         if (!preg_match('/^\d{4}-\d{2}$/', $month_param)) {
-            $month_param = date('Y-m');
+            // current_time() returns the site-TZ now; raw date() would
+            // run in the server TZ (UTC on most installs) and tip into
+            // "tomorrow"/"yesterday" outside JST business hours.
+            $month_param = current_time('Y-m');
         }
         $month_start = $month_param . '-01';
         $month_end   = date('Y-m-t', strtotime($month_start));
         $prev_month  = date('Y-m', strtotime($month_start . ' -1 month'));
         $next_month  = date('Y-m', strtotime($month_start . ' +1 month'));
-        $today_month = date('Y-m');
+        $today_month = current_time('Y-m');
 
         $where = ['r.report_date >= %s', 'r.report_date <= %s'];
         $args  = [$month_start, $month_end];
@@ -1245,7 +1248,7 @@ class DRWP_Report_Archive {
         $month = (int) date('n', strtotime($month_start));
         $first_dow = (int) date('w', strtotime($month_start));
         $days_in_month = (int) date('t', strtotime($month_start));
-        $today = date('Y-m-d');
+        $today = current_time('Y-m-d');
 
         $dows = ['日', '月', '火', '水', '木', '金', '土'];
 
