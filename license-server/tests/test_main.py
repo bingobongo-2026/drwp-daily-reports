@@ -312,7 +312,7 @@ def test_ui_edit_and_update(client):
         data={
             "license_key": "EDIT-KEY",
             "domain": "after.test",
-            "plan": "standard",
+            "plan": "basic",
             "status": "inactive",
             "expires_at": "",
         },
@@ -414,6 +414,53 @@ def test_rotate_requires_admin(client):
     assert client.post(
         "/admin/rotate-signing-key", auth=("admin", "wrong")
     ).status_code == 401
+
+
+def test_init_db_migrates_legacy_standard_plan_to_basic(tmp_path, monkeypatch):
+    """旧 `standard` plan 値を持つ DB が `init_db` で `basic` に
+    マイグレートされること。プラグイン側 (#129) は basic / pro
+    の 2 値だけを認識するので、過去サーバから上げた環境でも
+    名前が自動で合うように。"""
+    import sqlite3
+
+    db_path = tmp_path / "legacy.sqlite"
+    # 旧スキーマ相当の最小限のテーブル + standard プランのレコー
+    # ドを直接書き込んでから init_db を走らせる。
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript(
+        """
+        CREATE TABLE licenses (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            license_key TEXT NOT NULL UNIQUE,
+            domain      TEXT NOT NULL,
+            plan        TEXT NOT NULL DEFAULT 'standard',
+            status      TEXT NOT NULL DEFAULT 'active',
+            expires_at  TEXT,
+            created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO licenses (license_key, domain, plan, status)
+            VALUES ('LEGACY-1', 'old.test', 'standard', 'active'),
+                   ('LEGACY-2', 'newer.test', 'pro',    'active');
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    # `_fresh_client` 経由で init_db を実行(import 副作用)。
+    monkeypatch.setenv("DRWP_LICENSE_DB", str(db_path))
+    monkeypatch.setenv("DRWP_SIGNING_KEY", str(tmp_path / "t.key"))
+    for name in ("app.main", "app.db", "app.signing", "app"):
+        sys.modules.pop(name, None)
+    importlib.import_module("app.main")
+
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    rows = {r["license_key"]: r["plan"] for r in conn.execute("SELECT license_key, plan FROM licenses")}
+    conn.close()
+    assert rows["LEGACY-1"] == "basic"
+    # pro 行はそのまま。
+    assert rows["LEGACY-2"] == "pro"
 
 
 def test_canonical_form_is_sorted_compact_utf8(tmp_path, monkeypatch):
