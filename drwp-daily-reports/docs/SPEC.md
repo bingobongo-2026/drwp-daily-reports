@@ -702,13 +702,26 @@ POST のみ `linked_plan_id`(任意)も受け付ける — 予定チップから
 
 | サーフェス | 挙動 |
 | --- | --- |
-| REST `POST /ai/briefing` | permission_callback `can_use_ai` で `WP_Error('drwp_plan_locked', 403)` |
+| REST `POST /ai/*`(briefing / draft-report / project-summary / alerts) | permission_callback `can_use_ai` で `WP_Error('drwp_plan_locked', 403)` |
 | `admin.php?page=drwp_ai` (AI 設定) | `DRWP_AI_Admin::render_page` で `ai-settings-locked.php` の Pro アップセル画面に差し替え |
 | `admin_post_drwp_save_ai_settings` / `drwp_ai_test` | `wp_die(403)` (UI を回避した直接 POST 対策) |
-| 案件ページの「AI ブリーフィング」ボタン | `disabled` + `.drwp-pro-badge` で「Pro」表示、tooltip「Pro プランで利用可能」 |
+| 各 AI ボタン(案件ページ / 日報編集 / 日報一覧) | Basic では `disabled` + 「Pro」バッジ表示。AI設定が無効ならボタン自体を出さない |
 | ライセンス管理ページ | プラン値を `.drwp-plan-pill.is-pro` / `.is-basic` の pill で表示、許可される機能を併記 |
 
 設定値(プロバイダ・URL・モデル・API キー)はプランダウングレード時も**消さない** — 再びプロに戻したら既存設定で動く。
+
+### 11.1 AI 機能
+
+`class-drwp-ai.php` がプロバイダ非依存のアプリ層、`class-drwp-ai-backend-*.php` が各プロバイダ(Ollama / OpenAI 互換 / Anthropic)のワイヤ実装。`DRWP_AI::backend()` が `drwp_ai_backend` フィルタを通すのでテストや高度な統合でバックエンドを差し替えられる。すべて **AI設定で有効化 + Pro プラン**(`can_use_ai`)が前提。
+
+| 機能 | メソッド | REST | UI 配置 | 出力 |
+| --- | --- | --- | --- | --- |
+| 次回訪問ブリーフィング | `briefing_for_project($pid)` | `POST /ai/briefing` | 案件ページ行「AI ブリーフィング」 | Markdown(持参物 / 注意点 / 提案) |
+| 公開記事の下書き生成 | `draft_public_post($report_id)` | `POST /ai/draft-report` | 日報編集の「公開用コンテンツ」上「AI で下書きを生成」 | `public_title` / `public_intro` / `public_body` / `public_next_plan` の連想配列。`===TITLE===`/`===INTRO===`/`===BODY===`/`===NEXT===` のデリミタ形式で返させて `parse_delimited_draft()` でパース。デリミタが無ければ全文を body に入れる |
+| 案件サマリ(月次/四半期) | `project_summary($pid, $from, $to, $label)` | `POST /ai/project-summary` | 案件ページ行「AI サマリ」(期間 select + 対象月) | Markdown(主な作業 / 課題・対応 / 次の動き)。`resolve_period()` が `month`/`quarter` + `YYYY-MM` アンカーを from/to に解決 |
+| 対応必須アラート抽出 | `extract_alerts($from, $to, $pid=0)` | `POST /ai/alerts` | 日報一覧上部「AI 対応アラート」(日付範囲、既定は直近30日) | Markdown 箇条書き(🔴至急 / 🟡要対応 + 日報#ID)。`issues` が非空の日報だけを最大100件対象 |
+
+捏造防止・個人情報非掲載をシステムプロンプトで指示。下書き生成は写真キャプションも文脈に含める。報告者名など個人情報は下書きに出さない方針。
 
 ---
 

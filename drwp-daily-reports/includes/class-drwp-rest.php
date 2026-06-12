@@ -113,6 +113,24 @@ class DRWP_REST {
             'callback'            => [__CLASS__, 'ai_briefing'],
             'permission_callback' => [__CLASS__, 'can_use_ai'],
         ]);
+
+        register_rest_route(self::NS, '/ai/draft-report', [
+            'methods'             => 'POST',
+            'callback'            => [__CLASS__, 'ai_draft_report'],
+            'permission_callback' => [__CLASS__, 'can_use_ai'],
+        ]);
+
+        register_rest_route(self::NS, '/ai/project-summary', [
+            'methods'             => 'POST',
+            'callback'            => [__CLASS__, 'ai_project_summary'],
+            'permission_callback' => [__CLASS__, 'can_use_ai'],
+        ]);
+
+        register_rest_route(self::NS, '/ai/alerts', [
+            'methods'             => 'POST',
+            'callback'            => [__CLASS__, 'ai_alerts'],
+            'permission_callback' => [__CLASS__, 'can_use_ai'],
+        ]);
     }
 
     public static function ai_briefing(WP_REST_Request $request) {
@@ -128,6 +146,85 @@ class DRWP_REST {
             return new WP_Error($result->get_error_code(), $result->get_error_message(), ['status' => 500]);
         }
         return ['response' => $result];
+    }
+
+    public static function ai_draft_report(WP_REST_Request $request) {
+        $report_id = absint(($request->get_json_params() ?: [])['report_id'] ?? 0);
+        if (!$report_id) {
+            return new WP_Error('drwp_invalid', 'report_id is required', ['status' => 400]);
+        }
+        if (!DRWP_AI::is_enabled()) {
+            return new WP_Error('drwp_ai_disabled', 'AI機能が無効です。AI設定で有効にしてください。', ['status' => 503]);
+        }
+        $result = DRWP_AI::draft_public_post($report_id);
+        if (is_wp_error($result)) {
+            return new WP_Error($result->get_error_code(), $result->get_error_message(), ['status' => 500]);
+        }
+        return $result; // public_title / public_intro / public_body / public_next_plan
+    }
+
+    public static function ai_project_summary(WP_REST_Request $request) {
+        $input = $request->get_json_params() ?: [];
+        $project_id = absint($input['project_id'] ?? 0);
+        $period = sanitize_text_field((string) ($input['period'] ?? 'month'));
+        $anchor = sanitize_text_field((string) ($input['anchor'] ?? ''));
+        if (!$project_id) {
+            return new WP_Error('drwp_invalid', 'project_id is required', ['status' => 400]);
+        }
+        if (!DRWP_AI::is_enabled()) {
+            return new WP_Error('drwp_ai_disabled', 'AI機能が無効です。AI設定で有効にしてください。', ['status' => 503]);
+        }
+        [$from, $to, $label] = self::resolve_period($period, $anchor);
+        $result = DRWP_AI::project_summary($project_id, $from, $to, $label);
+        if (is_wp_error($result)) {
+            return new WP_Error($result->get_error_code(), $result->get_error_message(), ['status' => 500]);
+        }
+        return ['response' => $result, 'range' => $label];
+    }
+
+    public static function ai_alerts(WP_REST_Request $request) {
+        $input = $request->get_json_params() ?: [];
+        $from = sanitize_text_field((string) ($input['date_from'] ?? ''));
+        $to   = sanitize_text_field((string) ($input['date_to'] ?? ''));
+        $project_id = absint($input['project_id'] ?? 0);
+        // Default to the last 30 days when no range is supplied.
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) $from = date('Y-m-d', strtotime('-30 days'));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to))   $to   = date('Y-m-d');
+        if (!DRWP_AI::is_enabled()) {
+            return new WP_Error('drwp_ai_disabled', 'AI機能が無効です。AI設定で有効にしてください。', ['status' => 503]);
+        }
+        $result = DRWP_AI::extract_alerts($from, $to, $project_id);
+        if (is_wp_error($result)) {
+            return new WP_Error($result->get_error_code(), $result->get_error_message(), ['status' => 500]);
+        }
+        return ['response' => $result, 'date_from' => $from, 'date_to' => $to];
+    }
+
+    /**
+     * Resolve a `month`/`quarter` period + `YYYY-MM` anchor into a
+     * concrete from/to date pair + a human label. Falls back to the
+     * current month when the anchor is malformed.
+     */
+    private static function resolve_period($period, $anchor) {
+        if (!preg_match('/^(\d{4})-(\d{2})$/', $anchor, $m)) {
+            $year = (int) date('Y');
+            $month = (int) date('n');
+        } else {
+            $year = (int) $m[1];
+            $month = (int) $m[2];
+        }
+        if ($period === 'quarter') {
+            $q = (int) floor(($month - 1) / 3); // 0..3
+            $start_month = $q * 3 + 1;
+            $from = sprintf('%04d-%02d-01', $year, $start_month);
+            $to = date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $year, $start_month + 2)));
+            $label = sprintf('%d年 第%d四半期', $year, $q + 1);
+        } else {
+            $from = sprintf('%04d-%02d-01', $year, $month);
+            $to = date('Y-m-t', strtotime($from));
+            $label = sprintf('%d年%d月', $year, $month);
+        }
+        return [$from, $to, $label];
     }
 
     private static function list_args() {

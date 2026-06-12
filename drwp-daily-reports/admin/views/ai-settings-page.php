@@ -6,7 +6,16 @@
     <div class="notice notice-success"><p><?php esc_html_e('保存しました。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>
 
-  <p><?php esc_html_e('日報を AI に渡して、案件ごとの次回訪問ブリーフィングを生成します。バックエンドはローカル (Ollama) / クラウド (OpenAI / Anthropic) から選択できます。', 'drwp-daily-reports'); ?></p>
+  <p><?php esc_html_e('日報を AI に渡して、文章生成・要約・チェックを行います。バックエンドはローカル (Ollama) / クラウド (OpenAI / Anthropic) から選択できます。', 'drwp-daily-reports'); ?></p>
+
+  <div class="notice notice-info inline" style="margin:8px 0;">
+    <p style="margin:.5em 0;"><strong><?php esc_html_e('有効にすると、次の場所に AI ボタンが表示されます（Pro プラン）:', 'drwp-daily-reports'); ?></strong></p>
+    <ul style="margin:0 0 .5em 1.4em;list-style:disc;">
+      <li><?php esc_html_e('案件ページ — 各案件の行に「AI ブリーフィング」「AI サマリ」', 'drwp-daily-reports'); ?></li>
+      <li><?php esc_html_e('日報編集ページ — 「公開用コンテンツ」に「AI で下書きを生成」', 'drwp-daily-reports'); ?></li>
+      <li><?php esc_html_e('日報一覧ページ — 上部に「AI 対応アラート」', 'drwp-daily-reports'); ?></li>
+    </ul>
+  </div>
 
   <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
     <?php wp_nonce_field('drwp_save_ai_settings'); ?>
