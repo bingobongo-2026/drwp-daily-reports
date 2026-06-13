@@ -66,6 +66,7 @@ require_once DRWP_PATH . 'includes/class-drwp-ai-backend-anthropic.php';
 require_once DRWP_PATH . 'includes/class-drwp-ai.php';
 require_once DRWP_PATH . 'includes/class-drwp-ai-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-help.php';
+require_once DRWP_PATH . 'includes/class-drwp-seed.php';
 
 if (defined('WP_CLI') && WP_CLI) {
     require_once DRWP_PATH . 'includes/class-drwp-cli.php';
@@ -100,6 +101,7 @@ add_action('plugins_loaded', function () {
     DRWP_Login::init();
     DRWP_AI_Admin::init();
     DRWP_Help::init();
+    DRWP_Seed::init();
 
     add_action(DRWP_License::CRON_HOOK, ['DRWP_License', 'check_now']);
     DRWP_License::schedule_cron();

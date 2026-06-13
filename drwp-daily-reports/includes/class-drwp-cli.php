@@ -17,6 +17,7 @@ class DRWP_CLI {
         WP_CLI::add_command('drwp license fetch-key', [__CLASS__, 'license_fetch_key']);
         WP_CLI::add_command('drwp project list',    [__CLASS__, 'project_list']);
         WP_CLI::add_command('drwp audit tail',      [__CLASS__, 'audit_tail']);
+        WP_CLI::add_command('drwp seed',            [__CLASS__, 'seed']);
     }
 
     /**
@@ -175,6 +176,42 @@ class DRWP_CLI {
         }, DRWP_Audit::search($filters, $n, 0));
         WP_CLI\Utils\format_items($assoc['format'] ?? 'table', $rows,
             ['id', 'created_at', 'event', 'user', 'report_id', 'message']);
+    }
+
+    /**
+     * Seed sample 工務店 receivables: 顧客 / 案件 / グループ /
+     * 日報 / 予定. Idempotent — re-running deletes the old seed
+     * before inserting fresh rows.
+     *
+     * ## OPTIONS
+     *
+     * [--reset]
+     * : Delete the seeded rows instead of inserting.
+     *
+     * [--user=<id>]
+     * : User ID to attribute reports / plans to. Defaults to the
+     *   first administrator.
+     *
+     * ## EXAMPLES
+     *
+     *     wp drwp seed
+     *     wp drwp seed --reset
+     *     wp drwp seed --user=2
+     */
+    public static function seed($args, $assoc) {
+        if (!empty($assoc['reset'])) {
+            $r = DRWP_Seed::reset();
+            WP_CLI::success(sprintf('deleted %d rows', (int) ($r['deleted'] ?? 0)));
+            return;
+        }
+        $user_id = (int) ($assoc['user'] ?? 0);
+        $summary = DRWP_Seed::run($user_id);
+        WP_CLI::success(sprintf(
+            'seeded: customers=%d projects=%d customer_groups=%d project_groups=%d reports=%d plans=%d',
+            $summary['customers'], $summary['projects'],
+            $summary['customer_groups'], $summary['project_groups'],
+            $summary['reports'], $summary['plans']
+        ));
     }
 }
 
