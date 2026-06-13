@@ -765,8 +765,8 @@ class DRWP_REST {
         // 言葉を整えておくことで「次に何をすべきか」が伝わる。
         $reason_messages = [
             'not_configured' => __('ライセンスが未設定です。「日報マン → ライセンス」で API URL とライセンスキーを設定してください。', 'drwp-daily-reports'),
-            'inactive'       => __('ライセンスがアクティブではありません。ライセンスサーバ側で「停止」になっていないか確認し、「いま照会する」を実行してください。', 'drwp-daily-reports'),
-            'expired'        => __('ライセンスの有効期限が切れています。更新後、「いま照会する」を実行してください。', 'drwp-daily-reports'),
+            'inactive'       => __('ライセンスがアクティブではありません。ライセンスサーバの状態を確認してください。', 'drwp-daily-reports'),
+            'expired'        => __('ライセンスの有効期限が切れています。ライセンスサーバの状態を確認してください。', 'drwp-daily-reports'),
             'domain_mismatch'=> __('ライセンスが許可されているドメインと一致しません。ライセンスサーバ側のドメイン設定を確認してください。', 'drwp-daily-reports'),
             'not_found'      => __('ライセンスサーバにこのキーが登録されていません。キーが正しいか確認してください。', 'drwp-daily-reports'),
         ];

@@ -139,7 +139,7 @@ class DRWP_Admin {
         } elseif ($public_key === '') {
             $msg = __('日報マン: 公開鍵が未取得のため署名検証が無効です。「公開鍵を取得」を実行してください。', 'drwp-daily-reports');
         } else {
-            $msg = __('日報マン: ライセンスがアクティブではありません。「いま照会する」を実行するか、ライセンスサーバの状態を確認してください。', 'drwp-daily-reports');
+            $msg = __('日報マン: ライセンスがアクティブではありません。ライセンスサーバの状態を確認してください。', 'drwp-daily-reports');
         }
         ?>
         <div class="notice notice-warning">
