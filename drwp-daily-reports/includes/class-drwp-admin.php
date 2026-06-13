@@ -305,6 +305,9 @@ class DRWP_Admin {
 
     /** Read 日報一覧 filter values from $_GET / $_POST into a normalized array. */
     private static function read_reports_filters($req) {
+        // archived: '' / 'active' = 通常のみ (既定), 'with' = 含む, 'only' = アーカイブのみ
+        $archived_raw = isset($req['archived']) ? sanitize_key(wp_unslash($req['archived'])) : '';
+        $archived = in_array($archived_raw, ['with', 'only'], true) ? $archived_raw : 'active';
         return [
             'search'        => isset($req['s']) ? sanitize_text_field(wp_unslash($req['s'])) : '',
             'review_status' => isset($req['review_status']) ? sanitize_text_field(wp_unslash($req['review_status'])) : '',
@@ -315,6 +318,7 @@ class DRWP_Admin {
             'project_group_id'  => isset($req['project_group_id']) ? absint($req['project_group_id']) : 0,
             'date_from'     => isset($req['date_from']) ? sanitize_text_field(wp_unslash($req['date_from'])) : '',
             'date_to'       => isset($req['date_to']) ? sanitize_text_field(wp_unslash($req['date_to'])) : '',
+            'archived'      => $archived,
         ];
     }
 
@@ -386,6 +390,14 @@ class DRWP_Admin {
         if ($filters['user_id']) {
             $where .= ' AND user_id = %d';
             $args[] = $filters['user_id'];
+        }
+        // 既定はアーカイブ済みを除外。'with' で含める、'only' で逆に
+        // アーカイブ済みだけを見せる (復元 / 完全削除画面用)。
+        $archived = $filters['archived'] ?? 'active';
+        if ($archived === 'only') {
+            $where .= ' AND archived_at IS NOT NULL';
+        } elseif ($archived !== 'with') {
+            $where .= ' AND archived_at IS NULL';
         }
         return [$where, $args];
     }

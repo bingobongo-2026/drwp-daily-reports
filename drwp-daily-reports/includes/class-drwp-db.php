@@ -122,12 +122,14 @@ class DRWP_DB {
             post_status VARCHAR(32) NOT NULL DEFAULT 'draft',
             scheduled_at DATETIME NULL,
             linked_post_id BIGINT UNSIGNED NULL,
+            archived_at DATETIME NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY report_date (report_date),
             KEY review_status (review_status),
-            KEY linked_post_id (linked_post_id)
+            KEY linked_post_id (linked_post_id),
+            KEY archived_at (archived_at)
         ) $charset;";
         dbDelta($sql2);
 

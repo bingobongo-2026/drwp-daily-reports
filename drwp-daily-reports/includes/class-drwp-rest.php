@@ -90,6 +90,24 @@ class DRWP_REST {
             'permission_callback' => [__CLASS__, 'can_edit'],
         ]);
 
+        register_rest_route(self::NS, '/reports/(?P<id>\d+)/archive', [
+            'methods'             => 'POST',
+            'callback'            => [__CLASS__, 'archive_report'],
+            'permission_callback' => [__CLASS__, 'can_archive_report'],
+        ]);
+
+        register_rest_route(self::NS, '/reports/(?P<id>\d+)/restore', [
+            'methods'             => 'POST',
+            'callback'            => [__CLASS__, 'restore_report'],
+            'permission_callback' => [__CLASS__, 'can_archive_report'],
+        ]);
+
+        register_rest_route(self::NS, '/reports/(?P<id>\d+)/purge', [
+            'methods'             => 'DELETE',
+            'callback'            => [__CLASS__, 'purge_report'],
+            'permission_callback' => [__CLASS__, 'can_purge_report'],
+        ]);
+
         register_rest_route(self::NS, '/reports/(?P<id>\d+)/convert', [
             'methods'             => 'POST',
             'callback'            => [__CLASS__, 'convert_report'],
@@ -349,6 +367,16 @@ class DRWP_REST {
         return self::can_view_one($request);
     }
 
+    public static function can_archive_report(WP_REST_Request $request) {
+        // archive / restore はレビュアー以上 (`edit_others_posts`)。
+        // 投稿者本人には開けないことで「都合の悪い日報を隠す」を防ぐ。
+        return current_user_can(DRWP_Reports::CAP_ARCHIVE);
+    }
+
+    public static function can_purge_report(WP_REST_Request $request) {
+        return current_user_can(DRWP_Reports::CAP_PURGE);
+    }
+
     private static function find_report($id) {
         global $wpdb;
         $table = $wpdb->prefix . 'drwp_reports';
@@ -398,6 +426,9 @@ class DRWP_REST {
             'post_status'       => (string) $r->post_status,
             'scheduled_at'      => $r->scheduled_at ?: null,
             'linked_post_id'    => $r->linked_post_id ? (int) $r->linked_post_id : null,
+            'archived_at'       => !empty($r->archived_at) ? (string) $r->archived_at : null,
+            'days_archived'     => DRWP_Reports::days_since_archived($r),
+            'purge_min_days'    => DRWP_Reports::PURGE_MIN_DAYS,
             'photos'            => $photos,
             'created_at'        => (string) $r->created_at,
             'updated_at'        => (string) $r->updated_at,
@@ -704,6 +735,35 @@ class DRWP_REST {
             self::sync_photos_from_input($id, $input);
         }
         return rest_ensure_response(self::shape_report(self::find_report($id)));
+    }
+
+    public static function archive_report(WP_REST_Request $request) {
+        $id = (int) $request['id'];
+        $report = DRWP_Reports::find($id);
+        if (!$report) return new WP_Error('drwp_not_found', '指定された日報が見つかりませんでした。', ['status' => 404]);
+        $input = $request->get_json_params() ?: [];
+        $reason = isset($input['reason']) ? sanitize_text_field((string) $input['reason']) : '';
+        DRWP_Reports::archive($id, $reason);
+        return ['archived' => true, 'id' => $id];
+    }
+
+    public static function restore_report(WP_REST_Request $request) {
+        $id = (int) $request['id'];
+        $report = DRWP_Reports::find($id);
+        if (!$report) return new WP_Error('drwp_not_found', '指定された日報が見つかりませんでした。', ['status' => 404]);
+        DRWP_Reports::restore($id);
+        return ['restored' => true, 'id' => $id];
+    }
+
+    public static function purge_report(WP_REST_Request $request) {
+        $id = (int) $request['id'];
+        $r = DRWP_Reports::purge($id);
+        if (is_wp_error($r)) {
+            // 「アーカイブ未経過」エラーは 409、それ以外は 400
+            $code = $r->get_error_code() === 'drwp_purge_too_soon' ? 409 : 400;
+            return new WP_Error($r->get_error_code(), $r->get_error_message(), ['status' => $code]);
+        }
+        return ['purged' => true, 'id' => $id];
     }
 
     public static function convert_report(WP_REST_Request $request) {

@@ -46,6 +46,9 @@ class DRWP_Audit {
             'post_created_from_report' => __('記事生成', 'drwp-daily-reports'),
             'post_resynced'            => __('記事再反映', 'drwp-daily-reports'),
             'audit_purged'             => __('操作履歴を自動削除', 'drwp-daily-reports'),
+            'report_archived'          => __('日報をアーカイブ', 'drwp-daily-reports'),
+            'report_restored'          => __('日報を復元', 'drwp-daily-reports'),
+            'report_purged'            => __('日報を完全削除', 'drwp-daily-reports'),
         ];
     }
 
