@@ -96,6 +96,14 @@ $can_review = current_user_can('edit_others_posts');
           <?php endforeach; ?>
         </select>
         <?php endif; ?>
+        <?php if (current_user_can(DRWP_Reports::CAP_ARCHIVE)): ?>
+        <select name="archived">
+          <?php $arch = $filters['archived'] ?? 'active'; ?>
+          <option value="active" <?php selected($arch, 'active'); ?>><?php esc_html_e('通常のみ', 'drwp-daily-reports'); ?></option>
+          <option value="with"   <?php selected($arch, 'with'); ?>><?php esc_html_e('アーカイブ含む', 'drwp-daily-reports'); ?></option>
+          <option value="only"   <?php selected($arch, 'only'); ?>><?php esc_html_e('アーカイブのみ', 'drwp-daily-reports'); ?></option>
+        </select>
+        <?php endif; ?>
         <?php if (!empty($project_groups)): ?>
         <select name="project_group_id">
           <option value="0"><?php esc_html_e('案件グループすべて', 'drwp-daily-reports'); ?></option>
@@ -349,6 +357,29 @@ $can_review = current_user_can('edit_others_posts');
           <button type="button" class="button" id="drwp-comment-submit" style="white-space:nowrap;"><?php esc_html_e('送信', 'drwp-daily-reports'); ?></button>
         </div>
       </section>
+
+      <?php if (current_user_can(DRWP_Reports::CAP_ARCHIVE)): ?>
+      <section class="drwp-card drwp-archive-card" id="drwp-archive-section" style="background:#fef3c7;">
+        <h3><?php esc_html_e('アーカイブ', 'drwp-daily-reports'); ?></h3>
+        <p class="description" style="margin:0 0 8px;">
+          <?php esc_html_e('アーカイブすると一覧から非表示になります。実体は残るので「アーカイブのみ」フィルタから復元できます。法定保存期間中の日報は完全削除せず、アーカイブ状態のままにしてください。', 'drwp-daily-reports'); ?>
+        </p>
+        <div class="drwp-row">
+          <button type="button" class="button button-secondary" id="drwp-archive-btn">
+            🗄 <?php esc_html_e('アーカイブする', 'drwp-daily-reports'); ?>
+          </button>
+          <button type="button" class="button" id="drwp-restore-btn" hidden>
+            ↩ <?php esc_html_e('アーカイブから復元', 'drwp-daily-reports'); ?>
+          </button>
+          <?php if (current_user_can(DRWP_Reports::CAP_PURGE)): ?>
+          <button type="button" class="button button-link-delete" id="drwp-purge-btn" hidden>
+            🗑 <?php esc_html_e('完全削除 (取り消し不可)', 'drwp-daily-reports'); ?>
+          </button>
+          <?php endif; ?>
+          <span id="drwp-archive-status" style="margin-left:8px;font-size:.92em;color:#475569;"></span>
+        </div>
+      </section>
+      <?php endif; ?>
     </div>
   </dialog>
 
@@ -680,6 +711,9 @@ $can_review = current_user_can('edit_others_posts');
         photosEl.innerHTML = html;
       }
       if (statusSel) statusSel.value = d.review_status || 'pending';
+      // アーカイブ状態に応じてボタンを出し分け。完全削除は管理者
+      // かつ archived から PURGE_MIN_DAYS 経過した時のみ。
+      updateArchiveUI(d);
       viewLoading.hidden = true;
       viewPage.hidden = false;
       loadComments(id);
@@ -738,6 +772,94 @@ $can_review = current_user_can('edit_others_posts');
     }).then(function () { bodyEl.value = ''; btn.disabled = false; loadComments(id); })
       .catch(function () { btn.disabled = false; });
   });
+
+  /* ---- アーカイブ / 復元 / 完全削除 ---- */
+  var archiveSection = document.getElementById('drwp-archive-section');
+  var archiveBtn     = document.getElementById('drwp-archive-btn');
+  var restoreBtn     = document.getElementById('drwp-restore-btn');
+  var purgeBtn       = document.getElementById('drwp-purge-btn');
+  var archiveStatus  = document.getElementById('drwp-archive-status');
+
+  function updateArchiveUI(d) {
+    if (!archiveSection) return;
+    archiveStatus.textContent = '';
+    archiveStatus.style.color = '#475569';
+    var archived = !!d.archived_at;
+    if (archiveBtn) archiveBtn.hidden = archived;
+    if (restoreBtn) restoreBtn.hidden = !archived;
+    if (purgeBtn) {
+      // 完全削除ボタンはアーカイブ済み + 経過日数 >= purge_min_days
+      // の両方を満たした時のみ表示。それ以外は隠す。
+      var days = Number(d.days_archived || 0);
+      var min  = Number(d.purge_min_days || 30);
+      purgeBtn.hidden = !(archived && days >= min);
+      if (archived && days < min) {
+        archiveStatus.textContent = '<?php echo esc_js(__('完全削除は %d 日経過後 (現在 %d 日経過)', 'drwp-daily-reports')); ?>'
+          .replace('%d', min).replace('%d', days);
+      } else if (archived) {
+        archiveStatus.textContent = '<?php echo esc_js(__('アーカイブ済み (%d 日経過)', 'drwp-daily-reports')); ?>'.replace('%d', days);
+      }
+    } else if (archived) {
+      archiveStatus.textContent = '<?php echo esc_js(__('アーカイブ済み', 'drwp-daily-reports')); ?>';
+    }
+  }
+
+  if (archiveBtn) {
+    archiveBtn.addEventListener('click', function () {
+      var id = currentViewId;
+      if (!id) return;
+      if (!window.confirm('<?php echo esc_js(__('この日報をアーカイブします。一覧から非表示になりますが、復元は可能です。よろしいですか？', 'drwp-daily-reports')); ?>')) return;
+      archiveBtn.disabled = true;
+      api('/reports/' + id + '/archive', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({})
+      }).then(function () {
+        viewDlg.close();
+        location.reload();
+      }).catch(function (err) {
+        renderApiError(archiveStatus, err);
+        archiveBtn.disabled = false;
+      });
+    });
+  }
+
+  if (restoreBtn) {
+    restoreBtn.addEventListener('click', function () {
+      var id = currentViewId;
+      if (!id) return;
+      restoreBtn.disabled = true;
+      api('/reports/' + id + '/restore', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({})
+      }).then(function () {
+        viewDlg.close();
+        location.reload();
+      }).catch(function (err) {
+        renderApiError(archiveStatus, err);
+        restoreBtn.disabled = false;
+      });
+    });
+  }
+
+  if (purgeBtn) {
+    purgeBtn.addEventListener('click', function () {
+      var id = currentViewId;
+      if (!id) return;
+      if (!window.confirm('<?php echo esc_js(__('この日報を完全に削除します。コメント・写真も含めて元に戻せません。本当によろしいですか？', 'drwp-daily-reports')); ?>')) return;
+      if (!window.confirm('<?php echo esc_js(__('最終確認: この操作は取り消せません。続行しますか？', 'drwp-daily-reports')); ?>')) return;
+      purgeBtn.disabled = true;
+      api('/reports/' + id + '/purge', { method: 'DELETE' })
+        .then(function () {
+          viewDlg.close();
+          location.reload();
+        }).catch(function (err) {
+          renderApiError(archiveStatus, err);
+          purgeBtn.disabled = false;
+        });
+    });
+  }
 
   /* ---- 編集モーダル ---- */
   var editDlg = document.getElementById('drwp-edit-dialog');
