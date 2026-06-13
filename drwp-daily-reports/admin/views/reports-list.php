@@ -20,38 +20,42 @@ $can_review = current_user_can('edit_others_posts');
   <h1><?php esc_html_e('日報一覧', 'drwp-daily-reports'); ?></h1>
 
   <?php if (DRWP_AI::is_enabled()): ?>
-    <?php if (DRWP_License::plan_allows('ai')): ?>
-      <p>
-        <button type="button" class="button" id="drwp-ai-alerts-btn">
-          ⚠️ <?php esc_html_e('AI 対応アラート', 'drwp-daily-reports'); ?>
+    <?php
+      $advise_disabled = empty($filtered_ids);
+      $advise_n = !$advise_disabled ? min(count($filtered_ids), DRWP_AI::ADVISE_MAX) : 0;
+      $plan_ok = DRWP_License::plan_allows('ai');
+    ?>
+    <div class="drwp-ai-toolbar">
+      <div class="drwp-ai-card">
+        <button type="button" class="button drwp-ai-action" id="drwp-ai-alerts-btn"
+                <?php disabled(!$plan_ok); ?>
+                title="<?php esc_attr_e('期間内の特記事項から、いま対応が必要な項目を AI が抽出', 'drwp-daily-reports'); ?>">
+          <span class="drwp-ai-emoji">⚠️</span>
+          <span class="drwp-ai-label"><?php esc_html_e('対応アラート', 'drwp-daily-reports'); ?></span>
+          <?php if (!$plan_ok): ?><span class="drwp-ai-pro">Pro</span><?php endif; ?>
         </button>
-        <button type="button" class="button" id="drwp-ai-advise-btn"
-                <?php echo empty($filtered_ids) ? 'disabled' : ''; ?>>
-          🧭 <?php esc_html_e('AI 振り返りアドバイス', 'drwp-daily-reports'); ?>
+        <span class="drwp-ai-sub"><?php esc_html_e('短期: いま急ぐべき項目を抽出', 'drwp-daily-reports'); ?></span>
+      </div>
+      <div class="drwp-ai-card">
+        <button type="button" class="button drwp-ai-action" id="drwp-ai-advise-btn"
+                <?php disabled(!$plan_ok || $advise_disabled); ?>
+                title="<?php esc_attr_e('絞り込み中の日報を AI が分析し、今後の向き合い方を提案', 'drwp-daily-reports'); ?>">
+          <span class="drwp-ai-emoji">🧭</span>
+          <span class="drwp-ai-label"><?php esc_html_e('振り返りアドバイス', 'drwp-daily-reports'); ?></span>
+          <?php if (!$plan_ok): ?><span class="drwp-ai-pro">Pro</span><?php endif; ?>
         </button>
-        <span class="description">
-          <?php esc_html_e('特記事項から、事務所が対応すべき項目を抽出します。', 'drwp-daily-reports'); ?>
-          <?php if (!empty($filtered_ids)):
-            $advise_n = min(count($filtered_ids), DRWP_AI::ADVISE_MAX);
-            /* translators: %d is the number of reports the advisor will read */
-            printf(' / ' . esc_html__('絞り込み中の最新 %d 件を読んでアドバイス。', 'drwp-daily-reports'), $advise_n);
-          else:
-            esc_html_e(' / 振り返りは対象が空のため利用できません。', 'drwp-daily-reports');
-          endif; ?>
+        <span class="drwp-ai-sub">
+          <?php if (!$plan_ok): ?>
+            <?php esc_html_e('長期: 今後の方針を提案', 'drwp-daily-reports'); ?>
+          <?php elseif ($advise_disabled): ?>
+            <?php esc_html_e('長期: 絞り込み対象が空のため利用不可', 'drwp-daily-reports'); ?>
+          <?php else: ?>
+            <?php /* translators: %d is the number of reports the advisor will read */
+                  printf(esc_html__('長期: 最新 %d 件を分析して方針を提案', 'drwp-daily-reports'), $advise_n); ?>
+          <?php endif; ?>
         </span>
-      </p>
-    <?php else: ?>
-      <p>
-        <button type="button" class="button" disabled style="opacity:.55;cursor:not-allowed;">
-          ⚠️ <?php esc_html_e('AI 対応アラート', 'drwp-daily-reports'); ?>
-          <span style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.72em;font-weight:700;padding:1px 7px;border-radius:999px;margin-left:4px;">Pro</span>
-        </button>
-        <button type="button" class="button" disabled style="opacity:.55;cursor:not-allowed;">
-          🧭 <?php esc_html_e('AI 振り返りアドバイス', 'drwp-daily-reports'); ?>
-          <span style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.72em;font-weight:700;padding:1px 7px;border-radius:999px;margin-left:4px;">Pro</span>
-        </button>
-      </p>
-    <?php endif; ?>
+      </div>
+    </div>
   <?php endif; ?>
 
   <?php if (isset($_GET['updated'])): ?>
@@ -128,20 +132,11 @@ $can_review = current_user_can('edit_others_posts');
     </form>
   </details>
 
-  <p class="drwp-counter-line">
-    <?php
-      printf(
-          esc_html(_n('合計 %d 件', '合計 %d 件', (int) $total, 'drwp-daily-reports')),
-          (int) $total
-      );
-    ?>
-  </p>
-
   <?php
-    // 「絞り込まれた全件を CSV 出力」 — チェックボックスでの選択
-    // とは独立した GET 送信。現在の絞り込みクエリをそのまま
-    // export エンドポイントに渡す。HTML 上は一括操作フォームの
-    // 外に出して入れ子 form を避ける。
+    // 「絞り込み中の全件を CSV 出力」 — 一括操作のチェック選択
+    // とは独立した GET 送信。HTML5 の `form=` 属性で外部フォーム
+    // (#drwp-csv-form) を参照することで、入れ子 form を避けつつ
+    // 1 行のツールバーに収める。
     $csv_query = array_filter([
         's'                 => $filters['search'],
         'review_status'     => $filters['review_status'],
@@ -153,31 +148,29 @@ $can_review = current_user_can('edit_others_posts');
         'date_to'           => $filters['date_to'],
     ], function ($v) { return $v !== '' && $v !== 0; });
   ?>
-  <div class="drwp-export-inline">
-    <form method="get" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;margin:0;">
-      <input type="hidden" name="action" value="drwp_export_reports_csv" />
-      <?php wp_nonce_field('drwp_export_reports_csv'); ?>
-      <?php foreach ($csv_query as $k => $v): ?>
-        <input type="hidden" name="<?php echo esc_attr($k); ?>" value="<?php echo esc_attr($v); ?>" />
-      <?php endforeach; ?>
-      <button type="submit" class="button" <?php disabled((int) $total === 0); ?>>
-        ⬇ <?php esc_html_e('絞り込み中の全件をCSV出力', 'drwp-daily-reports'); ?>
-      </button>
-    </form>
-    <span class="description" style="font-size:.85em;color:#64748b;">
-      <?php
-        /* translators: %d is the matched row count for the CSV export */
-        printf(esc_html__('対象: %d 件（Shift-JIS）', 'drwp-daily-reports'), (int) $total);
-      ?>
-    </span>
-  </div>
+  <form id="drwp-csv-form" method="get" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" hidden>
+    <input type="hidden" name="action" value="drwp_export_reports_csv" />
+    <?php wp_nonce_field('drwp_export_reports_csv'); ?>
+    <?php foreach ($csv_query as $k => $v): ?>
+      <input type="hidden" name="<?php echo esc_attr($k); ?>" value="<?php echo esc_attr($v); ?>" />
+    <?php endforeach; ?>
+  </form>
 
   <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
     <?php wp_nonce_field('drwp_bulk_reports'); ?>
     <input type="hidden" name="action" value="drwp_bulk_reports" />
     <input type="hidden" name="redirect_page" value="drwp_reports" />
 
-    <div class="drwp-bulk-inline">
+    <div class="drwp-table-toolbar">
+      <span class="drwp-counter">
+        <?php
+          printf(
+              esc_html(_n('合計 %d 件', '合計 %d 件', (int) $total, 'drwp-daily-reports')),
+              (int) $total
+          );
+        ?>
+      </span>
+      <span class="drwp-toolbar-sep">|</span>
       <label for="drwp-bulk-action"><?php esc_html_e('一括操作:', 'drwp-daily-reports'); ?></label>
       <select name="bulk_action" id="drwp-bulk-action">
         <option value=""><?php esc_html_e('操作を選択', 'drwp-daily-reports'); ?></option>
@@ -185,6 +178,14 @@ $can_review = current_user_can('edit_others_posts');
         <option value="bulk_revision"><?php esc_html_e('一括差し戻し', 'drwp-daily-reports'); ?></option>
       </select>
       <button class="button"><?php esc_html_e('実行', 'drwp-daily-reports'); ?></button>
+
+      <button type="submit" form="drwp-csv-form" class="button drwp-csv-btn"
+              <?php disabled((int) $total === 0); ?>>
+        ⬇ <?php
+            /* translators: %d is the matched row count for the CSV export */
+            printf(esc_html__('絞り込み全件CSV (%d件)', 'drwp-daily-reports'), (int) $total);
+          ?>
+      </button>
     </div>
 
     <table class="widefat striped" id="drwp-reports-table">
@@ -467,15 +468,24 @@ $can_review = current_user_can('edit_others_posts');
 .drwp-row:last-child{margin-bottom:0}
 .drwp-search-input{min-width:240px;flex:1}
 
-/* 一括操作 — もうカードにしない。テーブル直上のインライン行で十分。 */
-.drwp-bulk-inline{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 0;font-size:.92em;color:#475569}
-.drwp-bulk-inline label{font-weight:600;color:#1d2327}
+/* AI ツールバー — 2 つの AI 操作を「短期/長期」のコントラストが
+   伝わる形にコンパクトにまとめる。各ボタンの下に短い説明を 1 行。 */
+.drwp-ai-toolbar{display:flex;flex-wrap:wrap;gap:18px;margin:8px 0 14px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px}
+.drwp-ai-card{display:flex;flex-direction:column;gap:2px;min-width:180px}
+.drwp-ai-action{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.drwp-ai-action[disabled]{opacity:.55;cursor:not-allowed}
+.drwp-ai-emoji{font-size:1.05em;line-height:1}
+.drwp-ai-label{line-height:1.2}
+.drwp-ai-pro{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.72em;font-weight:700;padding:1px 7px;border-radius:999px;margin-left:2px}
+.drwp-ai-sub{font-size:.78em;color:#64748b;padding-left:4px;line-height:1.4}
 
-/* CSV 出力 — チェックボックス選択とは切り離して、絞り込み中の
-   全件を 1 ボタンで吐けるようにする。 */
-.drwp-export-inline{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-bottom:6px;padding:4px 0}
-
-.drwp-counter-line{margin:8px 0;color:#64748b;font-size:.9em}
+/* テーブル直上のツールバー — 「件数 / 一括操作 / CSV」を 1 行に
+   まとめる。CSV ボタンは margin-left:auto で右端に寄せる。 */
+.drwp-table-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 8px;padding:8px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;font-size:.92em;color:#475569}
+.drwp-table-toolbar label{font-weight:600;color:#1d2327;margin-left:4px}
+.drwp-table-toolbar .drwp-counter{font-weight:600;color:#1d2327}
+.drwp-table-toolbar .drwp-toolbar-sep{color:#cbd5e1;margin:0 2px}
+.drwp-table-toolbar .drwp-csv-btn{margin-left:auto}
 
 /* 共通モーダル — 確認 / 編集 で同じスタイル */
 .drwp-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:640px;width:90vw}
