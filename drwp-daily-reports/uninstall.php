@@ -67,6 +67,8 @@ $options = [
     'drwp_login_logo_url',
     // Audit log retention
     'drwp_audit_retention_days',
+    // Test data seeder state
+    'drwp_seed_state',
     // Legacy
     'drwp_public_key',
 ];
