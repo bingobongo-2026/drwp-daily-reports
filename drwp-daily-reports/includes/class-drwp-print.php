@@ -17,7 +17,7 @@ class DRWP_Print {
     }
 
     public static function render_page() {
-        if (!current_user_can(self::CAP)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can(self::CAP)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         global $wpdb;
         $table = $wpdb->prefix . 'drwp_reports';
 

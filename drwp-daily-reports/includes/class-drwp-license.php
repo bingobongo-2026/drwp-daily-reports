@@ -165,11 +165,11 @@ class DRWP_License {
     public static function rotate_key() {
         $api_url = rtrim((string) get_option(self::OPT_API_URL, ''), '/');
         if ($api_url === '') {
-            return new WP_Error('drwp_license_missing', 'API URL is not set');
+            return new WP_Error('drwp_license_missing', __('ライセンスサーバの API URL が未設定です。', 'drwp-daily-reports'));
         }
         $token = self::admin_token();
         if ($token === '') {
-            return new WP_Error('drwp_license_no_token', 'Admin token not configured');
+            return new WP_Error('drwp_license_no_token', __('管理トークンが未設定です。', 'drwp-daily-reports'));
         }
 
         $response = wp_remote_post($api_url . '/admin/rotate-signing-key', [
@@ -181,13 +181,17 @@ class DRWP_License {
         if (is_wp_error($response)) return $response;
 
         $code = wp_remote_retrieve_response_code($response);
-        if ($code === 401) return new WP_Error('drwp_license_unauthorized', 'Admin token rejected (401)');
+        if ($code === 401) return new WP_Error('drwp_license_unauthorized', __('管理トークンが拒否されました (401)。', 'drwp-daily-reports'));
         if ($code < 200 || $code >= 300) {
-            return new WP_Error('drwp_license_http', 'HTTP ' . (int) $code);
+            return new WP_Error('drwp_license_http', sprintf(
+                /* translators: %d is the HTTP status code */
+                __('ライセンスサーバへの通信に失敗しました (HTTP %d)。', 'drwp-daily-reports'),
+                (int) $code
+            ));
         }
         $body = json_decode(wp_remote_retrieve_body($response), true);
         if (!is_array($body) || empty($body['public_key'])) {
-            return new WP_Error('drwp_license_unexpected', 'Unexpected rotation response');
+            return new WP_Error('drwp_license_unexpected', __('鍵ローテーションの応答が想定外の形式でした。', 'drwp-daily-reports'));
         }
 
         // Refresh the cached active + previous keys so verify() picks
@@ -199,17 +203,17 @@ class DRWP_License {
     public static function fetch_public_key() {
         $api_url = rtrim((string) get_option(self::OPT_API_URL, ''), '/');
         if ($api_url === '') {
-            return new WP_Error('drwp_license_missing', 'API URL is not set');
+            return new WP_Error('drwp_license_missing', __('ライセンスサーバの API URL が未設定です。', 'drwp-daily-reports'));
         }
         $response = wp_remote_get($api_url . '/api/public-key', ['timeout' => 10]);
         if (is_wp_error($response)) return $response;
         $body = json_decode(wp_remote_retrieve_body($response), true);
         if (!is_array($body) || empty($body['public_key']) || ($body['algorithm'] ?? '') !== 'ed25519') {
-            return new WP_Error('drwp_license_public_key', 'Unexpected public key response');
+            return new WP_Error('drwp_license_public_key', __('公開鍵取得の応答が想定外の形式でした。', 'drwp-daily-reports'));
         }
         $raw = base64_decode((string) $body['public_key'], true);
         if ($raw === false || strlen($raw) !== 32) {
-            return new WP_Error('drwp_license_public_key', 'Public key must be 32 raw bytes');
+            return new WP_Error('drwp_license_public_key', __('公開鍵のバイト長が不正です (32 バイトであるべき)。', 'drwp-daily-reports'));
         }
 
         // Validate any archived previous keys; ignore the malformed ones.
@@ -242,15 +246,15 @@ class DRWP_License {
 
     public static function verify_signature(array $payload, $signature_b64) {
         if (!function_exists('sodium_crypto_sign_verify_detached')) {
-            return new WP_Error('drwp_license_sodium', 'libsodium is not available');
+            return new WP_Error('drwp_license_sodium', __('PHP に libsodium 拡張が入っていないため署名検証ができません。', 'drwp-daily-reports'));
         }
         $public_b64 = (string) get_option(self::OPT_PUBLIC_KEY, '');
         if ($public_b64 === '') {
-            return new WP_Error('drwp_license_no_key', 'Public key is not cached');
+            return new WP_Error('drwp_license_no_key', __('公開鍵がキャッシュされていません。「公開鍵を取得」を先に実行してください。', 'drwp-daily-reports'));
         }
         $sig = base64_decode((string) $signature_b64, true);
         if ($sig === false) {
-            return new WP_Error('drwp_license_base64', 'Invalid signature base64');
+            return new WP_Error('drwp_license_base64', __('応答に含まれる署名の base64 が不正です。', 'drwp-daily-reports'));
         }
 
         $candidates = [$public_b64];
@@ -284,7 +288,7 @@ class DRWP_License {
             update_option(self::OPT_STATUS, 'inactive');
             update_option(self::OPT_LAST_MESSAGE, __('API URL またはライセンスキーが未設定です。', 'drwp-daily-reports'));
             update_option(self::OPT_SIGNATURE_VALID, '');
-            return new WP_Error('drwp_license_missing', 'API URL or license key is missing');
+            return new WP_Error('drwp_license_missing', __('API URL またはライセンスキーが未設定です。', 'drwp-daily-reports'));
         }
 
         // Fail closed if we have no public key cached: without it the
@@ -318,7 +322,11 @@ class DRWP_License {
         $code = wp_remote_retrieve_response_code($response);
         $body = json_decode(wp_remote_retrieve_body($response), true);
         if ($code < 200 || $code >= 300 || !is_array($body)) {
-            $msg = 'HTTP ' . (int) $code;
+            $msg = sprintf(
+                /* translators: %d is the HTTP status code */
+                __('ライセンスサーバへの照会に失敗しました (HTTP %d)。', 'drwp-daily-reports'),
+                (int) $code
+            );
             update_option(self::OPT_STATUS, 'inactive');
             update_option(self::OPT_LAST_MESSAGE, $msg);
             return new WP_Error('drwp_license_http', $msg);
@@ -332,7 +340,7 @@ class DRWP_License {
             update_option(self::OPT_STATUS, 'inactive');
             update_option(self::OPT_LAST_MESSAGE, __('応答に署名がありません。', 'drwp-daily-reports'));
             update_option(self::OPT_SIGNATURE_VALID, 'missing');
-            return new WP_Error('drwp_license_signature_missing', 'Response has no signature');
+            return new WP_Error('drwp_license_signature_missing', __('ライセンスサーバの応答に署名が含まれていません。', 'drwp-daily-reports'));
         }
         $verified = self::verify_signature($payload, $signature);
         if (is_wp_error($verified)) {
@@ -345,7 +353,7 @@ class DRWP_License {
             update_option(self::OPT_STATUS, 'inactive');
             update_option(self::OPT_LAST_MESSAGE, __('署名検証に失敗しました。', 'drwp-daily-reports'));
             update_option(self::OPT_SIGNATURE_VALID, 'invalid');
-            return new WP_Error('drwp_license_signature_invalid', 'Signature verification failed');
+            return new WP_Error('drwp_license_signature_invalid', __('ライセンスサーバの応答の署名検証に失敗しました。', 'drwp-daily-reports'));
         }
 
         // The server includes issued_at inside the signed payload, so
@@ -359,7 +367,7 @@ class DRWP_License {
             update_option(self::OPT_STATUS, 'inactive');
             update_option(self::OPT_LAST_MESSAGE, __('応答のタイムスタンプが許容範囲外です。', 'drwp-daily-reports'));
             update_option(self::OPT_SIGNATURE_VALID, 'stale');
-            return new WP_Error('drwp_license_stale', 'Response timestamp outside accepted window');
+            return new WP_Error('drwp_license_stale', __('ライセンスサーバの応答のタイムスタンプが許容範囲外です (リプレイ攻撃の可能性)。', 'drwp-daily-reports'));
         }
         update_option(self::OPT_SIGNATURE_VALID, 'valid');
 

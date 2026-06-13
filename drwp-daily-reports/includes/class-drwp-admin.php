@@ -391,7 +391,7 @@ class DRWP_Admin {
     }
 
     public static function reports_page() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         global $wpdb;
         $table = self::reports_table();
 
@@ -454,7 +454,7 @@ class DRWP_Admin {
     }
 
     public static function articles_page() {
-        if (!current_user_can(self::CAP_CONVERT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can(self::CAP_CONVERT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         global $wpdb;
         $table = self::reports_table();
 
@@ -516,30 +516,30 @@ class DRWP_Admin {
     }
 
     public static function report_edit_page() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         DRWP_User::block_write_or_die();
         global $wpdb;
         $table = self::reports_table();
         $id = isset($_GET['id']) ? absint($_GET['id']) : 0;
         $report = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
-        if ($report && !self::current_user_can_edit_report($report)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if ($report && !self::current_user_can_edit_report($report)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         $projects = DRWP_Project::all(true);
         $photos = $report ? DRWP_Media::for_report($report->id) : [];
         include DRWP_PATH . 'admin/views/report-edit.php';
     }
 
     public static function report_preview_page() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         global $wpdb;
         $table = self::reports_table();
         $id = isset($_GET['id']) ? absint($_GET['id']) : 0;
         $report = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
-        if ($report && !self::current_user_can_edit_report($report)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if ($report && !self::current_user_can_edit_report($report)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         include DRWP_PATH . 'admin/views/report-preview.php';
     }
 
     public static function save_report() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         DRWP_User::block_write_or_die();
         check_admin_referer('drwp_save_report');
         if (!DRWP_License::can_write()) {
@@ -554,7 +554,7 @@ class DRWP_Admin {
         $table = self::reports_table();
         $id = absint($_POST['id'] ?? 0);
         $existing = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
-        if ($existing && !self::current_user_can_edit_report($existing)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if ($existing && !self::current_user_can_edit_report($existing)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
 
         $project_id = absint($_POST['project_id'] ?? 0);
         if ($project_id && !DRWP_Project::find($project_id)) $project_id = 0;
@@ -606,7 +606,7 @@ class DRWP_Admin {
     }
 
     public static function convert_single() {
-        if (!current_user_can('publish_posts')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('publish_posts')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_convert_single');
         $id = absint($_POST['id'] ?? 0);
         if (!$id) wp_die(esc_html__('ID が指定されていません。', 'drwp-daily-reports'));
@@ -619,7 +619,7 @@ class DRWP_Admin {
     }
 
     public static function bulk_reports() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_bulk_reports');
         global $wpdb;
         $table = self::reports_table();
@@ -634,8 +634,8 @@ class DRWP_Admin {
 
         $review_actions = ['bulk_approve', 'bulk_revision'];
         $convert_actions = ['bulk_convert'];
-        if (in_array($action, $review_actions, true) && !current_user_can(self::CAP_REVIEW)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
-        if (in_array($action, $convert_actions, true) && !current_user_can(self::CAP_CONVERT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (in_array($action, $review_actions, true) && !current_user_can(self::CAP_REVIEW)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
+        if (in_array($action, $convert_actions, true) && !current_user_can(self::CAP_CONVERT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
 
         foreach ($ids as $id) {
             if (!$id) continue;
@@ -683,7 +683,7 @@ class DRWP_Admin {
     }
 
     private static function export_csv($ids) {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         $ids = array_values(array_filter(array_map('absint', (array) $ids)));
         if (empty($ids)) {
             wp_safe_redirect(admin_url('admin.php?page=drwp_reports'));
@@ -719,7 +719,7 @@ class DRWP_Admin {
      * ドロップダウンと用途を分けるための独立エンドポイント。
      */
     public static function export_filtered_csv() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_export_reports_csv');
 
         global $wpdb;

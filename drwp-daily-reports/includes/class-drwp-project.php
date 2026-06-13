@@ -34,7 +34,7 @@ class DRWP_Project {
     }
 
     public static function render_page() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         $filters = [
             'search'            => isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '',
             'customer_group_id' => isset($_GET['customer_group_id']) ? absint($_GET['customer_group_id']) : (isset($_GET['group_id']) ? absint($_GET['group_id']) : 0),
@@ -114,7 +114,7 @@ class DRWP_Project {
     }
 
     public static function save() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_save_project');
         global $wpdb;
         $id     = absint($_POST['id'] ?? 0);

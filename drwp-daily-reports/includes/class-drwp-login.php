@@ -542,7 +542,7 @@ class DRWP_Login {
     }
 
     public static function render_settings_page() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
 
         $pages = get_pages(['post_status' => 'publish']);
         $current_page      = (int) get_option(self::OPT_PAGE);

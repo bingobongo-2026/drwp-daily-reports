@@ -142,7 +142,7 @@ class DRWP_REST {
     public static function ai_briefing(WP_REST_Request $request) {
         $project_id = absint(($request->get_json_params() ?: [])['project_id'] ?? 0);
         if (!$project_id) {
-            return new WP_Error('drwp_invalid', 'project_id is required', ['status' => 400]);
+            return new WP_Error('drwp_invalid', '案件 ID (project_id) が指定されていません。', ['status' => 400]);
         }
         if (!DRWP_AI::is_enabled()) {
             return new WP_Error('drwp_ai_disabled', 'AI機能が無効です。AI設定で有効にしてください。', ['status' => 503]);
@@ -157,7 +157,7 @@ class DRWP_REST {
     public static function ai_draft_report(WP_REST_Request $request) {
         $report_id = absint(($request->get_json_params() ?: [])['report_id'] ?? 0);
         if (!$report_id) {
-            return new WP_Error('drwp_invalid', 'report_id is required', ['status' => 400]);
+            return new WP_Error('drwp_invalid', '日報 ID (report_id) が指定されていません。', ['status' => 400]);
         }
         if (!DRWP_AI::is_enabled()) {
             return new WP_Error('drwp_ai_disabled', 'AI機能が無効です。AI設定で有効にしてください。', ['status' => 503]);
@@ -175,7 +175,7 @@ class DRWP_REST {
         $period = sanitize_text_field((string) ($input['period'] ?? 'month'));
         $anchor = sanitize_text_field((string) ($input['anchor'] ?? ''));
         if (!$project_id) {
-            return new WP_Error('drwp_invalid', 'project_id is required', ['status' => 400]);
+            return new WP_Error('drwp_invalid', '案件 ID (project_id) が指定されていません。', ['status' => 400]);
         }
         if (!DRWP_AI::is_enabled()) {
             return new WP_Error('drwp_ai_disabled', 'AI機能が無効です。AI設定で有効にしてください。', ['status' => 503]);
@@ -219,7 +219,7 @@ class DRWP_REST {
         $input = $request->get_json_params() ?: [];
         $ids = array_values(array_filter(array_map('intval', (array) ($input['report_ids'] ?? []))));
         if (!$ids) {
-            return new WP_Error('drwp_invalid', 'report_ids is required', ['status' => 400]);
+            return new WP_Error('drwp_invalid', '日報 ID 配列 (report_ids) が指定されていません。', ['status' => 400]);
         }
         if (!DRWP_AI::is_enabled()) {
             return new WP_Error('drwp_ai_disabled', 'AI機能が無効です。AI設定で有効にしてください。', ['status' => 503]);
@@ -316,11 +316,11 @@ class DRWP_REST {
         if (DRWP_User::is_retired()) return false;
         if (!current_user_can('edit_posts')) return false;
         $report = self::find_report((int) $request['id']);
-        if (!$report) return new WP_Error('drwp_not_found', 'Report not found', ['status' => 404]);
+        if (!$report) return new WP_Error('drwp_not_found', '指定された日報が見つかりませんでした。', ['status' => 404]);
         if (current_user_can('edit_others_posts')) return true;
         return (int) $report->user_id === get_current_user_id()
             ? true
-            : new WP_Error('drwp_forbidden', 'Forbidden', ['status' => 403]);
+            : new WP_Error('drwp_forbidden', 'この日報を編集する権限がありません。', ['status' => 403]);
     }
 
     public static function can_edit_one(WP_REST_Request $request) {
@@ -460,7 +460,7 @@ class DRWP_REST {
         $report = self::find_report((int) $request['id']);
         return $report
             ? rest_ensure_response(self::shape_report($report))
-            : new WP_Error('drwp_not_found', 'Report not found', ['status' => 404]);
+            : new WP_Error('drwp_not_found', '指定された日報が見つかりませんでした。', ['status' => 404]);
     }
 
     /**
@@ -477,7 +477,7 @@ class DRWP_REST {
 
         $date = (string) ($input['planned_date'] ?? '');
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            return new WP_Error('drwp_invalid', 'planned_date is required (YYYY-MM-DD)', ['status' => 400]);
+            return new WP_Error('drwp_invalid', '予定日 (planned_date) を YYYY-MM-DD 形式で指定してください。', ['status' => 400]);
         }
         $project_id = isset($input['project_id']) ? absint($input['project_id']) : 0;
         $started_at = self::sanitize_time_or_null($input['started_at'] ?? null);
@@ -520,10 +520,10 @@ class DRWP_REST {
         $id = (int) $request['id'];
         $plan = DRWP_Plan::find($id);
         if (!$plan) {
-            return new WP_Error('drwp_not_found', 'Plan not found', ['status' => 404]);
+            return new WP_Error('drwp_not_found', '指定された予定が見つかりませんでした。', ['status' => 404]);
         }
         if (!DRWP_Plan::can_edit($plan)) {
-            return new WP_Error('drwp_forbidden', 'Cannot edit this plan', ['status' => 403]);
+            return new WP_Error('drwp_forbidden', 'この予定を編集する権限がありません。', ['status' => 403]);
         }
 
         $input = $request->get_json_params() ?: [];
@@ -532,7 +532,7 @@ class DRWP_REST {
         if (array_key_exists('planned_date', $input)) {
             $date = sanitize_text_field((string) $input['planned_date']);
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-                return new WP_Error('drwp_invalid', 'Invalid planned_date', ['status' => 400]);
+                return new WP_Error('drwp_invalid', '予定日 (planned_date) の形式が不正です (YYYY-MM-DD)。', ['status' => 400]);
             }
             $data['planned_date'] = $date;
         }
@@ -554,7 +554,7 @@ class DRWP_REST {
                 $proj_t = $wpdb->prefix . 'drwp_projects';
                 $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $proj_t WHERE id = %d", $pid));
                 if (!$exists) {
-                    return new WP_Error('drwp_invalid', 'Invalid project_id', ['status' => 400]);
+                    return new WP_Error('drwp_invalid', '案件 ID (project_id) が不正です。', ['status' => 400]);
                 }
             }
             $data['project_id'] = $pid ?: null;
@@ -573,7 +573,7 @@ class DRWP_REST {
             if ($uid) {
                 $target = get_userdata($uid);
                 if (!$target || !user_can($target, 'edit_posts')) {
-                    return new WP_Error('drwp_invalid', 'Invalid user_id', ['status' => 400]);
+                    return new WP_Error('drwp_invalid', 'ユーザー ID (user_id) が不正です。', ['status' => 400]);
                 }
             }
             $data['user_id'] = $uid ?: null;
@@ -581,7 +581,7 @@ class DRWP_REST {
         if (array_key_exists('status', $input)) {
             $status = sanitize_text_field((string) $input['status']);
             if (!array_key_exists($status, DRWP_Plan::status_labels())) {
-                return new WP_Error('drwp_invalid', 'Invalid status', ['status' => 400]);
+                return new WP_Error('drwp_invalid', '指定された予定ステータスが不正です。', ['status' => 400]);
             }
             $data['status'] = $status;
         }
@@ -687,7 +687,7 @@ class DRWP_REST {
         global $wpdb;
         $id = (int) $request['id'];
         $report = self::find_report($id);
-        if (!$report) return new WP_Error('drwp_not_found', 'Report not found', ['status' => 404]);
+        if (!$report) return new WP_Error('drwp_not_found', '指定された日報が見つかりませんでした。', ['status' => 404]);
 
         $input = $request->get_json_params() ?: [];
         if ($err = self::validate_input($input)) return $err;
@@ -713,7 +713,7 @@ class DRWP_REST {
         }
         $id = (int) $request['id'];
         $report = self::find_report($id);
-        if (!$report) return new WP_Error('drwp_not_found', 'Report not found', ['status' => 404]);
+        if (!$report) return new WP_Error('drwp_not_found', '指定された日報が見つかりませんでした。', ['status' => 404]);
 
         $input = $request->get_json_params() ?: [];
         $publish_fields = [];
@@ -753,7 +753,6 @@ class DRWP_REST {
     /**
      * Build a 402 license-inactive response that tells the client what
      * went wrong (license_status) and where to fix it (settings_url).
-     * Generic 'License inactive' alone leaves API consumers guessing.
      */
     private static function license_error() {
         $status   = DRWP_License::status();
@@ -761,9 +760,22 @@ class DRWP_REST {
         $key      = (string) get_option(DRWP_License::OPT_KEY, '');
         $reason   = ($api_url === '' || $key === '') ? 'not_configured' : $status;
 
+        // 状態ごとに、操作員にそのまま見せられる日本語メッセージを
+        // 用意する。JS 側は `err.message` を表示するだけなので、ここで
+        // 言葉を整えておくことで「次に何をすべきか」が伝わる。
+        $reason_messages = [
+            'not_configured' => __('ライセンスが未設定です。「日報マン → ライセンス」で API URL とライセンスキーを設定してください。', 'drwp-daily-reports'),
+            'inactive'       => __('ライセンスがアクティブではありません。ライセンスサーバ側で「停止」になっていないか確認し、「いま照会する」を実行してください。', 'drwp-daily-reports'),
+            'expired'        => __('ライセンスの有効期限が切れています。更新後、「いま照会する」を実行してください。', 'drwp-daily-reports'),
+            'domain_mismatch'=> __('ライセンスが許可されているドメインと一致しません。ライセンスサーバ側のドメイン設定を確認してください。', 'drwp-daily-reports'),
+            'not_found'      => __('ライセンスサーバにこのキーが登録されていません。キーが正しいか確認してください。', 'drwp-daily-reports'),
+        ];
+        $message = $reason_messages[$reason]
+            ?? __('ライセンスが有効ではありません。「日報マン → ライセンス」の照会結果を確認してください。', 'drwp-daily-reports');
+
         return new WP_Error(
             'drwp_license',
-            'License inactive — see data.reason for details',
+            $message,
             [
                 'status'         => 402,
                 'license_status' => $status,
@@ -783,7 +795,7 @@ class DRWP_REST {
         ) {
             return new WP_Error(
                 'drwp_invalid_date',
-                'report_date must match YYYY-MM-DD',
+                __('日付 (report_date) は YYYY-MM-DD 形式で指定してください。', 'drwp-daily-reports'),
                 ['status' => 400]
             );
         }
@@ -837,7 +849,7 @@ class DRWP_REST {
         global $wpdb;
         $id = (int) $request['id'];
         $report = self::find_report($id);
-        if (!$report) return new WP_Error('drwp_not_found', 'Report not found', ['status' => 404]);
+        if (!$report) return new WP_Error('drwp_not_found', '指定された日報が見つかりませんでした。', ['status' => 404]);
 
         $status = sanitize_text_field((string) $request->get_param('review_status'));
         $wpdb->update($wpdb->prefix . 'drwp_reports', ['review_status' => $status], ['id' => $id]);
@@ -876,7 +888,7 @@ class DRWP_REST {
         $body = (string) $request->get_param('body');
         $comment_id = DRWP_Comment::insert($id, $body);
         if (!$comment_id) {
-            return new WP_Error('drwp_empty_comment', 'Comment body required', ['status' => 400]);
+            return new WP_Error('drwp_empty_comment', 'コメント本文 (body) を入力してください。', ['status' => 400]);
         }
         DRWP_Audit::log('comment_added', 'コメントを追加 (REST)', $id, ['comment_id' => $comment_id]);
         $response = rest_ensure_response(['id' => $comment_id]);
@@ -939,10 +951,10 @@ class DRWP_REST {
         if (!DRWP_License::can_write()) return self::license_error();
         $files = $request->get_file_params();
         if (empty($files['file']) || !is_array($files['file'])) {
-            return new WP_Error('drwp_no_file', 'file part is missing', ['status' => 400]);
+            return new WP_Error('drwp_no_file', 'ファイルがアップロードされていません。', ['status' => 400]);
         }
         if (($files['file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            return new WP_Error('drwp_upload_error', 'upload error code ' . (int) $files['file']['error'], ['status' => 400]);
+            return new WP_Error('drwp_upload_error', 'アップロードに失敗しました (PHP アップロードエラーコード ' . (int) $files['file']['error'] . ')。', ['status' => 400]);
         }
 
         $attachment_id = apply_filters('drwp_handle_upload', null, 'file', $request);
@@ -957,10 +969,10 @@ class DRWP_REST {
         }
         if (is_wp_error($attachment_id)) return $attachment_id;
         if (!$attachment_id) {
-            return new WP_Error('drwp_upload_failed', 'attachment was not created', ['status' => 500]);
+            return new WP_Error('drwp_upload_failed', 'メディアライブラリへの登録に失敗しました。サーバの権限を確認してください。', ['status' => 500]);
         }
         if (get_post_type((int) $attachment_id) !== 'attachment') {
-            return new WP_Error('drwp_not_attachment', 'returned id is not an attachment', ['status' => 500]);
+            return new WP_Error('drwp_not_attachment', 'アップロードしたファイルが添付ファイルとして登録できませんでした。', ['status' => 500]);
         }
 
         DRWP_Audit::log('photo_uploaded', '直接アップロード', null, ['attachment_id' => (int) $attachment_id]);

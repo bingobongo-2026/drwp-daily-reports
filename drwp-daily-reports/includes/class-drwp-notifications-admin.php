@@ -7,13 +7,13 @@ class DRWP_Notifications_Admin {
     }
 
     public static function render_page() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         $settings = DRWP_Notifications::settings();
         include DRWP_PATH . 'admin/views/notifications-page.php';
     }
 
     public static function save() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_save_notifications');
         DRWP_Notifications::save_settings([
             'enabled'    => isset($_POST['enabled']),

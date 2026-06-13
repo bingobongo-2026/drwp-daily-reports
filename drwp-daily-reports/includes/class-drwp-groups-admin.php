@@ -41,7 +41,7 @@ class DRWP_Groups_Admin {
 
     public static function render_page() {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
         $tab = self::active_tab();
         ?>
