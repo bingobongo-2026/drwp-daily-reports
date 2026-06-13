@@ -58,7 +58,7 @@
         <td>{{ it.user_name or '—' }}</td>
         <td>{{ it.contact_person or '—' }}</td>
         <td>{{ it.plan|plan_label }}</td>
-        <td><span class="pill {{ 'active' if it.status == 'active' else 'inactive' }}">{{ it.status }}</span></td>
+        <td><span class="pill {{ 'active' if it.status == 'active' else 'inactive' }}">{{ it.status|status_label }}</span></td>
         <td class="mono">{{ it.expires_at or '—' }}</td>
         <td class="row">
           <a class="btn ghost" href="/admin/ui/licenses/{{ it.license_key }}/edit">編集</a>
