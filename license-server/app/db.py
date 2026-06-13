@@ -56,6 +56,25 @@ def init_db() -> None:
             )
             """
         )
+        # Audit log — records admin auth attempts and signing-key
+        # rotations. `event` is a slug (login_failed / login_success /
+        # login_blocked / signing_rotated_auto / signing_rotated_manual)
+        # so the UI / queries can group by it. `ip` is best-effort,
+        # honoring X-Forwarded-For only when DRWP_TRUST_PROXY=1.
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                event    TEXT NOT NULL,
+                ip       TEXT NOT NULL DEFAULT '',
+                username TEXT NOT NULL DEFAULT '',
+                detail   TEXT NOT NULL DEFAULT ''
+            )
+            """
+        )
+        c.execute("CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_audit_event ON audit_log(event)")
         # Migration for existing DBs: add columns if missing.
         _migrate_add_columns(c)
         # Migration for existing DBs: rename the legacy `standard`
@@ -190,3 +209,62 @@ def delete_license(license_key: str) -> bool:
             (license_key,),
         )
         return cur.rowcount > 0
+
+
+# --- audit log -----------------------------------------------------------
+
+def log_audit(event: str, ip: str = "", username: str = "", detail: str = "") -> None:
+    """Append one audit row. Truncated lengths keep the table compact
+    even if an attacker tries to fill the username field with junk."""
+    with connection() as c:
+        c.execute(
+            "INSERT INTO audit_log (event, ip, username, detail) VALUES (?, ?, ?, ?)",
+            (event[:64], (ip or "")[:64], (username or "")[:128], (detail or "")[:512]),
+        )
+
+
+def recent_audit(limit: int = 50, event: Optional[str] = None) -> list[dict]:
+    limit = max(1, min(int(limit), 500))
+    with connection() as c:
+        if event:
+            rows = c.execute(
+                "SELECT id, ts, event, ip, username, detail FROM audit_log "
+                "WHERE event = ? ORDER BY id DESC LIMIT ?",
+                (event, limit),
+            ).fetchall()
+        else:
+            rows = c.execute(
+                "SELECT id, ts, event, ip, username, detail FROM audit_log "
+                "ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def purge_audit(days: int) -> int:
+    """Delete audit rows older than `days`. Returns the count removed.
+    `days <= 0` is a no-op so the caller can short-circuit the cron when
+    retention is disabled."""
+    days = int(days)
+    if days <= 0:
+        return 0
+    with connection() as c:
+        cur = c.execute(
+            f"DELETE FROM audit_log WHERE ts < datetime('now', '-{days} days')"
+        )
+        return cur.rowcount or 0
+
+
+def count_failed_logins_since(ip: str, seconds: int) -> int:
+    """Used by the rate limiter — how many login_failed rows in the
+    last `seconds` for this IP. SQLite's datetime() is the simplest
+    portable way to express "now minus N seconds" without bringing
+    Python time into the query."""
+    with connection() as c:
+        row = c.execute(
+            f"SELECT COUNT(*) AS n FROM audit_log "
+            f"WHERE event = 'login_failed' AND ip = ? "
+            f"AND ts >= datetime('now', '-{int(seconds)} seconds')",
+            (ip,),
+        ).fetchone()
+        return int(row["n"]) if row else 0

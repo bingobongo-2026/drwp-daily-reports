@@ -12,6 +12,10 @@ def _fresh_client(tmp_path, monkeypatch, *, admin_token: str | None = "test-toke
         monkeypatch.setenv("DRWP_ADMIN_TOKEN", admin_token)
     monkeypatch.setenv("DRWP_LICENSE_DB", str(tmp_path / "test.sqlite"))
     monkeypatch.setenv("DRWP_SIGNING_KEY", str(tmp_path / "test.key"))
+    # 自動ローテートと監査ログ purge のバックグラウンドタスクは
+    # テスト中は走らせない（タイミング依存になるので）。
+    monkeypatch.setenv("DRWP_ROTATION_INTERVAL_DAYS", "0")
+    monkeypatch.setenv("DRWP_AUDIT_RETENTION_DAYS", "0")
     for name in ("app.main", "app.db", "app.signing", "app"):
         sys.modules.pop(name, None)
     main = importlib.import_module("app.main")
@@ -461,6 +465,109 @@ def test_init_db_migrates_legacy_standard_plan_to_basic(tmp_path, monkeypatch):
     assert rows["LEGACY-1"] == "basic"
     # pro 行はそのまま。
     assert rows["LEGACY-2"] == "pro"
+
+
+# --- 監査ログ + レート制限 + 自動ローテーション -----------------------
+
+def test_failed_login_writes_audit_row(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    r = c.get("/admin/licenses", auth=("admin", "wrong-pass"))
+    assert r.status_code == 401
+
+    rows = main.db.recent_audit(limit=10)
+    events = [row["event"] for row in rows]
+    assert "login_failed" in events
+    failed = next(row for row in rows if row["event"] == "login_failed")
+    assert failed["username"] == "admin"  # the attempted user
+
+
+def test_successful_login_writes_audit_row(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    r = c.get("/admin/licenses", auth=("admin", "test-token"))
+    assert r.status_code == 200
+
+    rows = main.db.recent_audit(limit=10)
+    events = [row["event"] for row in rows]
+    assert "login_success" in events
+
+
+def test_anonymous_probe_is_not_audited(tmp_path, monkeypatch):
+    # ブラウザは Basic ダイアログを出す前に必ず 1 回ノークレデンシャル
+    # でアクセスしてくる。ここを記録するとログがゴミで溢れるので、
+    # credentials=None の 401 は audit に残さない仕様。
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    r = c.get("/admin/licenses")
+    assert r.status_code == 401
+
+    rows = main.db.recent_audit(limit=10)
+    assert rows == []
+
+
+def test_rate_limiter_blocks_after_threshold(tmp_path, monkeypatch):
+    # しきい値・ウィンドウを小さくしてテスト時間を短縮。
+    monkeypatch.setenv("DRWP_LOGIN_FAIL_LIMIT", "3")
+    monkeypatch.setenv("DRWP_LOGIN_FAIL_WINDOW", "60")
+    monkeypatch.setenv("DRWP_LOGIN_BLOCK_SECONDS", "60")
+    c, main = _fresh_client(tmp_path, monkeypatch)
+
+    # 3 回失敗まで通常の 401。
+    for _ in range(3):
+        r = c.get("/admin/licenses", auth=("admin", "wrong"))
+        assert r.status_code == 401
+
+    # 4 回目は 429 で遮断され、正しい資格情報でも入れない。
+    r = c.get("/admin/licenses", auth=("admin", "wrong"))
+    assert r.status_code == 429
+    assert r.headers.get("Retry-After") == "60"
+
+    r2 = c.get("/admin/licenses", auth=("admin", "test-token"))
+    assert r2.status_code == 429
+
+    rows = main.db.recent_audit(limit=20)
+    events = [row["event"] for row in rows]
+    assert "login_blocked" in events
+
+
+def test_manual_signing_rotation_writes_audit_row(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    r = c.post("/admin/ui/settings/rotate-signing",
+               auth=("admin", "test-token"), follow_redirects=False)
+    assert r.status_code in (200, 303)
+
+    rows = main.db.recent_audit(limit=10)
+    events = [row["event"] for row in rows]
+    assert "signing_rotated_manual" in events
+
+
+def test_audit_retention_purge_drops_old_rows(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    # 直接 SQL で「100 日前の行」を捏造して purge_audit が落とすことを確認。
+    with main.db.connection() as conn:
+        conn.execute(
+            "INSERT INTO audit_log (ts, event, ip, username, detail) "
+            "VALUES (datetime('now', '-100 days'), 'login_failed', '1.1.1.1', 'old', '')"
+        )
+        conn.execute(
+            "INSERT INTO audit_log (ts, event, ip, username, detail) "
+            "VALUES (datetime('now', '-1 days'), 'login_failed', '1.1.1.1', 'recent', '')"
+        )
+    n = main.db.purge_audit(90)
+    assert n == 1
+    remaining = main.db.recent_audit(limit=10)
+    usernames = [row["username"] for row in remaining]
+    assert "old" not in usernames
+    assert "recent" in usernames
+
+
+def test_purge_with_zero_days_is_noop(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    with main.db.connection() as conn:
+        conn.execute(
+            "INSERT INTO audit_log (ts, event, ip, username) "
+            "VALUES (datetime('now', '-9999 days'), 'login_failed', '1.1.1.1', 'x')"
+        )
+    assert main.db.purge_audit(0) == 0
+    assert len(main.db.recent_audit()) == 1
 
 
 def test_canonical_form_is_sorted_compact_utf8(tmp_path, monkeypatch):

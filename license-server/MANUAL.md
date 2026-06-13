@@ -375,11 +375,31 @@ docker compose exec wordpress tail -f /var/www/html/wp-content/debug.log
   (DB 内) ではなく `define('DRWP_LICENSE_ADMIN_TOKEN', '...')` を
   `wp-config.php` に書く。`DRWP_License::admin_token_source()` が
   `constant` を返すことを確認。
-- **鍵ローテーションを定期実行** — 例: 90 日ごと。ローテーション後は
-  WP 側で公開鍵の再取得 + チェックを忘れずに。
+- **鍵ローテーションを定期実行** — `DRWP_ROTATION_INTERVAL_DAYS` (既定
+  90 日) で 24 時間ごとにチェック + 必要なら自動ローテート。完全に
+  止めたい場合は `0` を指定。ローテーション後は WP 側で公開鍵の再
+  取得 + チェックが行われるので運用は無停止です。
 - **バックアップ** — `data.sqlite3` と `signing.key`、`signing.key.previous.json`
   の 3 ファイル。前者を失うとライセンスを再発行する羽目になり、
   後者を失うと過去の署名が検証できなくなります。
+
+### 9.1 セキュリティ強化用の環境変数
+
+| 変数 | 既定 | 役割 |
+| --- | --- | --- |
+| `DRWP_LOGIN_FAIL_LIMIT` | `10` | この回数を超える失敗ログインを記録した IP は自動遮断（Fail2ban 風） |
+| `DRWP_LOGIN_FAIL_WINDOW` | `300` | 何秒のスライディングウィンドウで失敗回数を見るか |
+| `DRWP_LOGIN_BLOCK_SECONDS` | `600` | 遮断中の `Retry-After` 秒数 |
+| `DRWP_AUDIT_RETENTION_DAYS` | `90` | 監査ログを何日保持するか。`0` で完全保持（自動削除なし） |
+| `DRWP_AUDIT_SUCCESS` | `1` | `0` にするとログイン成功は記録しない（失敗のみ） |
+| `DRWP_ROTATION_INTERVAL_DAYS` | `90` | 署名鍵の自動ローテート間隔。`0` で停止 |
+| `DRWP_ROTATION_CHECK_HOURS` | `24` | チェック頻度（時間） |
+| `DRWP_TRUST_PROXY` | `0` | `1` で `X-Forwarded-For` の先頭 IP を監査ログに採用。前段がプロキシのときだけ有効化 |
+
+監査ログ (`audit_log` テーブル) には `login_failed` / `login_success` /
+`login_blocked` / `signing_rotated_auto` / `signing_rotated_manual` の
+イベントが記録され、管理画面 → 「サーバー設定」の最下段に直近 30 件が
+表示されます。
 
 ---
 
