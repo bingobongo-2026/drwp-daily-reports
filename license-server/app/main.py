@@ -1,4 +1,6 @@
+import asyncio
 import io
+import logging
 import os
 import secrets
 import zipfile
@@ -12,6 +14,8 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from . import db, signing
+
+log = logging.getLogger("drwp.license")
 
 app = FastAPI(title="Nippoman License Server v1.9")
 
@@ -52,8 +56,27 @@ def _status_label(slug: str) -> str:
     return _STATUS_LABELS.get(s, str(slug))
 
 
+# 監査ログイベント slug → 日本語ラベル。テンプレート側は
+# `{{ event|audit_label }}` で参照する。未知の slug は素通し。
+_AUDIT_EVENT_LABELS = {
+    "login_failed":           "ログイン失敗",
+    "login_blocked":          "ログイン遮断（連続失敗）",
+    "login_success":          "ログイン成功",
+    "signing_rotated_auto":   "署名鍵 自動ローテート",
+    "signing_rotated_manual": "署名鍵 手動ローテート",
+}
+
+
+def _audit_label(slug: str) -> str:
+    if slug is None:
+        return ""
+    s = str(slug).strip().lower()
+    return _AUDIT_EVENT_LABELS.get(s, str(slug))
+
+
 templates.env.filters["plan_label"] = _plan_label
 templates.env.filters["status_label"] = _status_label
+templates.env.filters["audit_label"] = _audit_label
 
 _FLASH = {
     "created": ("作成しました。", "ok"),
@@ -118,33 +141,88 @@ def _bump_admin_token_version() -> None:
     db.set_setting("admin_token_version", str(v))
 
 
+# --- 失敗ログイン用のレート制限 -----------------------------------------
+# Fail2ban 風の挙動: 同一 IP からの失敗ログインが LIMITER_THRESHOLD 回 /
+# LIMITER_WINDOW_SEC 秒を超えたら、LIMITER_BLOCK_SEC 秒間は require_admin
+# が即 429 を返すようにする。SQLite に既に書き込んでいる失敗ログを
+# そのままカウンタとして再利用するので、別途キャッシュは要らない。
+LIMITER_THRESHOLD = int(os.environ.get("DRWP_LOGIN_FAIL_LIMIT", "10"))
+LIMITER_WINDOW_SEC = int(os.environ.get("DRWP_LOGIN_FAIL_WINDOW", "300"))
+LIMITER_BLOCK_SEC = int(os.environ.get("DRWP_LOGIN_BLOCK_SECONDS", "600"))
+
+
+def _client_ip(request: Optional[Request]) -> str:
+    """Best-effort caller IP. Honors X-Forwarded-For only when the
+    operator opts in via DRWP_TRUST_PROXY=1, since blindly trusting it
+    when not behind a proxy lets an attacker spoof the audit log."""
+    if request is None:
+        return ""
+    if os.environ.get("DRWP_TRUST_PROXY", "0") == "1":
+        xff = request.headers.get("x-forwarded-for")
+        if xff:
+            return xff.split(",")[0].strip()
+    return request.client.host if request.client else ""
+
+
+def _is_ip_blocked(ip: str) -> bool:
+    if not ip or LIMITER_THRESHOLD <= 0:
+        return False
+    n = db.count_failed_logins_since(ip, LIMITER_BLOCK_SEC)
+    return n >= LIMITER_THRESHOLD
+
+
 def require_admin(
+    request: Request,
     credentials: Optional[HTTPBasicCredentials] = Depends(security),
 ) -> str:
     expected_user = _resolve_admin_username()
     expected_pass = _resolve_admin_token()
+    ip = _client_ip(request)
+    www_auth = {"WWW-Authenticate": f'Basic realm="{_current_realm()}"'}
+
     if not expected_pass:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Admin token not configured",
         )
-    www_auth = {"WWW-Authenticate": f'Basic realm="{_current_realm()}"'}
+
+    # Block before doing any cred comparison so an attacker can't keep
+    # the DB busy with timing-attack attempts after the cap is reached.
+    if _is_ip_blocked(ip):
+        db.log_audit("login_blocked", ip=ip,
+                     detail=f"threshold={LIMITER_THRESHOLD}/{LIMITER_WINDOW_SEC}s")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed login attempts. Try again later.",
+            headers={"Retry-After": str(LIMITER_BLOCK_SEC)},
+        )
+
     if credentials is None:
+        # Anonymous probe / first hit — don't log, browsers spam this
+        # on every page navigation before the dialog is filled in.
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
             headers=www_auth,
         )
+
     # Compare both sides with constant-time digest to avoid timing
     # leaks on the username (rare but cheap to defend against).
     user_ok = secrets.compare_digest(credentials.username, expected_user)
     pass_ok = secrets.compare_digest(credentials.password, expected_pass)
     if not (user_ok and pass_ok):
+        db.log_audit("login_failed", ip=ip, username=credentials.username[:64])
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid admin credentials",
             headers=www_auth,
         )
+
+    # Success — log too, so an operator can see "who logged in when" in
+    # the audit pane. Skip if DRWP_AUDIT_SUCCESS=0 in case someone wants
+    # to keep the table small.
+    if os.environ.get("DRWP_AUDIT_SUCCESS", "1") != "0":
+        db.log_audit("login_success", ip=ip, username=credentials.username[:64])
     return credentials.username
 
 
@@ -487,6 +565,13 @@ def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(re
             "key_created_at": key_created_at,
             "last_rotated_at": db.get_setting("last_rotated_at"),
             "last_backup_at": db.get_setting("last_backup_at"),
+            "rotation_interval_days": ROTATION_INTERVAL_DAYS,
+            "next_rotation_due_at": next_rotation_due_at(),
+            "audit_retention_days": AUDIT_RETENTION_DAYS,
+            "audit_rows": db.recent_audit(limit=30),
+            "limiter_threshold": LIMITER_THRESHOLD,
+            "limiter_window_sec": LIMITER_WINDOW_SEC,
+            "limiter_block_sec": LIMITER_BLOCK_SEC,
             **_flash_ctx(msg),
         },
     )
@@ -533,13 +618,97 @@ def ui_set_admin_token(
 
 
 @app.post("/admin/ui/settings/rotate-signing", include_in_schema=False)
-def ui_rotate_signing(_: str = Depends(require_admin)):
+def ui_rotate_signing(request: Request, _: str = Depends(require_admin)):
     signing.rotate()
     db.set_setting("last_rotated_at", _now_iso())
+    db.log_audit("signing_rotated_manual", ip=_client_ip(request))
     return RedirectResponse(
         "/admin/ui/settings?msg=rotated",
         status_code=status.HTTP_303_SEE_OTHER,
     )
+
+
+# --- 自動定期ローテーション + 監査ログ retention -----------------------
+# 90 日に 1 回、署名鍵を自動でローテートする。チェック自体は 1 日 1 回
+# 走らせて、`last_rotated_at` の経過が閾値を超えていたら rotate を実行。
+# `DRWP_ROTATION_INTERVAL_DAYS=0` で完全停止できる（テスト/手動運用用）。
+ROTATION_INTERVAL_DAYS = int(os.environ.get("DRWP_ROTATION_INTERVAL_DAYS", "90"))
+ROTATION_CHECK_HOURS = int(os.environ.get("DRWP_ROTATION_CHECK_HOURS", "24"))
+AUDIT_RETENTION_DAYS = int(os.environ.get("DRWP_AUDIT_RETENTION_DAYS", "90"))
+
+
+def _last_rotated_age_days() -> float:
+    """Days since last_rotated_at. Falls back to the signing key file's
+    mtime when the setting hasn't been set yet (i.e. fresh install)."""
+    last = db.get_setting("last_rotated_at")
+    if last:
+        try:
+            last_dt = datetime.fromisoformat(last.replace("Z", "+00:00"))
+            return (datetime.now(timezone.utc) - last_dt).total_seconds() / 86400.0
+        except ValueError:
+            return float("inf")
+    path = signing._key_path()
+    if os.path.exists(path):
+        import time as _t
+        return max(0.0, (_t.time() - os.path.getmtime(path)) / 86400.0)
+    return 0.0
+
+
+def next_rotation_due_at() -> Optional[str]:
+    """ISO timestamp of when the cron will next consider rotating. Used
+    by the settings page to show the operator what's queued."""
+    if ROTATION_INTERVAL_DAYS <= 0:
+        return None
+    last = db.get_setting("last_rotated_at")
+    base = None
+    if last:
+        try:
+            base = datetime.fromisoformat(last.replace("Z", "+00:00"))
+        except ValueError:
+            base = None
+    if base is None:
+        path = signing._key_path()
+        if os.path.exists(path):
+            base = datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc)
+    if base is None:
+        return None
+    from datetime import timedelta
+    return (base + timedelta(days=ROTATION_INTERVAL_DAYS)).isoformat(timespec="seconds")
+
+
+async def _maintenance_loop():
+    """Background loop — signing rotation check + audit log purge.
+    Runs as a single asyncio task started at app startup. Wrapped in
+    try/except so a SQLite hiccup on a remote-mounted disk doesn't
+    silently kill the loop forever."""
+    while True:
+        try:
+            if ROTATION_INTERVAL_DAYS > 0:
+                age = _last_rotated_age_days()
+                if age >= ROTATION_INTERVAL_DAYS:
+                    await asyncio.to_thread(signing.rotate)
+                    db.set_setting("last_rotated_at", _now_iso())
+                    db.log_audit(
+                        "signing_rotated_auto",
+                        detail=f"auto rotation after {age:.0f} days "
+                               f"(interval={ROTATION_INTERVAL_DAYS}d)",
+                    )
+                    log.info("signing key auto-rotated after %.0f days", age)
+            if AUDIT_RETENTION_DAYS > 0:
+                deleted = db.purge_audit(AUDIT_RETENTION_DAYS)
+                if deleted:
+                    log.info("audit purge removed %d rows", deleted)
+        except Exception:
+            log.exception("maintenance loop iteration failed")
+        await asyncio.sleep(max(ROTATION_CHECK_HOURS, 1) * 3600)
+
+
+@app.on_event("startup")
+async def _on_startup() -> None:
+    # 0 disables (tests / one-shot scripts). Any positive value starts
+    # the background task.
+    if ROTATION_INTERVAL_DAYS > 0 or AUDIT_RETENTION_DAYS > 0:
+        asyncio.create_task(_maintenance_loop())
 
 
 # --- Backup / restore ------------------------------------------------------

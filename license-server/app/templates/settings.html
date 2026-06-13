@@ -69,6 +69,10 @@
   <table style="width:auto;margin-bottom:12px;">
     <tr><th style="text-align:right;padding-right:14px;">現在の鍵ファイル日時</th><td class="mono">{{ key_created_at or '-' }}</td></tr>
     <tr><th style="text-align:right;padding-right:14px;">最後のローテート</th><td class="mono">{{ last_rotated_at or '（未ローテート）' }}</td></tr>
+    <tr><th style="text-align:right;padding-right:14px;">自動ローテート間隔</th>
+        <td class="mono">{% if rotation_interval_days > 0 %}{{ rotation_interval_days }} 日{% else %}無効（手動のみ）{% endif %}</td></tr>
+    <tr><th style="text-align:right;padding-right:14px;">次回の自動ローテート予定</th>
+        <td class="mono">{{ next_rotation_due_at or '-' }}</td></tr>
   </table>
   <p><strong>現在の公開鍵:</strong></p>
   <p class="mono" style="background:#f1f5f9;padding:8px 10px;border-radius:6px;word-break:break-all;">
@@ -76,8 +80,51 @@
   </p>
   <form method="post" action="/admin/ui/settings/rotate-signing"
         onsubmit="return confirm('署名鍵をローテートします。続行しますか？');">
-    <button type="submit" class="btn danger">署名鍵をローテート</button>
+    <button type="submit" class="btn danger">署名鍵をいま手動でローテート</button>
   </form>
+  <p class="muted" style="margin-top:8px;font-size:.85em;">
+    自動ローテート間隔は環境変数 <code>DRWP_ROTATION_INTERVAL_DAYS</code> で設定します（既定 90 日、<code>0</code> で無効）。
+  </p>
+</div>
+
+<div class="card">
+  <h2>管理アクセス監査ログ</h2>
+  <p class="muted">
+    管理画面 / 管理 API へのログイン試行と署名鍵ローテートを記録します。
+    同一 IP から <strong>{{ limiter_threshold }} 回 / {{ limiter_window_sec }} 秒</strong> 以上の失敗で
+    <strong>{{ (limiter_block_sec / 60)|round(0)|int }} 分</strong> 自動遮断（Fail2ban 風）。
+    保存期間は <strong>{{ audit_retention_days }} 日</strong> で、24 時間ごとに古い行が自動削除されます。
+  </p>
+  {% if audit_rows %}
+  <table>
+    <thead>
+      <tr>
+        <th>日時 (UTC)</th>
+        <th>イベント</th>
+        <th>IP</th>
+        <th>ユーザー名</th>
+        <th>備考</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in audit_rows %}
+        <tr>
+          <td class="mono" style="white-space:nowrap;">{{ r.ts }}</td>
+          <td>
+            <span class="pill {% if r.event in ('login_failed', 'login_blocked') %}inactive{% elif r.event == 'login_success' %}active{% endif %}">
+              {{ r.event|audit_label }}
+            </span>
+          </td>
+          <td class="mono">{{ r.ip or '-' }}</td>
+          <td>{{ r.username or '-' }}</td>
+          <td class="muted">{{ r.detail or '' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">記録はまだありません。</p>
+  {% endif %}
 </div>
 
 <div class="card">
