@@ -562,8 +562,40 @@ $can_review = current_user_can('edit_others_posts');
     opts = opts || {}; opts.credentials = 'same-origin';
     opts.headers = Object.assign({'X-WP-Nonce': rest.nonce}, opts.headers || {});
     return fetch(rest.url + path, opts).then(function (r) {
-      return r.json().then(function (j) { if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status); return j; });
+      return r.json().then(function (j) {
+        if (!r.ok) {
+          // Preserve the WP_Error code + data so callers can branch on
+          // specific failures (e.g. license inactive → render a link
+          // straight to the settings page instead of a flat message).
+          var e = new Error(j.message || 'HTTP ' + r.status);
+          e.code = j.code || '';
+          e.data = j.data || {};
+          throw e;
+        }
+        return j;
+      });
     });
+  }
+
+  // ライセンス無効時は本文を「お決まりの 1 文」に差し替えて、
+  // 横に「ライセンス設定を開く」ボタンを並べる。これで「何が起きて
+  // どう直せばよいか」が 1 行で完結する。
+  function renderApiError(target, err) {
+    target.innerHTML = '';
+    if (err && err.code === 'drwp_license' && err.data && err.data.settings_url) {
+      var msg = document.createElement('span');
+      msg.textContent = '<?php echo esc_js(__('ライセンスがアクティブではありません。ライセンスサーバの状態を確認してください。', 'drwp-daily-reports')); ?>';
+      msg.style.color = '#991b1b';
+      target.appendChild(msg);
+      var link = document.createElement('a');
+      link.href = err.data.settings_url;
+      link.className = 'button button-small';
+      link.style.marginLeft = '8px';
+      link.textContent = '<?php echo esc_js(__('ライセンス設定を開く', 'drwp-daily-reports')); ?>';
+      target.appendChild(link);
+      return;
+    }
+    target.textContent = err && err.message ? err.message : '';
   }
   function formatDate(d){
     if(!d) return '';
@@ -684,8 +716,8 @@ $can_review = current_user_can('edit_others_posts');
         statusBadge.className = 'drwp-page-status is-' + newStatus;
         loadComments(id);
       }).catch(function (err) {
-        msg.textContent = err.message;
         msg.style.color = '#991b1b';
+        renderApiError(msg, err);
         reviewBtn.disabled = false;
       });
     });
@@ -799,7 +831,7 @@ $can_review = current_user_can('edit_others_posts');
         photosEl.appendChild(renderEditPhoto(p.attachment_id, p.url, p.caption || ''));
       });
     }).catch(function (err) {
-      document.getElementById('drwp-edit-status').textContent = err.message;
+      renderApiError(document.getElementById('drwp-edit-status'), err);
     });
   }
 
@@ -828,7 +860,7 @@ $can_review = current_user_can('edit_others_posts');
         attachment_captions: caps
       })
     }).then(function () { editDlg.close(); location.reload(); })
-      .catch(function (err) { st.textContent = err.message; self.disabled = false; });
+      .catch(function (err) { renderApiError(st, err); self.disabled = false; });
   });
 
   /* ---- テーブルクリック委譲 ---- */
