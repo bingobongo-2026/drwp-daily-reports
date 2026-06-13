@@ -401,8 +401,38 @@
       opts=opts||{};opts.credentials='same-origin';
       opts.headers=Object.assign({'X-WP-Nonce':rest.nonce},opts.headers||{});
       return fetch(rest.url+path,opts).then(function(r){
-        return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'HTTP '+r.status);return j;});
+        return r.json().then(function(j){
+          if (!r.ok) {
+            // WP_Error の code / data を JS 側でも参照できるようにして、
+            // ライセンスエラー時にはインラインで「設定を開く」ボタンを
+            // 出せるようにする。
+            var er = new Error(j.message || 'HTTP ' + r.status);
+            er.code = j.code || '';
+            er.data = j.data || {};
+            throw er;
+          }
+          return j;
+        });
       });
+    }
+
+    function renderApiError(target, err) {
+      target.innerHTML = '';
+      if (err && err.code === 'drwp_license' && err.data && err.data.settings_url) {
+        var msg = document.createElement('span');
+        msg.textContent = '<?php echo esc_js(__('ライセンスがアクティブではありません。ライセンスサーバの状態を確認してください。', 'drwp-daily-reports')); ?>';
+        msg.style.color = '#991b1b';
+        target.appendChild(msg);
+        var link = document.createElement('a');
+        link.href = err.data.settings_url;
+        link.className = 'button button-small';
+        link.style.marginLeft = '8px';
+        link.textContent = '<?php echo esc_js(__('ライセンス設定を開く', 'drwp-daily-reports')); ?>';
+        target.appendChild(link);
+        return;
+      }
+      target.style.color = '#991b1b';
+      target.textContent = err && err.message ? err.message : '';
     }
 
     var editorId='drwp-conv-body';
@@ -543,7 +573,7 @@
           scheduled_at:document.getElementById('drwp-conv-scheduled').value||null
         })
       }).then(function(){dlg.close();location.reload();})
-        .catch(function(err){st.textContent=err.message;st.style.color='#991b1b';self.disabled=false;});
+        .catch(function(err){renderApiError(st,err);self.disabled=false;});
     });
   })();
   </script>
