@@ -413,7 +413,7 @@ class DRWP_User {
 
     public static function render_page() {
         if (!current_user_can(self::CAP_MANAGE)) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
         $workers = self::workers_with_stats();
         $filter  = isset($_GET['view']) ? sanitize_key((string) $_GET['view']) : 'active';
@@ -443,7 +443,7 @@ class DRWP_User {
      */
     public static function handle_save_worker() {
         if (!current_user_can(self::CAP_MANAGE)) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
         check_admin_referer('drwp_save_worker');
         $user_id = absint($_POST['user_id'] ?? 0);
@@ -482,7 +482,7 @@ class DRWP_User {
 
     public static function handle_set_retired() {
         if (!current_user_can(self::CAP_MANAGE)) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
         check_admin_referer('drwp_set_retired');
         $user_id = absint($_POST['user_id'] ?? 0);

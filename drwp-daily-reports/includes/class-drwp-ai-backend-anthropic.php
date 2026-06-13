@@ -52,7 +52,11 @@ class DRWP_AI_Backend_Anthropic implements DRWP_AI_Backend {
         if (is_wp_error($r)) return $r;
         $code = wp_remote_retrieve_response_code($r);
         if ($code !== 200) {
-            return new WP_Error('drwp_ai_http', 'HTTP ' . $code . ': ' . wp_remote_retrieve_body($r));
+            return new WP_Error('drwp_ai_http', sprintf(
+                /* translators: 1: HTTP status code, 2: raw response body */
+                __('AI API 呼び出しに失敗しました (HTTP %1$d): %2$s', 'drwp-daily-reports'),
+                (int) $code, wp_remote_retrieve_body($r)
+            ));
         }
         $data = json_decode(wp_remote_retrieve_body($r), true);
         $text = '';
@@ -84,7 +88,11 @@ class DRWP_AI_Backend_Anthropic implements DRWP_AI_Backend {
         if (is_wp_error($r)) return $r;
         $code = wp_remote_retrieve_response_code($r);
         if ($code !== 200) {
-            return new WP_Error('drwp_ai_http', 'HTTP ' . $code . ': ' . wp_remote_retrieve_body($r));
+            return new WP_Error('drwp_ai_http', sprintf(
+                /* translators: 1: HTTP status code, 2: raw response body */
+                __('AI API 呼び出しに失敗しました (HTTP %1$d): %2$s', 'drwp-daily-reports'),
+                (int) $code, wp_remote_retrieve_body($r)
+            ));
         }
         // Surface the configured model so the user sees "what worked".
         return ['models' => [$this->model !== '' ? $this->model : 'claude-haiku-4-5-20251001']];

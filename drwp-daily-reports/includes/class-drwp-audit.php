@@ -183,7 +183,7 @@ class DRWP_Audit {
     }
 
     public static function handle_save_retention() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_save_audit_retention');
         // 0 = 永久保存。負の値は禁止、上限は 10 年 (3650 日) — UI で
         // 入力するならこれ以上が必要になることはまずない。
@@ -199,7 +199,7 @@ class DRWP_Audit {
     }
 
     public static function handle_purge_now() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_purge_audit_now');
         $days = self::retention_days();
         $deleted = $days > 0 ? self::purge_older_than($days) : 0;

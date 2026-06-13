@@ -130,7 +130,7 @@ class DRWP_Project_Group {
 
     public static function render_page() {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
         $groups = self::all();
         $counts = self::project_counts();
@@ -155,7 +155,7 @@ class DRWP_Project_Group {
 
     public static function save() {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
         check_admin_referer('drwp_save_project_group');
         global $wpdb;

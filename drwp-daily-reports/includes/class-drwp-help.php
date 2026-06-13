@@ -48,7 +48,7 @@ class DRWP_Help {
 
     public static function render_page() {
         if (!current_user_can(DRWP_Admin::CAP_EDIT)) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
 
         $tabs     = self::tabs();

@@ -136,7 +136,7 @@ class DRWP_Customer_Group {
 
     public static function render_page() {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
         $groups = self::all();
         $counts = self::customer_counts();
@@ -161,7 +161,7 @@ class DRWP_Customer_Group {
 
     public static function save() {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
         check_admin_referer('drwp_save_customer_group');
         global $wpdb;

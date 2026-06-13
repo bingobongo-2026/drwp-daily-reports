@@ -11,13 +11,13 @@ class DRWP_License_Admin {
     }
 
     public static function render_page() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         $license = DRWP_License::state();
         include DRWP_PATH . 'admin/views/license-page.php';
     }
 
     public static function save() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_save_license');
 
         // Only update the token when the field is present in the POST body.
@@ -40,7 +40,7 @@ class DRWP_License_Admin {
     }
 
     public static function check() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_check_license');
         $result = DRWP_License::check_now();
         $flag = is_wp_error($result) ? 'error' : 'checked';
@@ -49,7 +49,7 @@ class DRWP_License_Admin {
     }
 
     public static function fetch_public_key() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_fetch_public_key');
         $result = DRWP_License::fetch_public_key();
         $flag = is_wp_error($result) ? 'error' : 'key_fetched';
@@ -58,7 +58,7 @@ class DRWP_License_Admin {
     }
 
     public static function rotate() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_rotate_license_key');
         $result = DRWP_License::rotate_key();
         if (is_wp_error($result)) {
@@ -84,7 +84,7 @@ class DRWP_License_Admin {
      * existing flow keeps working.
      */
     public static function write_admin_token_to_wpconfig() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_write_admin_token');
 
         if (defined('DRWP_LICENSE_ADMIN_TOKEN')) {

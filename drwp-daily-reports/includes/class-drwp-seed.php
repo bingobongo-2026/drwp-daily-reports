@@ -343,7 +343,7 @@ class DRWP_Seed {
     /* ---- admin-post handlers ---- */
 
     public static function handle_run() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_seed_run');
         $summary = self::run();
         $url = add_query_arg([
@@ -356,7 +356,7 @@ class DRWP_Seed {
     }
 
     public static function handle_reset() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_seed_reset');
         $r = self::reset();
         $url = add_query_arg([
@@ -370,7 +370,7 @@ class DRWP_Seed {
 
     /** Admin page UI — visible only to manage_options users. */
     public static function render_page() {
-        if (!current_user_can('manage_options')) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         $has = self::has_seed();
         $state = self::state();
         ?>

@@ -138,7 +138,7 @@ class DRWP_Plan {
 
     public static function render_page() {
         if (!current_user_can(self::CAP_LIST)) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
 
         $filters = [
@@ -189,7 +189,7 @@ class DRWP_Plan {
 
     public static function save() {
         if (!current_user_can(self::CAP_LIST)) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
         DRWP_User::block_write_or_die();
         check_admin_referer('drwp_save_plan');
@@ -197,7 +197,7 @@ class DRWP_Plan {
         $id = absint($_POST['id'] ?? 0);
         $existing = $id ? self::find($id) : null;
         if ($id && !self::can_edit($existing)) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
 
         $planned_date = sanitize_text_field((string) wp_unslash($_POST['planned_date'] ?? ''));
@@ -259,14 +259,14 @@ class DRWP_Plan {
 
     public static function delete() {
         if (!current_user_can(self::CAP_LIST)) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
         DRWP_User::block_write_or_die();
         check_admin_referer('drwp_delete_plan');
         $id = absint($_POST['id'] ?? 0);
         $plan = $id ? self::find($id) : null;
         if (!$plan || !self::can_edit($plan)) {
-            wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+            wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
         global $wpdb;
         $wpdb->delete(self::table(), ['id' => $id]);
