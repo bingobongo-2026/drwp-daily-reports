@@ -193,6 +193,15 @@ class DRWP_Plan {
         }
         DRWP_User::block_write_or_die();
         check_admin_referer('drwp_save_plan');
+        // ライセンスが切れている間は新規作成・編集をすべて止める。
+        // 日報 (save_report) と同じく 402 で blocked_message を返す。
+        if (!DRWP_License::can_write()) {
+            wp_die(
+                DRWP_License::blocked_message(__('ライセンス状態により予定を保存できません。', 'drwp-daily-reports')),
+                esc_html__('ライセンス未有効', 'drwp-daily-reports'),
+                ['response' => 402]
+            );
+        }
 
         $id = absint($_POST['id'] ?? 0);
         $existing = $id ? self::find($id) : null;

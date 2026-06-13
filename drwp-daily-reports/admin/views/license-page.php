@@ -2,6 +2,39 @@
 <div class="wrap">
   <h1><?php esc_html_e('ライセンス', 'drwp-daily-reports'); ?></h1>
 
+  <?php
+    // ライセンスが active 以外で、かつ最低限の設定が入っている時に
+    // 「いま照会する」を押してね という促し帯を出す。設定空っぽの時は
+    // まず「設定 → 保存」が先なので、別の文言にする。
+    $is_active = (string) $license['status'] === 'active';
+    $is_configured = ((string) $license['api_url']) !== '' && ((string) $license['license_key']) !== '';
+    if (!$is_active):
+  ?>
+    <div class="notice notice-warning" style="border-left-width:4px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">
+        <p style="margin:0 0 4px;font-weight:600;color:#1d2327;">
+          <?php esc_html_e('ライセンスがアクティブではありません。', 'drwp-daily-reports'); ?>
+        </p>
+        <p style="margin:0;color:#50575e;">
+          <?php if ($is_configured): ?>
+            <?php esc_html_e('最新の状態を取得するため、下の「いま照会する」を押してください。それでも有効にならない場合は、ライセンスサーバ側の状態（停止 / 期限切れ）を確認してください。', 'drwp-daily-reports'); ?>
+          <?php else: ?>
+            <?php esc_html_e('まず上のフォームで API URL とライセンスキーを保存してから「いま照会する」を押してください。', 'drwp-daily-reports'); ?>
+          <?php endif; ?>
+        </p>
+      </div>
+      <?php if ($is_configured): ?>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin:0;">
+          <?php wp_nonce_field('drwp_check_license'); ?>
+          <input type="hidden" name="action" value="drwp_check_license" />
+          <button type="submit" class="button button-primary">
+            <?php esc_html_e('いま照会する', 'drwp-daily-reports'); ?>
+          </button>
+        </form>
+      <?php endif; ?>
+    </div>
+  <?php endif; ?>
+
   <?php if (!empty($_GET['saved'])): ?>
     <div class="notice notice-success"><p><?php esc_html_e('設定を保存しました。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>
