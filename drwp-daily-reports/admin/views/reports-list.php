@@ -113,6 +113,15 @@ $can_review = current_user_can('edit_others_posts');
         <input type="date" name="date_from" value="<?php echo esc_attr($filters['date_from']); ?>" />
         <span>〜</span>
         <input type="date" name="date_to" value="<?php echo esc_attr($filters['date_to']); ?>" />
+        <label for="drwp-per-page" style="margin-left:6px;"><?php esc_html_e('表示件数', 'drwp-daily-reports'); ?></label>
+        <select name="per_page" id="drwp-per-page">
+          <?php foreach (DRWP_Admin::PER_PAGE_CHOICES as $choice): ?>
+            <option value="<?php echo (int) $choice; ?>" <?php selected((int) $per_page, (int) $choice); ?>>
+              <?php /* translators: %d is the per-page row count */
+                    printf(esc_html__('%d 件', 'drwp-daily-reports'), (int) $choice); ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
         <button class="button button-primary"><?php esc_html_e('検索', 'drwp-daily-reports'); ?></button>
         <a class="button-link" href="<?php echo esc_url(admin_url('admin.php?page=drwp_reports')); ?>"><?php esc_html_e('クリア', 'drwp-daily-reports'); ?></a>
       </div>
@@ -128,6 +137,41 @@ $can_review = current_user_can('edit_others_posts');
     ?>
   </p>
 
+  <?php
+    // 「絞り込まれた全件を CSV 出力」 — チェックボックスでの選択
+    // とは独立した GET 送信。現在の絞り込みクエリをそのまま
+    // export エンドポイントに渡す。HTML 上は一括操作フォームの
+    // 外に出して入れ子 form を避ける。
+    $csv_query = array_filter([
+        's'                 => $filters['search'],
+        'review_status'     => $filters['review_status'],
+        'project_id'        => $filters['project_id'] ?: '',
+        'user_id'           => $filters['user_id'] ?? '' ?: '',
+        'customer_group_id' => $filters['customer_group_id'] ?? '' ?: '',
+        'project_group_id'  => $filters['project_group_id'] ?? '' ?: '',
+        'date_from'         => $filters['date_from'],
+        'date_to'           => $filters['date_to'],
+    ], function ($v) { return $v !== '' && $v !== 0; });
+  ?>
+  <div class="drwp-export-inline">
+    <form method="get" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;margin:0;">
+      <input type="hidden" name="action" value="drwp_export_reports_csv" />
+      <?php wp_nonce_field('drwp_export_reports_csv'); ?>
+      <?php foreach ($csv_query as $k => $v): ?>
+        <input type="hidden" name="<?php echo esc_attr($k); ?>" value="<?php echo esc_attr($v); ?>" />
+      <?php endforeach; ?>
+      <button type="submit" class="button" <?php disabled((int) $total === 0); ?>>
+        ⬇ <?php esc_html_e('絞り込み中の全件をCSV出力', 'drwp-daily-reports'); ?>
+      </button>
+    </form>
+    <span class="description" style="font-size:.85em;color:#64748b;">
+      <?php
+        /* translators: %d is the matched row count for the CSV export */
+        printf(esc_html__('対象: %d 件（Shift-JIS）', 'drwp-daily-reports'), (int) $total);
+      ?>
+    </span>
+  </div>
+
   <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
     <?php wp_nonce_field('drwp_bulk_reports'); ?>
     <input type="hidden" name="action" value="drwp_bulk_reports" />
@@ -139,7 +183,6 @@ $can_review = current_user_can('edit_others_posts');
         <option value=""><?php esc_html_e('操作を選択', 'drwp-daily-reports'); ?></option>
         <option value="bulk_approve"><?php esc_html_e('一括承認', 'drwp-daily-reports'); ?></option>
         <option value="bulk_revision"><?php esc_html_e('一括差し戻し', 'drwp-daily-reports'); ?></option>
-        <option value="bulk_export_csv"><?php esc_html_e('選択した日報をCSV出力', 'drwp-daily-reports'); ?></option>
       </select>
       <button class="button"><?php esc_html_e('実行', 'drwp-daily-reports'); ?></button>
     </div>
@@ -199,10 +242,12 @@ $can_review = current_user_can('edit_others_posts');
                       's'                 => $filters['search'],
                       'review_status'     => $filters['review_status'],
                       'project_id'        => $filters['project_id'] ?: '',
+                      'user_id'           => $filters['user_id'] ?? '' ?: '',
                       'customer_group_id' => $filters['customer_group_id'] ?? '' ?: '',
                       'project_group_id'  => $filters['project_group_id'] ?? '' ?: '',
                       'date_from'         => $filters['date_from'],
                       'date_to'           => $filters['date_to'],
+                      'per_page'          => ((int) $per_page === DRWP_Admin::PER_PAGE) ? '' : (int) $per_page,
                   ],
                   function ($v) { return $v !== '' && $v !== 0; }
               )
@@ -425,6 +470,10 @@ $can_review = current_user_can('edit_others_posts');
 /* 一括操作 — もうカードにしない。テーブル直上のインライン行で十分。 */
 .drwp-bulk-inline{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 0;font-size:.92em;color:#475569}
 .drwp-bulk-inline label{font-weight:600;color:#1d2327}
+
+/* CSV 出力 — チェックボックス選択とは切り離して、絞り込み中の
+   全件を 1 ボタンで吐けるようにする。 */
+.drwp-export-inline{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-bottom:6px;padding:4px 0}
 
 .drwp-counter-line{margin:8px 0;color:#64748b;font-size:.9em}
 

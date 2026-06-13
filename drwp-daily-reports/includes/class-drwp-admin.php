@@ -6,6 +6,9 @@ class DRWP_Admin {
     const CAP_REVIEW = 'edit_others_posts';
     const CAP_CONVERT = 'publish_posts';
     const PER_PAGE = 25;
+    // 表示件数の選択肢。25 を既定にしつつ、現場担当者がもう少し
+    // 一覧性を上げたい時に 50/75/100 まで広げられるよう用意する。
+    const PER_PAGE_CHOICES = [25, 50, 75, 100];
 
     public static function init() {
         add_action('admin_menu', [__CLASS__, 'menu']);
@@ -14,8 +17,15 @@ class DRWP_Admin {
         add_action('admin_post_drwp_save_report', [__CLASS__, 'save_report']);
         add_action('admin_post_drwp_bulk_reports', [__CLASS__, 'bulk_reports']);
         add_action('admin_post_drwp_convert_single', [__CLASS__, 'convert_single']);
+        add_action('admin_post_drwp_export_reports_csv', [__CLASS__, 'export_filtered_csv']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue']);
         add_action('admin_notices', [__CLASS__, 'license_notice']);
+    }
+
+    /** Validate per_page against the allowed choices (defaults to 25). */
+    private static function parse_per_page($req) {
+        $raw = isset($req['per_page']) ? (int) $req['per_page'] : self::PER_PAGE;
+        return in_array($raw, self::PER_PAGE_CHOICES, true) ? $raw : self::PER_PAGE;
     }
 
     /**
@@ -290,23 +300,29 @@ class DRWP_Admin {
         return (int) $report->user_id === get_current_user_id();
     }
 
-    public static function reports_page() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
-        global $wpdb;
-        $table = self::reports_table();
-
-        $filters = [
-            'search'        => isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '',
-            'review_status' => isset($_GET['review_status']) ? sanitize_text_field(wp_unslash($_GET['review_status'])) : '',
-            'post_status'   => isset($_GET['post_status']) ? sanitize_text_field(wp_unslash($_GET['post_status'])) : '',
-            'project_id'    => isset($_GET['project_id']) ? absint($_GET['project_id']) : 0,
-            'user_id'       => isset($_GET['user_id']) ? absint($_GET['user_id']) : 0,
-            'customer_group_id' => isset($_GET['customer_group_id']) ? absint($_GET['customer_group_id']) : (isset($_GET['group_id']) ? absint($_GET['group_id']) : 0),
-            'project_group_id'  => isset($_GET['project_group_id']) ? absint($_GET['project_group_id']) : 0,
-            'date_from'     => isset($_GET['date_from']) ? sanitize_text_field(wp_unslash($_GET['date_from'])) : '',
-            'date_to'       => isset($_GET['date_to']) ? sanitize_text_field(wp_unslash($_GET['date_to'])) : '',
+    /** Read 日報一覧 filter values from $_GET / $_POST into a normalized array. */
+    private static function read_reports_filters($req) {
+        return [
+            'search'        => isset($req['s']) ? sanitize_text_field(wp_unslash($req['s'])) : '',
+            'review_status' => isset($req['review_status']) ? sanitize_text_field(wp_unslash($req['review_status'])) : '',
+            'post_status'   => isset($req['post_status']) ? sanitize_text_field(wp_unslash($req['post_status'])) : '',
+            'project_id'    => isset($req['project_id']) ? absint($req['project_id']) : 0,
+            'user_id'       => isset($req['user_id']) ? absint($req['user_id']) : 0,
+            'customer_group_id' => isset($req['customer_group_id']) ? absint($req['customer_group_id']) : (isset($req['group_id']) ? absint($req['group_id']) : 0),
+            'project_group_id'  => isset($req['project_group_id']) ? absint($req['project_group_id']) : 0,
+            'date_from'     => isset($req['date_from']) ? sanitize_text_field(wp_unslash($req['date_from'])) : '',
+            'date_to'       => isset($req['date_to']) ? sanitize_text_field(wp_unslash($req['date_to'])) : '',
         ];
+    }
 
+    /**
+     * Build the WHERE clause + bound args used by both 日報一覧 と
+     * 絞り込み CSV エクスポート. Honors the same visibility scope as
+     * `reports_page()` so a worker can never export rows they
+     * couldn't see in the list.
+     */
+    private static function build_reports_query(array $filters) {
+        global $wpdb;
         $where = '1=1';
         $args = [];
         if (!current_user_can(self::CAP_REVIEW)) {
@@ -322,7 +338,7 @@ class DRWP_Admin {
             $where .= ' AND review_status = %s';
             $args[] = $filters['review_status'];
         }
-        if ($filters['post_status'] !== '') {
+        if (!empty($filters['post_status'])) {
             $where .= ' AND post_status = %s';
             $args[] = $filters['post_status'];
         }
@@ -330,7 +346,7 @@ class DRWP_Admin {
             $where .= ' AND project_id = %d';
             $args[] = $filters['project_id'];
         }
-        if ($filters['customer_group_id']) {
+        if (!empty($filters['customer_group_id'])) {
             // 顧客グループ resolves to the list of project IDs whose
             // customer belongs to the group. Empty list → no match
             // (`0=1`) so the filter doesn't silently drop and show
@@ -344,7 +360,7 @@ class DRWP_Admin {
                 foreach ($cg_projects as $pid) $args[] = $pid;
             }
         }
-        if ($filters['project_group_id']) {
+        if (!empty($filters['project_group_id'])) {
             // 案件グループ resolves directly off the project_group_map
             // (no JOIN through 顧客). Same zero-row guard.
             $pg_projects = DRWP_Project_Group::project_ids_for_group($filters['project_group_id']);
@@ -368,6 +384,18 @@ class DRWP_Admin {
             $where .= ' AND user_id = %d';
             $args[] = $filters['user_id'];
         }
+        return [$where, $args];
+    }
+
+    public static function reports_page() {
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        global $wpdb;
+        $table = self::reports_table();
+
+        $filters = self::read_reports_filters($_GET);
+        list($where, $args) = self::build_reports_query($filters);
+
+        $per_page = self::parse_per_page($_GET);
 
         $count_sql = "SELECT COUNT(*) FROM $table WHERE $where";
         $total = $args
@@ -375,13 +403,13 @@ class DRWP_Admin {
             : (int) $wpdb->get_var($count_sql);
 
         $paged = max(1, (int) ($_GET['paged'] ?? 1));
-        $pages = max(1, (int) ceil($total / self::PER_PAGE));
+        $pages = max(1, (int) ceil($total / $per_page));
         if ($paged > $pages) $paged = $pages;
-        $offset = ($paged - 1) * self::PER_PAGE;
+        $offset = ($paged - 1) * $per_page;
 
         $sql = "SELECT * FROM $table WHERE $where ORDER BY report_date DESC, id DESC LIMIT %d OFFSET %d";
         $query_args = $args;
-        $query_args[] = self::PER_PAGE;
+        $query_args[] = $per_page;
         $query_args[] = $offset;
         $reports = $wpdb->get_results($wpdb->prepare($sql, $query_args));
 
@@ -417,6 +445,8 @@ class DRWP_Admin {
         $customer_groups = DRWP_Customer_Group::all(true);
         $project_groups  = DRWP_Project_Group::all(true);
 
+        // $per_page はビュー側でセレクトボックスとページネーション
+        // リンクの両方で参照する。
         include DRWP_PATH . 'admin/views/reports-list.php';
     }
 
@@ -670,6 +700,36 @@ class DRWP_Admin {
         nocache_headers();
         // Shift-JIS (CP932) で出力。Excel 日本語版でダブルクリックで
         // 開いた際の文字化けを避けるため、SJIS-win に変換してから書く。
+        header('Content-Type: text/csv; charset=Shift_JIS');
+        header('Content-Disposition: attachment; filename="drwp-reports-' . gmdate('Ymd-His') . '.csv"');
+        $out = fopen('php://output', 'w');
+        $header = ['id', 'report_date', 'review_status', 'public_title', 'post_template', 'post_category_id', 'post_tags', 'post_status', 'scheduled_at', 'linked_post_id', 'work_description'];
+        self::fputcsv_sjis($out, $header);
+        foreach ($rows as $row) self::fputcsv_sjis($out, $row);
+        fclose($out);
+        exit;
+    }
+
+    /**
+     * 絞り込み条件にマッチする日報全件を Shift-JIS の CSV で出力する。
+     * 「選択した行」ではなく「絞り込まれた全件」が対象 — 一括操作
+     * ドロップダウンと用途を分けるための独立エンドポイント。
+     */
+    public static function export_filtered_csv() {
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('forbidden', 'drwp-daily-reports'));
+        check_admin_referer('drwp_export_reports_csv');
+
+        global $wpdb;
+        $table = self::reports_table();
+        $filters = self::read_reports_filters($_GET);
+        list($where, $args) = self::build_reports_query($filters);
+
+        $sql = "SELECT id, report_date, review_status, public_title, post_template, post_category_id, post_tags, post_status, scheduled_at, linked_post_id, work_description FROM $table WHERE $where ORDER BY report_date DESC, id DESC";
+        $rows = $args
+            ? $wpdb->get_results($wpdb->prepare($sql, $args), ARRAY_A)
+            : $wpdb->get_results($sql, ARRAY_A);
+
+        nocache_headers();
         header('Content-Type: text/csv; charset=Shift_JIS');
         header('Content-Disposition: attachment; filename="drwp-reports-' . gmdate('Ymd-His') . '.csv"');
         $out = fopen('php://output', 'w');
