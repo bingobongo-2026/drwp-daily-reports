@@ -668,14 +668,27 @@ class DRWP_Admin {
         $sql = "SELECT id, report_date, review_status, public_title, post_template, post_category_id, post_tags, post_status, scheduled_at, linked_post_id, work_description FROM $table WHERE $scope_sql ORDER BY id DESC";
         $rows = $wpdb->get_results($wpdb->prepare($sql, $scope_args), ARRAY_A);
         nocache_headers();
-        header('Content-Type: text/csv; charset=UTF-8');
+        // Shift-JIS (CP932) で出力。Excel 日本語版でダブルクリックで
+        // 開いた際の文字化けを避けるため、SJIS-win に変換してから書く。
+        header('Content-Type: text/csv; charset=Shift_JIS');
         header('Content-Disposition: attachment; filename="drwp-reports-' . gmdate('Ymd-His') . '.csv"');
         $out = fopen('php://output', 'w');
-        fwrite($out, "\xEF\xBB\xBF");
         $header = ['id', 'report_date', 'review_status', 'public_title', 'post_template', 'post_category_id', 'post_tags', 'post_status', 'scheduled_at', 'linked_post_id', 'work_description'];
-        fputcsv($out, $header);
-        foreach ($rows as $row) fputcsv($out, $row);
+        self::fputcsv_sjis($out, $header);
+        foreach ($rows as $row) self::fputcsv_sjis($out, $row);
         fclose($out);
         exit;
+    }
+
+    /**
+     * fputcsv のラッパー — 各セルを UTF-8 → SJIS-win (CP932) に変換
+     * してから書き出す。SJIS-win は ① ～ 髙 などの Windows 拡張文字
+     * も拾えるので Excel での読み込み事故が起きにくい。
+     */
+    private static function fputcsv_sjis($handle, array $row) {
+        $sjis = array_map(static function ($v) {
+            return mb_convert_encoding((string) $v, 'SJIS-win', 'UTF-8');
+        }, $row);
+        fputcsv($handle, $sjis);
     }
 }

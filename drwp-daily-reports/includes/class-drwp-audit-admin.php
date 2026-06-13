@@ -33,13 +33,19 @@ class DRWP_Audit_Admin {
         $rows = DRWP_Audit::search($filters, 5000, 0);
 
         nocache_headers();
-        header('Content-Type: text/csv; charset=UTF-8');
+        // Shift-JIS (CP932) で出力 — 日報 CSV と挙動を揃える。
+        header('Content-Type: text/csv; charset=Shift_JIS');
         header('Content-Disposition: attachment; filename="drwp-audit-' . gmdate('Ymd-His') . '.csv"');
         $out = fopen('php://output', 'w');
-        fwrite($out, "\xEF\xBB\xBF");
-        fputcsv($out, ['id', 'created_at', 'event', 'user', 'report_id', 'message', 'meta_json']);
+        $put = static function ($row) use ($out) {
+            $sjis = array_map(static function ($v) {
+                return mb_convert_encoding((string) $v, 'SJIS-win', 'UTF-8');
+            }, $row);
+            fputcsv($out, $sjis);
+        };
+        $put(['id', 'created_at', 'event', 'user', 'report_id', 'message', 'meta_json']);
         foreach ($rows as $row) {
-            fputcsv($out, [
+            $put([
                 (int) $row['id'],
                 (string) $row['created_at'],
                 (string) $row['event'],
