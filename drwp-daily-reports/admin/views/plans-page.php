@@ -258,6 +258,7 @@ $is_retired = DRWP_User::is_retired();
         <button type="button" class="button drwp-plan-modal-close">
           <?php esc_html_e('キャンセル', 'drwp-daily-reports'); ?>
         </button>
+        <span id="drwp-plan-save-msg" style="margin-left:10px;font-size:.9em;"></span>
       </div>
     </form>
   </dialog>
@@ -422,6 +423,74 @@ $is_retired = DRWP_User::is_retired();
     if (!window.confirm(deleteConfirm)) return;
     document.getElementById('drwp-plan-delete-id').value = idEl.value;
     document.getElementById('drwp-plan-delete-form').submit();
+  });
+
+  // 保存ボタン: 日報一覧モーダルと同じく REST 経由で保存する。
+  // ライセンス切れ等のエラーは renderApiError でモーダル内インライン
+  // に出す。フォーム送信のフォールバック (JS off) は admin-post 側の
+  // wp_die 経路で従来どおり動く。
+  function renderApiError(target, err) {
+    target.innerHTML = '';
+    if (err && err.code === 'drwp_license' && err.data && err.data.settings_url) {
+      var msg = document.createElement('span');
+      msg.textContent = '<?php echo esc_js(__('ライセンスがアクティブではありません。ライセンスサーバの状態を確認してください。', 'drwp-daily-reports')); ?>';
+      msg.style.color = '#991b1b';
+      target.appendChild(msg);
+      var link = document.createElement('a');
+      link.href = err.data.settings_url;
+      link.className = 'button button-small';
+      link.style.marginLeft = '8px';
+      link.textContent = '<?php echo esc_js(__('ライセンス設定を開く', 'drwp-daily-reports')); ?>';
+      target.appendChild(link);
+      return;
+    }
+    target.style.color = '#991b1b';
+    target.textContent = err && err.message ? err.message : '';
+  }
+
+  var saveMsgEl = document.getElementById('drwp-plan-save-msg');
+  var planForm  = dlg.querySelector('form');
+  planForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    saveMsgEl.innerHTML = '';
+    saveMsgEl.style.color = '';
+    submitEl.disabled = true;
+    var planId  = parseInt(idEl.value, 10) || 0;
+    var payload = {
+      planned_date:     dateEl.value,
+      project_id:       parseInt(projectEl.value, 10) || null,
+      started_at:       startEl.value || null,
+      ended_at:         endEl.value || null,
+      notes:            notesEl.value,
+      status:           statusEl.value || 'active',
+      linked_report_id: parseInt(linkedEl.value, 10) || null,
+    };
+    if (userEl) payload.user_id = parseInt(userEl.value, 10) || null;
+    var url    = planId > 0 ? '/plans/' + planId : '/plans';
+    var method = planId > 0 ? 'PATCH' : 'POST';
+    fetch(rest.url + url, {
+      method: method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': rest.nonce },
+      body: JSON.stringify(payload),
+    }).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok) {
+          var er = new Error(j.message || 'HTTP ' + r.status);
+          er.code = j.code || '';
+          er.data = j.data || {};
+          throw er;
+        }
+        return j;
+      });
+    }).then(function () {
+      // 成功時は admin-post 経由と同じく ?saved=1 にしてリロード。
+      var goto = '<?php echo esc_js(admin_url('admin.php?page=drwp_plans&saved=1')); ?>';
+      window.location.href = goto;
+    }).catch(function (err) {
+      renderApiError(saveMsgEl, err);
+      submitEl.disabled = false;
+    });
   });
 
   dlg.addEventListener('click', function (e) {
