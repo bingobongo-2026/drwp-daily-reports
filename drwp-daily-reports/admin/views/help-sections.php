@@ -248,7 +248,7 @@ case 'faq': ?>
       <p><?php esc_html_e('A. WordPress の通常投稿として作成されているので、「投稿」一覧から削除してください。日報側は残ります。再度「記事作成」から公開し直すことも可能です。', 'drwp-daily-reports'); ?></p>
 
       <h3><?php esc_html_e('Q. CSV で過去日報を一括出力したい', 'drwp-daily-reports'); ?></h3>
-      <p><?php esc_html_e('A. 日報一覧で対象行のチェックボックスを ON にし、上部の「一括操作」ドロップダウンから「選択した日報をCSV出力」を選んで「適用」ボタンを押してください。文字コードは Shift-JIS（CP932 / Excel互換）で出力されるので、Excel でそのまま開けます。', 'drwp-daily-reports'); ?></p>
+      <p><?php esc_html_e('A. 日報一覧で絞り込み条件（期間・案件・報告者など）を指定し、テーブル上部右の「⬇ 絞り込み中の全件をCSV出力」ボタンを押すと、現在の絞り込みに該当する全件が 1 ファイルで落ちてきます。チェックボックスでの選択は不要です。文字コードは Shift-JIS（CP932 / Excel互換）なので Excel 日本語版でそのまま開けます。', 'drwp-daily-reports'); ?></p>
 
       <h3><?php esc_html_e('Q. プラグインをアンインストールするとデータはどうなる？', 'drwp-daily-reports'); ?></h3>
       <p><?php esc_html_e('A. プラグイン削除（「停止」ではなく「削除」）を行うと、wp_drwp_* 系のテーブルとプラグイン関連オプションがすべて削除されます。残しておきたい場合は事前に CSV エクスポートを取ってください。', 'drwp-daily-reports'); ?></p>
