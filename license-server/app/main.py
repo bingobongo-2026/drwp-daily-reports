@@ -30,6 +30,13 @@ _PLAN_LABELS = {
     "pro": "プロ",
 }
 
+# 同様に status slug → 日本語ラベルへ。DB 値は英小文字の
+# `active` / `inactive` をそのまま保持し、画面表示だけ日本語化する。
+_STATUS_LABELS = {
+    "active": "有効",
+    "inactive": "停止",
+}
+
 
 def _plan_label(slug: str) -> str:
     if slug is None:
@@ -38,7 +45,15 @@ def _plan_label(slug: str) -> str:
     return _PLAN_LABELS.get(s, str(slug))
 
 
+def _status_label(slug: str) -> str:
+    if slug is None:
+        return ""
+    s = str(slug).strip().lower()
+    return _STATUS_LABELS.get(s, str(slug))
+
+
 templates.env.filters["plan_label"] = _plan_label
+templates.env.filters["status_label"] = _status_label
 
 _FLASH = {
     "created": ("作成しました。", "ok"),
