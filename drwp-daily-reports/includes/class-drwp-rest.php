@@ -1019,7 +1019,47 @@ class DRWP_REST {
             return new WP_Error('drwp_no_file', 'ファイルがアップロードされていません。', ['status' => 400]);
         }
         if (($files['file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            return new WP_Error('drwp_upload_error', 'アップロードに失敗しました (PHP アップロードエラーコード ' . (int) $files['file']['error'] . ')。', ['status' => 400]);
+            // PHP のアップロードエラーコードを「ユーザーが次に何をすれば
+            // いいか」が分かる日本語に置換。1/2 (サイズ超過) のときは
+            // php.ini の現在値も載せると問い合わせが減る。
+            $err_code = (int) $files['file']['error'];
+            $size_limit = ini_get('upload_max_filesize') ?: '?';
+            $post_limit = ini_get('post_max_size') ?: '?';
+            switch ($err_code) {
+                case UPLOAD_ERR_INI_SIZE: // 1
+                case UPLOAD_ERR_FORM_SIZE: // 2
+                    $msg = sprintf(
+                        /* translators: %s: php.ini upload_max_filesize current value */
+                        __('ファイルサイズが大きすぎます。サーバの上限 %s を超えています。事前に画像を縮小するか、サーバ管理者に `upload_max_filesize` と `post_max_size` の引き上げを依頼してください。', 'drwp-daily-reports'),
+                        $size_limit
+                    );
+                    break;
+                case UPLOAD_ERR_PARTIAL: // 3
+                    $msg = __('ファイルが途中までしか送信されませんでした。通信状況を確認してから再度お試しください。', 'drwp-daily-reports');
+                    break;
+                case UPLOAD_ERR_NO_FILE: // 4
+                    $msg = __('ファイルが選択されていません。', 'drwp-daily-reports');
+                    break;
+                case UPLOAD_ERR_NO_TMP_DIR: // 6
+                case UPLOAD_ERR_CANT_WRITE: // 7
+                    $msg = __('サーバ側で一時ファイルの保存に失敗しました。サーバ管理者にディスク空き容量と権限の確認を依頼してください。', 'drwp-daily-reports');
+                    break;
+                case UPLOAD_ERR_EXTENSION: // 8
+                    $msg = __('PHP の拡張モジュールによってアップロードが中断されました。サーバ管理者に確認してください。', 'drwp-daily-reports');
+                    break;
+                default:
+                    $msg = sprintf(
+                        /* translators: %d: PHP UPLOAD_ERR_* code */
+                        __('アップロードに失敗しました (PHP アップロードエラーコード %d)。', 'drwp-daily-reports'),
+                        $err_code
+                    );
+            }
+            return new WP_Error('drwp_upload_error', $msg, [
+                'status'              => 400,
+                'upload_error'        => $err_code,
+                'upload_max_filesize' => $size_limit,
+                'post_max_size'       => $post_limit,
+            ]);
         }
 
         $attachment_id = apply_filters('drwp_handle_upload', null, 'file', $request);
