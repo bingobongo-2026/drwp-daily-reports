@@ -219,27 +219,38 @@
     <div class="drwp-modal-body">
       <input type="hidden" id="drwp-conv-id" />
 
-      <div class="drwp-article-section">
-        <h3><?php esc_html_e('日報の内容', 'drwp-daily-reports'); ?></h3>
+      <!-- ① 元の日報 — 編集対象ではなく参考表示。デフォルトは折りたたんで
+           モーダルを開いた瞬間にメイン編集領域 (②) が見える状態にする。 -->
+      <details class="drwp-conv-collapse">
+        <summary>
+          <span class="drwp-conv-collapse-icon">📋</span>
+          <span class="drwp-conv-collapse-title"><?php esc_html_e('元の日報（参考表示）', 'drwp-daily-reports'); ?></span>
+          <span class="drwp-conv-collapse-hint"><?php esc_html_e('クリックして開閉。下の編集には影響しません', 'drwp-daily-reports'); ?></span>
+        </summary>
         <div id="drwp-view-body"><p>読み込み中…</p></div>
-      </div>
+      </details>
 
-      <div class="drwp-article-section">
-        <h3><?php esc_html_e('記事の本文', 'drwp-daily-reports'); ?></h3>
+      <!-- ② 作成する記事の中身 — メイン編集領域。常時開いた状態。 -->
+      <div class="drwp-article-section drwp-article-main">
+        <h3>
+          <span class="drwp-conv-collapse-icon">✏️</span>
+          <?php esc_html_e('作成する記事の中身', 'drwp-daily-reports'); ?>
+        </h3>
         <table class="form-table" role="presentation">
           <tr>
             <th><?php esc_html_e('公開タイトル', 'drwp-daily-reports'); ?></th>
             <td>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <input type="text" id="drwp-conv-title" class="large-text" />
-                <button type="button" class="button button-small" id="drwp-dup-check" style="white-space:nowrap;"><?php esc_html_e('重複を確認', 'drwp-daily-reports'); ?></button>
-              </div>
+              <input type="text" id="drwp-conv-title" class="large-text" />
+              <p class="description"><?php esc_html_e('WordPress 投稿のタイトルになります。入力中に同名記事を自動検出します。', 'drwp-daily-reports'); ?></p>
               <div id="drwp-dup-result" style="margin-top:4px;"></div>
             </td>
           </tr>
           <tr>
             <th><?php esc_html_e('導入文', 'drwp-daily-reports'); ?></th>
-            <td><textarea id="drwp-conv-intro" rows="3" class="large-text"></textarea></td>
+            <td>
+              <textarea id="drwp-conv-intro" rows="3" class="large-text"></textarea>
+              <p class="description"><?php esc_html_e('記事冒頭、本文の前に出る短い紹介文（任意）。', 'drwp-daily-reports'); ?></p>
+            </td>
           </tr>
           <tr>
             <th><?php esc_html_e('本文', 'drwp-daily-reports'); ?></th>
@@ -251,17 +262,28 @@
                   'quicktags'     => true,
                   'tinymce'       => ['init_instance_callback' => 'function(e){e.hide()}'],
               ]); ?>
+              <p class="description"><?php esc_html_e('メイン本文。日報の作業内容から自動で引き継がれます。記事として読みやすく整えてください。', 'drwp-daily-reports'); ?></p>
             </td>
           </tr>
           <tr>
             <th><?php esc_html_e('今後の予定', 'drwp-daily-reports'); ?></th>
-            <td><textarea id="drwp-conv-next-plan" rows="3" class="large-text"></textarea></td>
+            <td>
+              <textarea id="drwp-conv-next-plan" rows="3" class="large-text"></textarea>
+              <p class="description"><?php esc_html_e('記事末尾に「今後の予定」セクションとして表示されます（任意）。', 'drwp-daily-reports'); ?></p>
+            </td>
           </tr>
         </table>
       </div>
 
-      <div class="drwp-article-section">
-        <h3><?php esc_html_e('投稿設定', 'drwp-daily-reports'); ?></h3>
+      <!-- ③ 詳細設定 — テンプレ / カテゴリ / タグ / 投稿状態 / 予約。
+           ほとんどのケースは標準＋下書きで OK なので、開きたい人だけ
+           展開する形に。 -->
+      <details class="drwp-conv-collapse">
+        <summary>
+          <span class="drwp-conv-collapse-icon">⚙️</span>
+          <span class="drwp-conv-collapse-title"><?php esc_html_e('詳細設定', 'drwp-daily-reports'); ?></span>
+          <span class="drwp-conv-collapse-hint"><?php esc_html_e('テンプレート・カテゴリ・タグ・投稿状態・予約日時', 'drwp-daily-reports'); ?></span>
+        </summary>
         <table class="form-table" role="presentation">
           <tr>
             <th><?php esc_html_e('テンプレート', 'drwp-daily-reports'); ?></th>
@@ -271,7 +293,8 @@
                   <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option>
                 <?php endforeach; ?>
               </select>
-              <p class="description" id="drwp-conv-template-hint" style="margin:4px 0 0;display:none;">
+              <p class="description"><?php esc_html_e('記事の見た目の組み方。標準は本文＋写真ギャラリー、案件レポートは冒頭に案件メタ表、ビフォーアフターは写真を 2 列で並べます。', 'drwp-daily-reports'); ?></p>
+              <p class="description" id="drwp-conv-template-hint" style="margin:4px 0 0;display:none;color:#92400e;">
                 <?php esc_html_e('この日報は写真が添付されていないため、「ビフォーアフター」テンプレートは選択できません。日報編集モーダルから写真を追加してください。', 'drwp-daily-reports'); ?>
               </p>
             </td>
@@ -290,11 +313,15 @@
                   'value_field'     => 'term_id',
                 ]);
               ?>
+              <p class="description"><?php esc_html_e('未選択なら WordPress のデフォルトカテゴリが使われます。', 'drwp-daily-reports'); ?></p>
             </td>
           </tr>
           <tr>
             <th><?php esc_html_e('タグ', 'drwp-daily-reports'); ?></th>
-            <td><input type="text" id="drwp-conv-tags" class="regular-text" placeholder="<?php esc_attr_e('カンマ区切り', 'drwp-daily-reports'); ?>" /></td>
+            <td>
+              <input type="text" id="drwp-conv-tags" class="regular-text" placeholder="<?php esc_attr_e('カンマ区切り', 'drwp-daily-reports'); ?>" />
+              <p class="description"><?php esc_html_e('カンマ区切りで複数指定可。例: 新築, 木造, 外壁', 'drwp-daily-reports'); ?></p>
+            </td>
           </tr>
           <tr>
             <th><?php esc_html_e('投稿状態', 'drwp-daily-reports'); ?></th>
@@ -304,15 +331,19 @@
                 <option value="pending"><?php echo esc_html(DRWP_Labels::post_status('pending')); ?></option>
                 <option value="future"><?php echo esc_html(DRWP_Labels::post_status('future')); ?></option>
               </select>
+              <p class="description"><?php esc_html_e('下書き = 非公開のまま保存、レビュー待ち = WordPress 編集者の確認後に公開、予約投稿 = 下の予約日時に自動公開。', 'drwp-daily-reports'); ?></p>
             </td>
           </tr>
           <tr>
             <th><?php esc_html_e('予約日時', 'drwp-daily-reports'); ?></th>
-            <td><input type="datetime-local" id="drwp-conv-scheduled" /></td>
+            <td>
+              <input type="datetime-local" id="drwp-conv-scheduled" />
+              <p class="description"><?php esc_html_e('「投稿状態」を予約投稿にしたときに反映されます。', 'drwp-daily-reports'); ?></p>
+            </td>
           </tr>
         </table>
         <p id="drwp-conv-linked" class="description" style="display:none;"></p>
-      </div>
+      </details>
     </div>
     <div class="drwp-modal-footer">
       <button type="button" class="button button-primary" id="drwp-conv-submit"><?php esc_html_e('記事を作成', 'drwp-daily-reports'); ?></button>
@@ -366,6 +397,28 @@
   .drwp-article-section>h3{margin:0 0 8px;font-size:.95em;color:#1d2327}
   .drwp-article-section .drwp-ref-table th{font-weight:600;color:#50575e;font-size:.85em;padding:3px 8px 3px 0;vertical-align:top;white-space:nowrap}
   .drwp-article-section .drwp-ref-table td{padding:3px 0;font-size:.9em}
+
+  /* メイン編集領域 (作成する記事の中身) は他より少し強調する。 */
+  .drwp-article-main{background:#f8fafc;border:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;border-radius:6px;padding:14px 16px;margin-bottom:14px}
+  .drwp-article-main>h3{margin-top:0;font-size:1em;color:#1d2327;display:flex;align-items:center;gap:6px}
+  .drwp-article-main .description{margin:4px 0 0;color:#64748b;font-size:.85em}
+
+  /* 折りたたみセクション (元の日報 / 詳細設定) — モーダル内の補助領域。
+     開閉ボタン感を強くしてユーザーが触れることを知らせる。 */
+  .drwp-conv-collapse{margin-bottom:12px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;overflow:hidden}
+  .drwp-conv-collapse>summary{cursor:pointer;padding:10px 14px;list-style:none;display:flex;align-items:center;gap:8px;background:#f6f7f9;font-weight:600;color:#1d2327}
+  .drwp-conv-collapse>summary::-webkit-details-marker{display:none}
+  .drwp-conv-collapse>summary::before{content:'▸';color:#6b7280;font-size:.85em;transition:transform .15s}
+  .drwp-conv-collapse[open]>summary::before{transform:rotate(90deg)}
+  .drwp-conv-collapse[open]>summary{border-bottom:1px solid #e5e7eb}
+  .drwp-conv-collapse>summary:hover{background:#eef2ff}
+  .drwp-conv-collapse-icon{font-size:1.05em;line-height:1}
+  .drwp-conv-collapse-title{flex:1;min-width:0}
+  .drwp-conv-collapse-hint{font-size:.8em;color:#94a3b8;font-weight:400;white-space:nowrap}
+  .drwp-conv-collapse>div,
+  .drwp-conv-collapse>table,
+  .drwp-conv-collapse>p{padding:12px 14px;margin:0}
+  .drwp-conv-collapse>table.form-table{padding:8px 14px}
   </style>
 
   <script>
@@ -474,12 +527,18 @@
       });
     }
 
-    /* ---- 重複確認 ---- */
-    document.getElementById('drwp-dup-check').addEventListener('click',function(){
+    /* ---- 重複確認 — タイトル入力中に自動で発火 (800ms debounce)。
+            ボタンを廃止して「入力したらサイレントに調べる」運用に。 */
+    var dupTimer = null;
+    document.getElementById('drwp-conv-title').addEventListener('input', function () {
+      if (dupTimer) clearTimeout(dupTimer);
+      dupTimer = setTimeout(runDuplicateCheck, 800);
+    });
+
+    function runDuplicateCheck() {
       var title=document.getElementById('drwp-conv-title').value.trim();
       var res=document.getElementById('drwp-dup-result');
-      if(!title){res.innerHTML='<span style="color:#991b1b;">タイトルを入力してください</span>';return;}
-      res.innerHTML='<span>確認中…</span>';
+      if(!title){res.innerHTML='';return;}
       var headers={'X-WP-Nonce':rest.nonce};
       var enc=encodeURIComponent(title);
       Promise.all([
@@ -493,12 +552,13 @@
         });
         if(dupes.length){
           var links=dupes.map(function(p){return '<a href="'+esc(p.link)+'" target="_blank">#'+p.id+' '+esc(p.title.rendered)+'</a>';});
-          res.innerHTML='<span style="color:#991b1b;font-weight:600;">⚠ 同じタイトルの記事が '+dupes.length+' 件あります:</span><br>'+links.join('<br>');
+          res.innerHTML='<span style="color:#991b1b;font-weight:600;font-size:.9em;">⚠ 同じタイトルの記事が '+dupes.length+' 件あります:</span><br>'+links.join('<br>');
         } else {
-          res.innerHTML='<span style="color:#166534;">重複なし</span>';
+          // 重複なしの時は静かに (auto-fire するので毎回緑バッジは煩い)。
+          res.innerHTML='';
         }
-      }).catch(function(){res.innerHTML='<span style="color:#991b1b;">確認に失敗しました</span>';});
-    });
+      }).catch(function(){/* 静かに失敗 — auto-fire なのでユーザーへ通知すべきエラーではない */});
+    }
 
     /* ---- モーダルを開く ---- */
     table.addEventListener('click',function(e){
@@ -550,6 +610,8 @@
           autoTitle=rest.locations[d.project_id];
         }
         document.getElementById('drwp-conv-title').value=autoTitle;
+        // 初期表示でも同名記事が無いか自動チェック。
+        runDuplicateCheck();
         document.getElementById('drwp-conv-intro').value=d.public_intro||'';
         setEditorContent(d.public_body||(d.work_description||''));
         document.getElementById('drwp-conv-next-plan').value=d.public_next_plan||'';
