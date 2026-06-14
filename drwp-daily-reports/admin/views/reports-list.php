@@ -533,9 +533,12 @@ $can_review = current_user_can('edit_others_posts');
 
 /* 編集モーダル — 写真リスト + 追加ボタン */
 .drwp-edit-photo-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:6px}
-.drwp-edit-photo-item{position:relative;padding:6px;border:1px solid #d1d5db;border-radius:8px;background:#fff}
+.drwp-edit-photo-item{position:relative;padding:6px;border:1px solid #d1d5db;border-radius:8px;background:#fff;transition:border-color .15s,background .15s}
+.drwp-edit-photo-item.is-before{border-color:#3b82f6;background:#eff6ff}
+.drwp-edit-photo-item.is-after{border-color:#16a34a;background:#f0fdf4}
 .drwp-edit-photo-item img{display:block;width:100%;height:80px;object-fit:cover;border-radius:4px;background:#f3f4f6}
 .drwp-edit-photo-item input[type=text]{width:100%;margin-top:4px;padding:4px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:.78em;box-sizing:border-box}
+.drwp-edit-photo-kind{width:100%;margin-top:4px;padding:3px 4px;border:1px solid #d1d5db;border-radius:4px;font-size:.78em;box-sizing:border-box;background:#fff}
 .drwp-edit-photo-remove{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#ef4444;color:#fff;border:0;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .drwp-edit-photo-pick{display:inline-block;padding:6px 12px;background:#f1f5f9;border:1px dashed #94a3b8;border-radius:6px;cursor:pointer;font-size:.9em;color:#1e293b}
 .drwp-edit-photo-pick input{display:none}
@@ -869,18 +872,41 @@ $can_review = current_user_can('edit_others_posts');
   var photoInput = document.getElementById('drwp-edit-photo-input');
   var photoStatus = document.getElementById('drwp-edit-photo-status');
 
-  function renderEditPhoto(id, url, caption) {
+  function renderEditPhoto(id, url, caption, kind) {
     var div = document.createElement('div');
     div.className = 'drwp-edit-photo-item';
+    // 種別セレクト: 通常 / Before / After。Before/After を選ぶと
+    // 「ビフォーアフター」テンプレートで記事化したときに左右ペアの
+    // 該当列に振り分けられる。
+    var kindOpts =
+      '<option value="normal"><?php echo esc_js(__('通常', 'drwp-daily-reports')); ?></option>' +
+      '<option value="before">Before</option>' +
+      '<option value="after">After</option>';
     div.innerHTML =
       '<img alt="" />' +
       '<input type="hidden" name="attachment_ids" />' +
+      '<select name="attachment_kinds" class="drwp-edit-photo-kind">' + kindOpts + '</select>' +
       '<input type="text" name="attachment_captions" placeholder="<?php echo esc_js(__('キャプション', 'drwp-daily-reports')); ?>" />' +
       '<button type="button" class="drwp-edit-photo-remove" aria-label="<?php echo esc_js(__('削除', 'drwp-daily-reports')); ?>">×</button>';
     div.querySelector('img').src = url || '';
     div.querySelector('input[type=hidden]').value = String(id);
     div.querySelector('input[type=text]').value = caption || '';
+    // 不正値はサーバ側でも 'normal' に倒すので、フロントでは緩めに受け取る
+    var sel = div.querySelector('select.drwp-edit-photo-kind');
+    var k = (kind || 'normal').toLowerCase();
+    if (k !== 'before' && k !== 'after') k = 'normal';
+    sel.value = k;
+    applyKindBadge(div, sel);
+    sel.addEventListener('change', function () { applyKindBadge(div, sel); });
     return div;
+  }
+
+  // 写真カードの枠色を Before / After / 通常で変えると、ぱっと見で
+  // どれがどちらか分かる。Before = 青、After = 緑、通常 = 灰。
+  function applyKindBadge(item, sel) {
+    item.classList.remove('is-before', 'is-after');
+    if (sel.value === 'before') item.classList.add('is-before');
+    if (sel.value === 'after')  item.classList.add('is-after');
   }
 
   function clearEditPhotos() {
@@ -922,7 +948,7 @@ $can_review = current_user_can('edit_others_posts');
           return j;
         });
       }).then(function (j) {
-        photosEl.appendChild(renderEditPhoto(j.id, j.thumbnail_url || j.full_url || '', ''));
+        photosEl.appendChild(renderEditPhoto(j.id, j.thumbnail_url || j.full_url || '', '', 'normal'));
         next();
       }).catch(function (err) {
         photoStatus.textContent = err.message || '<?php echo esc_js(__('アップロード失敗', 'drwp-daily-reports')); ?>';
@@ -950,7 +976,7 @@ $can_review = current_user_can('edit_others_posts');
       document.getElementById('drwp-edit-issues').value = d.issues || '';
       document.getElementById('drwp-edit-next').value = d.next_plan || '';
       (d.photos || []).forEach(function (p) {
-        photosEl.appendChild(renderEditPhoto(p.attachment_id, p.url, p.caption || ''));
+        photosEl.appendChild(renderEditPhoto(p.attachment_id, p.url, p.caption || '', p.kind || 'normal'));
       });
     }).catch(function (err) {
       renderApiError(document.getElementById('drwp-edit-status'), err);
@@ -963,10 +989,12 @@ $can_review = current_user_can('edit_others_posts');
     st.textContent = '<?php echo esc_js(__('保存中…', 'drwp-daily-reports')); ?>';
     this.disabled = true;
     var self = this;
-    // 写真リストを attachment_ids / attachment_captions の並列配列に。
-    // 並びは photosEl の DOM 順をそのまま使う(既存 + 新規追加分)。
+    // 写真リストを attachment_ids / attachment_captions / attachment_kinds
+    // の並列配列に。並びは photosEl の DOM 順をそのまま使う(既存 +
+    // 新規追加分)。
     var ids = Array.from(photosEl.querySelectorAll('input[name="attachment_ids"]')).map(function (i) { return Number(i.value); });
     var caps = Array.from(photosEl.querySelectorAll('input[name="attachment_captions"]')).map(function (i) { return i.value; });
+    var kinds = Array.from(photosEl.querySelectorAll('select[name="attachment_kinds"]')).map(function (s) { return s.value; });
     api('/reports/' + id, {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
@@ -979,7 +1007,8 @@ $can_review = current_user_can('edit_others_posts');
         issues:              document.getElementById('drwp-edit-issues').value,
         next_plan:           document.getElementById('drwp-edit-next').value,
         attachment_ids:      ids,
-        attachment_captions: caps
+        attachment_captions: caps,
+        attachment_kinds:    kinds
       })
     }).then(function () { editDlg.close(); location.reload(); })
       .catch(function (err) { renderApiError(st, err); self.disabled = false; });

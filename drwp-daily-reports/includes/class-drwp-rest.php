@@ -393,6 +393,7 @@ class DRWP_REST {
                 'attachment_id' => (int) $ph->attachment_id,
                 'url'           => $thumb,
                 'caption'       => (string) ($ph->caption ?? ''),
+                'kind'          => DRWP_Media::normalize_kind($ph->photo_kind ?? ''),
             ];
         }
         // Resolve project + author for the front-end view modal so
@@ -800,11 +801,15 @@ class DRWP_REST {
         if (!array_key_exists('attachment_ids', $input)) return;
         $ids = (array) $input['attachment_ids'];
         $captions = (array) ($input['attachment_captions'] ?? []);
+        // 並列配列 attachment_kinds[] (normal / before / after) を受ける。
+        // 未指定なら 'normal' 扱い → DB 上は NULL。
+        $kinds = (array) ($input['attachment_kinds'] ?? []);
         $rows = [];
         foreach ($ids as $i => $att_id) {
             $rows[] = [
                 'attachment_id' => (int) $att_id,
                 'caption'       => (string) ($captions[$i] ?? ''),
+                'photo_kind'    => (string) ($kinds[$i] ?? ''),
             ];
         }
         DRWP_Media::sync((int) $report_id, $rows);

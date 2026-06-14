@@ -17,6 +17,17 @@ class DRWP_Media {
         ));
     }
 
+    /** Allowed values for `photo_kind`. */
+    const KIND_NORMAL = 'normal';
+    const KIND_BEFORE = 'before';
+    const KIND_AFTER  = 'after';
+
+    public static function normalize_kind($value) {
+        $v = strtolower(trim((string) $value));
+        return in_array($v, [self::KIND_BEFORE, self::KIND_AFTER, self::KIND_NORMAL], true)
+            ? $v : self::KIND_NORMAL;
+    }
+
     public static function sync($report_id, array $rows) {
         global $wpdb;
         $report_id = (int) $report_id;
@@ -32,6 +43,8 @@ class DRWP_Media {
             if (get_post_type($attachment_id) !== 'attachment') continue;
 
             $caption = isset($row['caption']) ? sanitize_text_field(wp_unslash($row['caption'])) : '';
+            // 'normal' は DB 上 NULL に倒す (デフォルト値と等価)。
+            $kind = isset($row['photo_kind']) ? self::normalize_kind($row['photo_kind']) : self::KIND_NORMAL;
 
             // entry_id is a legacy column from the v1.9–1.10
             // multi-entry model; new rows always write NULL.
@@ -40,6 +53,7 @@ class DRWP_Media {
                 'entry_id'      => null,
                 'attachment_id' => $attachment_id,
                 'caption'       => $caption !== '' ? $caption : null,
+                'photo_kind'    => $kind === self::KIND_NORMAL ? null : $kind,
                 'sort_order'    => $order++,
             ]);
             $saved++;

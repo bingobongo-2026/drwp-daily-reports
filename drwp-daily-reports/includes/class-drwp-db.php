@@ -169,6 +169,7 @@ class DRWP_DB {
             entry_id BIGINT UNSIGNED NULL,
             attachment_id BIGINT UNSIGNED NOT NULL,
             caption VARCHAR(255) NULL,
+            photo_kind VARCHAR(16) NULL,
             sort_order INT UNSIGNED NOT NULL DEFAULT 0,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
