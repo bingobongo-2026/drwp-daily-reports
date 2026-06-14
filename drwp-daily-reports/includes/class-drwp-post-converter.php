@@ -152,6 +152,21 @@ class DRWP_Post_Converter {
         $other  = [];
         foreach ($photos as $p) {
             $caption = (string) ($p->caption ?? '');
+            $kind    = DRWP_Media::normalize_kind($p->photo_kind ?? '');
+            // 1. 写真側に明示の photo_kind があればそれを最優先。
+            //    UI のラジオで Before/After を選んだ場合がこれ。
+            if ($kind === DRWP_Media::KIND_BEFORE) {
+                $p->display_caption = $caption;
+                $before[] = $p;
+                continue;
+            }
+            if ($kind === DRWP_Media::KIND_AFTER) {
+                $p->display_caption = $caption;
+                $after[] = $p;
+                continue;
+            }
+            // 2. photo_kind が 'normal' or NULL なら、後方互換の
+            //    キャプション prefix (Before: / After:) も解釈する。
             if (preg_match('/^(?:Before|B)[:：]\s*(.*)$/iu', $caption, $m)) {
                 $p->display_caption = trim($m[1]);
                 $before[] = $p;
@@ -163,8 +178,9 @@ class DRWP_Post_Converter {
                 $other[] = $p;
             }
         }
-        // どちらの prefix も使われていなければ前後で半分割。奇数なら
-        // Before 側に 1 枚多めに振る(作業前のほうが基準写真として
+        // どちらの分類も無い場合 (photo_kind 未指定 + prefix 無し) の
+        // フォールバック: 前半 → Before / 後半 → After。
+        // 奇数なら Before 側に 1 枚多めに振る (作業前のほうが基準写真として
         // 多くなりがちな現場感に合わせる)。
         if (!$before && !$after) {
             $half = (int) ceil(count($other) / 2);
