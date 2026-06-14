@@ -271,6 +271,9 @@
                   <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option>
                 <?php endforeach; ?>
               </select>
+              <p class="description" id="drwp-conv-template-hint" style="margin:4px 0 0;display:none;">
+                <?php esc_html_e('この日報は写真が添付されていないため、「ビフォーアフター」テンプレートは選択できません。日報編集モーダルから写真を追加してください。', 'drwp-daily-reports'); ?>
+              </p>
             </td>
           </tr>
           <tr>
@@ -397,6 +400,18 @@
     var dlg=document.getElementById('drwp-article-dialog');
 
     function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+    // ビフォーアフター用テンプレートのゲート。写真が無い日報では
+    // option を disabled にしてヒントを表示。既にビフォーアフターが
+    // 選ばれていた場合は標準に戻す。
+    function applyTemplateGate(noPhotos) {
+      var sel  = document.getElementById('drwp-conv-template');
+      var hint = document.getElementById('drwp-conv-template-hint');
+      var opt  = sel.querySelector('option[value="before_after"]');
+      if (opt) opt.disabled = !!noPhotos;
+      if (hint) hint.style.display = noPhotos ? '' : 'none';
+      if (noPhotos && sel.value === 'before_after') sel.value = 'standard';
+    }
     function api(path,opts){
       opts=opts||{};opts.credentials='same-origin';
       opts.headers=Object.assign({'X-WP-Nonce':rest.nonce},opts.headers||{});
@@ -500,6 +515,7 @@
       document.getElementById('drwp-conv-next-plan').value='';
       document.getElementById('drwp-conv-tags').value='';
       document.getElementById('drwp-conv-template').value='standard';
+      applyTemplateGate(false); // モーダルリセット時はいったん全許可
       document.getElementById('drwp-conv-category').value='0';
       document.getElementById('drwp-conv-post-status').value='draft';
       document.getElementById('drwp-conv-scheduled').value='';
@@ -538,6 +554,10 @@
         setEditorContent(d.public_body||(d.work_description||''));
         document.getElementById('drwp-conv-next-plan').value=d.public_next_plan||'';
         document.getElementById('drwp-conv-tags').value=d.post_tags||'';
+        // テンプレ select の出し分け — ビフォーアフターは写真が
+        // 無いと意味が無い (左右ペアが空になる) ので、写真ゼロの
+        // 日報では選択肢から落としつつヒントを出す。
+        applyTemplateGate(!d.photos || !d.photos.length);
         if(d.post_template)document.getElementById('drwp-conv-template').value=d.post_template;
         if(d.post_category_id)document.getElementById('drwp-conv-category').value=d.post_category_id;
         if(d.post_status)document.getElementById('drwp-conv-post-status').value=d.post_status;
