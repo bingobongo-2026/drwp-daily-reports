@@ -246,6 +246,20 @@
             </td>
           </tr>
           <tr>
+            <th><?php esc_html_e('テンプレート', 'drwp-daily-reports'); ?></th>
+            <td>
+              <select id="drwp-conv-template">
+                <?php foreach (DRWP_Labels::post_template_options() as $key => $label): ?>
+                  <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option>
+                <?php endforeach; ?>
+              </select>
+              <p class="description"><?php esc_html_e('記事の見た目の組み方。標準は本文＋写真ギャラリー、案件レポートは冒頭に案件メタ表、ビフォーアフターは写真を 2 列で並べます。', 'drwp-daily-reports'); ?></p>
+              <p class="description" id="drwp-conv-template-hint" style="margin:4px 0 0;display:none;color:#92400e;">
+                <?php esc_html_e('この日報は写真が添付されていないため、「ビフォーアフター」テンプレートは選択できません。日報編集モーダルから写真を追加してください。', 'drwp-daily-reports'); ?>
+              </p>
+            </td>
+          </tr>
+          <tr>
             <th><?php esc_html_e('導入文', 'drwp-daily-reports'); ?></th>
             <td>
               <textarea id="drwp-conv-intro" rows="3" class="large-text"></textarea>
@@ -270,32 +284,6 @@
             <td>
               <textarea id="drwp-conv-next-plan" rows="3" class="large-text"></textarea>
               <p class="description"><?php esc_html_e('記事末尾に「今後の予定」セクションとして表示されます（任意）。', 'drwp-daily-reports'); ?></p>
-            </td>
-          </tr>
-        </table>
-
-      <!-- ③ 詳細設定 — テンプレ / カテゴリ / タグ / 投稿状態 / 予約。
-           ほとんどのケースは標準＋下書きで OK なので、開きたい人だけ
-           展開する形に。 -->
-      <details class="drwp-conv-collapse">
-        <summary>
-          <span class="drwp-conv-collapse-icon">⚙️</span>
-          <span class="drwp-conv-collapse-title"><?php esc_html_e('詳細設定', 'drwp-daily-reports'); ?></span>
-          <span class="drwp-conv-collapse-hint"><?php esc_html_e('テンプレート・カテゴリ・タグ・投稿状態・予約日時', 'drwp-daily-reports'); ?></span>
-        </summary>
-        <table class="form-table" role="presentation">
-          <tr>
-            <th><?php esc_html_e('テンプレート', 'drwp-daily-reports'); ?></th>
-            <td>
-              <select id="drwp-conv-template">
-                <?php foreach (DRWP_Labels::post_template_options() as $key => $label): ?>
-                  <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option>
-                <?php endforeach; ?>
-              </select>
-              <p class="description"><?php esc_html_e('記事の見た目の組み方。標準は本文＋写真ギャラリー、案件レポートは冒頭に案件メタ表、ビフォーアフターは写真を 2 列で並べます。', 'drwp-daily-reports'); ?></p>
-              <p class="description" id="drwp-conv-template-hint" style="margin:4px 0 0;display:none;color:#92400e;">
-                <?php esc_html_e('この日報は写真が添付されていないため、「ビフォーアフター」テンプレートは選択できません。日報編集モーダルから写真を追加してください。', 'drwp-daily-reports'); ?>
-              </p>
             </td>
           </tr>
           <tr>
@@ -342,7 +330,6 @@
           </tr>
         </table>
         <p id="drwp-conv-linked" class="description" style="display:none;"></p>
-      </details>
       </div> <!-- /.drwp-article-main -->
     </div>
     <div class="drwp-modal-footer">
