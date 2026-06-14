@@ -577,9 +577,13 @@ $can_review = current_user_can('edit_others_posts');
 <script>
 (function(){
   var rest = <?php echo wp_json_encode([
-      'url'    => esc_url_raw(rest_url('drwp/v1')),
-      'nonce'  => wp_create_nonce('wp_rest'),
-      'labels' => $review_labels,
+      'url'           => esc_url_raw(rest_url('drwp/v1')),
+      'nonce'         => wp_create_nonce('wp_rest'),
+      'labels'        => $review_labels,
+      // クライアント側で先にファイルサイズを弾けるよう php.ini の値を渡す。
+      // post_max_size の方が低いことがあるので min(upload_max, post_max) を採用。
+      'maxUploadBytes'   => min(wp_max_upload_size(), (int) wp_convert_hr_to_bytes((string) ini_get('post_max_size'))),
+      'maxUploadDisplay' => size_format((float) min(wp_max_upload_size(), (int) wp_convert_hr_to_bytes((string) ini_get('post_max_size')))),
   ]); ?>;
 
   var checkAll = document.getElementById('drwp-check-all');
@@ -921,10 +925,37 @@ $can_review = current_user_can('edit_others_posts');
     }
   });
 
+  // モーダルを開いたときに現在の最大アップロードサイズをヒント表示。
+  // サーバ側で UPLOAD_ERR_INI_SIZE が出る前に「これ以上は無理」を知らせる。
+  if (rest.maxUploadDisplay) {
+    var photoHint = document.createElement('p');
+    photoHint.className = 'description';
+    photoHint.style.cssText = 'margin:6px 0 0;color:#64748b;font-size:.82em;';
+    photoHint.textContent = '<?php echo esc_js(__('1 ファイルあたりの上限: ', 'drwp-daily-reports')); ?>' + rest.maxUploadDisplay;
+    photoStatus.parentNode.insertBefore(photoHint, photoStatus);
+  }
+
   // ファイル選択 → REST /upload-photo に逐次アップロードしてリストに追加
   photoInput.addEventListener('change', function () {
     var files = Array.from(this.files || []);
     if (!files.length) return;
+
+    // クライアント側で先にサイズチェック。サーバの 1 (UPLOAD_ERR_INI_SIZE)
+    // を「黙って待たされた末の失敗」じゃなく「即時に分かるエラー」にする。
+    if (rest.maxUploadBytes) {
+      var tooBig = files.filter(function (f) { return f.size > rest.maxUploadBytes; });
+      if (tooBig.length) {
+        var names = tooBig.map(function (f) { return f.name; }).join(', ');
+        photoStatus.style.color = '#991b1b';
+        photoStatus.textContent = '<?php echo esc_js(__('ファイルサイズが大きすぎます (上限 ', 'drwp-daily-reports')); ?>'
+          + rest.maxUploadDisplay
+          + '<?php echo esc_js(__('): ', 'drwp-daily-reports')); ?>'
+          + names;
+        this.value = '';
+        return;
+      }
+    }
+    photoStatus.style.color = '';
     var input = this;
     var i = 0;
     function next() {
@@ -951,6 +982,7 @@ $can_review = current_user_can('edit_others_posts');
         photosEl.appendChild(renderEditPhoto(j.id, j.thumbnail_url || j.full_url || '', '', 'normal'));
         next();
       }).catch(function (err) {
+        photoStatus.style.color = '#991b1b';
         photoStatus.textContent = err.message || '<?php echo esc_js(__('アップロード失敗', 'drwp-daily-reports')); ?>';
         input.value = '';
       });
