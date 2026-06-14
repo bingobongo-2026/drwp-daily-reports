@@ -273,7 +273,6 @@
             </td>
           </tr>
         </table>
-      </div>
 
       <!-- ③ 詳細設定 — テンプレ / カテゴリ / タグ / 投稿状態 / 予約。
            ほとんどのケースは標準＋下書きで OK なので、開きたい人だけ
@@ -344,6 +343,7 @@
         </table>
         <p id="drwp-conv-linked" class="description" style="display:none;"></p>
       </details>
+      </div> <!-- /.drwp-article-main -->
     </div>
     <div class="drwp-modal-footer">
       <button type="button" class="button button-primary" id="drwp-conv-submit"><?php esc_html_e('記事を作成', 'drwp-daily-reports'); ?></button>
@@ -395,13 +395,25 @@
   .drwp-article-section{margin-bottom:16px;padding-bottom:4px;border-bottom:1px solid #e5e7eb}
   .drwp-article-section:last-child{border-bottom:0;margin-bottom:0}
   .drwp-article-section>h3{margin:0 0 8px;font-size:.95em;color:#1d2327}
-  .drwp-article-section .drwp-ref-table th{font-weight:600;color:#50575e;font-size:.85em;padding:3px 8px 3px 0;vertical-align:top;white-space:nowrap}
-  .drwp-article-section .drwp-ref-table td{padding:3px 0;font-size:.9em}
+
+  /* 元の日報の参考表示 — 行ごとに余白を取り、本文系は line-height を
+     確保して「読み物」として読めるように。ラベル列は 6em で揃える。 */
+  .drwp-ref-table{width:100%;border-collapse:separate;border-spacing:0}
+  .drwp-ref-table th{width:6em;font-weight:700;color:#374151;font-size:.9em;padding:10px 16px 10px 0;vertical-align:top;white-space:nowrap;text-align:left}
+  .drwp-ref-table td{padding:10px 0;font-size:.95em;line-height:1.75;color:#1f2937;word-break:break-word}
+  .drwp-ref-table tr + tr th,
+  .drwp-ref-table tr + tr td{border-top:1px solid #e5e7eb}
+  .drwp-view-text{white-space:pre-wrap;line-height:1.75}
+  .drwp-view-photos{margin-top:12px}
 
   /* メイン編集領域 (作成する記事の中身) は他より少し強調する。 */
   .drwp-article-main{background:#f8fafc;border:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;border-radius:6px;padding:14px 16px;margin-bottom:14px}
   .drwp-article-main>h3{margin-top:0;font-size:1em;color:#1d2327;display:flex;align-items:center;gap:6px}
-  .drwp-article-main .description{margin:4px 0 0;color:#64748b;font-size:.85em}
+  /* description は main 直下/ネスト内 (詳細設定) どちらでも同じ
+     サイズに揃える。WP デフォルトの 13px ではなく .85em を使う。 */
+  .drwp-article-main .description,
+  .drwp-article-main details.drwp-conv-collapse .description,
+  .drwp-article-main details.drwp-conv-collapse p.description{margin:4px 0 0;color:#64748b;font-size:.85em;line-height:1.5}
 
   /* 折りたたみセクション (元の日報 / 詳細設定) — モーダル内の補助領域。
      開閉ボタン感を強くしてユーザーが触れることを知らせる。 */
