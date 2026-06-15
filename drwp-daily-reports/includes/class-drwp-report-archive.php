@@ -679,10 +679,24 @@ class DRWP_Report_Archive {
             // Linked plans (already tied to a report) are excluded:
             // they're non-draggable / non-editable, so they should not
             // spawn a second report either.
+            // リストビューの行 (予定) も予定チップ扱いで日報フォームへ。
+            var listPlan = e.target.closest('.drwp-archive-list-row.is-plan[data-plan-id]');
+            if (listPlan) {
+              e.preventDefault();
+              openReportFromPlan(listPlan);
+              return;
+            }
             var planChip = e.target.closest('.drwp-archive-cal-plan-chip[data-plan-id]:not(.is-linked)');
             if (planChip) {
               e.preventDefault();
               openReportFromPlan(planChip);
+              return;
+            }
+            // リストビューの日報行 → 詳細モーダル
+            var listRow = e.target.closest('.drwp-archive-list-report[data-id]');
+            if (listRow) {
+              e.preventDefault();
+              openView(listRow.dataset.id);
               return;
             }
             var chip = e.target.closest('.drwp-archive-cal-chip[data-id]');
@@ -1362,7 +1376,7 @@ class DRWP_Report_Archive {
                 $dow_label  = ($dow >= 0) ? $weekdays[$dow] : '';
             ?>
             <?php if ($e['kind'] === 'plan'): ?>
-                <button type="button" class="drwp-archive-list-row is-plan drwp-archive-cal-plan-chip"
+                <button type="button" class="drwp-archive-list-row is-plan"
                         data-plan-id="<?php echo (int) $row->id; ?>"
                         data-plan-date="<?php echo esc_attr((string) $row->planned_date); ?>"
                         data-plan-project-id="<?php echo (int) ($row->project_id ?? 0); ?>"
@@ -1401,7 +1415,7 @@ class DRWP_Report_Archive {
                 $issues = trim((string) ($r->issues ?? ''));
                 $photo_n = $photo_counts[(int) $r->id] ?? 0;
             ?>
-                <button type="button" class="drwp-archive-list-row drwp-archive-cal-chip status-<?php echo esc_attr((string) $r->review_status); ?>"
+                <button type="button" class="drwp-archive-list-row drwp-archive-list-report status-<?php echo esc_attr((string) $r->review_status); ?>"
                         data-id="<?php echo (int) $r->id; ?>">
                     <span class="drwp-archive-list-date"><?php echo esc_html($date_label); ?>
                         <small>(<?php echo esc_html($dow_label); ?>)</small></span>
