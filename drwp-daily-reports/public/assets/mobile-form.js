@@ -198,6 +198,17 @@
             });
         }).then(function (report) {
             setStatus((i18n.sent || '送信しました。') + ' (#' + report.id + ')', 'ok');
+            // 予定チップから開かれた場合 (linked_plan_id が入っている)
+            // は、カレンダー上の予定チップを「完了」状態に切り替えて
+            // 見せたいので、成功メッセージを少し見せた後にリロード。
+            // それ以外 (ダッシュボード等の独立フォーム) は連続入力
+            // できるよう従来通り form.reset() で次の入力に備える。
+            var fromPlan = form.linked_plan_id && form.linked_plan_id.value;
+            if (fromPlan) {
+                stopSending();
+                setTimeout(function () { window.location.reload(); }, 800);
+                return;
+            }
             form.reset();
             pendingEntries = [];
             renderPhotoPreview();
