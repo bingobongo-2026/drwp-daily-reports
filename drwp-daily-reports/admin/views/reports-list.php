@@ -200,8 +200,14 @@ $can_review = current_user_can('edit_others_posts');
       <thead>
         <tr>
           <th><input type="checkbox" id="drwp-check-all" /></th>
-          <th>ID</th>
-          <th><?php esc_html_e('日付', 'drwp-daily-reports'); ?></th>
+          <?php
+            // ソート可能なヘッダ — クエリは現在のページパスから orderby/order
+            // を取り除いたものをベースにする。
+            $sort_base = remove_query_arg(['orderby', 'order'], $_SERVER['REQUEST_URI'] ?? '');
+            list($sort_field, $sort_order) = DRWP_Admin::parse_sort($_GET, ['id', 'report_date'], 'report_date', 'desc');
+          ?>
+          <th><?php echo DRWP_Admin::sortable_th_link('ID', 'id', $sort_field, $sort_order, $sort_base); ?></th>
+          <th><?php echo DRWP_Admin::sortable_th_link(__('日付', 'drwp-daily-reports'), 'report_date', $sort_field, $sort_order, $sort_base); ?></th>
           <th><?php esc_html_e('報告者', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('案件', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('レビュー', 'drwp-daily-reports'); ?></th>
@@ -257,6 +263,8 @@ $can_review = current_user_can('edit_others_posts');
                       'date_from'         => $filters['date_from'],
                       'date_to'           => $filters['date_to'],
                       'per_page'          => ((int) $per_page === DRWP_Admin::PER_PAGE) ? '' : (int) $per_page,
+                      'orderby'           => ($sort_field !== 'report_date') ? $sort_field : '',
+                      'order'             => ($sort_order !== 'desc') ? $sort_order : '',
                   ],
                   function ($v) { return $v !== '' && $v !== 0; }
               )
@@ -517,6 +525,14 @@ $can_review = current_user_can('edit_others_posts');
 .drwp-table-toolbar .drwp-counter{font-weight:600;color:#1d2327}
 .drwp-table-toolbar .drwp-toolbar-sep{color:#cbd5e1;margin:0 2px}
 .drwp-table-toolbar .drwp-csv-btn{margin-left:auto}
+
+/* ソート可能ヘッダ — 文字色は地味に、ホバーで濃く。アクティブなときは
+   矢印を残しつつ太字に。 */
+.drwp-sortable{color:#475569;text-decoration:none;display:inline-flex;align-items:center;gap:2px;white-space:nowrap}
+.drwp-sortable:hover{color:#1d2327}
+.drwp-sortable.is-active{color:#1d2327;font-weight:700}
+.drwp-sort-arrow{color:#94a3b8;font-size:.78em;font-weight:400}
+.drwp-sortable.is-active .drwp-sort-arrow{color:#2271b1}
 
 /* 共通モーダル — 確認 / 編集 で同じスタイル */
 .drwp-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:640px;width:90vw}

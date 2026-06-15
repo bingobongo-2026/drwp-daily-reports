@@ -39,6 +39,11 @@ class DRWP_Customer {
             'group_id' => isset($_GET['group_id']) ? absint($_GET['group_id']) : 0,
         ];
         $customers = self::search($filters['search'], $filters['group_id']);
+        list($sort_field, $sort_order) = DRWP_Admin::parse_sort($_GET, ['id'], 'id', 'desc');
+        usort($customers, function ($a, $b) use ($sort_order) {
+            $cmp = (int) $a->id <=> (int) $b->id;
+            return $sort_order === 'desc' ? -$cmp : $cmp;
+        });
         // Group data for the listing table + edit modal. We bulk
         // fetch group rows per customer (chips in the table), the
         // active group list (options in the multi-select), and a

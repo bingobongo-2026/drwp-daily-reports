@@ -29,6 +29,39 @@ class DRWP_Admin {
     }
 
     /**
+     * Parse orderby/order from request against a whitelist of allowed
+     * sort columns. Returns [field, direction] for use in SQL ORDER BY.
+     * Sanitizing here keeps the SQL-emitting sites lean and prevents
+     * arbitrary column names from sneaking through the URL.
+     */
+    public static function parse_sort($req, array $allowed, $default_field, $default_order = 'desc') {
+        $field = isset($req['orderby']) ? sanitize_key(wp_unslash((string) $req['orderby'])) : '';
+        if (!in_array($field, $allowed, true)) $field = $default_field;
+        $order = isset($req['order']) ? strtolower((string) $req['order']) : '';
+        if (!in_array($order, ['asc', 'desc'], true)) $order = $default_order;
+        return [$field, $order];
+    }
+
+    /**
+     * Render a clickable TH header link with a ▲/▼ indicator. Clicking
+     * a non-active header sorts ASC; clicking an already-active header
+     * toggles direction. Caller is responsible for `<th>` wrapping —
+     * this returns the inner link only.
+     */
+    public static function sortable_th_link($label, $key, $current_field, $current_order, $base_url) {
+        $next = ($current_field === $key && $current_order === 'asc') ? 'desc' : 'asc';
+        $url = add_query_arg(['orderby' => $key, 'order' => $next], $base_url);
+        $arrow = '';
+        $cls = 'drwp-sortable';
+        if ($current_field === $key) {
+            $arrow = $current_order === 'asc' ? ' ▲' : ' ▼';
+            $cls .= ' is-active';
+        }
+        return '<a class="' . esc_attr($cls) . '" href="' . esc_url($url) . '">'
+             . esc_html($label) . '<span class="drwp-sort-arrow">' . esc_html($arrow) . '</span></a>';
+    }
+
+    /**
      * Slugs that belong to the "設定" group inside the 日報管理
      * submenu. Listed in the order they're registered in `menu()`
      * — `mark_settings_section` only uses this set to decide which
@@ -100,6 +133,21 @@ class DRWP_Admin {
                 letter-spacing: 0.04em;
                 pointer-events: none;
             }
+            /* ソート可能な TH のリンク表示 — DRWP_Admin::sortable_th_link
+               が出すマークアップ。一覧ページ全体で同じ見た目になるよう
+               admin_head で常時注入する。 */
+            .drwp-sortable {
+                color: #475569;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 2px;
+                white-space: nowrap;
+            }
+            .drwp-sortable:hover { color: #1d2327; }
+            .drwp-sortable.is-active { color: #1d2327; font-weight: 700; }
+            .drwp-sort-arrow { color: #94a3b8; font-size: .78em; font-weight: 400; }
+            .drwp-sortable.is-active .drwp-sort-arrow { color: #2271b1; }
         </style>
         <?php
     }
@@ -412,6 +460,14 @@ class DRWP_Admin {
 
         $per_page = self::parse_per_page($_GET);
 
+        // ソート — id / report_date のみ許可、既定は日付降順
+        list($sort_field, $sort_order) = self::parse_sort(
+            $_GET, ['id', 'report_date'], 'report_date', 'desc'
+        );
+        $order_sql = $sort_field === 'id'
+            ? 'id ' . strtoupper($sort_order)
+            : 'report_date ' . strtoupper($sort_order) . ', id ' . strtoupper($sort_order);
+
         $count_sql = "SELECT COUNT(*) FROM $table WHERE $where";
         $total = $args
             ? (int) $wpdb->get_var($wpdb->prepare($count_sql, $args))
@@ -422,7 +478,7 @@ class DRWP_Admin {
         if ($paged > $pages) $paged = $pages;
         $offset = ($paged - 1) * $per_page;
 
-        $sql = "SELECT * FROM $table WHERE $where ORDER BY report_date DESC, id DESC LIMIT %d OFFSET %d";
+        $sql = "SELECT * FROM $table WHERE $where ORDER BY $order_sql LIMIT %d OFFSET %d";
         $query_args = $args;
         $query_args[] = $per_page;
         $query_args[] = $offset;
@@ -430,7 +486,9 @@ class DRWP_Admin {
 
         // 振り返りアドバイス用に、フィルタ条件にマッチする全 ID を
         // 先頭から最大 DRWP_AI::ADVISE_MAX 件まで集める。pagination
-        // を跨いで「絞り込んだ集合全体」を AI に渡せる。
+        // を跨いで「絞り込んだ集合全体」を AI に渡せる。AI 集合は
+        // ソートに関わらず「最新順」を保つほうが意味的に正しいので
+        // report_date DESC で固定。
         $advise_max = class_exists('DRWP_AI') ? DRWP_AI::ADVISE_MAX : 60;
         $ids_sql = "SELECT id FROM $table WHERE $where ORDER BY report_date DESC, id DESC LIMIT %d";
         $ids_args = array_merge($args, [$advise_max]);
@@ -506,6 +564,14 @@ class DRWP_Admin {
             $args[] = $filters['date_to'];
         }
 
+        // ソート — id / report_date のみ許可、既定は日付降順
+        list($sort_field, $sort_order) = self::parse_sort(
+            $_GET, ['id', 'report_date'], 'report_date', 'desc'
+        );
+        $order_sql = $sort_field === 'id'
+            ? 'id ' . strtoupper($sort_order)
+            : 'report_date ' . strtoupper($sort_order) . ', id ' . strtoupper($sort_order);
+
         $count_sql = "SELECT COUNT(*) FROM $table WHERE $where";
         $total = $args
             ? (int) $wpdb->get_var($wpdb->prepare($count_sql, $args))
@@ -516,7 +582,7 @@ class DRWP_Admin {
         if ($paged > $pages) $paged = $pages;
         $offset = ($paged - 1) * self::PER_PAGE;
 
-        $sql = "SELECT * FROM $table WHERE $where ORDER BY report_date DESC, id DESC LIMIT %d OFFSET %d";
+        $sql = "SELECT * FROM $table WHERE $where ORDER BY $order_sql LIMIT %d OFFSET %d";
         $query_args = $args;
         $query_args[] = self::PER_PAGE;
         $query_args[] = $offset;

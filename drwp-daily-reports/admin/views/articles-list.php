@@ -60,71 +60,15 @@
     ?>
   </p>
 
-  <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-    <?php wp_nonce_field('drwp_bulk_reports'); ?>
-    <input type="hidden" name="action" value="drwp_bulk_reports" />
-    <input type="hidden" name="redirect_page" value="drwp_articles" />
-
-    <div class="drwp-list-bulk-inline">
-      <label for="drwp-bulk-action-select"><?php esc_html_e('一括操作:', 'drwp-daily-reports'); ?></label>
-      <select name="bulk_action" id="drwp-bulk-action-select">
-        <option value=""><?php esc_html_e('操作を選択', 'drwp-daily-reports'); ?></option>
-        <option value="bulk_convert"><?php esc_html_e('一括で記事作成/更新', 'drwp-daily-reports'); ?></option>
-        <option value="bulk_update_publish"><?php esc_html_e('一括で公開設定を更新', 'drwp-daily-reports'); ?></option>
-        <option value="bulk_export_csv"><?php esc_html_e('選択した日報をCSV出力', 'drwp-daily-reports'); ?></option>
-      </select>
-      <button class="button"><?php esc_html_e('実行', 'drwp-daily-reports'); ?></button>
-    </div>
-
-    <details id="drwp-bulk-publish-opts" class="drwp-list-bulk-sub" style="display:none;">
-      <summary class="drwp-list-bulk-sub-summary"><?php esc_html_e('記事作成/公開設定に使う値', 'drwp-daily-reports'); ?></summary>
-      <div class="drwp-list-bulk-sub-row">
-        <label>
-          <span><?php esc_html_e('テンプレート', 'drwp-daily-reports'); ?></span>
-          <select name="bulk_post_template">
-            <?php foreach (DRWP_Labels::post_template_options() as $key => $label): ?>
-              <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option>
-            <?php endforeach; ?>
-          </select>
-        </label>
-        <label>
-          <span><?php esc_html_e('カテゴリ', 'drwp-daily-reports'); ?></span>
-          <?php
-            wp_dropdown_categories([
-              'show_option_all' => __('カテゴリを選択', 'drwp-daily-reports'),
-              'hide_empty'      => 0,
-              'name'            => 'bulk_post_category_id',
-              'selected'        => 0,
-              'taxonomy'        => 'category',
-              'value_field'     => 'term_id',
-            ]);
-          ?>
-        </label>
-        <label>
-          <span><?php esc_html_e('タグ', 'drwp-daily-reports'); ?></span>
-          <input type="text" name="bulk_post_tags" placeholder="<?php esc_attr_e('カンマ区切り', 'drwp-daily-reports'); ?>" />
-        </label>
-        <label>
-          <span><?php esc_html_e('投稿状態', 'drwp-daily-reports'); ?></span>
-          <select name="bulk_post_status">
-            <option value="draft"><?php echo esc_html(DRWP_Labels::post_status('draft')); ?></option>
-            <option value="pending"><?php echo esc_html(DRWP_Labels::post_status('pending')); ?></option>
-            <option value="future"><?php echo esc_html(DRWP_Labels::post_status('future')); ?></option>
-          </select>
-        </label>
-        <label>
-          <span><?php esc_html_e('予約日時', 'drwp-daily-reports'); ?></span>
-          <input type="datetime-local" name="bulk_scheduled_at" />
-        </label>
-      </div>
-    </details>
-
     <table class="widefat striped" id="drwp-articles-table">
       <thead>
         <tr>
-          <th><input type="checkbox" onclick="document.querySelectorAll('.drwp-check').forEach(cb => cb.checked = this.checked)" /></th>
-          <th>ID</th>
-          <th><?php esc_html_e('日付', 'drwp-daily-reports'); ?></th>
+          <?php
+            $sort_base = remove_query_arg(['orderby', 'order'], $_SERVER['REQUEST_URI'] ?? '');
+            list($sort_field, $sort_order) = DRWP_Admin::parse_sort($_GET, ['id', 'report_date'], 'report_date', 'desc');
+          ?>
+          <th><?php echo DRWP_Admin::sortable_th_link('ID', 'id', $sort_field, $sort_order, $sort_base); ?></th>
+          <th><?php echo DRWP_Admin::sortable_th_link(__('日付', 'drwp-daily-reports'), 'report_date', $sort_field, $sort_order, $sort_base); ?></th>
           <th><?php esc_html_e('作成者', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('案件', 'drwp-daily-reports'); ?></th>
           <th><?php esc_html_e('公開タイトル', 'drwp-daily-reports'); ?></th>
@@ -135,10 +79,9 @@
       </thead>
       <tbody>
         <?php if (empty($reports)): ?>
-          <tr><td colspan="9"><?php esc_html_e('承認済みの日報がありません。', 'drwp-daily-reports'); ?></td></tr>
+          <tr><td colspan="8"><?php esc_html_e('承認済みの日報がありません。', 'drwp-daily-reports'); ?></td></tr>
         <?php else: foreach ($reports as $report): ?>
           <tr>
-            <td><input class="drwp-check" type="checkbox" name="report_ids[]" value="<?php echo esc_attr($report->id); ?>" /></td>
             <td><?php echo esc_html($report->id); ?></td>
             <td><?php echo esc_html(date_i18n('Y年n月j日', strtotime((string) $report->report_date))); ?></td>
             <td><?php
@@ -171,7 +114,6 @@
         <?php endforeach; endif; ?>
       </tbody>
     </table>
-  </form>
 
   <?php
   if ($pages > 1):
@@ -185,6 +127,8 @@
                       'project_id'  => $filters['project_id'] ?: '',
                       'date_from'   => $filters['date_from'],
                       'date_to'     => $filters['date_to'],
+                      'orderby'     => ($sort_field !== 'report_date') ? $sort_field : '',
+                      'order'       => ($sort_order !== 'desc') ? $sort_order : '',
                   ],
                   function ($v) { return $v !== '' && $v !== 0; }
               )
@@ -419,24 +363,6 @@
   .drwp-conv-collapse>p{padding:12px 14px;margin:0}
   .drwp-conv-collapse>table.form-table{padding:8px 14px}
   </style>
-
-  <script>
-  (function(){
-    var sel=document.getElementById('drwp-bulk-action-select');
-    var opts=document.getElementById('drwp-bulk-publish-opts');
-    if(!sel||!opts)return;
-    function toggle(){
-      var v=sel.value;
-      var show=(v==='bulk_convert'||v==='bulk_update_publish');
-      opts.style.display=show?'':'none';
-      // Auto-expand when relevant so the operator doesn't have to
-      // click the summary every time. Leave alone when hidden.
-      if(show) opts.open=true;
-    }
-    sel.addEventListener('change',toggle);
-    toggle();
-  })();
-  </script>
 
   <script>
   (function(){

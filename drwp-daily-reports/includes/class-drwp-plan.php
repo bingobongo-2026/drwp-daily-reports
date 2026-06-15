@@ -105,10 +105,18 @@ class DRWP_Plan {
             $where .= ' AND p.planned_date <= %s';
             $args[] = (string) $filters['date_to'];
         }
+        // ソート — id / planned_date のみ許可、既定は予定日昇順 (近い順)。
+        $sort_field = (isset($filters['orderby']) && in_array($filters['orderby'], ['id', 'planned_date'], true))
+            ? $filters['orderby'] : 'planned_date';
+        $sort_order = (isset($filters['order']) && in_array(strtolower((string) $filters['order']), ['asc', 'desc'], true))
+            ? strtoupper((string) $filters['order']) : 'ASC';
+        $order_sql = $sort_field === 'id'
+            ? 'p.id ' . $sort_order
+            : 'p.planned_date ' . $sort_order . ', p.started_at ' . $sort_order . ', p.id ' . $sort_order;
         $sql = 'SELECT p.* FROM ' . self::table() . ' p'
              . ' LEFT JOIN ' . $proj_t . ' pj ON pj.id = p.project_id'
              . ' WHERE ' . $where
-             . ' ORDER BY p.planned_date ASC, p.started_at ASC, p.id ASC';
+             . ' ORDER BY ' . $order_sql;
         return $args
             ? $wpdb->get_results($wpdb->prepare($sql, $args))
             : $wpdb->get_results($sql);
@@ -141,6 +149,9 @@ class DRWP_Plan {
             wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         }
 
+        list($sort_field, $sort_order) = DRWP_Admin::parse_sort(
+            $_GET, ['id', 'planned_date'], 'planned_date', 'asc'
+        );
         $filters = [
             'search'    => isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '',
             'project_id'=> isset($_GET['project_id']) ? absint($_GET['project_id']) : 0,
@@ -148,6 +159,8 @@ class DRWP_Plan {
             'status'    => isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '',
             'date_from' => isset($_GET['date_from']) ? sanitize_text_field(wp_unslash($_GET['date_from'])) : '',
             'date_to'   => isset($_GET['date_to']) ? sanitize_text_field(wp_unslash($_GET['date_to'])) : '',
+            'orderby'   => $sort_field,
+            'order'     => $sort_order,
         ];
 
         $plans         = self::search($filters);
