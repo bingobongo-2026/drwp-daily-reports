@@ -92,8 +92,12 @@ $is_retired = DRWP_User::is_retired();
   <table class="widefat striped">
     <thead>
       <tr>
-        <th>ID</th>
-        <th><?php esc_html_e('日付', 'drwp-daily-reports'); ?></th>
+        <?php
+          $sort_base = remove_query_arg(['orderby', 'order'], $_SERVER['REQUEST_URI'] ?? '');
+          list($sort_field, $sort_order) = DRWP_Admin::parse_sort($_GET, ['id', 'planned_date'], 'planned_date', 'asc');
+        ?>
+        <th><?php echo DRWP_Admin::sortable_th_link('ID', 'id', $sort_field, $sort_order, $sort_base); ?></th>
+        <th><?php echo DRWP_Admin::sortable_th_link(__('日付', 'drwp-daily-reports'), 'planned_date', $sort_field, $sort_order, $sort_base); ?></th>
         <th><?php esc_html_e('時間', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('案件', 'drwp-daily-reports'); ?></th>
         <?php if ($can_view_all): ?><th><?php esc_html_e('担当', 'drwp-daily-reports'); ?></th><?php endif; ?>

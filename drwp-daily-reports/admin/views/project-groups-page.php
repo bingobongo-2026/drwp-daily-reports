@@ -20,7 +20,11 @@
   <table class="widefat striped" style="margin-top:8px;">
     <thead>
       <tr>
-        <th>ID</th>
+        <?php
+          $sort_base = remove_query_arg(['orderby', 'order'], $_SERVER['REQUEST_URI'] ?? '');
+          list($sort_field, $sort_order) = DRWP_Admin::parse_sort($_GET, ['id'], 'id', 'desc');
+        ?>
+        <th><?php echo DRWP_Admin::sortable_th_link('ID', 'id', $sort_field, $sort_order, $sort_base); ?></th>
         <th><?php esc_html_e('グループ名', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('色', 'drwp-daily-reports'); ?></th>
         <th><?php esc_html_e('案件数', 'drwp-daily-reports'); ?></th>

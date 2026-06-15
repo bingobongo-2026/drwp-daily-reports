@@ -41,6 +41,11 @@ class DRWP_Project {
             'project_group_id'  => isset($_GET['project_group_id']) ? absint($_GET['project_group_id']) : 0,
         ];
         $projects = self::search($filters['search'], $filters['customer_group_id'], $filters['project_group_id']);
+        list($sort_field, $sort_order) = DRWP_Admin::parse_sort($_GET, ['id'], 'id', 'desc');
+        usort($projects, function ($a, $b) use ($sort_order) {
+            $cmp = (int) $a->id <=> (int) $b->id;
+            return $sort_order === 'desc' ? -$cmp : $cmp;
+        });
         $customers = DRWP_Customer::all();
         $customer_groups = DRWP_Customer_Group::all(true);
         $project_groups  = DRWP_Project_Group::all(true);

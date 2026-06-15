@@ -61,10 +61,20 @@ class DRWP_Groups_Admin {
         if ($tab === 'customer') {
             $groups = DRWP_Customer_Group::all();
             $counts = DRWP_Customer_Group::customer_counts();
+            list($sort_field, $sort_order) = DRWP_Admin::parse_sort($_GET, ['id'], 'id', 'desc');
+            usort($groups, function ($a, $b) use ($sort_order) {
+                $cmp = (int) $a->id <=> (int) $b->id;
+                return $sort_order === 'desc' ? -$cmp : $cmp;
+            });
             include DRWP_PATH . 'admin/views/customer-groups-page.php';
         } else {
             $groups = DRWP_Project_Group::all();
             $counts = DRWP_Project_Group::project_counts();
+            list($sort_field, $sort_order) = DRWP_Admin::parse_sort($_GET, ['id'], 'id', 'desc');
+            usort($groups, function ($a, $b) use ($sort_order) {
+                $cmp = (int) $a->id <=> (int) $b->id;
+                return $sort_order === 'desc' ? -$cmp : $cmp;
+            });
             include DRWP_PATH . 'admin/views/project-groups-page.php';
         }
         ?>
