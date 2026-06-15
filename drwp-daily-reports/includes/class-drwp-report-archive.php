@@ -1007,6 +1007,9 @@ class DRWP_Report_Archive {
         $q       = isset($_GET['drwp_q']) ? sanitize_text_field(wp_unslash((string) $_GET['drwp_q'])) : '';
         $project = isset($_GET['drwp_project']) ? absint($_GET['drwp_project']) : 0;
         $status  = isset($_GET['drwp_status']) ? sanitize_key((string) $_GET['drwp_status']) : '';
+        // 表示モード: calendar (既定) / list。リスト側は内容のスキャン用、
+        // カレンダーは「いつあったか」確認用、で使い分け。
+        $view    = (isset($_GET['drwp_view']) && (string) $_GET['drwp_view'] === 'list') ? 'list' : 'calendar';
 
         // Month navigation. Default to the current month so the view
         // opens on "今月". URL state lets users bookmark a specific month.
@@ -1102,18 +1105,27 @@ class DRWP_Report_Archive {
 
             <?php echo self::render_filter_form($q, $project, $status, $month_param, $projects, !empty($_GET['drwp_mine'])); ?>
 
-            <p class="drwp-archive-summary">
-                <?php
-                $count = count($rows);
-                printf(
-                    esc_html__('%1$s（%2$d 件）', 'drwp-daily-reports'),
-                    esc_html(date_i18n('Y年n月', strtotime($month_start))),
-                    $count
-                );
-                ?>
-            </p>
+            <div class="drwp-archive-toolbar">
+                <p class="drwp-archive-summary">
+                    <?php
+                    $count = count($rows);
+                    printf(
+                        esc_html__('%1$s（%2$d 件）', 'drwp-daily-reports'),
+                        esc_html(date_i18n('Y年n月', strtotime($month_start))),
+                        $count
+                    );
+                    ?>
+                </p>
+                <?php echo self::render_view_toggle($view); ?>
+            </div>
 
-            <?php echo self::render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, ['q' => $q, 'project' => $project, 'status' => $status], $plans_by_date); ?>
+            <?php echo self::render_status_legend(); ?>
+
+            <?php if ($view === 'list'): ?>
+                <?php echo self::render_archive_list_view($rows, $plans_by_date); ?>
+            <?php else: ?>
+                <?php echo self::render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, ['q' => $q, 'project' => $project, 'status' => $status], $plans_by_date); ?>
+            <?php endif; ?>
         </div>
         <?php
         return ob_get_clean();
@@ -1146,7 +1158,8 @@ class DRWP_Report_Archive {
         parse_str($_SERVER['QUERY_STRING'] ?? '', $current_query);
         $drwp_keys = ['drwp_q', 'drwp_project', 'drwp_status', 'drwp_month',
                       'drwp_mine', 'drwp_id', 'drwp_edit', 'drwp_new',
-                      'drwp_saved', 'drwp_requested', 'drwp_err', 'drwp_p', 'drwp_per'];
+                      'drwp_saved', 'drwp_requested', 'drwp_err', 'drwp_p', 'drwp_per',
+                      'drwp_view'];
         $preserve = [];
         foreach ($current_query as $k => $v) {
             if (!in_array($k, $drwp_keys, true) && is_scalar($v)) {
@@ -1180,6 +1193,9 @@ class DRWP_Report_Archive {
                     <input type="hidden" name="<?php echo esc_attr($k); ?>" value="<?php echo esc_attr($v); ?>" />
                 <?php endforeach; ?>
                 <input type="hidden" name="drwp_month" value="<?php echo esc_attr($month_param); ?>" />
+                <?php if (!empty($_GET['drwp_view']) && $_GET['drwp_view'] === 'list'): ?>
+                    <input type="hidden" name="drwp_view" value="list" />
+                <?php endif; ?>
                 <div class="drwp-archive-filter-row">
                     <label class="drwp-archive-field grow">
                         <span><?php esc_html_e('キーワード', 'drwp-daily-reports'); ?></span>
@@ -1224,6 +1240,190 @@ class DRWP_Report_Archive {
                 </div>
             </form>
         </details>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * カレンダー / リスト 切替トグル。URL の drwp_view クエリで状態
+     * を保持する。calendar は「いつあったか」、list は「内容を一覧
+     * でスキャン」用途。
+     */
+    private static function render_view_toggle($current) {
+        $base = $_SERVER['REQUEST_URI'] ?? '';
+        $cal_url = esc_url(remove_query_arg('drwp_view', $base));
+        $list_url = esc_url(add_query_arg(['drwp_view' => 'list'], $base));
+        ob_start();
+        ?>
+        <div class="drwp-archive-view-toggle" role="tablist" aria-label="<?php esc_attr_e('表示モード', 'drwp-daily-reports'); ?>">
+            <a class="drwp-archive-view-btn<?php echo $current === 'calendar' ? ' is-active' : ''; ?>"
+               href="<?php echo $cal_url; ?>" role="tab" aria-selected="<?php echo $current === 'calendar' ? 'true' : 'false'; ?>">
+                📅 <?php esc_html_e('カレンダー', 'drwp-daily-reports'); ?>
+            </a>
+            <a class="drwp-archive-view-btn<?php echo $current === 'list' ? ' is-active' : ''; ?>"
+               href="<?php echo $list_url; ?>" role="tab" aria-selected="<?php echo $current === 'list' ? 'true' : 'false'; ?>">
+                📋 <?php esc_html_e('リスト', 'drwp-daily-reports'); ?>
+            </a>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * カレンダー / リスト 共通の色凡例。覚えなくても色の意味が分かる
+     * よう、毎回常時表示するシンプルな帯。
+     */
+    private static function render_status_legend() {
+        $items = [
+            'pending'        => __('レビュー待ち', 'drwp-daily-reports'),
+            'approved'       => __('承認済み', 'drwp-daily-reports'),
+            'needs_revision' => __('差戻し', 'drwp-daily-reports'),
+            'edit_requested' => __('編集依頼中', 'drwp-daily-reports'),
+        ];
+        ob_start();
+        ?>
+        <ul class="drwp-archive-legend" aria-label="<?php esc_attr_e('状態の凡例', 'drwp-daily-reports'); ?>">
+            <?php foreach ($items as $key => $label): ?>
+                <li>
+                    <span class="drwp-archive-legend-dot status-<?php echo esc_attr($key); ?>" aria-hidden="true"></span>
+                    <?php echo esc_html($label); ?>
+                </li>
+            <?php endforeach; ?>
+            <li>
+                <span class="drwp-archive-legend-dot is-plan" aria-hidden="true"></span>
+                <?php esc_html_e('予定', 'drwp-daily-reports'); ?>
+            </li>
+        </ul>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * 「内容をスキャンする」用のリストビュー。
+     * 各行に日付 / 状態バッジ / 案件 / 時刻 / 作業内容のスニペット /
+     * 報告者 / 📷 写真件数 / ⚠️ 特記事項フラグ を出す。クリックで
+     * カレンダーチップと同じ詳細モーダルが開けるように `data-id` を
+     * 仕込む。
+     */
+    private static function render_archive_list_view($rows, $plans_by_date = []) {
+        if (empty($rows) && empty($plans_by_date)) {
+            ob_start();
+            ?>
+            <div class="drwp-archive-list drwp-archive-list-empty">
+                <p><?php esc_html_e('該当する日報はありません。', 'drwp-daily-reports'); ?></p>
+            </div>
+            <?php
+            return ob_get_clean();
+        }
+
+        // 写真件数を 1 クエリでバルク取得 — 行ごとに DRWP_Media::for_report
+        // を叩くと N+1 になるので避ける。
+        $photo_counts = [];
+        if (!empty($rows)) {
+            global $wpdb;
+            $photos_t = $wpdb->prefix . 'drwp_report_photos';
+            $ids = array_map(function ($r) { return (int) $r->id; }, $rows);
+            $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+            $count_rows = $wpdb->get_results($wpdb->prepare(
+                "SELECT report_id, COUNT(*) AS c FROM $photos_t WHERE report_id IN ($placeholders) GROUP BY report_id",
+                $ids
+            ));
+            foreach ($count_rows as $row) {
+                $photo_counts[(int) $row->report_id] = (int) $row->c;
+            }
+        }
+
+        $weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+
+        // 予定 (linked 済みは除外) を日報リストに織り交ぜたほうが
+        // 「今後の予定」も同じ画面で見渡せて便利。日付順に並べ替え。
+        $entries = [];
+        foreach ($rows as $r) {
+            $entries[] = ['kind' => 'report', 'date' => (string) $r->report_date, 'time' => (string) ($r->started_at ?? ''), 'row' => $r];
+        }
+        foreach ($plans_by_date as $pdate => $plans) {
+            foreach ($plans as $pl) {
+                if (!empty($pl->linked_report_id)) continue;  // 日報化済みは除外
+                $entries[] = ['kind' => 'plan', 'date' => (string) $pdate, 'time' => (string) ($pl->started_at ?? ''), 'row' => $pl];
+            }
+        }
+        usort($entries, function ($a, $b) {
+            return strcmp($a['date'], $b['date']) ?: strcmp($a['time'], $b['time']);
+        });
+
+        ob_start();
+        ?>
+        <div class="drwp-archive-list">
+            <?php foreach ($entries as $e):
+                $row = $e['row'];
+                $date_ts = strtotime($e['date']);
+                $dow = $date_ts ? (int) date('w', $date_ts) : -1;
+                $date_label = $date_ts ? date_i18n('n/j', $date_ts) : '';
+                $dow_label  = ($dow >= 0) ? $weekdays[$dow] : '';
+            ?>
+            <?php if ($e['kind'] === 'plan'): ?>
+                <button type="button" class="drwp-archive-list-row is-plan drwp-archive-cal-plan-chip"
+                        data-plan-id="<?php echo (int) $row->id; ?>"
+                        data-plan-date="<?php echo esc_attr((string) $row->planned_date); ?>"
+                        data-plan-project-id="<?php echo (int) ($row->project_id ?? 0); ?>"
+                        data-plan-project-name="<?php
+                            $pp = $row->project_id ? DRWP_Project::find((int) $row->project_id) : null;
+                            echo esc_attr($pp ? (string) $pp->name : __('（案件未設定）', 'drwp-daily-reports'));
+                        ?>"
+                        data-plan-user-id="<?php echo (int) ($row->user_id ?? 0); ?>"
+                        data-plan-start="<?php echo esc_attr(substr((string) ($row->started_at ?? ''), 0, 5)); ?>"
+                        data-plan-end="<?php echo esc_attr(substr((string) ($row->ended_at ?? ''), 0, 5)); ?>"
+                        data-plan-notes="<?php echo esc_attr((string) ($row->notes ?? '')); ?>"
+                        data-plan-linked="<?php echo (int) ($row->linked_report_id ?? 0); ?>">
+                    <span class="drwp-archive-list-date"><?php echo esc_html($date_label); ?>
+                        <small>(<?php echo esc_html($dow_label); ?>)</small></span>
+                    <span class="drwp-archive-list-badge is-plan-badge"><?php esc_html_e('予定', 'drwp-daily-reports'); ?></span>
+                    <?php $time = self::format_time_window($row->started_at ?? '', $row->ended_at ?? ''); ?>
+                    <span class="drwp-archive-list-time"><?php echo esc_html($time); ?></span>
+                    <?php
+                      $proj = $row->project_id ? DRWP_Project::find((int) $row->project_id) : null;
+                      $proj_name = $proj ? (string) $proj->name : __('（案件未設定）', 'drwp-daily-reports');
+                    ?>
+                    <span class="drwp-archive-list-project"><?php echo esc_html($proj_name); ?></span>
+                    <span class="drwp-archive-list-snippet">
+                        <?php echo esc_html(mb_substr((string) ($row->notes ?? ''), 0, 60)); ?>
+                    </span>
+                </button>
+            <?php else:
+                $r = $row;
+                $time = self::format_time_window($r->started_at ?? '', $r->ended_at ?? '');
+                $proj = $r->project_id ? DRWP_Project::find((int) $r->project_id) : null;
+                $proj_name = $proj ? (string) $proj->name : __('（案件未設定）', 'drwp-daily-reports');
+                $status_label = DRWP_Labels::review_status((string) $r->review_status);
+                $author = DRWP_User::display_name((int) $r->user_id) ?: ('#' . (int) $r->user_id);
+                $snippet = trim((string) ($r->work_description ?? ''));
+                if (mb_strlen($snippet) > 70) $snippet = mb_substr($snippet, 0, 70) . '…';
+                $issues = trim((string) ($r->issues ?? ''));
+                $photo_n = $photo_counts[(int) $r->id] ?? 0;
+            ?>
+                <button type="button" class="drwp-archive-list-row drwp-archive-cal-chip status-<?php echo esc_attr((string) $r->review_status); ?>"
+                        data-id="<?php echo (int) $r->id; ?>">
+                    <span class="drwp-archive-list-date"><?php echo esc_html($date_label); ?>
+                        <small>(<?php echo esc_html($dow_label); ?>)</small></span>
+                    <span class="drwp-archive-list-badge status-<?php echo esc_attr((string) $r->review_status); ?>">
+                        <?php echo esc_html($status_label); ?>
+                    </span>
+                    <span class="drwp-archive-list-time"><?php echo esc_html($time); ?></span>
+                    <span class="drwp-archive-list-project"><?php echo esc_html($proj_name); ?></span>
+                    <span class="drwp-archive-list-snippet"><?php echo esc_html($snippet); ?></span>
+                    <span class="drwp-archive-list-icons">
+                        <?php if ($photo_n > 0): ?>
+                            <span class="drwp-archive-list-icon" title="<?php echo esc_attr(sprintf(__('写真 %d 枚', 'drwp-daily-reports'), $photo_n)); ?>">📷 <?php echo (int) $photo_n; ?></span>
+                        <?php endif; ?>
+                        <?php if ($issues !== ''): ?>
+                            <span class="drwp-archive-list-icon" title="<?php esc_attr_e('特記事項あり', 'drwp-daily-reports'); ?>">⚠️</span>
+                        <?php endif; ?>
+                        <span class="drwp-archive-list-author"><?php echo esc_html($author); ?></span>
+                    </span>
+                </button>
+            <?php endif; ?>
+            <?php endforeach; ?>
+        </div>
         <?php
         return ob_get_clean();
     }
