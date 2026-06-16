@@ -1,0 +1,413 @@
+<!--
+  日報マン — WordPress 固定ページ用 LP (ランディングページ)
+
+  使い方:
+    1. WordPress 管理画面 → 固定ページ → 新規追加
+    2. ブロックエディタで「カスタム HTML」ブロックを追加
+    3. このファイルの中身を <body> 内のみコピーして貼り付け
+       (<style> ブロックを含めるとそのまま動きます)
+    4. 必要に応じて [お問い合わせフォーム / ライセンス購入ページ] への
+       リンク先 URL を `href="#"` から差し替えてください
+
+  注意:
+    - 全インライン CSS で書いているので、テーマ CSS との競合は最小限です
+    - 画像は使わずグラデーション / 絵文字でビジュアルを作っているので
+      画像差し替えなしですぐ公開できます
+    - ダーク/ライトテーマ両対応の中立配色
+-->
+<style id="drwp-lp-style">
+  .drwp-lp { max-width: 1100px; margin: 0 auto; padding: 0 16px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif; color: #1f2937; line-height: 1.75; }
+  .drwp-lp * { box-sizing: border-box; }
+  .drwp-lp h1, .drwp-lp h2, .drwp-lp h3 { color: #111827; line-height: 1.4; margin: 0; }
+
+  /* ---- Hero ---- */
+  .drwp-lp-hero { padding: 56px 24px; margin: 24px 0; border-radius: 16px; background: linear-gradient(135deg, #1f2937 0%, #2563eb 100%); color: #fff; text-align: center; }
+  .drwp-lp-hero .badge { display: inline-block; padding: 4px 12px; border-radius: 999px; background: rgba(255,255,255,.16); font-size: .82rem; font-weight: 600; letter-spacing: .04em; margin-bottom: 16px; }
+  .drwp-lp-hero h1 { font-size: 2.2rem; color: #fff; margin-bottom: 14px; letter-spacing: .02em; }
+  .drwp-lp-hero p.lead { font-size: 1.1rem; color: rgba(255,255,255,.92); margin: 0 auto 24px; max-width: 720px; }
+  .drwp-lp-hero .ctas { display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .drwp-lp-hero .btn { display: inline-block; padding: 12px 28px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 1rem; transition: transform .1s; }
+  .drwp-lp-hero .btn:hover { transform: translateY(-1px); }
+  .drwp-lp-hero .btn.primary { background: #fff; color: #1f2937; }
+  .drwp-lp-hero .btn.ghost { background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.4); }
+
+  /* ---- Pain points ---- */
+  .drwp-lp-section { padding: 56px 0; }
+  .drwp-lp-section h2 { font-size: 1.7rem; text-align: center; margin-bottom: 8px; }
+  .drwp-lp-section .sub { text-align: center; color: #6b7280; margin: 0 0 32px; }
+  .drwp-lp-pain { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .drwp-lp-pain .card { background: #fef3c7; border: 1px solid #fde68a; padding: 20px; border-radius: 10px; }
+  .drwp-lp-pain .card .ico { font-size: 1.6rem; margin-bottom: 8px; }
+  .drwp-lp-pain .card .ttl { font-weight: 700; color: #92400e; margin-bottom: 6px; }
+  .drwp-lp-pain .card .desc { color: #78350f; font-size: .94rem; }
+
+  /* ---- 3 Steps ---- */
+  .drwp-lp-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+  .drwp-lp-steps .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; position: relative; }
+  .drwp-lp-steps .step .num { position: absolute; top: -16px; left: 20px; width: 36px; height: 36px; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; }
+  .drwp-lp-steps .step h3 { margin: 12px 0 8px; font-size: 1.1rem; }
+  .drwp-lp-steps .step p { color: #4b5563; font-size: .95rem; margin: 0; }
+
+  /* ---- Features grid ---- */
+  .drwp-lp-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+  .drwp-lp-features .feat { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 22px; }
+  .drwp-lp-features .feat .ico { font-size: 1.8rem; margin-bottom: 10px; }
+  .drwp-lp-features .feat h3 { font-size: 1.05rem; margin-bottom: 6px; }
+  .drwp-lp-features .feat p { color: #4b5563; font-size: .92rem; margin: 0; }
+
+  /* ---- AI Pro section ---- */
+  .drwp-lp-ai { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: #fff; padding: 48px 32px; border-radius: 16px; }
+  .drwp-lp-ai h2 { color: #fff; text-align: center; margin-bottom: 8px; }
+  .drwp-lp-ai .sub { color: rgba(255,255,255,.85); text-align: center; margin-bottom: 28px; }
+  .drwp-lp-ai .ai-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .drwp-lp-ai .ai-card { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); padding: 18px; border-radius: 10px; }
+  .drwp-lp-ai .ai-card .ico { font-size: 1.5rem; margin-bottom: 6px; }
+  .drwp-lp-ai .ai-card h3 { color: #fff; font-size: 1rem; margin-bottom: 4px; }
+  .drwp-lp-ai .ai-card p { color: rgba(255,255,255,.88); font-size: .88rem; margin: 0; }
+  .drwp-lp-ai .pill-row { text-align: center; margin-top: 24px; }
+  .drwp-lp-ai .pill { display: inline-block; padding: 4px 14px; border-radius: 999px; background: #fbbf24; color: #78350f; font-weight: 700; font-size: .85rem; letter-spacing: .04em; }
+
+  /* ---- Security section ---- */
+  .drwp-lp-security { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 32px; }
+  .drwp-lp-security h2 { text-align: center; margin-bottom: 24px; }
+  .drwp-lp-security .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .drwp-lp-security .item { display: flex; gap: 12px; align-items: flex-start; }
+  .drwp-lp-security .item .ico { font-size: 1.4rem; flex-shrink: 0; }
+  .drwp-lp-security .item h3 { font-size: 1rem; margin-bottom: 4px; color: #065f46; }
+  .drwp-lp-security .item p { color: #064e3b; font-size: .92rem; margin: 0; }
+
+  /* ---- Pricing ---- */
+  .drwp-lp-pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 800px; margin: 0 auto; }
+  .drwp-lp-pricing .plan { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 28px; position: relative; }
+  .drwp-lp-pricing .plan.pro { border: 2px solid #8b5cf6; box-shadow: 0 8px 24px rgba(139,92,246,.15); }
+  .drwp-lp-pricing .plan.pro::before { content: "おすすめ"; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #8b5cf6; color: #fff; padding: 4px 16px; border-radius: 999px; font-size: .82rem; font-weight: 700; }
+  .drwp-lp-pricing .plan h3 { font-size: 1.4rem; margin-bottom: 6px; }
+  .drwp-lp-pricing .plan .price { font-size: 1.8rem; font-weight: 700; color: #2563eb; margin: 12px 0; }
+  .drwp-lp-pricing .plan.pro .price { color: #8b5cf6; }
+  .drwp-lp-pricing .plan .price small { font-size: .9rem; font-weight: 400; color: #6b7280; }
+  .drwp-lp-pricing .plan ul { list-style: none; padding: 0; margin: 16px 0; }
+  .drwp-lp-pricing .plan ul li { padding: 6px 0; padding-left: 24px; position: relative; font-size: .94rem; color: #374151; }
+  .drwp-lp-pricing .plan ul li::before { content: "✓"; position: absolute; left: 0; color: #10b981; font-weight: 700; }
+  .drwp-lp-pricing .plan .cta { display: block; width: 100%; padding: 12px; background: #1f2937; color: #fff; border: 0; border-radius: 8px; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; margin-top: 12px; }
+  .drwp-lp-pricing .plan.pro .cta { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+
+  /* ---- FAQ ---- */
+  .drwp-lp-faq { max-width: 760px; margin: 0 auto; }
+  .drwp-lp-faq details { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 18px; margin-bottom: 10px; }
+  .drwp-lp-faq summary { cursor: pointer; font-weight: 700; color: #1f2937; list-style: none; padding-right: 24px; position: relative; }
+  .drwp-lp-faq summary::-webkit-details-marker { display: none; }
+  .drwp-lp-faq summary::after { content: "+"; position: absolute; right: 0; font-size: 1.4rem; font-weight: 400; color: #6b7280; transition: transform .15s; }
+  .drwp-lp-faq details[open] summary::after { transform: rotate(45deg); }
+  .drwp-lp-faq .ans { color: #4b5563; margin-top: 10px; font-size: .94rem; }
+
+  /* ---- Final CTA ---- */
+  .drwp-lp-finalcta { background: #111827; color: #fff; padding: 48px 32px; border-radius: 16px; text-align: center; }
+  .drwp-lp-finalcta h2 { color: #fff; font-size: 1.8rem; margin-bottom: 12px; }
+  .drwp-lp-finalcta p { color: rgba(255,255,255,.85); margin: 0 auto 24px; max-width: 600px; }
+  .drwp-lp-finalcta a.btn { display: inline-block; padding: 14px 32px; background: #fbbf24; color: #78350f; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+
+  /* スマホ — H1 を控えめに、padding を詰める */
+  @media (max-width: 640px) {
+    .drwp-lp-hero { padding: 36px 18px; }
+    .drwp-lp-hero h1 { font-size: 1.6rem; }
+    .drwp-lp-hero p.lead { font-size: 1rem; }
+    .drwp-lp-section { padding: 36px 0; }
+    .drwp-lp-section h2 { font-size: 1.4rem; }
+  }
+</style>
+
+<div class="drwp-lp">
+
+  <!-- =================================================================
+       Hero
+       ================================================================= -->
+  <section class="drwp-lp-hero">
+    <span class="badge">📋 WordPress プラグイン</span>
+    <h1>現場の日報を、お客様への一次情報に変える。</h1>
+    <p class="lead">
+      写真と一緒にスマホから日報を送るだけ。レビューを経て、AI が読みやすい公開記事に整えます。<br>
+      工務店・施工管理・サービス業のための、WordPress と統合した日報管理プラグイン。
+    </p>
+    <div class="ctas">
+      <a href="#" class="btn primary">無料で試す</a>
+      <a href="#features" class="btn ghost">機能を見る</a>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       Pain points
+       ================================================================= -->
+  <section class="drwp-lp-section">
+    <h2>こんな課題、ありませんか？</h2>
+    <p class="sub">現場の日報が「書いて終わり」になっていませんか？</p>
+    <div class="drwp-lp-pain">
+      <div class="card">
+        <div class="ico">📝</div>
+        <div class="ttl">日報が社内で死蔵</div>
+        <div class="desc">毎日書いている日報が紙やチャットに埋もれ、お客様にも社外にも届いていない。</div>
+      </div>
+      <div class="card">
+        <div class="ico">🌐</div>
+        <div class="ttl">ホームページが更新されない</div>
+        <div class="desc">「施工事例」が 2 年前で止まっている。新規問い合わせを取り逃がしている可能性。</div>
+      </div>
+      <div class="card">
+        <div class="ico">📞</div>
+        <div class="ttl">進捗報告が口頭ばかり</div>
+        <div class="desc">お客様への報告が電話と口頭中心。「言った言わない」が後で発生する。</div>
+      </div>
+      <div class="card">
+        <div class="ico">🤖</div>
+        <div class="ttl">記事を書く時間がない</div>
+        <div class="desc">「ブログを書きましょう」と言われても、現場で疲れて手が動かない。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       3 Steps
+       ================================================================= -->
+  <section class="drwp-lp-section">
+    <h2>3 ステップで日報が公開記事になる</h2>
+    <p class="sub">入力 → 承認 → 公開、現場と事務所の役割を分けて運用</p>
+    <div class="drwp-lp-steps">
+      <div class="step">
+        <div class="num">1</div>
+        <h3>📱 現場から日報を送る</h3>
+        <p>スマホで写真を撮って、作業内容を入力。Before / After のラベルも付けられます。送信先は「レビュー待ち」へ。</p>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <h3>✅ 事務所がレビュー</h3>
+        <p>表現の調整やコメントを付けて「承認」または「差戻し」。承認後は公開記事化のステージへ進みます。</p>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <h3>📰 ワンクリックで公開</h3>
+        <p>テンプレートを選んで「記事を作成」。AI がタイトルから本文まで整え、WordPress 投稿として公開できます。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       Features
+       ================================================================= -->
+  <section class="drwp-lp-section" id="features">
+    <h2>主要機能</h2>
+    <p class="sub">運用に必要なものを 1 プラグインに集約</p>
+    <div class="drwp-lp-features">
+      <div class="feat">
+        <div class="ico">📱</div>
+        <h3>スマホ最適化フォーム</h3>
+        <p>現場から片手で日報を送れる入力 UI。写真のドラッグ並び替え、キャプション、Before / After 指定対応。</p>
+      </div>
+      <div class="feat">
+        <div class="ico">✅</div>
+        <h3>レビューワークフロー</h3>
+        <p>レビュー待ち / 承認 / 差戻し / 編集依頼の 4 状態。コメントで現場とやり取りでき、操作はすべて履歴に残ります。</p>
+      </div>
+      <div class="feat">
+        <div class="ico">📰</div>
+        <h3>3 つの記事テンプレート</h3>
+        <p>「標準」「案件レポート」「ビフォーアフター」の 3 種類。写真の振り分けや案件情報の見せ方を切替できます。</p>
+      </div>
+      <div class="feat">
+        <div class="ico">📅</div>
+        <h3>カレンダー × リスト</h3>
+        <p>月単位カレンダーで「いつ何があったか」、リストで「内容のスキャン」。状態色で一目で進捗が分かります。</p>
+      </div>
+      <div class="feat">
+        <div class="ico">🏢</div>
+        <h3>顧客 / 案件マスタ</h3>
+        <p>顧客 → 案件 → 日報 → 記事 の一気通貫管理。グループでタグ付け、絞り込みも自由自在。</p>
+      </div>
+      <div class="feat">
+        <div class="ico">📆</div>
+        <h3>予定（プラン）機能</h3>
+        <p>次回訪問予定をカレンダーに登録。チップをタップすれば、その予定から日報をワンタップで起こせます。</p>
+      </div>
+      <div class="feat">
+        <div class="ico">📊</div>
+        <h3>CSV エクスポート</h3>
+        <p>絞り込んだ日報を Shift-JIS で一括出力。Excel 日本語版でそのまま開けます。</p>
+      </div>
+      <div class="feat">
+        <div class="ico">🗄️</div>
+        <h3>アーカイブ / 法定保存</h3>
+        <p>建設業法対応。日報のハード削除はなし、論理アーカイブ → 30 日後に管理者のみ完全削除可能。</p>
+      </div>
+      <div class="feat">
+        <div class="ico">📜</div>
+        <h3>操作履歴 (監査ログ)</h3>
+        <p>「誰が・いつ・何をしたか」を全イベント記録。自動保存期間設定で長期保持にも対応。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       AI Pro
+       ================================================================= -->
+  <section class="drwp-lp-ai">
+    <h2>🤖 AI が記事化と運用を後押し</h2>
+    <p class="sub">OpenAI / Anthropic の API キーで動作。Pro プランの強み。</p>
+    <div class="ai-grid">
+      <div class="ai-card">
+        <div class="ico">✨</div>
+        <h3>公開記事の下書き生成</h3>
+        <p>「何を / どこで / いつ」が明確なタイトル、導入文、本文、今後の予定をワンクリック生成。</p>
+      </div>
+      <div class="ai-card">
+        <div class="ico">🧭</div>
+        <h3>次回訪問ブリーフィング</h3>
+        <p>過去の日報を読み込み、次の訪問で持っていくべき情報・確認事項を要約します。</p>
+      </div>
+      <div class="ai-card">
+        <div class="ico">📈</div>
+        <h3>案件サマリ</h3>
+        <p>月次・四半期で案件の進捗、気付き、課題を AI がまとめて報告書化。</p>
+      </div>
+      <div class="ai-card">
+        <div class="ico">⚠️</div>
+        <h3>対応必須アラート</h3>
+        <p>特記事項から「これは要対応」を抽出。ダッシュボードに警告を表示します。</p>
+      </div>
+      <div class="ai-card">
+        <div class="ico">🔍</div>
+        <h3>振り返りアドバイス</h3>
+        <p>絞り込み中の日報を分析、過去の成功例 / 失敗例から今後の向き合い方を提案。</p>
+      </div>
+      <div class="ai-card">
+        <div class="ico">🔐</div>
+        <h3>個人情報の自動検知 + マスク</h3>
+        <p>公開前に顧客名・電話・メール・郵便番号を検知。ワンクリックで「Y様」「○○○-○○○○-○○○○」にマスク。</p>
+      </div>
+    </div>
+    <div class="pill-row"><span class="pill">PRO プラン限定</span></div>
+  </section>
+
+  <!-- =================================================================
+       Security
+       ================================================================= -->
+  <section class="drwp-lp-section">
+    <div class="drwp-lp-security">
+      <h2>🔒 セキュリティと法令対応</h2>
+      <div class="grid">
+        <div class="item">
+          <div class="ico">🛡️</div>
+          <div>
+            <h3>Ed25519 でライセンス検証</h3>
+            <p>応答に電子署名を付与。通信経路で改ざんされても機能解放につながりません。</p>
+          </div>
+        </div>
+        <div class="item">
+          <div class="ico">📚</div>
+          <div>
+            <h3>建設業法 / 個人情報保護法 対応</h3>
+            <p>日報のハード削除を禁止し、論理アーカイブ + 30 日経過後の管理者削除で法令と GDPR / APPI 両対応。</p>
+          </div>
+        </div>
+        <div class="item">
+          <div class="ico">👤</div>
+          <div>
+            <h3>役割ベースの権限分離</h3>
+            <p>現場 / レビュアー / 管理者で操作範囲を分離。退職社員はログイン即遮断。</p>
+          </div>
+        </div>
+        <div class="item">
+          <div class="ico">⏰</div>
+          <div>
+            <h3>操作履歴の自動削除</h3>
+            <p>監査ログの保存期間を設定可能。日次 cron で古い行を自動削除し、DB を肥大化させません。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       Pricing
+       ================================================================= -->
+  <section class="drwp-lp-section">
+    <h2>料金プラン</h2>
+    <p class="sub">小さく始めて、必要なときに Pro へ</p>
+    <div class="drwp-lp-pricing">
+      <div class="plan">
+        <h3>Basic</h3>
+        <div class="price">¥ お問い合わせ<small> / 月</small></div>
+        <p style="color:#6b7280;font-size:.9rem;margin:0;">小規模工務店・個人事業向け</p>
+        <ul>
+          <li>日報入力 (PC / スマホ)</li>
+          <li>レビューワークフロー</li>
+          <li>3 つの記事テンプレート</li>
+          <li>顧客 / 案件マスタ</li>
+          <li>予定カレンダー</li>
+          <li>CSV エクスポート</li>
+          <li>操作履歴 + 自動削除</li>
+        </ul>
+        <a href="#" class="cta">お問い合わせ</a>
+      </div>
+      <div class="plan pro">
+        <h3>Pro</h3>
+        <div class="price">¥ お問い合わせ<small> / 月</small></div>
+        <p style="color:#6b7280;font-size:.9rem;margin:0;">AI で運用を加速したい事業者向け</p>
+        <ul>
+          <li>Basic のすべての機能</li>
+          <li>✨ AI 公開記事下書き生成</li>
+          <li>🧭 AI 次回訪問ブリーフィング</li>
+          <li>📈 AI 案件サマリ (月次/四半期)</li>
+          <li>⚠️ AI 対応必須アラート</li>
+          <li>🔍 AI 振り返りアドバイス</li>
+          <li>🔐 個人情報の自動検知 + マスク</li>
+        </ul>
+        <a href="#" class="cta">お問い合わせ</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       FAQ
+       ================================================================= -->
+  <section class="drwp-lp-section">
+    <h2>よくある質問</h2>
+    <div class="drwp-lp-faq">
+      <details>
+        <summary>既存の WordPress サイトに導入できますか？</summary>
+        <div class="ans">はい、プラグインを有効化するだけで、既存サイトに日報マンの管理メニューと WordPress 投稿として記事が出るようになります。テーマは選びません。</div>
+      </details>
+      <details>
+        <summary>AI 機能には別途料金がかかりますか？</summary>
+        <div class="ans">OpenAI / Anthropic の API キーを「AI 設定」に入力していただきます。プロバイダ側の従量課金（記事 1 本生成あたり数円程度）が別途発生します。</div>
+      </details>
+      <details>
+        <summary>現場の社員はスマホで日報を送れますか？</summary>
+        <div class="ans">はい。専用のモバイル最適化フォームがあり、写真撮影・添付・送信まで片手で完結します。送信した日報は事務所側のレビュー待ちに入ります。</div>
+      </details>
+      <details>
+        <summary>個人情報の取り扱いはどうなっていますか？</summary>
+        <div class="ans">公開記事化前に顧客名・電話番号・メール・郵便番号を自動検知して警告します。ワンクリックで「Y様」「○○○-○○○○-○○○○」のような形式に自動マスクできます。</div>
+      </details>
+      <details>
+        <summary>過去の日報を消したい場合はどうすれば？</summary>
+        <div class="ans">建設業法の保存義務と内部不正対策の観点から、ハード削除は管理者のみ・アーカイブ後 30 日経過後のみ可能です。それまでは「アーカイブ」で一覧から非表示にできます。</div>
+      </details>
+      <details>
+        <summary>ライセンス検証はどう動きますか？</summary>
+        <div class="ans">独立したライセンスサーバーが Ed25519 で署名応答を返し、プラグイン側で libsodium 検証します。応答を改ざんしても機能解放にはつながりません。</div>
+      </details>
+      <details>
+        <summary>無料体験はできますか？</summary>
+        <div class="ans">はい。お問い合わせフォームから無料体験ライセンスをお申し込みください。すぐに発行してメールでお送りします。</div>
+      </details>
+    </div>
+  </section>
+
+  <!-- =================================================================
+       Final CTA
+       ================================================================= -->
+  <section class="drwp-lp-finalcta">
+    <h2>現場の日報を、ビジネスの資産に変える</h2>
+    <p>導入から運用までサポートします。まずはお気軽にご相談ください。</p>
+    <a href="#" class="btn">無料体験を申し込む →</a>
+  </section>
+
+</div>
