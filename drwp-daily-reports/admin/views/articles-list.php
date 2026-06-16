@@ -222,6 +222,16 @@
               <p class="description" id="drwp-conv-template-hint" style="margin:4px 0 0;display:none;color:#92400e;">
                 <?php esc_html_e('この日報は写真が添付されていないため、「ビフォーアフター」テンプレートは選択できません。日報編集モーダルから写真を追加してください。', 'drwp-daily-reports'); ?>
               </p>
+              <!-- ビフォーアフター選択時のみ表示 — 各写真に通常/Before/After を割り当て -->
+              <div id="drwp-conv-photo-kinds" class="drwp-conv-photo-kinds" hidden>
+                <p class="description" style="margin:8px 0 4px;color:#1e40af;font-weight:600;">
+                  <?php esc_html_e('🖼 写真を Before / After に振り分け', 'drwp-daily-reports'); ?>
+                </p>
+                <p class="description" style="margin:0 0 8px;">
+                  <?php esc_html_e('「ビフォーアフター」テンプレートでは、各写真がどちらの列に並ぶかを指定してください。「通常」のままの写真はグリッドの下に普通に並びます。', 'drwp-daily-reports'); ?>
+                </p>
+                <div id="drwp-conv-photo-kinds-grid"></div>
+              </div>
             </td>
           </tr>
           <tr>
@@ -365,6 +375,21 @@
   .drwp-article-main-ai{margin-left:auto;display:inline-flex;align-items:center;gap:4px}
   .drwp-pro-pill{display:inline-block;margin-left:4px;padding:1px 7px;border-radius:999px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.72em;font-weight:700;vertical-align:middle}
 
+  /* ビフォーアフター用 — 写真ごとに 通常/Before/After を切り替える UI。
+     テンプレートで before_after を選んだ時だけ出る。 */
+  .drwp-conv-photo-kinds{margin-top:10px;padding:10px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px}
+  #drwp-conv-photo-kinds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:4px}
+  .drwp-pk-item{position:relative;padding:6px;border:1px solid #d1d5db;border-radius:8px;background:#fff;transition:border-color .15s,background .15s}
+  .drwp-pk-item.is-before{border-color:#3b82f6;background:#eff6ff}
+  .drwp-pk-item.is-after{border-color:#16a34a;background:#f0fdf4}
+  .drwp-pk-item img{display:block;width:100%;height:70px;object-fit:cover;border-radius:4px;background:#f3f4f6}
+  .drwp-pk-radios{display:flex;gap:4px;margin-top:4px}
+  .drwp-pk-radios label{flex:1;text-align:center;padding:3px 0;border:1px solid #d1d5db;border-radius:4px;font-size:.74em;cursor:pointer;background:#fff;color:#475569;font-weight:600;line-height:1.2}
+  .drwp-pk-radios label.is-checked{background:#1f2937;color:#fff;border-color:#1f2937}
+  .drwp-pk-radios label.is-checked[data-k="before"]{background:#2563eb;border-color:#2563eb}
+  .drwp-pk-radios label.is-checked[data-k="after"]{background:#16a34a;border-color:#16a34a}
+  .drwp-pk-radios input{display:none}
+
   /* 個人情報チェックの警告帯 — モーダルフッター直上に出して、保存
      直前に必ず目に入るようにする。 */
   .drwp-conv-pii-panel{margin:0 20px;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;color:#92400e;font-size:.88em;line-height:1.55;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -421,6 +446,58 @@
       if (hint) hint.style.display = noPhotos ? '' : 'none';
       if (noPhotos && sel.value === 'before_after') sel.value = 'standard';
     }
+
+    // テンプレ = before_after の時だけ、写真ごとに 通常/Before/After を
+    // 選ぶ UI を出す。データはモーダル内の photoKinds マップに持ち、
+    // 保存時に PATCH /reports/{id} で同期 → /convert に進む。
+    var photoData = []; // [{ attachment_id, url, caption, kind }]
+    function loadPhotoData(d) {
+      photoData = (d.photos || []).map(function (p) {
+        return {
+          attachment_id: Number(p.attachment_id),
+          url: p.url || '',
+          caption: p.caption || '',
+          kind: (p.kind && (p.kind === 'before' || p.kind === 'after')) ? p.kind : 'normal',
+        };
+      });
+    }
+    function renderPhotoKindsPanel() {
+      var panel = document.getElementById('drwp-conv-photo-kinds');
+      var grid  = document.getElementById('drwp-conv-photo-kinds-grid');
+      if (!panel || !grid) return;
+      var tpl = document.getElementById('drwp-conv-template').value;
+      if (tpl !== 'before_after' || photoData.length === 0) {
+        panel.hidden = true;
+        return;
+      }
+      panel.hidden = false;
+      grid.innerHTML = '';
+      photoData.forEach(function (p, i) {
+        var item = document.createElement('div');
+        item.className = 'drwp-pk-item';
+        if (p.kind === 'before') item.classList.add('is-before');
+        if (p.kind === 'after')  item.classList.add('is-after');
+        item.innerHTML =
+          '<img src="' + esc(p.url) + '" alt="" />' +
+          '<div class="drwp-pk-radios">' +
+            '<label data-k="normal"' + (p.kind === 'normal' ? ' class="is-checked"' : '') + '><input type="radio" name="pk_' + i + '" value="normal"' + (p.kind === 'normal' ? ' checked' : '') + ' />通常</label>' +
+            '<label data-k="before"' + (p.kind === 'before' ? ' class="is-checked"' : '') + '><input type="radio" name="pk_' + i + '" value="before"' + (p.kind === 'before' ? ' checked' : '') + ' />Before</label>' +
+            '<label data-k="after"' + (p.kind === 'after' ? ' class="is-checked"' : '') + '><input type="radio" name="pk_' + i + '" value="after"' + (p.kind === 'after' ? ' checked' : '') + ' />After</label>' +
+          '</div>';
+        item.addEventListener('change', function (e) {
+          if (!e.target.matches('input[type=radio]')) return;
+          p.kind = e.target.value;
+          item.classList.remove('is-before', 'is-after');
+          if (p.kind === 'before') item.classList.add('is-before');
+          if (p.kind === 'after')  item.classList.add('is-after');
+          item.querySelectorAll('.drwp-pk-radios label').forEach(function (l) {
+            l.classList.toggle('is-checked', l.dataset.k === p.kind);
+          });
+        });
+        grid.appendChild(item);
+      });
+    }
+    document.getElementById('drwp-conv-template').addEventListener('change', renderPhotoKindsPanel);
     function api(path,opts){
       opts=opts||{};opts.credentials='same-origin';
       opts.headers=Object.assign({'X-WP-Nonce':rest.nonce},opts.headers||{});
@@ -738,6 +815,12 @@
       var piiPanel = document.getElementById('drwp-conv-pii-panel');
       if (piiPanel) { piiPanel.hidden = true; piiPanel.innerHTML = ''; }
       piiCandidates = [];
+      // Before/After 振り分けパネルもリセット
+      photoData = [];
+      var pkPanel = document.getElementById('drwp-conv-photo-kinds');
+      if (pkPanel) pkPanel.hidden = true;
+      var pkGrid = document.getElementById('drwp-conv-photo-kinds-grid');
+      if (pkGrid) pkGrid.innerHTML = '';
       document.getElementById('drwp-conv-title').value='';
       document.getElementById('drwp-dup-result').innerHTML='';
       document.getElementById('drwp-conv-intro').value='';
@@ -788,12 +871,16 @@
         // 個人情報チェック用に「警告すべき名前候補」を読み込む。
         piiCandidates = (d.pii_candidates || []).filter(function(s){ return s && s.length >= 2; });
         renderPiiWarning();
+        // 写真データ (Before/After 振り分けパネル用) も保持。
+        loadPhotoData(d);
         document.getElementById('drwp-conv-tags').value=d.post_tags||'';
         // テンプレ select の出し分け — ビフォーアフターは写真が
         // 無いと意味が無い (左右ペアが空になる) ので、写真ゼロの
         // 日報では選択肢から落としつつヒントを出す。
         applyTemplateGate(!d.photos || !d.photos.length);
         if(d.post_template)document.getElementById('drwp-conv-template').value=d.post_template;
+        // テンプレが before_after だった or 初期で選んだ場合に panel を出す
+        renderPhotoKindsPanel();
         if(d.post_category_id)document.getElementById('drwp-conv-category').value=d.post_category_id;
         if(d.post_status)document.getElementById('drwp-conv-post-status').value=d.post_status;
         if(d.scheduled_at)document.getElementById('drwp-conv-scheduled').value=d.scheduled_at.substring(0,16);
@@ -872,20 +959,41 @@
         }
       }
       st.textContent='処理中…';st.style.color='';this.disabled=true;var self=this;
-      api('/reports/'+id+'/convert',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          public_title:document.getElementById('drwp-conv-title').value,
-          public_intro:document.getElementById('drwp-conv-intro').value,
-          public_body:getEditorContent(),
-          public_next_plan:document.getElementById('drwp-conv-next-plan').value,
-          post_template:document.getElementById('drwp-conv-template').value,
-          post_category_id:document.getElementById('drwp-conv-category').value,
-          post_tags:document.getElementById('drwp-conv-tags').value,
-          post_status:document.getElementById('drwp-conv-post-status').value,
-          scheduled_at:document.getElementById('drwp-conv-scheduled').value||null
-        })
+
+      var tpl = document.getElementById('drwp-conv-template').value;
+
+      // テンプレ=before_after の場合は、まず写真の Before/After を
+      // PATCH で日報に保存してから /convert に進む。それ以外はその
+      // まま /convert。
+      var preflight = Promise.resolve();
+      if (tpl === 'before_after' && photoData.length) {
+        preflight = api('/reports/'+id, {
+          method: 'PATCH',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            attachment_ids:      photoData.map(function (p) { return p.attachment_id; }),
+            attachment_captions: photoData.map(function (p) { return p.caption || ''; }),
+            attachment_kinds:    photoData.map(function (p) { return p.kind || 'normal'; }),
+          })
+        });
+      }
+
+      preflight.then(function () {
+        return api('/reports/'+id+'/convert',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            public_title:document.getElementById('drwp-conv-title').value,
+            public_intro:document.getElementById('drwp-conv-intro').value,
+            public_body:getEditorContent(),
+            public_next_plan:document.getElementById('drwp-conv-next-plan').value,
+            post_template:tpl,
+            post_category_id:document.getElementById('drwp-conv-category').value,
+            post_tags:document.getElementById('drwp-conv-tags').value,
+            post_status:document.getElementById('drwp-conv-post-status').value,
+            scheduled_at:document.getElementById('drwp-conv-scheduled').value||null
+          })
+        });
       }).then(function(){dlg.close();location.reload();})
         .catch(function(err){renderApiError(st,err);self.disabled=false;});
     });
