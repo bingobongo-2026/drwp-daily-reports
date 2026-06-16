@@ -297,6 +297,7 @@
         <p id="drwp-conv-linked" class="description" style="display:none;"></p>
       </div> <!-- /.drwp-article-main -->
     </div>
+    <div id="drwp-conv-pii-panel" class="drwp-conv-pii-panel" hidden></div>
     <div class="drwp-modal-footer">
       <button type="button" class="button button-primary" id="drwp-conv-submit"><?php esc_html_e('記事を作成', 'drwp-daily-reports'); ?></button>
       <button type="button" class="button drwp-modal-close"><?php esc_html_e('キャンセル', 'drwp-daily-reports'); ?></button>
@@ -363,6 +364,13 @@
   .drwp-article-main>h3{margin-top:0;font-size:1em;color:#1d2327;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
   .drwp-article-main-ai{margin-left:auto;display:inline-flex;align-items:center;gap:4px}
   .drwp-pro-pill{display:inline-block;margin-left:4px;padding:1px 7px;border-radius:999px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.72em;font-weight:700;vertical-align:middle}
+
+  /* 個人情報チェックの警告帯 — モーダルフッター直上に出して、保存
+     直前に必ず目に入るようにする。 */
+  .drwp-conv-pii-panel{margin:0 20px;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;color:#92400e;font-size:.88em;line-height:1.55;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .drwp-conv-pii-panel strong{color:#7c2d12;font-weight:700}
+  .drwp-conv-pii-panel .drwp-conv-pii-kinds{flex:1;min-width:200px}
+  .drwp-conv-pii-panel code{background:#fff7ed;padding:1px 5px;border-radius:3px;font-size:.92em;color:#7c2d12}
   /* description は main 直下/ネスト内 (詳細設定) どちらでも同じ
      サイズに揃える。WP デフォルトの 13px ではなく .85em を使う。 */
   .drwp-article-main .description,
@@ -483,6 +491,112 @@
       dupTimer = setTimeout(runDuplicateCheck, 800);
     });
 
+    /* ---- 個人情報チェック --------------------------------------------
+       公開記事はサイト外から読まれるので、顧客名 / 電話番号 / メール /
+       郵便番号 が残ったまま公開されないよう、保存前に検知して警告する。
+       マスクボタンで一発置換もできる。完璧な検知は無理なので「気づか
+       せる」のが主目的。 */
+    var piiCandidates = [];
+    // 半角ハイフン / 全角ハイフン / なしを許容。10-11 桁 (0XXXXXXXXX)
+    // と 携帯 (090-XXXX-XXXX) など複数パターンを 1 本にまとめる。
+    var PII_PHONE  = /0\d{1,4}[-ー－]?\d{1,4}[-ー－]?\d{3,4}/g;
+    var PII_EMAIL  = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+    var PII_POSTAL = /\d{3}[-ー－]?\d{4}/g;
+    var PII_LABELS = { name: '個人名', phone: '電話番号', email: 'メール', postal: '郵便番号' };
+    var PII_MASK_REPLACEMENTS = {
+      phone:  '○○○-○○○○-○○○○',
+      email:  '○○○@○○○.○○',
+      postal: '○○○-○○○○',
+    };
+
+    function piiCollectText() {
+      // タイトル / 導入文 / 本文 (HTML タグは外す) / 今後の予定 をまとめる。
+      var body = (getEditorContent() || '').replace(/<[^>]*>/g, ' ');
+      return [
+        document.getElementById('drwp-conv-title').value || '',
+        document.getElementById('drwp-conv-intro').value || '',
+        body,
+        document.getElementById('drwp-conv-next-plan').value || '',
+      ].join('\n');
+    }
+
+    function scanPII(text) {
+      var hits = { name: [], phone: [], email: [], postal: [] };
+      piiCandidates.forEach(function (name) {
+        if (!name) return;
+        if (text.indexOf(name) !== -1 && hits.name.indexOf(name) === -1) hits.name.push(name);
+      });
+      (text.match(PII_PHONE)  || []).forEach(function (m) { if (hits.phone.indexOf(m) === -1) hits.phone.push(m); });
+      (text.match(PII_EMAIL)  || []).forEach(function (m) { if (hits.email.indexOf(m) === -1) hits.email.push(m); });
+      (text.match(PII_POSTAL) || []).forEach(function (m) { if (hits.postal.indexOf(m) === -1) hits.postal.push(m); });
+      // 郵便番号と電話番号は形が似ているので、電話番号にも入っていれば郵便番号側は外す。
+      hits.postal = hits.postal.filter(function (p) { return hits.phone.indexOf(p) === -1; });
+      return hits;
+    }
+
+    // 単純なマスク: 候補名は「先頭 1 字 + 様」(漢字混じりでも自然な
+    // 仮名表記になる)、電話/メール/郵便番号はパターン丸ごと差し替え。
+    function maskText(text) {
+      piiCandidates.forEach(function (name) {
+        if (!name) return;
+        var firstWord = name.split(/[\s　]+/)[0];
+        var first = (firstWord && firstWord.length > 0) ? firstWord.charAt(0) : '○';
+        text = text.split(name).join(first + '様');
+      });
+      text = text.replace(PII_PHONE,  PII_MASK_REPLACEMENTS.phone);
+      text = text.replace(PII_EMAIL,  PII_MASK_REPLACEMENTS.email);
+      text = text.replace(PII_POSTAL, PII_MASK_REPLACEMENTS.postal);
+      return text;
+    }
+
+    function renderPiiWarning() {
+      var panel = document.getElementById('drwp-conv-pii-panel');
+      if (!panel) return;
+      var hits = scanPII(piiCollectText());
+      var total = hits.name.length + hits.phone.length + hits.email.length + hits.postal.length;
+      if (!total) { panel.hidden = true; panel.innerHTML = ''; return; }
+      panel.hidden = false;
+      var kindsHtml = '';
+      ['name', 'phone', 'email', 'postal'].forEach(function (k) {
+        if (!hits[k].length) return;
+        var codes = hits[k].map(function (v) { return '<code>' + esc(v) + '</code>'; }).join(' ');
+        kindsHtml += '<div>⚠️ <strong>' + PII_LABELS[k] + ':</strong> ' + codes + '</div>';
+      });
+      panel.innerHTML =
+        '<div class="drwp-conv-pii-kinds"><strong>個人情報の可能性</strong>'
+        + ' — 公開前にご確認ください。' + kindsHtml + '</div>'
+        + '<button type="button" class="button button-small" id="drwp-conv-pii-mask">'
+        + '自動マスク</button>';
+      var maskBtn = document.getElementById('drwp-conv-pii-mask');
+      if (maskBtn) maskBtn.addEventListener('click', maskAllFields);
+    }
+
+    function maskAllFields() {
+      if (!window.confirm('<?php echo esc_js(__('入力済みの公開タイトル / 導入文 / 本文 / 今後の予定 を自動マスクします。よろしいですか？', 'drwp-daily-reports')); ?>')) return;
+      var titleEl = document.getElementById('drwp-conv-title');
+      var introEl = document.getElementById('drwp-conv-intro');
+      var nextEl  = document.getElementById('drwp-conv-next-plan');
+      titleEl.value = maskText(titleEl.value);
+      introEl.value = maskText(introEl.value);
+      setEditorContent(maskText(getEditorContent() || ''));
+      nextEl.value  = maskText(nextEl.value);
+      renderPiiWarning();
+      runDuplicateCheck();
+    }
+
+    // フィールドの変更を debounce で拾って再スキャン。
+    var piiTimer = null;
+    function schedulePiiScan() {
+      if (piiTimer) clearTimeout(piiTimer);
+      piiTimer = setTimeout(renderPiiWarning, 400);
+    }
+    ['drwp-conv-title', 'drwp-conv-intro', 'drwp-conv-next-plan'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('input', schedulePiiScan);
+    });
+    // 本文 (TinyMCE) は input イベントが取りにくいので、保存直前に
+    // 必ず走らせる + AI 生成後にも renderPiiWarning() を呼ぶ。
+
     function runDuplicateCheck() {
       var title=document.getElementById('drwp-conv-title').value.trim();
       var res=document.getElementById('drwp-dup-result');
@@ -520,6 +634,10 @@
       if (aiSt) { aiSt.textContent = ''; aiSt.style.color = ''; }
       var aiBtnEl = document.getElementById('drwp-conv-ai-btn');
       if (aiBtnEl) aiBtnEl.disabled = false;
+      // PII パネルをリセット
+      var piiPanel = document.getElementById('drwp-conv-pii-panel');
+      if (piiPanel) { piiPanel.hidden = true; piiPanel.innerHTML = ''; }
+      piiCandidates = [];
       document.getElementById('drwp-conv-title').value='';
       document.getElementById('drwp-dup-result').innerHTML='';
       document.getElementById('drwp-conv-intro').value='';
@@ -567,6 +685,9 @@
         document.getElementById('drwp-conv-intro').value=d.public_intro||'';
         setEditorContent(d.public_body||(d.work_description||''));
         document.getElementById('drwp-conv-next-plan').value=d.public_next_plan||'';
+        // 個人情報チェック用に「警告すべき名前候補」を読み込む。
+        piiCandidates = (d.pii_candidates || []).filter(function(s){ return s && s.length >= 2; });
+        renderPiiWarning();
         document.getElementById('drwp-conv-tags').value=d.post_tags||'';
         // テンプレ select の出し分け — ビフォーアフターは写真が
         // 無いと意味が無い (左右ペアが空になる) ので、写真ゼロの
@@ -624,6 +745,8 @@
           nextEl.value = d.public_next_plan || '';
           // 重複チェックも再走させる (タイトルが変わるので)。
           runDuplicateCheck();
+          // AI で本文も差し替わるので個人情報スキャンも回す。
+          renderPiiWarning();
           st.style.color = '#15803d';
           st.textContent = '<?php echo esc_js(__('下書きを生成しました。内容を確認して保存してください。', 'drwp-daily-reports')); ?>';
           aiBtn.disabled = false;
@@ -639,6 +762,15 @@
     document.getElementById('drwp-conv-submit').addEventListener('click',function(){
       var id=document.getElementById('drwp-conv-id').value;
       var st=document.getElementById('drwp-conv-status');
+      // 送信直前にも個人情報スキャン (本文 TinyMCE は input が拾えない
+      // ことがあるので保険として)。検知ありなら確認ダイアログ。
+      renderPiiWarning();
+      var piiPanel = document.getElementById('drwp-conv-pii-panel');
+      if (piiPanel && !piiPanel.hidden) {
+        if (!window.confirm('<?php echo esc_js(__('個人情報の可能性が検知されています。このまま公開記事化してよろしいですか？', 'drwp-daily-reports')); ?>')) {
+          return;
+        }
+      }
       st.textContent='処理中…';st.style.color='';this.disabled=true;var self=this;
       api('/reports/'+id+'/convert',{
         method:'POST',
