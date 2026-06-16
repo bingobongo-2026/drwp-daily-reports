@@ -176,9 +176,30 @@
 
       <!-- ② 作成する記事の中身 — メイン編集領域。常時開いた状態。 -->
       <div class="drwp-article-section drwp-article-main">
-        <h3>
+        <h3 class="drwp-article-main-head">
           <span class="drwp-conv-collapse-icon">✏️</span>
           <?php esc_html_e('作成する記事の中身', 'drwp-daily-reports'); ?>
+          <?php
+            // AI 補助ボタン — タイトル / 導入文 / 本文 / 今後の予定 を
+            // まとめて生成 (Pro プランかつ AI 機能 ON のときだけ表示)。
+            $ai_enabled = class_exists('DRWP_AI') && DRWP_AI::is_enabled();
+            $ai_allowed = $ai_enabled && class_exists('DRWP_License') && DRWP_License::plan_allows('ai');
+          ?>
+          <?php if ($ai_allowed): ?>
+          <span class="drwp-article-main-ai">
+            <button type="button" class="button" id="drwp-conv-ai-btn">
+              ✨ <?php esc_html_e('AI で下書きを生成', 'drwp-daily-reports'); ?>
+            </button>
+            <span id="drwp-conv-ai-status" class="description" style="margin-left:8px;"></span>
+          </span>
+          <?php elseif ($ai_enabled): ?>
+          <span class="drwp-article-main-ai">
+            <button type="button" class="button" disabled title="<?php esc_attr_e('Pro プランで利用可能です', 'drwp-daily-reports'); ?>">
+              ✨ <?php esc_html_e('AI で下書きを生成', 'drwp-daily-reports'); ?>
+              <span class="drwp-pro-pill">Pro</span>
+            </button>
+          </span>
+          <?php endif; ?>
         </h3>
         <table class="form-table" role="presentation">
           <tr>
@@ -339,7 +360,9 @@
 
   /* メイン編集領域 (作成する記事の中身) は他より少し強調する。 */
   .drwp-article-main{background:#f8fafc;border:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;border-radius:6px;padding:14px 16px;margin-bottom:14px}
-  .drwp-article-main>h3{margin-top:0;font-size:1em;color:#1d2327;display:flex;align-items:center;gap:6px}
+  .drwp-article-main>h3{margin-top:0;font-size:1em;color:#1d2327;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .drwp-article-main-ai{margin-left:auto;display:inline-flex;align-items:center;gap:4px}
+  .drwp-pro-pill{display:inline-block;margin-left:4px;padding:1px 7px;border-radius:999px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.72em;font-weight:700;vertical-align:middle}
   /* description は main 直下/ネスト内 (詳細設定) どちらでも同じ
      サイズに揃える。WP デフォルトの 13px ではなく .85em を使う。 */
   .drwp-article-main .description,
@@ -493,6 +516,10 @@
       document.getElementById('drwp-conv-id').value=id;
       document.getElementById('drwp-conv-status').textContent='';
       document.getElementById('drwp-conv-submit').disabled=false;
+      var aiSt = document.getElementById('drwp-conv-ai-status');
+      if (aiSt) { aiSt.textContent = ''; aiSt.style.color = ''; }
+      var aiBtnEl = document.getElementById('drwp-conv-ai-btn');
+      if (aiBtnEl) aiBtnEl.disabled = false;
       document.getElementById('drwp-conv-title').value='';
       document.getElementById('drwp-dup-result').innerHTML='';
       document.getElementById('drwp-conv-intro').value='';
@@ -559,6 +586,54 @@
         }
       }).catch(function(err){viewBody.innerHTML='<p style="color:#991b1b;">'+esc(err.message)+'</p>';});
     });
+
+    /* ---- AI で下書きを生成 ---- */
+    var aiBtn = document.getElementById('drwp-conv-ai-btn');
+    if (aiBtn) {
+      aiBtn.addEventListener('click', function () {
+        var id = document.getElementById('drwp-conv-id').value;
+        if (!id) return;
+        var st = document.getElementById('drwp-conv-ai-status');
+        // 既に書いたタイトル/本文を上書きするので一応確認。完全な空欄なら
+        // 黙って実行する。
+        var titleEl = document.getElementById('drwp-conv-title');
+        var introEl = document.getElementById('drwp-conv-intro');
+        var bodyText = getEditorContent();
+        var nextEl = document.getElementById('drwp-conv-next-plan');
+        var anyFilled = (titleEl.value.trim() !== '')
+                     || (introEl.value.trim() !== '')
+                     || (bodyText.replace(/<[^>]*>/g, '').trim() !== '')
+                     || (nextEl.value.trim() !== '');
+        if (anyFilled && !window.confirm('<?php echo esc_js(__('入力済みの内容を AI の下書きで上書きします。よろしいですか？', 'drwp-daily-reports')); ?>')) {
+          return;
+        }
+        aiBtn.disabled = true;
+        st.style.color = '#64748b';
+        st.textContent = '<?php echo esc_js(__('生成中… 数秒〜数分かかる場合があります', 'drwp-daily-reports')); ?>';
+        fetch(rest.url + '/ai/draft-report', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': rest.nonce },
+          body: JSON.stringify({ report_id: Number(id) })
+        }).then(function (r) {
+          return r.json().then(function (j) { if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status); return j; });
+        }).then(function (d) {
+          if (d.public_title) titleEl.value = d.public_title;
+          introEl.value = d.public_intro || '';
+          setEditorContent(d.public_body || '');
+          nextEl.value = d.public_next_plan || '';
+          // 重複チェックも再走させる (タイトルが変わるので)。
+          runDuplicateCheck();
+          st.style.color = '#15803d';
+          st.textContent = '<?php echo esc_js(__('下書きを生成しました。内容を確認して保存してください。', 'drwp-daily-reports')); ?>';
+          aiBtn.disabled = false;
+        }).catch(function (err) {
+          st.style.color = '#991b1b';
+          st.textContent = 'エラー: ' + (err.message || '<?php echo esc_js(__('生成に失敗しました', 'drwp-daily-reports')); ?>');
+          aiBtn.disabled = false;
+        });
+      });
+    }
 
     /* ---- 記事作成/更新 ---- */
     document.getElementById('drwp-conv-submit').addEventListener('click',function(){
