@@ -399,11 +399,31 @@ class DRWP_REST {
         // Resolve project + author for the front-end view modal so
         // it doesn't have to fan out additional REST calls.
         $project_name = null;
+        $proj = null;
         if ($r->project_id) {
             $proj = DRWP_Project::find((int) $r->project_id);
             if ($proj) $project_name = (string) $proj->name;
         }
         $author_name = DRWP_User::display_name((int) $r->user_id);
+
+        // 公開記事化モーダルで「個人情報の可能性あり」を検知するための
+        // ヒント。案件に紐づく顧客名・担当者名・報告者名を渡しておくと
+        // フロント側で本文と照らし合わせて警告／マスク提案ができる。
+        $pii_candidates = [];
+        if ($proj) {
+            if (!empty($proj->client_name))     $pii_candidates[] = (string) $proj->client_name;
+            if (!empty($proj->contact_person))  $pii_candidates[] = (string) $proj->contact_person;
+            if (!empty($proj->customer_id) && class_exists('DRWP_Customer')) {
+                $cust = DRWP_Customer::find((int) $proj->customer_id);
+                if ($cust && !empty($cust->name)) $pii_candidates[] = (string) $cust->name;
+            }
+        }
+        if ($author_name) $pii_candidates[] = (string) $author_name;
+        $pii_candidates = array_values(array_unique(array_filter($pii_candidates, function ($s) {
+            // 2 文字未満は誤検知が増えるので落とす。
+            return is_string($s) && mb_strlen($s) >= 2;
+        })));
+
         return [
             'id'                => (int) $r->id,
             'project_id'        => $r->project_id ? (int) $r->project_id : null,
@@ -421,6 +441,7 @@ class DRWP_REST {
             'public_intro'      => (string) $r->public_intro,
             'public_body'       => (string) $r->public_body,
             'public_next_plan'  => (string) $r->public_next_plan,
+            'pii_candidates'    => $pii_candidates,
             'post_template'     => (string) $r->post_template,
             'post_category_id'  => $r->post_category_id ? (int) $r->post_category_id : null,
             'post_tags'         => (string) $r->post_tags,
