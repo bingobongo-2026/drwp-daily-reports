@@ -25,16 +25,20 @@
     <a class="btn" href="/admin/ui/licenses/new">新規作成</a>
   </div>
 
-  <form method="get" action="/admin/ui/licenses" class="row" style="margin: 12px 0; gap: 8px;">
+  {# base.html の input/select は width:100% なので、フィルタフォーム
+     の中だけ width:auto に戻して横並びにする。狭い画面では .row の
+     flex-wrap が効いて自然に縦積みに落ちる。 #}
+  <form method="get" action="/admin/ui/licenses" class="drwp-license-filter row"
+        style="margin: 12px 0; gap: 8px; align-items: center;">
     <input type="search" name="q" value="{{ search }}" placeholder="キー・ドメイン・ユーザー名・住所で検索"
-           style="flex:1; min-width:240px; padding:8px 12px; border:1px solid #d1d5db; border-radius:8px;">
-    <select name="plan" style="padding:8px 12px; border:1px solid #d1d5db; border-radius:8px;">
+           style="flex: 1 1 240px; width: auto; min-width: 0;">
+    <select name="plan" style="flex: 0 0 160px; width: auto;">
       <option value="">プラン: すべて</option>
       {% for slug, label in plan_options.items() %}
         <option value="{{ slug }}" {% if plan_filter == slug %}selected{% endif %}>プラン: {{ label }}</option>
       {% endfor %}
     </select>
-    <select name="status" style="padding:8px 12px; border:1px solid #d1d5db; border-radius:8px;">
+    <select name="status" style="flex: 0 0 140px; width: auto;">
       <option value="">状態: すべて</option>
       {% for slug, label in status_options.items() %}
         <option value="{{ slug }}" {% if status_filter == slug %}selected{% endif %}>状態: {{ label }}</option>
