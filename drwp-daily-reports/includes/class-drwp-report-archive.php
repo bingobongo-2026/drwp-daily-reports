@@ -432,7 +432,11 @@ class DRWP_Report_Archive {
 
             html += '</article>';
 
-            if (d.review_status === 'pending' && !cfg.isRetired) {
+            // pending (レビュー待ち) と needs_revision (差戻し) は
+            // 投稿者がまだ自力で修正できる状態なので、両方で「編集
+            // する」ボタンを出す。実際の本人チェックは PATCH 側で
+            // 行うので、ここは UI 上の見せ方だけ。
+            if ((d.review_status === 'pending' || d.review_status === 'needs_revision') && !cfg.isRetired) {
               html += '<div class="drwp-archive-view-actions">';
               html += '<button type="button" class="drwp-archive-new-btn" data-action="enter-edit">'
                     + '<?php echo esc_js(__('編集する', 'drwp-daily-reports')); ?></button>';
@@ -1579,8 +1583,12 @@ class DRWP_Report_Archive {
 
         $author_name = DRWP_User::display_name((int) $report->user_id) ?: '-';
         $back_url = esc_url(remove_query_arg('drwp_id'));
-        $is_own_pending = ((int) $report->user_id === get_current_user_id())
-                          && $report->review_status === 'pending'
+        // 「自分の日報」かつ「まだ承認前 (レビュー待ち or 差戻し)」
+        // のときだけフロント編集 CTA を表示する。差戻し中も再編集
+        // できるようにすることで「差し戻し → 修正 → 再提出」のループ
+        // が成立する。
+        $is_own_editable = ((int) $report->user_id === get_current_user_id())
+                          && in_array((string) $report->review_status, ['pending', 'needs_revision'], true)
                           && !DRWP_User::is_retired();
 
         $project = $report->project_id ? DRWP_Project::find((int) $report->project_id) : null;
@@ -1613,9 +1621,13 @@ class DRWP_Report_Archive {
                         <span><?php esc_html_e('時刻:', 'drwp-daily-reports'); ?> <?php echo esc_html($time_window); ?></span>
                     <?php endif; ?>
                 </p>
-                <?php if ($is_own_pending): ?>
+                <?php if ($is_own_editable): ?>
                     <p class="drwp-archive-edit-cta">
-                        <?php esc_html_e('この日報はあなたのレビュー待ち日報です。', 'drwp-daily-reports'); ?>
+                        <?php if ($report->review_status === 'needs_revision'): ?>
+                            <?php esc_html_e('この日報は差戻し中です。修正して再提出すると、再度レビュー待ちに戻ります。', 'drwp-daily-reports'); ?>
+                        <?php else: ?>
+                            <?php esc_html_e('この日報はあなたのレビュー待ち日報です。', 'drwp-daily-reports'); ?>
+                        <?php endif; ?>
                         <a class="drwp-archive-edit-link" href="<?php echo esc_url(add_query_arg('drwp_edit', '1')); ?>">
                             <?php esc_html_e('フロントから編集する', 'drwp-daily-reports'); ?>
                         </a>
@@ -1702,13 +1714,13 @@ class DRWP_Report_Archive {
                 . '</a></p>');
         }
         if ((int) $report->user_id !== get_current_user_id()
-            || $report->review_status !== 'pending') {
+            || !in_array((string) $report->review_status, ['pending', 'needs_revision'], true)) {
             // Permission check, defense in depth — JS link won't be
-            // shown for non-own / non-pending, but a direct URL hit
-            // still needs to be rejected.
+            // shown for non-own / approved / archived reports, but a
+            // direct URL hit still needs to be rejected.
             $back = esc_url(remove_query_arg('drwp_edit'));
             return self::wrap('<p class="drwp-archive-message">'
-                . esc_html__('この日報はフロントから編集できません(自分の レビュー待ち の日報のみ編集可能です)。', 'drwp-daily-reports')
+                . esc_html__('この日報はフロントから編集できません(自分の レビュー待ち または 差戻し の日報のみ編集可能です)。', 'drwp-daily-reports')
                 . '</p><p class="drwp-archive-back"><a href="' . $back . '">&laquo; '
                 . esc_html__('一覧に戻る', 'drwp-daily-reports')
                 . '</a></p>');
@@ -1854,7 +1866,7 @@ class DRWP_Report_Archive {
         $report = $wpdb->get_row($wpdb->prepare("SELECT * FROM $reports_t WHERE id = %d", $id));
         if (!$report) return;
         if ((int) $report->user_id !== get_current_user_id()) return;
-        if ($report->review_status !== 'pending') return;
+        if (!in_array((string) $report->review_status, ['pending', 'needs_revision'], true)) return;
 
         $back_to_edit = function ($err) use ($id) {
             return add_query_arg(['drwp_id' => $id, 'drwp_edit' => 1, 'drwp_err' => $err], get_permalink());
@@ -1882,6 +1894,13 @@ class DRWP_Report_Archive {
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $report_date)) {
             $update['report_date'] = $report_date;
         }
+        // 差戻しからの再編集は自動的に「レビュー待ち」に戻して
+        // 再提出扱いにする。投稿者が別途「再提出」ボタンを押す手間
+        // を省く (修正したら自然に再レビュー待ちのキューへ)。
+        $was_returned = ($report->review_status === 'needs_revision');
+        if ($was_returned) {
+            $update['review_status'] = 'pending';
+        }
         $wpdb->update($reports_t, $update, ['id' => $id]);
 
         // Photos: wholesale replace with the set in the submitted form
@@ -1897,6 +1916,9 @@ class DRWP_Report_Archive {
         DRWP_Media::sync($id, $rows);
 
         DRWP_Audit::log('report_edited_frontend', __('日報をフロントから編集', 'drwp-daily-reports'), $id, []);
+        if ($was_returned) {
+            DRWP_Audit::log('report_resubmitted', __('差戻しからの再提出 (needs_revision → pending)', 'drwp-daily-reports'), $id, []);
+        }
 
         wp_safe_redirect(add_query_arg(['drwp_id' => $id, 'drwp_saved' => 1], get_permalink()));
         exit;

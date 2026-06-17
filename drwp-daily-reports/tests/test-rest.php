@@ -293,6 +293,82 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         $this->assertSame('10:30:00', $body['ended_at']);
     }
 
+    public function test_author_can_edit_own_returned_report_and_status_flips_to_pending() {
+        // 差戻し中の日報を投稿者が再編集すると、自動でレビュー待ち
+        // (pending) に戻る = 再提出フローの担保。
+        $this->make_subscriber_with_edit();
+        $this->activate_license();
+        $created = $this->call('POST', '/drwp/v1/reports', [
+            'report_date' => '2026-04-25',
+            'work_description' => 'first draft',
+        ]);
+        $id = $created->get_data()['id'];
+
+        // レビュアーが差し戻す。
+        $admin_id = $this->make_admin();
+        $this->call('POST', "/drwp/v1/reports/$id/review", [
+            'review_status' => 'needs_revision',
+            'comment' => 'もう一度確認してください',
+        ]);
+
+        // 投稿者本人に戻して、修正 PATCH を送る。
+        $this->make_subscriber_with_edit();
+        // 異なる subscriber が作成されてしまうので、もとの投稿者を取り直す。
+        global $wpdb;
+        $original_author = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT user_id FROM {$wpdb->prefix}drwp_reports WHERE id = %d", $id
+        ));
+        wp_set_current_user($original_author);
+        $resp = $this->call('PATCH', "/drwp/v1/reports/$id", [
+            'work_description' => 'revised after feedback',
+        ]);
+        $this->assertSame(200, $resp->get_status(), 'author should be allowed to edit own needs_revision report');
+        $data = $resp->get_data();
+        $this->assertSame('revised after feedback', $data['work_description']);
+        $this->assertSame('pending', $data['review_status'], 'status should auto-flip back to pending on re-submit');
+    }
+
+    public function test_author_cannot_edit_own_approved_report() {
+        // 承認済みは投稿者でも書き換え不可 (レビュー結果の改ざん防止)。
+        $author_id = $this->make_subscriber_with_edit();
+        $this->activate_license();
+        $created = $this->call('POST', '/drwp/v1/reports', [
+            'report_date' => '2026-04-25',
+            'work_description' => 'x',
+        ]);
+        $id = $created->get_data()['id'];
+
+        $this->make_admin();
+        $this->call('POST', "/drwp/v1/reports/$id/review", ['review_status' => 'approved']);
+
+        wp_set_current_user($author_id);
+        $resp = $this->call('PATCH', "/drwp/v1/reports/$id", [
+            'work_description' => 'sneaky rewrite',
+        ]);
+        $this->assertSame(403, $resp->get_status());
+    }
+
+    public function test_reviewer_editing_returned_report_keeps_needs_revision_status() {
+        // レビュアーが差戻し中の日報を直接 PATCH した場合は状態を
+        // 維持する (運用上の小修正で再レビュー待ちに戻したくないため)。
+        $this->make_subscriber_with_edit();
+        $this->activate_license();
+        $created = $this->call('POST', '/drwp/v1/reports', [
+            'report_date' => '2026-04-25',
+            'work_description' => 'first draft',
+        ]);
+        $id = $created->get_data()['id'];
+
+        $this->make_admin();
+        $this->call('POST', "/drwp/v1/reports/$id/review", ['review_status' => 'needs_revision']);
+
+        $resp = $this->call('PATCH', "/drwp/v1/reports/$id", [
+            'work_description' => 'reviewer tweak',
+        ]);
+        $this->assertSame(200, $resp->get_status());
+        $this->assertSame('needs_revision', $resp->get_data()['review_status']);
+    }
+
     public function test_review_endpoint_requires_edit_others_posts() {
         $this->make_admin();
         $this->activate_license();
