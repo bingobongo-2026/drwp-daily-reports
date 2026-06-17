@@ -129,25 +129,31 @@ def _row_to_dict(row: Optional[sqlite3.Row]) -> Optional[dict]:
     return dict(row) if row is not None else None
 
 
-def list_licenses(search: str = "") -> list[dict]:
+def list_licenses(search: str = "", plan: str = "", status: str = "") -> list[dict]:
+    """検索キーワード + プラン + 状態の AND 絞り込み。`plan` / `status`
+    は完全一致 (空文字は無条件)。検索キーワードは複数カラムの OR LIKE
+    なのでサブクエリにまとめて AND する。"""
+    where: list[str] = []
+    args: list = []
+    if search:
+        like = f"%{search}%"
+        where.append(
+            "(license_key LIKE ? OR domain LIKE ? OR user_name LIKE ?"
+            " OR address LIKE ? OR contact_person LIKE ? OR notes LIKE ?)"
+        )
+        args.extend([like] * 6)
+    if plan:
+        where.append("plan = ?")
+        args.append(plan)
+    if status:
+        where.append("status = ?")
+        args.append(status)
+    sql = "SELECT * FROM licenses"
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    sql += " ORDER BY id DESC"
     with connection() as c:
-        if search:
-            like = f"%{search}%"
-            rows: Iterable[sqlite3.Row] = c.execute(
-                """SELECT * FROM licenses
-                   WHERE license_key LIKE ?
-                      OR domain LIKE ?
-                      OR user_name LIKE ?
-                      OR address LIKE ?
-                      OR contact_person LIKE ?
-                      OR notes LIKE ?
-                   ORDER BY id DESC""",
-                (like, like, like, like, like, like),
-            ).fetchall()
-        else:
-            rows = c.execute(
-                "SELECT * FROM licenses ORDER BY id DESC"
-            ).fetchall()
+        rows: Iterable[sqlite3.Row] = c.execute(sql, args).fetchall()
         return [dict(r) for r in rows]
 
 

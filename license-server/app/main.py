@@ -7,7 +7,7 @@ import zipfile
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
@@ -416,8 +416,13 @@ def check_license(payload: CheckRequest):
 
 
 @app.get("/admin/licenses")
-def admin_list(search: str = "", _: str = Depends(require_admin)):
-    return {"items": db.list_licenses(search=search)}
+def admin_list(
+    search: str = "",
+    plan: str = "",
+    status: str = "",
+    _: str = Depends(require_admin),
+):
+    return {"items": db.list_licenses(search=search, plan=plan, status=status)}
 
 
 @app.post("/admin/licenses", status_code=status.HTTP_201_CREATED)
@@ -462,11 +467,30 @@ def ui_root(_: str = Depends(require_admin)):
 
 
 @app.get("/admin/ui/licenses", response_class=HTMLResponse, include_in_schema=False)
-def ui_list(request: Request, msg: Optional[str] = None, q: str = "", _: str = Depends(require_admin)):
+def ui_list(
+    request: Request,
+    msg: Optional[str] = None,
+    q: str = "",
+    plan: str = "",
+    status_: str = Query("", alias="status"),
+    _: str = Depends(require_admin),
+):
+    # 未知の slug は黙って空 (= 絞り込まない) に落として、自由入力で
+    # 通常リストが消える事故を防ぐ。
+    plan_f = plan if plan in _PLAN_LABELS else ""
+    status_f = status_ if status_ in _STATUS_LABELS else ""
     return templates.TemplateResponse(
         request,
         "licenses.html",
-        {"items": db.list_licenses(search=q), "search": q, **_flash_ctx(msg)},
+        {
+            "items": db.list_licenses(search=q, plan=plan_f, status=status_f),
+            "search": q,
+            "plan_filter": plan_f,
+            "status_filter": status_f,
+            "plan_options": _PLAN_LABELS,
+            "status_options": _STATUS_LABELS,
+            **_flash_ctx(msg),
+        },
     )
 
 

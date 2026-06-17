@@ -586,6 +586,64 @@ def test_canonical_form_is_sorted_compact_utf8(tmp_path, monkeypatch):
     assert bytes_ == b'{"a":"1","b":"2","c":"\xe6\x97\xa5\xe6\x9c\xac","url":"https://example.test/x"}'
 
 
+# --- ライセンス一覧の絞り込み --------------------------------------------
+
+def test_admin_list_filters_by_plan_and_status(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    auth = ("admin", "test-token")
+    seeds = [
+        ("K-PRO-ACTIVE",     "pro",   "active"),
+        ("K-PRO-INACTIVE",   "pro",   "inactive"),
+        ("K-BASIC-ACTIVE",   "basic", "active"),
+        ("K-BASIC-INACTIVE", "basic", "inactive"),
+    ]
+    for key, plan, st in seeds:
+        c.post("/admin/licenses", auth=auth, json={
+            "license_key": key, "domain": "x.test", "plan": plan, "status": st,
+        })
+
+    all_items = c.get("/admin/licenses", auth=auth).json()["items"]
+    assert len(all_items) == 4
+
+    only_pro = c.get("/admin/licenses?plan=pro", auth=auth).json()["items"]
+    assert {i["license_key"] for i in only_pro} == {"K-PRO-ACTIVE", "K-PRO-INACTIVE"}
+
+    only_active = c.get("/admin/licenses?status=active", auth=auth).json()["items"]
+    assert {i["license_key"] for i in only_active} == {"K-PRO-ACTIVE", "K-BASIC-ACTIVE"}
+
+    pro_active = c.get("/admin/licenses?plan=pro&status=active", auth=auth).json()["items"]
+    assert {i["license_key"] for i in pro_active} == {"K-PRO-ACTIVE"}
+
+
+def test_ui_list_renders_filter_dropdowns_and_applies(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    auth = ("admin", "test-token")
+    c.post("/admin/licenses", auth=auth, json={
+        "license_key": "K-PRO", "domain": "x.test", "plan": "pro", "status": "active",
+    })
+    c.post("/admin/licenses", auth=auth, json={
+        "license_key": "K-BASIC", "domain": "x.test", "plan": "basic", "status": "inactive",
+    })
+
+    page = c.get("/admin/ui/licenses", auth=auth)
+    assert page.status_code == 200
+    # フィルタ UI が描画されている
+    assert 'name="plan"' in page.text
+    assert 'name="status"' in page.text
+    assert "プラン: すべて" in page.text
+    assert "状態: すべて" in page.text
+
+    # plan=basic で絞り込むと K-BASIC のみ表示
+    filtered = c.get("/admin/ui/licenses?plan=basic", auth=auth)
+    assert "K-BASIC" in filtered.text
+    assert "K-PRO" not in filtered.text
+
+    # 不明な slug は無条件 (= 全件) にフォールバック
+    fallback = c.get("/admin/ui/licenses?plan=bogus", auth=auth)
+    assert "K-BASIC" in fallback.text
+    assert "K-PRO" in fallback.text
+
+
 # --- TOTP 2FA ---------------------------------------------------------------
 
 def test_totp_helpers_pure_python(tmp_path, monkeypatch):
