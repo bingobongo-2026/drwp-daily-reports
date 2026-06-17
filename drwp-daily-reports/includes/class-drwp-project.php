@@ -46,6 +46,12 @@ class DRWP_Project {
             $cmp = (int) $a->id <=> (int) $b->id;
             return $sort_order === 'desc' ? -$cmp : $cmp;
         });
+        $pager = DRWP_Admin::paginate_array($projects);
+        $projects = $pager['items'];
+        $total = $pager['total'];
+        $paged = $pager['paged'];
+        $pages = $pager['pages'];
+
         $customers = DRWP_Customer::all();
         $customer_groups = DRWP_Customer_Group::all(true);
         $project_groups  = DRWP_Project_Group::all(true);

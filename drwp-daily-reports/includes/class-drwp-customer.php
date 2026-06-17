@@ -44,6 +44,12 @@ class DRWP_Customer {
             $cmp = (int) $a->id <=> (int) $b->id;
             return $sort_order === 'desc' ? -$cmp : $cmp;
         });
+        $pager = DRWP_Admin::paginate_array($customers);
+        $customers = $pager['items'];
+        $total = $pager['total'];
+        $paged = $pager['paged'];
+        $pages = $pager['pages'];
+
         // Group data for the listing table + edit modal. We bulk
         // fetch group rows per customer (chips in the table), the
         // active group list (options in the multi-select), and a

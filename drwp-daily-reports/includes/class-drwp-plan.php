@@ -164,6 +164,14 @@ class DRWP_Plan {
         ];
 
         $plans         = self::search($filters);
+        // ページネーション: SQL を触らず、配列を slice する形で
+        // 全予定ページに統一感のあるページャーを当てる。
+        $pager = DRWP_Admin::paginate_array($plans);
+        $plans = $pager['items'];
+        $total = $pager['total'];
+        $paged = $pager['paged'];
+        $pages = $pager['pages'];
+
         $projects      = DRWP_Project::all();
         $can_view_all  = self::can_view_all();
         $workers       = $can_view_all ? self::worker_options() : [];

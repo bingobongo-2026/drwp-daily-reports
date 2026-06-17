@@ -17,6 +17,11 @@
     </button>
   </p>
 
+  <?php
+    $pager_base = remove_query_arg('paged', $_SERVER['REQUEST_URI'] ?? '');
+    echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total);
+  ?>
+
   <table class="widefat striped" style="margin-top:8px;">
     <thead>
       <tr>
@@ -68,6 +73,8 @@
       <?php endforeach; endif; ?>
     </tbody>
   </table>
+
+  <?php echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total); ?>
 
   <dialog id="drwp-pg-dialog" class="drwp-cg-modal">
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
