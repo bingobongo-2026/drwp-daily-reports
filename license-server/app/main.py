@@ -13,7 +13,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from . import db, signing
+from . import db, signing, totp
 
 log = logging.getLogger("drwp.license")
 
@@ -64,6 +64,11 @@ _AUDIT_EVENT_LABELS = {
     "login_success":          "ログイン成功",
     "signing_rotated_auto":   "署名鍵 自動ローテート",
     "signing_rotated_manual": "署名鍵 手動ローテート",
+    "totp_enabled":           "2FA 有効化",
+    "totp_disabled":          "2FA 無効化",
+    "totp_verified":          "2FA 認証成功",
+    "totp_failed":            "2FA 認証失敗",
+    "recovery_code_used":     "リカバリーコード使用",
 }
 
 
@@ -92,6 +97,12 @@ _FLASH = {
     "restored": ("バックアップから復元しました。", "ok"),
     "restore_invalid": ("バックアップファイルが不正です（zip ではない / 中身が想定外）。", "err"),
     "restore_failed": ("復元処理に失敗しました。詳細はサーバーログを確認してください。", "err"),
+    "totp_setup_started": ("2FA セットアップを開始しました。QR コードをスキャンし、表示された 6 桁コードで確定してください。", "ok"),
+    "totp_enabled": ("2FA を有効化しました。次回以降のログインで 6 桁コードの入力が必要になります。", "ok"),
+    "totp_disabled": ("2FA を無効化しました。", "ok"),
+    "totp_setup_cancelled": ("2FA セットアップをキャンセルしました。", "ok"),
+    "totp_code_invalid": ("コードが一致しませんでした。Authenticator の時刻ズレや入力ミスを確認してください。", "err"),
+    "totp_not_pending": ("セットアップ中の状態ではありません。最初からやり直してください。", "err"),
 }
 
 
@@ -171,10 +182,12 @@ def _is_ip_blocked(ip: str) -> bool:
     return n >= LIMITER_THRESHOLD
 
 
-def require_admin(
+def require_admin_basic(
     request: Request,
     credentials: Optional[HTTPBasicCredentials] = Depends(security),
 ) -> str:
+    """Basic 認証 + レート制限のみ。TOTP セットアップ / チャレンジ
+    ページ自身がこちらを使う (TOTP ゲートに入ると無限ループする)。"""
     expected_user = _resolve_admin_username()
     expected_pass = _resolve_admin_token()
     ip = _client_ip(request)
@@ -224,6 +237,59 @@ def require_admin(
     if os.environ.get("DRWP_AUDIT_SUCCESS", "1") != "0":
         db.log_audit("login_success", ip=ip, username=credentials.username[:64])
     return credentials.username
+
+
+def _is_ui_path(request: Request) -> bool:
+    return request.url.path.startswith("/admin/ui/")
+
+
+def _totp_session_valid(request: Request) -> bool:
+    cookie = request.cookies.get(totp.COOKIE_NAME, "")
+    ver = db.get_setting("admin_token_version") or "0"
+    return totp.verify_session_cookie(cookie, ver)
+
+
+def require_admin(
+    request: Request,
+    username: str = Depends(require_admin_basic),
+) -> str:
+    """Basic 認証成功後、2FA が有効ならセッションクッキー (UI) または
+    X-DRWP-TOTP ヘッダ (API) を要求する。"""
+    if not totp.is_totp_enabled():
+        return username
+    # ヘッダ経由 (API クライアント用)
+    code = request.headers.get("x-drwp-totp", "").strip()
+    if code:
+        ok, used_recovery = totp.verify_code_or_recovery(code)
+        if ok:
+            db.log_audit(
+                "recovery_code_used" if used_recovery else "totp_verified",
+                ip=_client_ip(request), username=username,
+            )
+            return username
+        db.log_audit("totp_failed", ip=_client_ip(request), username=username,
+                     detail="header")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid TOTP code",
+        )
+    # セッションクッキー (ブラウザ UI 用)
+    if _totp_session_valid(request):
+        return username
+    # UI 経路ならチャレンジページへ 303。API 経路なら 401。
+    if _is_ui_path(request):
+        next_url = request.url.path
+        if request.url.query:
+            next_url += "?" + request.url.query
+        from urllib.parse import quote
+        raise HTTPException(
+            status_code=status.HTTP_303_SEE_OTHER,
+            headers={"Location": f"/admin/ui/totp/challenge?next={quote(next_url, safe='/?=&')}"},
+        )
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="TOTP code required (X-DRWP-TOTP header)",
+    )
 
 
 class CheckRequest(BaseModel):
@@ -572,6 +638,10 @@ def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(re
             "limiter_threshold": LIMITER_THRESHOLD,
             "limiter_window_sec": LIMITER_WINDOW_SEC,
             "limiter_block_sec": LIMITER_BLOCK_SEC,
+            "totp_enabled": totp.is_totp_enabled(),
+            "totp_env_disabled": os.environ.get("DRWP_TOTP_DISABLED", "0") == "1",
+            "totp_recovery_remaining": totp.remaining_recovery_count(),
+            "totp_pending_active": bool(db.get_setting(totp.K_SECRET_PENDING)),
             **_flash_ctx(msg),
         },
     )
@@ -790,3 +860,204 @@ def ui_restore(file: UploadFile = File(...), _: str = Depends(require_admin)):
         "/admin/ui/settings?msg=restored",
         status_code=status.HTTP_303_SEE_OTHER,
     )
+
+
+# --- TOTP 2FA --------------------------------------------------------------
+# セットアップ → 確定 → チャレンジ → 無効化 の 4 ルートを生やす。
+# ここはどれも `require_admin_basic` (= Basic 認証のみ) を使うこと。
+# `require_admin` を通してしまうと、TOTP 未認証ユーザがチャレンジ
+# ページに辿り着けず無限リダイレクトする。
+
+def _safe_next(next_url: Optional[str]) -> str:
+    """オープンリダイレクト防止: 内部パスのみ許可する。"""
+    if not next_url:
+        return "/admin/ui/settings"
+    if next_url.startswith("/") and not next_url.startswith("//"):
+        return next_url
+    return "/admin/ui/settings"
+
+
+def _set_totp_session_cookie(response, request: Request) -> None:
+    ver = db.get_setting("admin_token_version") or "0"
+    value, max_age = totp.make_session_cookie(ver)
+    secure = request.url.scheme == "https"
+    response.set_cookie(
+        key=totp.COOKIE_NAME,
+        value=value,
+        max_age=max_age,
+        httponly=True,
+        samesite="lax",
+        secure=secure,
+        path="/admin",
+    )
+
+
+@app.post("/admin/ui/settings/totp/setup", include_in_schema=False)
+def ui_totp_setup_start(_: str = Depends(require_admin_basic)):
+    """新規シークレット + リカバリーコードを生成し、確定画面へ。
+    既に有効化済みならセットアップは無効 (まず無効化が先)。"""
+    if totp.is_totp_enabled():
+        return RedirectResponse(
+            "/admin/ui/settings", status_code=status.HTTP_303_SEE_OTHER,
+        )
+    totp.begin_setup()
+    return RedirectResponse(
+        "/admin/ui/settings/totp/verify?msg=totp_setup_started",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.get("/admin/ui/settings/totp/verify", response_class=HTMLResponse, include_in_schema=False)
+def ui_totp_setup_verify(
+    request: Request,
+    msg: Optional[str] = None,
+    _: str = Depends(require_admin_basic),
+):
+    secret, codes = totp.get_pending()
+    if not secret:
+        return RedirectResponse(
+            "/admin/ui/settings?msg=totp_not_pending",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    uri = totp.otpauth_uri(secret)
+    return templates.TemplateResponse(
+        request,
+        "totp_setup.html",
+        {
+            "secret": secret,
+            "recovery_codes": codes,
+            "otpauth_uri": uri,
+            "qr_svg": totp.qr_svg(uri),
+            **_flash_ctx(msg),
+        },
+    )
+
+
+@app.post("/admin/ui/settings/totp/enable", include_in_schema=False)
+def ui_totp_enable(
+    request: Request,
+    code: str = Form(""),
+    _: str = Depends(require_admin_basic),
+):
+    if not db.get_setting(totp.K_SECRET_PENDING):
+        return RedirectResponse(
+            "/admin/ui/settings?msg=totp_not_pending",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    if not totp.finalize_enable(code):
+        db.log_audit("totp_failed", ip=_client_ip(request), detail="enable")
+        return RedirectResponse(
+            "/admin/ui/settings/totp/verify?msg=totp_code_invalid",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    # Bump realm so cached Basic creds + any stale TOTP cookie both get
+    # invalidated — the operator will be prompted fresh on next request.
+    _bump_admin_token_version()
+    db.log_audit("totp_enabled", ip=_client_ip(request))
+    resp = RedirectResponse(
+        "/admin/ui/settings?msg=totp_enabled",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+    # Set a fresh session cookie so the operator isn't kicked to the
+    # challenge page immediately after enabling.
+    _set_totp_session_cookie(resp, request)
+    return resp
+
+
+@app.post("/admin/ui/settings/totp/cancel", include_in_schema=False)
+def ui_totp_setup_cancel(_: str = Depends(require_admin_basic)):
+    totp.discard_pending()
+    return RedirectResponse(
+        "/admin/ui/settings?msg=totp_setup_cancelled",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/admin/ui/settings/totp/disable", include_in_schema=False)
+def ui_totp_disable(
+    request: Request,
+    code: str = Form(""),
+    _: str = Depends(require_admin_basic),
+):
+    """2FA 無効化。現行 TOTP コード or リカバリーコードで本人確認する。"""
+    if not totp.is_totp_enabled():
+        return RedirectResponse(
+            "/admin/ui/settings", status_code=status.HTTP_303_SEE_OTHER,
+        )
+    ok, used_recovery = totp.verify_code_or_recovery(code)
+    if not ok:
+        db.log_audit("totp_failed", ip=_client_ip(request), detail="disable")
+        return RedirectResponse(
+            "/admin/ui/settings?msg=totp_code_invalid",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    if used_recovery:
+        db.log_audit("recovery_code_used", ip=_client_ip(request), detail="disable")
+    totp.disable()
+    db.log_audit("totp_disabled", ip=_client_ip(request))
+    resp = RedirectResponse(
+        "/admin/ui/settings?msg=totp_disabled",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+    resp.delete_cookie(totp.COOKIE_NAME, path="/admin")
+    return resp
+
+
+@app.get("/admin/ui/totp/challenge", response_class=HTMLResponse, include_in_schema=False)
+def ui_totp_challenge(
+    request: Request,
+    next: str = "/admin/ui/settings",
+    msg: Optional[str] = None,
+    _: str = Depends(require_admin_basic),
+):
+    if not totp.is_totp_enabled():
+        # 2FA が無効ならチャレンジ自体不要。元のページへ戻す。
+        return RedirectResponse(_safe_next(next), status_code=status.HTTP_303_SEE_OTHER)
+    if _totp_session_valid(request):
+        return RedirectResponse(_safe_next(next), status_code=status.HTTP_303_SEE_OTHER)
+    return templates.TemplateResponse(
+        request,
+        "totp_challenge.html",
+        {
+            "next": _safe_next(next),
+            "recovery_remaining": totp.remaining_recovery_count(),
+            **_flash_ctx(msg),
+        },
+    )
+
+
+@app.post("/admin/ui/totp/challenge", include_in_schema=False)
+def ui_totp_challenge_submit(
+    request: Request,
+    code: str = Form(""),
+    next: str = Form("/admin/ui/settings"),
+    _: str = Depends(require_admin_basic),
+):
+    if not totp.is_totp_enabled():
+        return RedirectResponse(_safe_next(next), status_code=status.HTTP_303_SEE_OTHER)
+    ok, used_recovery = totp.verify_code_or_recovery(code)
+    if not ok:
+        db.log_audit("totp_failed", ip=_client_ip(request), detail="challenge")
+        from urllib.parse import quote
+        return RedirectResponse(
+            f"/admin/ui/totp/challenge?msg=totp_code_invalid&next={quote(_safe_next(next))}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    db.log_audit(
+        "recovery_code_used" if used_recovery else "totp_verified",
+        ip=_client_ip(request),
+    )
+    resp = RedirectResponse(_safe_next(next), status_code=status.HTTP_303_SEE_OTHER)
+    _set_totp_session_cookie(resp, request)
+    return resp
+
+
+@app.post("/admin/ui/totp/logout", include_in_schema=False)
+def ui_totp_logout(_: str = Depends(require_admin_basic)):
+    """セッションクッキーを削除して即座にチャレンジが要求される
+    状態に戻す。共有 PC で離席する前に押す想定。"""
+    resp = RedirectResponse(
+        "/admin/ui/settings", status_code=status.HTTP_303_SEE_OTHER,
+    )
+    resp.delete_cookie(totp.COOKIE_NAME, path="/admin")
+    return resp

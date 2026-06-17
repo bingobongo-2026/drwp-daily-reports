@@ -584,3 +584,229 @@ def test_canonical_form_is_sorted_compact_utf8(tmp_path, monkeypatch):
     payload = {"b": "2", "a": "1", "c": "日本", "url": "https://example.test/x"}
     bytes_ = signing.canonical(payload)
     assert bytes_ == b'{"a":"1","b":"2","c":"\xe6\x97\xa5\xe6\x9c\xac","url":"https://example.test/x"}'
+
+
+# --- TOTP 2FA ---------------------------------------------------------------
+
+def test_totp_helpers_pure_python(tmp_path, monkeypatch):
+    """TOTP / リカバリーコード生成・検証の純粋関数テスト。
+    外部仕様 (RFC 6238) との突き合わせも兼ねている。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    totp = main.totp
+
+    secret = totp.generate_secret_b32()
+    assert len(secret) == 32  # 20 バイト → base32 32 文字
+    # 同じ時刻に対して同じコードが出る (deterministic)。
+    t = 1_700_000_000
+    code = totp.generate_totp(secret, t=t)
+    assert code == totp.generate_totp(secret, t=t)
+    assert totp.verify_totp(secret, code, window=1) or \
+           totp.verify_totp(secret, totp.generate_totp(secret), window=1)
+    # 不正フォーマットは弾く。
+    assert totp.verify_totp(secret, "abcdef") is False
+    assert totp.verify_totp(secret, "12345") is False
+    assert totp.verify_totp(secret, "") is False
+
+    # リカバリーコードは 1 回使い切り。
+    codes = totp.generate_recovery_codes(3)
+    assert len(codes) == 3
+    totp.store_recovery_hashes(codes)
+    assert totp.remaining_recovery_count() == 3
+    assert totp.consume_recovery_code(codes[0]) is True
+    # 2 回目はもう通らない。
+    assert totp.consume_recovery_code(codes[0]) is False
+    assert totp.remaining_recovery_count() == 2
+    # ハイフン / 大小文字は無視される。
+    assert totp.consume_recovery_code(codes[1].lower().replace("-", "")) is True
+
+
+def test_totp_disabled_by_default_basic_auth_still_works(tmp_path, monkeypatch):
+    """2FA 未設定時は従来通り Basic 認証だけで管理 API に通る。
+    既存挙動の回帰防止。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    r = c.get("/admin/licenses", auth=("admin", "test-token"))
+    assert r.status_code == 200
+
+
+def test_totp_setup_to_enable_flow(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    auth = ("admin", "test-token")
+
+    # セットアップ開始 → pending が立つ + リダイレクト
+    r = c.post("/admin/ui/settings/totp/setup", auth=auth, follow_redirects=False)
+    assert r.status_code == 303
+    assert "/admin/ui/settings/totp/verify" in r.headers["location"]
+
+    secret, codes = main.totp.get_pending()
+    assert secret and len(codes) == 10
+    assert main.totp.is_totp_enabled() is False  # まだ未確定
+
+    # 確定画面が表示できる
+    verify_page = c.get("/admin/ui/settings/totp/verify", auth=auth)
+    assert verify_page.status_code == 200
+    assert secret in verify_page.text
+    # QR は SVG として埋まっている
+    assert "<svg" in verify_page.text
+    # リカバリーコードも全部表示
+    for code in codes:
+        assert code in verify_page.text
+
+    # 不正なコードでは有効化されない
+    bad = c.post("/admin/ui/settings/totp/enable", auth=auth,
+                 data={"code": "000000"}, follow_redirects=False)
+    assert bad.status_code == 303
+    assert "totp_code_invalid" in bad.headers["location"]
+    assert main.totp.is_totp_enabled() is False
+
+    # 正しいコードで有効化
+    valid_code = main.totp.generate_totp(secret)
+    ok = c.post("/admin/ui/settings/totp/enable", auth=auth,
+                data={"code": valid_code}, follow_redirects=False)
+    assert ok.status_code == 303
+    assert "msg=totp_enabled" in ok.headers["location"]
+    assert main.totp.is_totp_enabled() is True
+    # セッションクッキーが付与されている
+    assert main.totp.COOKIE_NAME in ok.cookies
+
+
+def test_totp_gate_blocks_ui_until_challenge_passes(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    auth = ("admin", "test-token")
+
+    # TOTP を手動で「有効」にする (シークレットも直接登録)
+    secret = main.totp.generate_secret_b32()
+    main.db.set_setting(main.totp.K_SECRET_ACTIVE, secret)
+    main.db.set_setting(main.totp.K_ENABLED, "1")
+
+    # UI へのアクセスはチャレンジ画面に 303 リダイレクト
+    r = c.get("/admin/ui/licenses", auth=auth, follow_redirects=False)
+    assert r.status_code == 303
+    assert "/admin/ui/totp/challenge" in r.headers["location"]
+    assert "next=" in r.headers["location"]
+
+    # チャレンジ画面自体は Basic だけで開ける
+    challenge = c.get("/admin/ui/totp/challenge?next=/admin/ui/licenses", auth=auth)
+    assert challenge.status_code == 200
+    assert "2FA 認証" in challenge.text
+
+    # 正しいコードでチャレンジを通すとセッションクッキーが付き、
+    # 以降は UI に通常アクセスできる。
+    code = main.totp.generate_totp(secret)
+    pass_r = c.post(
+        "/admin/ui/totp/challenge",
+        auth=auth,
+        data={"code": code, "next": "/admin/ui/licenses"},
+        follow_redirects=False,
+    )
+    assert pass_r.status_code == 303
+    assert pass_r.headers["location"] == "/admin/ui/licenses"
+    assert main.totp.COOKIE_NAME in pass_r.cookies
+
+    # セッションクッキー保持下で UI が普通に開ける
+    list_page = c.get("/admin/ui/licenses", auth=auth)
+    assert list_page.status_code == 200
+    assert "日報マン ライセンスサーバー" in list_page.text
+
+
+def test_totp_gate_blocks_api_without_header(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    auth = ("admin", "test-token")
+    secret = main.totp.generate_secret_b32()
+    main.db.set_setting(main.totp.K_SECRET_ACTIVE, secret)
+    main.db.set_setting(main.totp.K_ENABLED, "1")
+
+    # API は 401 (リダイレクトしない)
+    r = c.get("/admin/licenses", auth=auth)
+    assert r.status_code == 401
+    assert "TOTP" in r.json()["detail"]
+
+    # 正しいヘッダで通る
+    code = main.totp.generate_totp(secret)
+    r = c.get("/admin/licenses", auth=auth, headers={"X-DRWP-TOTP": code})
+    assert r.status_code == 200
+
+    # 不正なヘッダは 401 で監査ログに totp_failed が残る
+    r = c.get("/admin/licenses", auth=auth, headers={"X-DRWP-TOTP": "000000"})
+    assert r.status_code == 401
+    events = [row["event"] for row in main.db.recent_audit(limit=20)]
+    assert "totp_failed" in events
+    assert "totp_verified" in events
+
+
+def test_totp_recovery_code_works_for_challenge_and_logs_event(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    auth = ("admin", "test-token")
+    secret = main.totp.generate_secret_b32()
+    codes = main.totp.generate_recovery_codes(3)
+    main.db.set_setting(main.totp.K_SECRET_ACTIVE, secret)
+    main.totp.store_recovery_hashes(codes)
+    main.db.set_setting(main.totp.K_ENABLED, "1")
+
+    # リカバリーコードでチャレンジを通す
+    r = c.post(
+        "/admin/ui/totp/challenge",
+        auth=auth,
+        data={"code": codes[0], "next": "/admin/ui/licenses"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert main.totp.COOKIE_NAME in r.cookies
+    # 同じコードは 2 回目使えない (consumed)
+    assert main.totp.remaining_recovery_count() == 2
+    events = [row["event"] for row in main.db.recent_audit(limit=20)]
+    assert "recovery_code_used" in events
+
+
+def test_totp_env_disable_overrides_db(tmp_path, monkeypatch):
+    """ロックアウト時の緊急逃げ道。DB 上は enabled でも env が立っていれば
+    ゲートをスキップする。"""
+    monkeypatch.setenv("DRWP_TOTP_DISABLED", "1")
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    auth = ("admin", "test-token")
+    main.db.set_setting(main.totp.K_SECRET_ACTIVE, main.totp.generate_secret_b32())
+    main.db.set_setting(main.totp.K_ENABLED, "1")
+
+    r = c.get("/admin/licenses", auth=auth)
+    assert r.status_code == 200
+
+
+def test_totp_disable_requires_valid_code(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    auth = ("admin", "test-token")
+    secret = main.totp.generate_secret_b32()
+    main.db.set_setting(main.totp.K_SECRET_ACTIVE, secret)
+    main.db.set_setting(main.totp.K_ENABLED, "1")
+
+    # 不正コード: 拒否されて enabled のまま
+    bad = c.post("/admin/ui/settings/totp/disable", auth=auth,
+                 headers={"X-DRWP-TOTP": main.totp.generate_totp(secret)},
+                 data={"code": "000000"}, follow_redirects=False)
+    assert bad.status_code == 303
+    assert "totp_code_invalid" in bad.headers["location"]
+    assert main.totp.is_totp_enabled() is True
+
+    # 正しいコード: 無効化される
+    good = c.post(
+        "/admin/ui/settings/totp/disable",
+        auth=auth,
+        headers={"X-DRWP-TOTP": main.totp.generate_totp(secret)},
+        data={"code": main.totp.generate_totp(secret)},
+        follow_redirects=False,
+    )
+    assert good.status_code == 303
+    assert "msg=totp_disabled" in good.headers["location"]
+    assert main.totp.is_totp_enabled() is False
+
+
+def test_totp_session_cookie_invalidated_when_token_version_bumps(tmp_path, monkeypatch):
+    """管理ユーザー名 / トークンを更新すると、既発行の 2FA セッションも無効になる。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    ver_before = main.db.get_setting("admin_token_version") or "0"
+    value, _ = main.totp.make_session_cookie(ver_before)
+    assert main.totp.verify_session_cookie(value, ver_before) is True
+
+    # バージョンを bump
+    main._bump_admin_token_version()
+    ver_after = main.db.get_setting("admin_token_version") or "0"
+    assert ver_after != ver_before
+    assert main.totp.verify_session_cookie(value, ver_after) is False

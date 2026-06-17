@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}2FA 認証 / 日報マン ライセンスサーバー{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:480px;margin:60px auto;">
+  <h1>2FA 認証</h1>
+  <p class="muted">Authenticator アプリが表示している 6 桁コードを入力してください。</p>
+
+  <form method="post" action="/admin/ui/totp/challenge">
+    <input type="hidden" name="next" value="{{ next }}" />
+    <label for="code">6 桁コード</label>
+    <input type="text" id="code" name="code" inputmode="numeric" pattern="[A-Za-z0-9 \-]{6,20}" maxlength="20"
+           autocomplete="one-time-code" required autofocus
+           placeholder="123456 もしくは リカバリーコード (XXXX-XXXX)" />
+    <p class="muted" style="margin-top:6px;font-size:.85em;">
+      Authenticator が使えない場合は<strong>リカバリーコード</strong> (XXXX-XXXX 形式) を入力してください。
+      残り <strong>{{ recovery_remaining }}</strong> 個。
+    </p>
+    <div class="row" style="margin-top: 14px;">
+      <button type="submit" class="btn">認証</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
+{% block help_title %}2FA 認証について{% endblock %}
+{% block help_body %}
+<p>このサーバは 2 段階認証 (2FA) が有効です。Basic 認証 (ユーザー名+パスワード) に加えて、Authenticator アプリの 6 桁コードが必要です。</p>
+<p>Authenticator を紛失した場合は、セットアップ時に保管した<strong>リカバリーコード</strong> (XXXX-XXXX 形式) を代わりに入力してください。リカバリーコードは 1 回ずつ使い切りです。</p>
+<p>緊急時の解除手段: コンテナの環境変数 <code>DRWP_TOTP_DISABLED=1</code> を設定してサーバを再起動すると、2FA ゲートが一時的にオフになります。ログインしたら直ちに 2FA を無効化 → 再セットアップしてください。</p>
+{% endblock %}

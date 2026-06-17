@@ -395,11 +395,56 @@ docker compose exec wordpress tail -f /var/www/html/wp-content/debug.log
 | `DRWP_ROTATION_INTERVAL_DAYS` | `90` | 署名鍵の自動ローテート間隔。`0` で停止 |
 | `DRWP_ROTATION_CHECK_HOURS` | `24` | チェック頻度（時間） |
 | `DRWP_TRUST_PROXY` | `0` | `1` で `X-Forwarded-For` の先頭 IP を監査ログに採用。前段がプロキシのときだけ有効化 |
+| `DRWP_TOTP_SESSION_HOURS` | `12` | 2FA 認証後のセッションクッキー有効時間 |
+| `DRWP_TOTP_DISABLED` | `0` | `1` で 2FA ゲートを強制的にオフ（Authenticator 紛失時の緊急逃げ道） |
 
 監査ログ (`audit_log` テーブル) には `login_failed` / `login_success` /
-`login_blocked` / `signing_rotated_auto` / `signing_rotated_manual` の
-イベントが記録され、管理画面 → 「サーバー設定」の最下段に直近 30 件が
-表示されます。
+`login_blocked` / `signing_rotated_auto` / `signing_rotated_manual` /
+`totp_enabled` / `totp_disabled` / `totp_verified` / `totp_failed` /
+`recovery_code_used` のイベントが記録され、管理画面 → 「サーバー設定」
+の最下段に直近 30 件が表示されます。
+
+### 9.2 2 段階認証 (TOTP)
+
+Basic 認証だけだとユーザー名 + パスワードを 1 セット盗まれた時点で
+終わるので、Google Authenticator / 1Password / Authy などの
+TOTP (RFC 6238) コードを追加で要求できます。実機を物理的に持って
+いない攻撃者は突破できません。
+
+#### セットアップ
+
+1. 管理画面 → 「サーバー設定」 → 「2 段階認証 (TOTP)」 → 「2FA セット
+   アップを開始」 をクリック
+2. 表示される QR コードを Authenticator アプリで読み取る
+3. **リカバリーコード 10 個を必ず保管する**（パスワードマネージャや
+   印刷物として、サーバとは別の場所に）。この画面を閉じると再表示でき
+   ません
+4. アプリが表示する 6 桁コードを入力して「確定して 2FA を有効化する」
+
+以降、管理画面にログインするたびに 6 桁コードが要求されます。一度
+正しく入力するとブラウザに 12 時間のセッションクッキーが発行され、
+その間は再入力不要です。管理ユーザー名 / トークンを変更すると、
+発行済みセッションは即座に無効化されます。
+
+#### API クライアントからの認証
+
+`/admin/*` の REST API を 2FA 有効状態で呼ぶ場合、`X-DRWP-TOTP`
+ヘッダに 6 桁コード（またはリカバリーコード）を載せます:
+
+```bash
+curl -u admin:$DRWP_ADMIN_TOKEN \
+  -H "X-DRWP-TOTP: 123456" \
+  http://localhost:8000/admin/licenses
+```
+
+#### Authenticator 紛失時のロックアウト解除
+
+1. **リカバリーコード** を 1 個使ってログイン → 2FA を無効化 →
+   再セットアップ。これが正攻法
+2. リカバリーコードも失った場合: コンテナの環境変数
+   `DRWP_TOTP_DISABLED=1` を立てて再起動 → 2FA ゲートが一時的にオフ
+   になるのでログイン → 2FA を無効化 → 環境変数を外して再起動 → 再
+   セットアップ
 
 ---
 
