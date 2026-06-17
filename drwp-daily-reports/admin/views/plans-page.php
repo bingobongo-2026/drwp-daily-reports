@@ -12,13 +12,7 @@ $worker_map = $can_view_all ? $workers : [];
 $is_retired = DRWP_User::is_retired();
 ?>
 <div class="wrap">
-  <h1 class="wp-heading-inline"><?php esc_html_e('予定', 'drwp-daily-reports'); ?></h1>
-  <?php if (!$is_retired): ?>
-    <button type="button" class="page-title-action" id="drwp-plan-add-btn">
-      <?php esc_html_e('新しい予定を追加', 'drwp-daily-reports'); ?>
-    </button>
-  <?php endif; ?>
-  <hr class="wp-header-end" />
+  <h1><?php esc_html_e('予定', 'drwp-daily-reports'); ?></h1>
 
   <?php if (!empty($_GET['saved'])): ?>
     <div class="notice notice-success"><p><?php esc_html_e('予定を保存しました。', 'drwp-daily-reports'); ?></p></div>
@@ -33,7 +27,24 @@ $is_retired = DRWP_User::is_retired();
     <div class="notice notice-warning"><p><?php esc_html_e('このアカウントは退職状態のため、予定の追加・編集はできません。閲覧のみ可能です。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>
 
-  <details class="drwp-filter" <?php echo array_filter($filters) ? 'open' : ''; ?>>
+  <?php if (!$is_retired): ?>
+  <p>
+    <button type="button" class="button button-primary" id="drwp-plan-add-btn">
+      + <?php esc_html_e('新しい予定を追加', 'drwp-daily-reports'); ?>
+    </button>
+  </p>
+  <?php endif; ?>
+
+  <?php
+    // 検索・絞り込みパネルの自動展開は、ユーザーが入力したフィルタが
+    // ある時だけ。`$filters` には `orderby` / `order` も常に入っている
+    // (ソートデフォルト値) ので、`array_filter($filters)` を使うと
+    // 必ず開きっぱなしになってしまう。日報一覧と同じく明示列挙する。
+    $filter_open = ($filters['search'] !== '' || $filters['project_id']
+                  || ($filters['user_id'] ?? 0) || $filters['status'] !== ''
+                  || $filters['date_from'] !== '' || $filters['date_to'] !== '');
+  ?>
+  <details class="drwp-filter" <?php echo $filter_open ? 'open' : ''; ?>>
     <summary class="drwp-filter-summary"><?php esc_html_e('検索・絞り込み', 'drwp-daily-reports'); ?></summary>
     <form method="get" class="drwp-filter-form">
       <input type="hidden" name="page" value="drwp_plans" />
