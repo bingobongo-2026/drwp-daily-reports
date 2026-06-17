@@ -64,6 +64,62 @@
 </div>
 
 <div class="card">
+  <h2>2 段階認証 (TOTP)</h2>
+  <p class="muted">
+    Basic 認証に加えて、Google Authenticator 系の 6 桁コードを要求します。
+    ブラウザは認証後に一定時間有効なクッキーを発行します
+    （管理ユーザー名 / トークンを変更するとセッションは即座に無効化されます）。
+  </p>
+  {% if totp_env_disabled %}
+    <div class="flash err" style="margin-bottom:12px;font-weight:normal;">
+      環境変数 <code>DRWP_TOTP_DISABLED=1</code> が設定されているため、2FA は<strong>強制的にオフ</strong>になっています。
+      緊急解除モードです。設定を直したら環境変数を外して再起動してください。
+    </div>
+  {% endif %}
+  <p>
+    <strong>現在の状態:</strong>
+    {% if totp_enabled %}
+      <span class="pill active">有効</span>
+      （リカバリーコード残り <strong>{{ totp_recovery_remaining }}</strong> 個）
+    {% else %}
+      <span class="pill inactive">無効</span>
+    {% endif %}
+  </p>
+
+  {% if totp_enabled %}
+    <h3 style="margin-top:14px;">2FA を無効化する</h3>
+    <p class="muted">無効化には現在の 6 桁コードか、未使用のリカバリーコードが必要です。</p>
+    <form method="post" action="/admin/ui/settings/totp/disable"
+          onsubmit="return confirm('2FA を無効化します。シークレットとリカバリーコードはすべて破棄されます。続行しますか？');">
+      <div class="row" style="gap:8px;">
+        <input type="text" name="code" inputmode="numeric" maxlength="20"
+               placeholder="6 桁コード または XXXX-XXXX" autocomplete="one-time-code" required style="max-width:300px;" />
+        <button type="submit" class="btn danger">2FA を無効化する</button>
+      </div>
+    </form>
+    <h3 style="margin-top:18px;">セッションをログアウト</h3>
+    <p class="muted">このブラウザの 2FA セッションクッキーを削除し、次回アクセス時に 6 桁コードを再要求します。</p>
+    <form method="post" action="/admin/ui/totp/logout">
+      <button type="submit" class="btn ghost">このブラウザの 2FA セッションを終了</button>
+    </form>
+  {% elif totp_pending_active %}
+    <div class="flash err" style="margin-top:10px;font-weight:normal;">
+      セットアップが途中です。<a href="/admin/ui/settings/totp/verify">確定画面に戻る</a>
+      か、取り消してやり直してください。
+    </div>
+    <form method="post" action="/admin/ui/settings/totp/cancel">
+      <button type="submit" class="btn ghost">セットアップを取り消す</button>
+    </form>
+  {% else %}
+    <h3 style="margin-top:14px;">2FA を有効化する</h3>
+    <p class="muted">押すと QR コードとリカバリーコード 10 個が表示されます。Authenticator アプリで読み取り、確定してください。</p>
+    <form method="post" action="/admin/ui/settings/totp/setup">
+      <button type="submit" class="btn">2FA セットアップを開始</button>
+    </form>
+  {% endif %}
+</div>
+
+<div class="card">
   <h2>署名鍵</h2>
   <p class="muted">ライセンス検証応答に署名するための Ed25519 鍵ペアです。ローテートすると、以降の応答は新しい鍵で署名されます。クライアントは <code>previous_keys</code> 経由で旧鍵による検証もしばらく継続できます。</p>
   <table style="width:auto;margin-bottom:12px;">
@@ -168,6 +224,10 @@ function generateToken() {
 <p>このサーバーの管理画面 (<code>/admin/ui/*</code>) と admin API (<code>/admin/*</code>) のアクセスを保護する <strong>HTTP Basic Auth</strong> のユーザー名とパスワードです。両方とも一致して初めて認証が通ります。</p>
 <p>初回は環境変数 <code>DRWP_ADMIN_USERNAME</code> / <code>DRWP_ADMIN_TOKEN</code> で起動時に設定し、運用中はこの画面から差し替える形を推奨します（ユーザー名のデフォルトは <code>admin</code>）。</p>
 <p>保存すると Basic 認証の realm が更新されるため、ブラウザはキャッシュした古い認証情報を破棄して再度ダイアログを表示します。</p>
+<h3>2 段階認証 (TOTP)</h3>
+<p>Basic 認証だけでは「ユーザー名 + パスワードを 1 セット盗めば終わり」なので、Google Authenticator 系の 6 桁コードを追加で要求します。実機を物理的に持っていない攻撃者は突破できません。</p>
+<p>セットアップ時にリカバリーコード 10 個が表示されます (再表示不可)。Authenticator を入れた端末を紛失した時の最後の砦になるので、パスワードマネージャや印刷物として<strong>サーバとは別の場所</strong>に保管してください。</p>
+<p>緊急時のロックアウト解除: コンテナ環境変数 <code>DRWP_TOTP_DISABLED=1</code> を立てて再起動すると、2FA ゲートが一時的にオフになります。直ちにログインして 2FA を無効化 → 再セットアップしてください。</p>
 <h3>署名鍵のローテート</h3>
 <p>ライセンス検証応答に使う Ed25519 鍵ペアを新しいものに交換します。古い公開鍵は previous_keys として <code>/api/public-key</code> で配布され続けるので、クライアント側は無停止で移行できます。</p>
 <h3>バックアップ / 復元</h3>

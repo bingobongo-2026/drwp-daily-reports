@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}2FA セットアップ / 日報マン ライセンスサーバー{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h1>2FA (TOTP) セットアップ</h1>
+  <p class="muted">Authenticator アプリで QR を読み取り、表示された 6 桁コードを入力して有効化を確定してください。確定するまで 2FA はまだ有効になりません。</p>
+</div>
+
+<div class="card">
+  <h2>1. Authenticator アプリで QR を読み取る</h2>
+  <p>Google Authenticator / 1Password / Authy など、任意の TOTP 対応アプリで読み取ってください。</p>
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px;display:inline-block;">
+    {{ qr_svg|safe }}
+  </div>
+  <details style="margin-top:10px;">
+    <summary class="muted" style="cursor:pointer;">QR を使わない場合（手入力 / URI コピー）</summary>
+    <p style="margin-top:8px;"><strong>シークレット (base32):</strong></p>
+    <p class="mono" style="background:#f1f5f9;padding:8px 10px;border-radius:6px;word-break:break-all;">{{ secret }}</p>
+    <p><strong>otpauth URI:</strong></p>
+    <p class="mono" style="background:#f1f5f9;padding:8px 10px;border-radius:6px;word-break:break-all;font-size:.85em;">{{ otpauth_uri }}</p>
+  </details>
+</div>
+
+<div class="card">
+  <h2>2. リカバリーコードを保管する</h2>
+  <p class="muted">
+    Authenticator を紛失した時の<strong>最後の砦</strong>です。<strong>今すぐ印刷</strong>するか、パスワードマネージャに保存してください。
+    各コードは <strong>1 回のみ</strong>使用できます。
+  </p>
+  <div class="flash err" style="margin-bottom:10px;font-weight:normal;">
+    この画面を閉じると<strong>二度と表示できません</strong>。今のうちにコピーしてください。
+  </div>
+  <pre class="mono" style="background:#f1f5f9;padding:12px;border-radius:6px;font-size:1em;letter-spacing:.03em;">{% for c in recovery_codes %}{{ c }}
+{% endfor %}</pre>
+  <button type="button" class="btn ghost" onclick="copyRecovery()">クリップボードにコピー</button>
+  <button type="button" class="btn ghost" onclick="window.print()">印刷する</button>
+</div>
+
+<div class="card">
+  <h2>3. 6 桁コードを入力して有効化を確定</h2>
+  <form method="post" action="/admin/ui/settings/totp/enable">
+    <label for="code">Authenticator が表示している 6 桁コード</label>
+    <input type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required autofocus />
+    <div class="row" style="margin-top: 14px;">
+      <button type="submit" class="btn">確定して 2FA を有効化する</button>
+      <button type="submit" formaction="/admin/ui/settings/totp/cancel" class="btn ghost"
+              formnovalidate
+              onclick="return confirm('セットアップを取り消します。シークレットとリカバリーコードは破棄されます。続行しますか？');">
+        セットアップを取り消す
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+function copyRecovery() {
+  var codes = {{ recovery_codes|tojson }};
+  navigator.clipboard.writeText(codes.join("\n")).then(function () {
+    alert("リカバリーコードをコピーしました。安全な場所に保存してください。");
+  }, function () {
+    alert("コピーできませんでした。手動で選択してコピーしてください。");
+  });
+}
+</script>
+{% endblock %}
+{% block help_title %}2FA セットアップについて{% endblock %}
+{% block help_body %}
+<h3>セットアップの流れ</h3>
+<ol>
+  <li>QR コードを Authenticator アプリで読み取る</li>
+  <li>10 個のリカバリーコードを安全な場所に保管する</li>
+  <li>アプリが表示する 6 桁コードで有効化を確定する</li>
+</ol>
+<h3>リカバリーコードについて</h3>
+<p>Authenticator を入れた端末を紛失・故障した時に、2FA を解除して再設定するためのワンタイムパスワードです。各コードは <strong>1 回しか使えません</strong>。</p>
+<p>必ず<strong>サーバから離れた場所</strong> (パスワードマネージャ、印刷して金庫など) に保管してください。同じ場所に保管すると、サーバごと攻撃された時に意味がありません。</p>
+<h3>有効化されない場合</h3>
+<p>コードが何度試しても合わない場合、端末の時刻ズレが原因のことが多いです。Authenticator アプリの設定から「時刻同期」を実行してください (Google Authenticator なら「設定 → 時刻補正」)。</p>
+<p>緊急時 (ロックアウト) の解除手段は環境変数 <code>DRWP_TOTP_DISABLED=1</code> です。コンテナを再起動すれば 2FA ゲートが切れるので、ログインして無効化 → 設定し直してください。</p>
+{% endblock %}
