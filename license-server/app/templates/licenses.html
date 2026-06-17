@@ -14,8 +14,9 @@
   <li><strong>状態</strong> — <span class="pill active">active</span> 以外はプラグイン側で書き込み・記事化がブロックされます。</li>
 </ul>
 
-<h3>検索</h3>
+<h3>検索 / 絞り込み</h3>
 <p>検索ボックスにキーワードを入力すると、キー・ドメイン・ユーザー名・住所・担当者名・備考を横断で検索します。</p>
+<p>右側の <strong>プラン</strong> / <strong>状態</strong> セレクトで AND 絞り込みできます (例: 「プラン: プロ」かつ「状態: 有効」)。</p>
 {% endblock %}
 {% block content %}
 <div class="card">
@@ -26,14 +27,27 @@
 
   <form method="get" action="/admin/ui/licenses" class="row" style="margin: 12px 0; gap: 8px;">
     <input type="search" name="q" value="{{ search }}" placeholder="キー・ドメイン・ユーザー名・住所で検索"
-           style="flex:1; padding:8px 12px; border:1px solid #d1d5db; border-radius:8px;">
+           style="flex:1; min-width:240px; padding:8px 12px; border:1px solid #d1d5db; border-radius:8px;">
+    <select name="plan" style="padding:8px 12px; border:1px solid #d1d5db; border-radius:8px;">
+      <option value="">プラン: すべて</option>
+      {% for slug, label in plan_options.items() %}
+        <option value="{{ slug }}" {% if plan_filter == slug %}selected{% endif %}>プラン: {{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="status" style="padding:8px 12px; border:1px solid #d1d5db; border-radius:8px;">
+      <option value="">状態: すべて</option>
+      {% for slug, label in status_options.items() %}
+        <option value="{{ slug }}" {% if status_filter == slug %}selected{% endif %}>状態: {{ label }}</option>
+      {% endfor %}
+    </select>
     <button class="btn" type="submit">検索</button>
-    {% if search %}
+    {% if search or plan_filter or status_filter %}
       <a class="btn ghost" href="/admin/ui/licenses">クリア</a>
     {% endif %}
   </form>
 
-  <p class="muted">{{ '検索結果: ' if search else '' }}合計 {{ items|length }} 件</p>
+  {% set has_filter = search or plan_filter or status_filter %}
+  <p class="muted">{{ '絞り込み結果: ' if has_filter else '' }}合計 {{ items|length }} 件</p>
   <table>
     <thead>
       <tr>
