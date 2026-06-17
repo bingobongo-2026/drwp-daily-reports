@@ -347,15 +347,15 @@ class DRWP_REST {
         // Operators (`edit_others_posts`) can edit any report in any
         // state — that's the review/fix-up workflow. Everyone else
         // (a worker editing their own report) is restricted to
-        // `pending`, matching every front-end edit form. Without this
-        // a contributor could PATCH their own already-approved report
-        // — and replace its photos — straight past the review gate.
+        // `pending` か `needs_revision`、すなわち「まだ承認されて
+        // いない」状態だけ。差戻し中もここを通すことで再編集 →
+        // 再提出ができる。承認済みを後から書き換えるのは塞ぐ。
         if (current_user_can('edit_others_posts')) return true;
         $report = self::find_report((int) $request['id']);
-        if ($report && (string) $report->review_status !== 'pending') {
+        if ($report && !in_array((string) $report->review_status, ['pending', 'needs_revision'], true)) {
             return new WP_Error(
                 'drwp_forbidden',
-                __('レビュー待ちの日報のみ編集できます。', 'drwp-daily-reports'),
+                __('レビュー待ち または 差戻し の日報のみ編集できます。', 'drwp-daily-reports'),
                 ['status' => 403]
             );
         }
@@ -746,6 +746,15 @@ class DRWP_REST {
         if ($err = self::validate_input($input)) return $err;
 
         $data = self::sanitize_writable($input);
+        // 投稿者本人が差戻し中の日報を再編集した場合は、自動で再び
+        // レビュー待ちに戻す (= 再提出)。レビュアーが編集した場合は
+        // 状態を維持するので、運用上の小修正 → 即承認のフローを
+        // 邪魔しない。
+        if ($report->review_status === 'needs_revision'
+            && (int) $report->user_id === get_current_user_id()
+            && !current_user_can('edit_others_posts')) {
+            $data['review_status'] = 'pending';
+        }
         if (!empty($data)) {
             $wpdb->update($wpdb->prefix . 'drwp_reports', $data, ['id' => $id]);
             DRWP_Audit::log('report_updated', '日報を更新 (REST)', $id, ['source' => 'rest']);
