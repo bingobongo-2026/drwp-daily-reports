@@ -15,37 +15,32 @@
     </button>
   </p>
 
-  <form method="get" class="drwp-customer-search">
-    <input type="hidden" name="page" value="drwp_customers" />
-    <input type="search" name="s"
-           value="<?php echo esc_attr($filters['search']); ?>"
-           class="regular-text"
-           placeholder="<?php esc_attr_e('顧客名 / 住所 / 電話 / メール / 備考', 'drwp-daily-reports'); ?>" />
-    <?php if (!empty($groups)): ?>
-      <select name="group_id">
-        <option value="0"><?php esc_html_e('顧客グループすべて', 'drwp-daily-reports'); ?></option>
-        <?php foreach ($groups as $g): ?>
-          <option value="<?php echo (int) $g->id; ?>" <?php selected((int) ($filters['group_id'] ?? 0), (int) $g->id); ?>>
-            <?php echo esc_html($g->name); ?>
-          </option>
-        <?php endforeach; ?>
-      </select>
-    <?php endif; ?>
-    <button class="button button-primary"><?php esc_html_e('検索', 'drwp-daily-reports'); ?></button>
-    <?php if ($filters['search'] !== '' || !empty($filters['group_id'])): ?>
-      <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_customers')); ?>">
-        <?php esc_html_e('クリア', 'drwp-daily-reports'); ?>
-      </a>
-      <span class="drwp-customer-search-hit">
-        <?php
-          printf(
-              esc_html(_n('%d 件ヒット', '%d 件ヒット', (int) $total, 'drwp-daily-reports')),
-              (int) $total
-          );
-        ?>
-      </span>
-    <?php endif; ?>
-  </form>
+  <?php $filter_open = ($filters['search'] !== '' || !empty($filters['group_id'])); ?>
+  <details class="drwp-filter" <?php echo $filter_open ? 'open' : ''; ?>>
+    <summary class="drwp-filter-summary"><?php esc_html_e('検索・絞り込み', 'drwp-daily-reports'); ?></summary>
+    <form method="get" class="drwp-filter-form">
+      <input type="hidden" name="page" value="drwp_customers" />
+      <div class="drwp-row">
+        <input type="search" name="s" value="<?php echo esc_attr($filters['search']); ?>"
+               placeholder="<?php esc_attr_e('顧客名 / 住所 / 電話 / メール / 備考', 'drwp-daily-reports'); ?>"
+               class="drwp-search-input" />
+        <?php if (!empty($groups)): ?>
+          <select name="group_id">
+            <option value="0"><?php esc_html_e('顧客グループすべて', 'drwp-daily-reports'); ?></option>
+            <?php foreach ($groups as $g): ?>
+              <option value="<?php echo (int) $g->id; ?>" <?php selected((int) ($filters['group_id'] ?? 0), (int) $g->id); ?>>
+                <?php echo esc_html($g->name); ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        <?php endif; ?>
+        <button class="button button-primary"><?php esc_html_e('検索', 'drwp-daily-reports'); ?></button>
+        <a class="button-link" href="<?php echo esc_url(admin_url('admin.php?page=drwp_customers')); ?>">
+          <?php esc_html_e('クリア', 'drwp-daily-reports'); ?>
+        </a>
+      </div>
+    </form>
+  </details>
 
   <?php
     $pager_base = remove_query_arg('paged', $_SERVER['REQUEST_URI'] ?? '');
@@ -266,8 +261,18 @@
 .drwp-customer-modal-body .form-table th{width:120px;padding:6px 0;vertical-align:top}
 .drwp-customer-modal-body .form-table td{padding:6px 0}
 .drwp-customer-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
-.drwp-customer-search{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
-.drwp-customer-search-hit{color:#475569;font-size:.92em}
+/* 検索・絞り込み — 日報一覧・予定一覧と同じ薄いグレー枠の details。 */
+.drwp-filter{margin-bottom:10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff}
+.drwp-filter-summary{cursor:pointer;font-weight:600;color:#1d2327;list-style:none;display:flex;align-items:center;gap:6px;padding:8px 12px}
+.drwp-filter-summary::-webkit-details-marker{display:none}
+.drwp-filter-summary::before{content:'▸';font-size:.8em;color:#6b7280;transition:transform .15s}
+.drwp-filter[open] .drwp-filter-summary{border-bottom:1px solid #f1f5f9}
+.drwp-filter[open] .drwp-filter-summary::before{transform:rotate(90deg)}
+.drwp-filter-summary:hover{color:#2271b1}
+.drwp-filter-form{padding:10px 12px}
+.drwp-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.drwp-row:last-child{margin-bottom:0}
+.drwp-search-input{min-width:200px;flex:1}
 /* Group chips shown in the 顧客 listing table — color dot + name
    in a soft pill. The color comes from the group's color column,
    left blank renders the pill without a dot. */
