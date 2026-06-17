@@ -336,25 +336,31 @@ $can_review = current_user_can('edit_others_posts');
       </section>
 
       <?php if (current_user_can(DRWP_Reports::CAP_ARCHIVE)): ?>
-      <section class="drwp-card drwp-archive-card" id="drwp-archive-section" style="background:#fef3c7;">
-        <h3><?php esc_html_e('アーカイブ', 'drwp-daily-reports'); ?></h3>
-        <p class="description" style="margin:0 0 8px;">
+      <section class="drwp-card drwp-archive-card" id="drwp-archive-section">
+        <h3 class="drwp-archive-title">
+          <span class="drwp-archive-icon" aria-hidden="true">🗄</span>
+          <?php esc_html_e('アーカイブ', 'drwp-daily-reports'); ?>
+        </h3>
+        <p class="drwp-archive-help">
           <?php esc_html_e('アーカイブすると一覧から非表示になります。実体は残るので「アーカイブのみ」フィルタから復元できます。法定保存期間中の日報は完全削除せず、アーカイブ状態のままにしてください。', 'drwp-daily-reports'); ?>
         </p>
-        <div class="drwp-row">
-          <button type="button" class="button button-secondary" id="drwp-archive-btn">
-            🗄 <?php esc_html_e('アーカイブする', 'drwp-daily-reports'); ?>
+        <div class="drwp-archive-actions">
+          <button type="button" class="button button-secondary drwp-archive-btn" id="drwp-archive-btn">
+            <span class="drwp-archive-btn-icon" aria-hidden="true">🗄</span>
+            <?php esc_html_e('アーカイブする', 'drwp-daily-reports'); ?>
           </button>
-          <button type="button" class="button" id="drwp-restore-btn" hidden>
-            ↩ <?php esc_html_e('アーカイブから復元', 'drwp-daily-reports'); ?>
+          <button type="button" class="button drwp-archive-btn drwp-archive-btn-restore" id="drwp-restore-btn" hidden>
+            <span class="drwp-archive-btn-icon" aria-hidden="true">↩</span>
+            <?php esc_html_e('アーカイブから復元', 'drwp-daily-reports'); ?>
           </button>
           <?php if (current_user_can(DRWP_Reports::CAP_PURGE)): ?>
-          <button type="button" class="button button-link-delete" id="drwp-purge-btn" hidden>
-            🗑 <?php esc_html_e('完全削除 (取り消し不可)', 'drwp-daily-reports'); ?>
+          <button type="button" class="button button-link-delete drwp-archive-btn drwp-archive-btn-purge" id="drwp-purge-btn" hidden>
+            <span class="drwp-archive-btn-icon" aria-hidden="true">🗑</span>
+            <?php esc_html_e('完全削除 (取り消し不可)', 'drwp-daily-reports'); ?>
           </button>
           <?php endif; ?>
-          <span id="drwp-archive-status" style="margin-left:8px;font-size:.92em;color:#475569;"></span>
         </div>
+        <p id="drwp-archive-status" class="drwp-archive-status" hidden></p>
       </section>
       <?php endif; ?>
     </div>
@@ -554,6 +560,51 @@ $can_review = current_user_can('edit_others_posts');
 .drwp-comment-item{padding:8px 0;border-bottom:1px solid #f1f5f9}
 .drwp-comment-meta{font-size:.8em;color:#64748b;margin-bottom:2px}
 .drwp-comment-body{white-space:pre-wrap;font-size:.92em;color:#1f2937}
+
+/* アーカイブ操作カード — 「破壊的操作の入口」だと一目で分かるよう
+   琥珀色のアクセントだけ残してフラットなベージュ塗りはやめる。 */
+.drwp-archive-card{
+  margin:14px 0 4px;
+  background:#fff;
+  border:1px solid #fde68a;
+  border-left:4px solid #f59e0b;
+  border-radius:8px;
+  padding:16px 18px;
+}
+.drwp-archive-title{
+  display:flex;align-items:center;gap:8px;
+  margin:0 0 6px;font-size:1em;color:#92400e;
+}
+.drwp-archive-icon{font-size:1.1em}
+.drwp-archive-help{
+  margin:0 0 14px;color:#64748b;font-size:.88em;line-height:1.55;
+}
+.drwp-archive-actions{
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+}
+.drwp-archive-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 14px;line-height:1.4;
+}
+.drwp-archive-btn-icon{font-size:1em}
+/* 「復元」は元の状態に戻すアクションなので青み、「完全削除」は赤系で
+   WP コアの button-link-delete に上書きせず添えるだけにする。 */
+.drwp-archive-btn-restore{
+  border-color:#3b82f6;color:#1d4ed8;background:#eff6ff;
+}
+.drwp-archive-btn-restore:hover{
+  background:#dbeafe;border-color:#2563eb;color:#1e40af;
+}
+.drwp-archive-btn-purge{margin-left:auto}
+.drwp-archive-status{
+  margin:10px 0 0;padding:6px 10px;
+  background:#f8fafc;border-left:3px solid #94a3b8;border-radius:4px;
+  color:#475569;font-size:.88em;
+}
+/* WP コア + hidden 属性の表示 none を確実に効かせる。display:flex /
+   inline-flex を当てるルールが [hidden] を上書きする回避策。 */
+.drwp-archive-card [hidden],
+.drwp-archive-card[hidden]{display:none}
 </style>
 
 <script>
@@ -772,7 +823,7 @@ $can_review = current_user_can('edit_others_posts');
   function updateArchiveUI(d) {
     if (!archiveSection) return;
     archiveStatus.textContent = '';
-    archiveStatus.style.color = '#475569';
+    archiveStatus.hidden = true;
     var archived = !!d.archived_at;
     if (archiveBtn) archiveBtn.hidden = archived;
     if (restoreBtn) restoreBtn.hidden = !archived;
@@ -791,6 +842,8 @@ $can_review = current_user_can('edit_others_posts');
     } else if (archived) {
       archiveStatus.textContent = '<?php echo esc_js(__('アーカイブ済み', 'drwp-daily-reports')); ?>';
     }
+    // テキストが入った時だけ表示する (空文字なら非表示のままにする)。
+    if (archiveStatus.textContent) archiveStatus.hidden = false;
   }
 
   if (archiveBtn) {

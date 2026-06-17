@@ -368,6 +368,10 @@
   /* 個人情報チェックの警告帯 — モーダルフッター直上に出して、保存
      直前に必ず目に入るようにする。 */
   .drwp-conv-pii-panel{margin:0 20px;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;color:#92400e;font-size:.88em;line-height:1.55;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  /* CSS の display:flex は [hidden] による UA の display:none を上書き
+     してしまうので、PII 候補がゼロの時に空のベージュ帯が残るバグが
+     あった。明示的に [hidden] を効かせて潰す。 */
+  .drwp-conv-pii-panel[hidden]{display:none}
   .drwp-conv-pii-panel strong{color:#7c2d12;font-weight:700}
   .drwp-conv-pii-panel .drwp-conv-pii-kinds{flex:1;min-width:200px}
   .drwp-conv-pii-panel code{background:#fff7ed;padding:1px 5px;border-radius:3px;font-size:.92em;color:#7c2d12}
