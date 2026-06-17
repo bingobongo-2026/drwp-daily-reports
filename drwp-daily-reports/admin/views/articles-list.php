@@ -60,6 +60,13 @@
     ?>
   </p>
 
+  <?php
+    // ページャー (上下に同じものを表示)。検索/フィルタ/ソート/per_page
+    // は現在 URL から `paged` だけ削れば維持される。
+    $pager_base = remove_query_arg('paged', $_SERVER['REQUEST_URI'] ?? '');
+    echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total);
+  ?>
+
     <table class="widefat striped" id="drwp-articles-table">
       <thead>
         <tr>
@@ -116,41 +123,9 @@
     </table>
 
   <?php
-  if ($pages > 1):
-      $base = add_query_arg(
-          array_merge(
-              ['page' => 'drwp_articles'],
-              array_filter(
-                  [
-                      's'           => $filters['search'],
-                      'post_status' => $filters['post_status'],
-                      'project_id'  => $filters['project_id'] ?: '',
-                      'date_from'   => $filters['date_from'],
-                      'date_to'     => $filters['date_to'],
-                      'orderby'     => ($sort_field !== 'report_date') ? $sort_field : '',
-                      'order'       => ($sort_order !== 'desc') ? $sort_order : '',
-                  ],
-                  function ($v) { return $v !== '' && $v !== 0; }
-              )
-          ),
-          admin_url('admin.php')
-      );
-      $page_links = paginate_links([
-          'base'      => add_query_arg('paged', '%#%', $base),
-          'format'    => '',
-          'current'   => (int) $paged,
-          'total'     => (int) $pages,
-          'type'      => 'array',
-          'prev_text' => '‹',
-          'next_text' => '›',
-      ]);
+    $pager_base = remove_query_arg('paged', $_SERVER['REQUEST_URI'] ?? '');
+    echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total);
   ?>
-    <div class="tablenav" style="margin-top:12px;">
-      <div class="tablenav-pages">
-        <?php foreach (($page_links ?: []) as $link) echo $link . ' '; ?>
-      </div>
-    </div>
-  <?php endif; ?>
 
   <!-- ============================================================
        記事作成モーダル — view + content editor + publish settings

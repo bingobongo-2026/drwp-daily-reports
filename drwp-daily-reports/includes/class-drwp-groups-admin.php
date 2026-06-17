@@ -66,6 +66,11 @@ class DRWP_Groups_Admin {
                 $cmp = (int) $a->id <=> (int) $b->id;
                 return $sort_order === 'desc' ? -$cmp : $cmp;
             });
+            $pager = DRWP_Admin::paginate_array($groups);
+            $groups = $pager['items'];
+            $total  = $pager['total'];
+            $paged  = $pager['paged'];
+            $pages  = $pager['pages'];
             include DRWP_PATH . 'admin/views/customer-groups-page.php';
         } else {
             $groups = DRWP_Project_Group::all();
@@ -75,6 +80,11 @@ class DRWP_Groups_Admin {
                 $cmp = (int) $a->id <=> (int) $b->id;
                 return $sort_order === 'desc' ? -$cmp : $cmp;
             });
+            $pager = DRWP_Admin::paginate_array($groups);
+            $groups = $pager['items'];
+            $total  = $pager['total'];
+            $paged  = $pager['paged'];
+            $pages  = $pager['pages'];
             include DRWP_PATH . 'admin/views/project-groups-page.php';
         }
         ?>

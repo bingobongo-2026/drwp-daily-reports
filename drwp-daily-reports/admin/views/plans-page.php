@@ -83,11 +83,16 @@ $is_retired = DRWP_User::is_retired();
   <p class="description" style="margin:8px 0;">
     <?php
       printf(
-          esc_html(_n('合計 %d 件', '合計 %d 件', count($plans), 'drwp-daily-reports')),
-          count($plans)
+          esc_html(_n('合計 %d 件', '合計 %d 件', (int) $total, 'drwp-daily-reports')),
+          (int) $total
       );
     ?>
   </p>
+
+  <?php
+    $pager_base = remove_query_arg('paged', $_SERVER['REQUEST_URI'] ?? '');
+    echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total);
+  ?>
 
   <table class="widefat striped">
     <thead>
@@ -167,6 +172,8 @@ $is_retired = DRWP_User::is_retired();
       <?php endforeach; endif; ?>
     </tbody>
   </table>
+
+  <?php echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total); ?>
 
   <!-- 追加・編集モーダル -->
   <dialog id="drwp-plan-dialog" class="drwp-plan-modal">

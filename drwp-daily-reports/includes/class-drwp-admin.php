@@ -62,6 +62,68 @@ class DRWP_Admin {
     }
 
     /**
+     * 一覧画面用の大きめページャー。`paginate_links` の出力を `.drwp-pager`
+     * クラスで囲んで、`settings_section_css` で当てる CSS で見やすい
+     * ボタン群に整形する。`$base_url` には現在の検索・フィルタ・ソート
+     * 状態を含めた URL を渡すこと (`paged` は内部で `add_query_arg` する)。
+     */
+    public static function render_pager($paged, $pages, $base_url, $total = null) {
+        $paged = max(1, (int) $paged);
+        $pages = max(1, (int) $pages);
+        // 1 ページに収まるならページャー自体を出さない。各一覧画面に
+        // 既に「合計 N 件」表示があるので、ここで再掲はしない。
+        if ($pages <= 1) return '';
+        $links = paginate_links([
+            'base'      => add_query_arg('paged', '%#%', $base_url),
+            'format'    => '',
+            'current'   => $paged,
+            'total'     => $pages,
+            'type'      => 'array',
+            'prev_text' => '‹ ' . __('前へ', 'drwp-daily-reports'),
+            'next_text' => __('次へ', 'drwp-daily-reports') . ' ›',
+            'mid_size'  => 2,
+            'end_size'  => 1,
+        ]);
+        if (!$links) return '';
+        $summary = '';
+        if ($total !== null) {
+            $summary = '<div class="drwp-pager-summary">'
+                . sprintf(
+                    esc_html__('全 %1$d 件 — %2$d / %3$d ページ', 'drwp-daily-reports'),
+                    (int) $total, $paged, $pages
+                )
+                . '</div>';
+        }
+        return '<nav class="drwp-pager-wrap" role="navigation" aria-label="'
+             . esc_attr__('ページ送り', 'drwp-daily-reports') . '">'
+             . $summary
+             . '<div class="drwp-pager">' . implode('', $links) . '</div>'
+             . '</nav>';
+    }
+
+    /**
+     * `array_slice` を `paged` クエリで自動制御するヘルパー。一覧の
+     * 元配列を全部読み込んでから view 側で切り出す系のページ向け
+     * (案件・顧客・社員・グループ…のように件数がそこまで多くない
+     * 一覧)。SQL レイヤを触らずに済むのが利点。
+     */
+    public static function paginate_array(array $items, $per_page = null) {
+        $per_page = $per_page ?: self::PER_PAGE;
+        $total = count($items);
+        $pages = max(1, (int) ceil($total / $per_page));
+        $paged = max(1, (int) ($_GET['paged'] ?? 1));
+        if ($paged > $pages) $paged = $pages;
+        $offset = ($paged - 1) * $per_page;
+        return [
+            'items'    => array_slice($items, $offset, $per_page),
+            'paged'    => $paged,
+            'pages'    => $pages,
+            'total'    => $total,
+            'per_page' => $per_page,
+        ];
+    }
+
+    /**
      * Slugs that belong to the "設定" group inside the 日報管理
      * submenu. Listed in the order they're registered in `menu()`
      * — `mark_settings_section` only uses this set to decide which
@@ -148,6 +210,44 @@ class DRWP_Admin {
             .drwp-sortable.is-active { color: #1d2327; font-weight: 700; }
             .drwp-sort-arrow { color: #94a3b8; font-size: .78em; font-weight: 400; }
             .drwp-sortable.is-active .drwp-sort-arrow { color: #2271b1; }
+
+            /* 大きめページャー — DRWP_Admin::render_pager() が出す
+               マークアップ。WP コアの .tablenav-pages は字が小さくて
+               押しにくいので、各一覧で共通の見た目に差し替える。 */
+            .drwp-pager-wrap {
+                display: flex; flex-direction: column; align-items: center;
+                gap: 6px; margin: 14px 0; padding: 6px 0;
+            }
+            .drwp-pager-summary { color: #64748b; font-size: 13px; }
+            .drwp-pager {
+                display: flex; flex-wrap: wrap; justify-content: center;
+                align-items: center; gap: 4px;
+            }
+            .drwp-pager a, .drwp-pager span.page-numbers {
+                display: inline-flex; align-items: center; justify-content: center;
+                min-width: 40px; height: 40px; padding: 0 12px;
+                border: 1px solid #cbd5e1; border-radius: 8px;
+                background: #fff; color: #1f2937;
+                text-decoration: none; font: inherit; font-size: 14px; font-weight: 500;
+                box-sizing: border-box;
+                transition: background-color .12s, border-color .12s, color .12s;
+            }
+            .drwp-pager a:hover {
+                background: #f1f5f9; border-color: #94a3b8; color: #0f172a;
+            }
+            .drwp-pager .current {
+                background: #1f2937; color: #fff; border-color: #1f2937;
+            }
+            .drwp-pager .dots {
+                border: 0; background: transparent; cursor: default;
+                min-width: 28px; color: #94a3b8; padding: 0 4px;
+            }
+            .drwp-pager .prev, .drwp-pager .next { font-weight: 600; padding: 0 14px; }
+            @media (max-width: 600px) {
+                .drwp-pager a, .drwp-pager span.page-numbers {
+                    min-width: 36px; height: 36px; padding: 0 8px; font-size: 13px;
+                }
+            }
         </style>
         <?php
     }

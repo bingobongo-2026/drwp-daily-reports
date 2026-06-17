@@ -17,6 +17,15 @@ foreach ($workers as $w) {
     }
     $visible[] = $w;
 }
+// 一覧をページャー (DRWP_Admin::paginate_array) で切り出す。
+// `$visible_full` には全件を残しておいて、ページャーの総件数や
+// ページ計算に使う。
+$visible_full = $visible;
+$_pager = DRWP_Admin::paginate_array($visible);
+$visible = $_pager['items'];
+$_total  = $_pager['total'];
+$_paged  = $_pager['paged'];
+$_pages  = $_pager['pages'];
 ?>
 <div class="wrap">
   <h1><?php esc_html_e('社員', 'drwp-daily-reports'); ?></h1>
@@ -65,6 +74,11 @@ foreach ($workers as $w) {
       </div>
     </form>
   </details>
+
+  <?php
+    $pager_base = remove_query_arg('paged', $_SERVER['REQUEST_URI'] ?? '');
+    echo DRWP_Admin::render_pager($_paged, $_pages, $pager_base, $_total);
+  ?>
 
   <table class="widefat striped" style="margin-top:8px;">
     <thead>
@@ -139,6 +153,8 @@ foreach ($workers as $w) {
       <?php endforeach; endif; ?>
     </tbody>
   </table>
+
+  <?php echo DRWP_Admin::render_pager($_paged, $_pages, $pager_base, $_total); ?>
 
   <!-- 社員情報編集モーダル (所属 / 入社日 / 備考 — すべて任意) -->
   <dialog id="drwp-worker-dialog" class="drwp-worker-modal">

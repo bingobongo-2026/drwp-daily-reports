@@ -164,6 +164,14 @@ $can_review = current_user_can('edit_others_posts');
     <?php endforeach; ?>
   </form>
 
+  <?php
+    // ページャーの共通ベース URL — 現在の URL から `paged` だけ
+    // 取り除けば、検索/フィルタ/ソート/per_page の状態は全部維持される。
+    $pager_base = remove_query_arg('paged', $_SERVER['REQUEST_URI'] ?? '');
+  ?>
+
+  <?php echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total); ?>
+
   <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
     <?php wp_nonce_field('drwp_bulk_reports'); ?>
     <input type="hidden" name="action" value="drwp_bulk_reports" />
@@ -247,46 +255,7 @@ $can_review = current_user_can('edit_others_posts');
     </table>
   </form>
 
-  <?php
-  if ($pages > 1):
-      $base = add_query_arg(
-          array_merge(
-              ['page' => 'drwp_reports'],
-              array_filter(
-                  [
-                      's'                 => $filters['search'],
-                      'review_status'     => $filters['review_status'],
-                      'project_id'        => $filters['project_id'] ?: '',
-                      'user_id'           => $filters['user_id'] ?? '' ?: '',
-                      'customer_group_id' => $filters['customer_group_id'] ?? '' ?: '',
-                      'project_group_id'  => $filters['project_group_id'] ?? '' ?: '',
-                      'date_from'         => $filters['date_from'],
-                      'date_to'           => $filters['date_to'],
-                      'per_page'          => ((int) $per_page === DRWP_Admin::PER_PAGE) ? '' : (int) $per_page,
-                      'orderby'           => ($sort_field !== 'report_date') ? $sort_field : '',
-                      'order'             => ($sort_order !== 'desc') ? $sort_order : '',
-                  ],
-                  function ($v) { return $v !== '' && $v !== 0; }
-              )
-          ),
-          admin_url('admin.php')
-      );
-      $page_links = paginate_links([
-          'base'      => add_query_arg('paged', '%#%', $base),
-          'format'    => '',
-          'current'   => (int) $paged,
-          'total'     => (int) $pages,
-          'type'      => 'array',
-          'prev_text' => '‹',
-          'next_text' => '›',
-      ]);
-  ?>
-    <div class="tablenav" style="margin-top:12px;">
-      <div class="tablenav-pages">
-        <?php foreach (($page_links ?: []) as $link) echo $link . ' '; ?>
-      </div>
-    </div>
-  <?php endif; ?>
+  <?php echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total); ?>
 
   <!-- 確認モーダル — 紙面風表示 + レビュー + コメント -->
   <dialog id="drwp-view-dialog" class="drwp-modal drwp-modal-wide">

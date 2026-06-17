@@ -177,28 +177,7 @@
   </table>
 
   <?php
-  if ($pages > 1):
-      $base = add_query_arg(
-          array_merge(
-              ['page' => 'drwp_audit'],
-              array_filter($filters, function ($v) { return $v !== '' && $v !== 0; })
-          ),
-          admin_url('admin.php')
-      );
-      $page_links = paginate_links([
-          'base'      => add_query_arg('paged', '%#%', $base),
-          'format'    => '',
-          'current'   => $paged,
-          'total'     => $pages,
-          'type'      => 'array',
-          'prev_text' => '‹',
-          'next_text' => '›',
-      ]);
+    $pager_base = remove_query_arg('paged', $_SERVER['REQUEST_URI'] ?? '');
+    echo DRWP_Admin::render_pager($paged, $pages, $pager_base, isset($total) ? $total : null);
   ?>
-    <div class="tablenav" style="margin-top:12px;">
-      <div class="tablenav-pages">
-        <?php foreach (($page_links ?: []) as $link) echo $link . ' '; ?>
-      </div>
-    </div>
-  <?php endif; ?>
 </div>

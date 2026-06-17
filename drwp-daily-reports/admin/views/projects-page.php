@@ -50,13 +50,18 @@
       <span class="drwp-project-search-hit">
         <?php
           printf(
-              esc_html(_n('%d 件ヒット', '%d 件ヒット', count($projects), 'drwp-daily-reports')),
-              count($projects)
+              esc_html(_n('%d 件ヒット', '%d 件ヒット', (int) $total, 'drwp-daily-reports')),
+              (int) $total
           );
         ?>
       </span>
     <?php endif; ?>
   </form>
+
+  <?php
+    $pager_base = remove_query_arg('paged', $_SERVER['REQUEST_URI'] ?? '');
+    echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total);
+  ?>
 
   <table class="widefat striped" style="margin-top:8px;">
     <thead>
@@ -172,6 +177,8 @@
       <?php endforeach; endif; ?>
     </tbody>
   </table>
+
+  <?php echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total); ?>
 
   <!-- Modal for add / edit -->
   <dialog id="drwp-project-dialog" class="drwp-project-modal">
