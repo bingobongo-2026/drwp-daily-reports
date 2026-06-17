@@ -51,18 +51,10 @@
     </form>
   </details>
 
-  <p class="description" style="margin:8px 0;">
-    <?php
-      printf(
-          esc_html(_n('合計 %d 件', '合計 %d 件', (int) $total, 'drwp-daily-reports')),
-          (int) $total
-      );
-    ?>
-  </p>
-
   <?php
-    // ページャー (上下に同じものを表示)。検索/フィルタ/ソート/per_page
-    // は現在 URL から `paged` だけ削れば維持される。
+    // ページャー (上下に同じものを表示)。総件数は pager 内に
+    // 「全 N 件」として描画されるので、独立した「合計 N 件」は
+    // 出さない (冗長になるため)。
     $pager_base = remove_query_arg('paged', $_SERVER['REQUEST_URI'] ?? '');
     echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total);
   ?>

@@ -12,7 +12,13 @@ $worker_map = $can_view_all ? $workers : [];
 $is_retired = DRWP_User::is_retired();
 ?>
 <div class="wrap">
-  <h1><?php esc_html_e('予定', 'drwp-daily-reports'); ?></h1>
+  <h1 class="wp-heading-inline"><?php esc_html_e('予定', 'drwp-daily-reports'); ?></h1>
+  <?php if (!$is_retired): ?>
+    <button type="button" class="page-title-action" id="drwp-plan-add-btn">
+      <?php esc_html_e('新しい予定を追加', 'drwp-daily-reports'); ?>
+    </button>
+  <?php endif; ?>
+  <hr class="wp-header-end" />
 
   <?php if (!empty($_GET['saved'])): ?>
     <div class="notice notice-success"><p><?php esc_html_e('予定を保存しました。', 'drwp-daily-reports'); ?></p></div>
@@ -25,14 +31,6 @@ $is_retired = DRWP_User::is_retired();
   <?php endif; ?>
   <?php if ($is_retired): ?>
     <div class="notice notice-warning"><p><?php esc_html_e('このアカウントは退職状態のため、予定の追加・編集はできません。閲覧のみ可能です。', 'drwp-daily-reports'); ?></p></div>
-  <?php endif; ?>
-
-  <?php if (!$is_retired): ?>
-  <p>
-    <button type="button" class="button button-primary" id="drwp-plan-add-btn">
-      + <?php esc_html_e('新しい予定を追加', 'drwp-daily-reports'); ?>
-    </button>
-  </p>
   <?php endif; ?>
 
   <details class="drwp-filter" <?php echo array_filter($filters) ? 'open' : ''; ?>>
@@ -80,16 +78,9 @@ $is_retired = DRWP_User::is_retired();
     </form>
   </details>
 
-  <p class="description" style="margin:8px 0;">
-    <?php
-      printf(
-          esc_html(_n('合計 %d 件', '合計 %d 件', (int) $total, 'drwp-daily-reports')),
-          (int) $total
-      );
-    ?>
-  </p>
-
   <?php
+    // 総件数は pager 内の「全 N 件」表示に集約。フィルタ後の合計
+    // は pager の summary から読み取れるので独立カウンタは省く。
     $pager_base = remove_query_arg('paged', $_SERVER['REQUEST_URI'] ?? '');
     echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total);
   ?>
