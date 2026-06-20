@@ -392,8 +392,13 @@ class DRWP_Admin {
         $help = __('使い方', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $help, $help, self::CAP_EDIT, DRWP_Help::SLUG, ['DRWP_Help', 'render_page']);
         // 開発用シードページ — 管理者のみ。本番運用には載せない想定。
-        $seed = __('テストデータ', 'drwp-daily-reports');
-        add_submenu_page('drwp_reports', $seed, $seed, 'manage_options', DRWP_Seed::SLUG, ['DRWP_Seed', 'render_page']);
+        // 公開設定 → 「テストデータメニューを表示する」 OFF だとサイド
+        // バーから消える (URL 直叩きも 404)。再度表示したくなったら
+        // 公開設定からトグルを戻せば復活する。
+        if (DRWP_Seed::is_menu_visible()) {
+            $seed = __('テストデータ', 'drwp-daily-reports');
+            add_submenu_page('drwp_reports', $seed, $seed, 'manage_options', DRWP_Seed::SLUG, ['DRWP_Seed', 'render_page']);
+        }
 
         // Hidden pages (parent = null): reachable only via direct links
         // from the dashboard / review redirects / notification emails /
