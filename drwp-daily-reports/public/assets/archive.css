@@ -543,10 +543,16 @@
    - 強い飽和色 + 白文字は小サイズだと文字がかすれて「09:00 林…」
      のように 1〜2 文字しか読めなかったので、淡色 bg + 濃文字で
      可読性を上げる
-   - 予定チップ (.drwp-archive-cal-plan-chip) と同じスタイル系統に
-     揃えて、報告/予定の見た目を統一する */
+   - 案件名 (1 行目, 太字) と時刻 (2 行目, 小さめ) を 2 行に分けて
+     表示することで、案件名がカレンダーの狭いセルの中でも 1.5 倍
+     ぐらい読める文字数になる。HTML は触らず CSS Grid で並べる
+     (::before の絵文字は 2 行分ぶち抜き、time/text は 2 列目に
+     上下で配置)
+   - 予定チップ (.drwp-archive-cal-plan-chip) も同じ系統で 2 行化 */
 .drwp-archive-cal-chip {
-    display: flex; align-items: center; gap: 4px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 5px;
     width: 100%; margin-top: 2px;
     padding: 3px 6px 3px 5px;
     border: 0; border-left: 3px solid #94a3b8;
@@ -555,13 +561,16 @@
     /* `font-family: inherit` だけ親から取る。`font: inherit` の
        ショートハンドだと font-size まで継承されて、ボタンが
        親要素のフォントサイズで巨大化するので絶対に使わない。 */
-    font-family: inherit; font-size: 0.78rem; line-height: 1.3;
+    font-family: inherit; font-size: 0.78rem;
     text-decoration: none;
     overflow: hidden;
     text-align: left; cursor: pointer;
 }
 .drwp-archive-cal-chip::before {
-    content: '📝'; flex-shrink: 0; font-size: 0.95em; line-height: 1;
+    content: '📝';
+    grid-column: 1; grid-row: 1 / span 2;
+    align-self: center;
+    flex-shrink: 0; font-size: 0.95em; line-height: 1;
 }
 .drwp-archive-cal-chip:hover { filter: brightness(0.96); }
 .drwp-archive-cal-chip.status-pending {
@@ -576,12 +585,23 @@
 .drwp-archive-cal-chip.status-edit_requested {
     background: #dbeafe; color: #1e3a8a; border-left-color: #2563eb;
 }
-.drwp-archive-cal-chip-time { font-weight: 600; white-space: nowrap; flex-shrink: 0; }
-.drwp-archive-cal-chip-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.drwp-archive-cal-chip-text {
+    grid-column: 2; grid-row: 1;
+    font-weight: 600; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.drwp-archive-cal-chip-time {
+    grid-column: 2; grid-row: 2;
+    font-size: 0.86em; line-height: 1.15;
+    font-weight: 500; opacity: 0.78;
+    white-space: nowrap;
+}
 @media (max-width: 640px) {
   .drwp-archive-cal-cell { min-height: 70px; padding: 4px; }
   .drwp-archive-cal-chip,
   .drwp-archive-cal-plan-chip { font-size: 0.72rem; padding: 2px 5px; }
+  /* 狭い画面では時刻行を畳んで案件名 1 行だけにする (タップで開けば
+     詳細が見られるので、一覧では情報密度を優先)。 */
   .drwp-archive-cal-chip-time { display: none; }
   .drwp-archive-cal-day { width: 22px; height: 22px; font-size: 0.78rem; }
 }
@@ -871,18 +891,23 @@
    「solid colored 日報」vs「pale outlined 予定」+ 先頭アイコンの
    📝 vs 📋 で出す。 */
 .drwp-archive-cal-plan-chip {
-    display: flex; align-items: center; gap: 4px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 5px;
     width: 100%; margin-top: 2px;
-    padding: 2px 4px;
+    padding: 3px 6px 3px 5px;
     border: 0; border-left: 3px solid #16a34a;
     background: #ecfdf5; color: #064e3b;
     border-radius: 4px;
-    font-size: 0.72rem; line-height: 1.2;
+    font-size: 0.78rem;
     text-align: left; cursor: pointer;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    overflow: hidden;
 }
 .drwp-archive-cal-plan-chip::before {
-    content: '📋'; flex-shrink: 0; font-size: 0.95em; line-height: 1;
+    content: '📋';
+    grid-column: 1; grid-row: 1 / span 2;
+    align-self: center;
+    flex-shrink: 0; font-size: 0.95em; line-height: 1;
 }
 .drwp-archive-cal-plan-chip:hover { background: #d1fae5; }
 .drwp-archive-cal-plan-chip.is-linked { background: #f3f4f6; color: #6b7280; border-left-color: #9ca3af; }
@@ -905,8 +930,19 @@
     color: #475569; background: #f8fafc;
     border-radius: 6px; text-align: center;
 }
-.drwp-archive-cal-plan-chip .drwp-archive-cal-chip-time { font-weight: 600; flex-shrink: 0; }
-.drwp-archive-cal-plan-chip .drwp-archive-cal-chip-text { overflow: hidden; text-overflow: ellipsis; }
+/* 予定チップの time/text も日報チップと同じ Grid 配置 (案件名 1 行目、
+   時刻 2 行目)。1 つ前のセレクタが負ければここで上書きされる。 */
+.drwp-archive-cal-plan-chip .drwp-archive-cal-chip-time {
+    grid-column: 2; grid-row: 2;
+    font-size: 0.86em; line-height: 1.15;
+    font-weight: 500; opacity: 0.78;
+    white-space: nowrap;
+}
+.drwp-archive-cal-plan-chip .drwp-archive-cal-chip-text {
+    grid-column: 2; grid-row: 1;
+    font-weight: 600; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
 
 /* Secondary new-button variant — outlined green for "予定を書く"
    so it's clearly the planning action, distinct from the solid
