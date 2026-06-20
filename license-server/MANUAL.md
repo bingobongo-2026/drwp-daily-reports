@@ -382,6 +382,9 @@ docker compose exec wordpress tail -f /var/www/html/wp-content/debug.log
 - **バックアップ** — `data.sqlite3` と `signing.key`、`signing.key.previous.json`
   の 3 ファイル。前者を失うとライセンスを再発行する羽目になり、
   後者を失うと過去の署名が検証できなくなります。
+  自動化用のスクリプトを [`scripts/backup.sh`](./scripts/backup.sh)
+  に同梱しているので、cron に登録すれば毎日ローカル退避できます
+  ([§9.3](#93-自動バックアップ))。
 
 ### 9.1 セキュリティ強化用の環境変数
 
@@ -445,6 +448,78 @@ curl -u admin:$DRWP_ADMIN_TOKEN \
    `DRWP_TOTP_DISABLED=1` を立てて再起動 → 2FA ゲートが一時的にオフ
    になるのでログイン → 2FA を無効化 → 環境変数を外して再起動 → 再
    セットアップ
+
+### 9.3 自動バックアップ
+
+`signing.key` を失うとプラグイン側で署名検証が全部壊れて、お客様
+サイトが一斉に「ライセンスエラー」になります。最低でも週 1 回、
+できれば毎日バックアップが必須です。
+
+リポジトリに [`scripts/backup.sh`](./scripts/backup.sh) を同梱して
+あります。これを cron に登録するだけで日次ローカル退避が走ります。
+
+#### セットアップ
+
+```bash
+# 1) スクリプトを root 領域に配置
+sudo cp ~/drwp-daily-reports/license-server/scripts/backup.sh \
+        /usr/local/bin/drwp-backup.sh
+sudo chmod 700 /usr/local/bin/drwp-backup.sh
+
+# 2) 単発で実行して動くことを確認
+sudo /usr/local/bin/drwp-backup.sh
+ls -la ~/backups/
+# license-server-YYYYMMDD-HHMMSS.tar.gz ができていれば OK
+
+# 3) cron 登録 (root の crontab)
+sudo crontab -e
+```
+
+`crontab -e` で開いたファイルの末尾に追加:
+
+```
+# 毎日 03:00 UTC (= JST 12:00) にバックアップ
+0 3 * * * /usr/local/bin/drwp-backup.sh
+```
+
+#### 動作確認
+
+```bash
+tail -f ~/backups/backup.log    # 次回実行時にログが流れる
+ls -la ~/backups/               # 蓄積を確認
+```
+
+既定では **14 日分** をローカルに保持して古いものを自動削除します
+(`scripts/backup.sh` の `RETENTION_DAYS` で変更可)。
+
+#### オフサイト退避（推奨）
+
+ローカルだけだと VPS 自体が壊れたら共倒れです。週 1 回は手元の
+PC にダウンロードするか、`rclone` で S3 / B2 / R2 / Google Drive 等
+にも同期してください。
+
+`scripts/backup.sh` の末尾に **rclone を有効化するテンプレート**
+が `if false; then` で囲まれているので、`rclone config` で
+remote を設定したあと `false` → `true` に変えれば、バックアップ完了
+後に自動でクラウドへも上がります。
+
+#### 復元手順
+
+VPS を立て直したり、別のサーバに移すときは:
+
+```bash
+# バックアップを展開
+tar xzf license-server-20260620-030000.tar.gz \
+    -C ~/drwp-daily-reports/license-server/data/
+
+# ライセンスサーバを再起動して新しい鍵 / DB を読み込ませる
+cd ~/drwp-daily-reports/license-server
+docker compose restart license
+```
+
+復元直後は `/api/public-key` を叩いて、プラグイン側で持っている
+公開鍵と一致するか確認してください。一致しない場合はプラグイン
+側の「公開鍵を再取得」ボタンを押す必要があります。
 
 ---
 
