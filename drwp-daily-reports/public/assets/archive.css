@@ -110,29 +110,32 @@
 }
 .drwp-archive-toolbar .drwp-archive-summary { margin: 0; }
 
-/* ---- View toggle (📅 カレンダー / 📋 リスト) ---- */
+/* ---- View toggle (カレンダー / リスト) — ピル型のセグメント ----
+   薄グレー容器の中で、選択中だけ白カードが浮いて見えるスタイル
+   (Slack / Google の Segmented control 風)。 */
 .drwp-archive-view-toggle {
     display: inline-flex;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    overflow: hidden;
+    padding: 3px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    gap: 2px;
 }
 .drwp-archive-view-btn {
-    padding: 6px 14px;
-    font-size: 0.88rem;
-    color: #475569;
+    padding: 5px 16px;
+    font-size: 0.85rem; font-weight: 500;
+    color: #64748b;
     text-decoration: none;
-    background: #fff;
-    border-right: 1px solid #cbd5e1;
+    background: transparent;
+    border-radius: 6px;
+    transition: background-color .15s, color .15s, box-shadow .15s;
 }
-.drwp-archive-view-btn:last-child { border-right: 0; }
-.drwp-archive-view-btn:hover { background: #f1f5f9; color: #1e293b; }
+.drwp-archive-view-btn:hover { color: #1e293b; }
 .drwp-archive-view-btn.is-active {
-    background: #1f2937;
-    color: #fff;
+    background: #fff;
+    color: #0f172a;
     font-weight: 600;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .12);
 }
-.drwp-archive-view-btn.is-active:hover { background: #1f2937; color: #fff; }
 
 /* ---- Status legend (色凡例) ---- */
 .drwp-archive-legend {
@@ -503,6 +506,81 @@
 .drwp-archive-edit-submit:hover { background: #1f2937; }
 .drwp-archive-edit-cancel { color: #64748b; text-decoration: underline; }
 
+/* ============================================================
+   Dashboard header (ブランド名 + ページタイトル + CTA + 統計カード)
+   ============================================================ */
+.drwp-archive-dashboard {
+    background: #fff;
+    border: 1px solid #e2e8f0; border-radius: 14px;
+    padding: 18px 22px;
+    margin-bottom: 16px;
+}
+.drwp-archive-dashboard-head {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    gap: 16px; flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+.drwp-archive-dashboard-brand { min-width: 0; }
+.drwp-archive-dashboard-sub {
+    margin: 0; font-size: 0.78rem; color: #64748b;
+    line-height: 1.3; font-weight: 500;
+}
+.drwp-archive-dashboard-title {
+    margin: 2px 0 0; font-size: 1.5rem; font-weight: 800;
+    color: #0f172a; line-height: 1.2;
+}
+.drwp-archive-dashboard-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.drwp-archive-stats {
+    display: grid;
+    grid-template-columns: 1.5fr repeat(5, 1fr);
+    gap: 10px;
+}
+.drwp-archive-stat {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 2px;
+}
+.drwp-archive-stat-label {
+    margin: 0; font-size: 0.78rem; color: #64748b; font-weight: 500;
+    display: flex; align-items: center; gap: 5px;
+}
+.drwp-archive-stat-label::before {
+    content: ''; flex-shrink: 0;
+    width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;
+}
+.drwp-archive-stat-value {
+    margin: 0; font-size: 1.5rem; font-weight: 700; color: #0f172a;
+    line-height: 1.1;
+}
+.drwp-archive-stat-unit { font-size: 0.7em; font-weight: 600; opacity: 0.7; margin-left: 2px; }
+.drwp-archive-stat-hero {
+    background: #fef3c7; border-color: #fcd34d;
+}
+.drwp-archive-stat-hero .drwp-archive-stat-label { color: #78350f; }
+.drwp-archive-stat-hero .drwp-archive-stat-label::before { display: none; }
+.drwp-archive-stat-hero .drwp-archive-stat-value { color: #78350f; }
+.drwp-archive-stat.status-needs_revision .drwp-archive-stat-label::before { background: #dc2626; }
+.drwp-archive-stat.status-pending        .drwp-archive-stat-label::before { background: #d97706; }
+.drwp-archive-stat.status-edit_requested .drwp-archive-stat-label::before { background: #2563eb; }
+.drwp-archive-stat.is-plan               .drwp-archive-stat-label::before {
+    background: transparent; box-shadow: inset 0 0 0 1.5px #94a3b8;
+}
+.drwp-archive-stat.status-approved       .drwp-archive-stat-label::before { background: #16a34a; }
+
+@media (max-width: 900px) {
+    .drwp-archive-stats { grid-template-columns: 1fr 1fr 1fr; }
+    .drwp-archive-stat-hero { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+    .drwp-archive-dashboard { padding: 14px 16px; }
+    .drwp-archive-dashboard-title { font-size: 1.25rem; }
+    .drwp-archive-stats { grid-template-columns: 1fr 1fr; }
+    .drwp-archive-stat-value { font-size: 1.25rem; }
+}
+
 /* Event calendar (Google Calendar style) */
 .drwp-archive-cal { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
 .drwp-archive-cal-nav { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
@@ -520,40 +598,51 @@
 .drwp-archive-cal-cell.sun .drwp-archive-cal-day { color: #dc2626; }
 .drwp-archive-cal-cell.sat .drwp-archive-cal-day { color: #2563eb; }
 /* 当日セル — 一目で判別できるように:
-   - 背景を `#dbeafe`(従来より一段濃い水色)に
-   - 内側に細い青のリングを入れる(box-shadow inset)
-   - 右上に「今日」のピル
-   日付丸の青ベタは従来通り。 */
+   - 背景をやや濃い水色 (#dbeafe)
+   - 青のリング (inset box-shadow)
+   - 日付丸を青ベタ
+   - 「今日」ピルは別要素 (.drwp-archive-cal-today-badge) で出す */
 .drwp-archive-cal-cell.today { background: #dbeafe; box-shadow: inset 0 0 0 2px #2563eb; }
-.drwp-archive-cal-cell.today .drwp-archive-cal-day { background: #2563eb; color: #fff; box-shadow: 0 1px 3px rgba(37, 99, 235, .35); }
-.drwp-archive-cal-cell.today::after {
-    content: '今日';
-    position: absolute;
-    top: 4px; right: 6px;
+.drwp-archive-cal-cell.today .drwp-archive-cal-day {
     background: #2563eb; color: #fff;
-    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em;
-    padding: 1px 6px; border-radius: 999px;
-    line-height: 1.4;
-    pointer-events: none;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, .35);
 }
-.drwp-archive-cal-day { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; font-size: 0.85rem; font-weight: 600; border-radius: 50%; color: #1e293b; }
-/* 日報チップ — light tinted bg + 同色の左ボーダー + 濃色テキストで、
-   従来の白文字 on 飽和色から「Google Calendar / Outlook 風」の柔ら
-   かい見た目に変更。
-   - 強い飽和色 + 白文字は小サイズだと文字がかすれて「09:00 林…」
-     のように 1〜2 文字しか読めなかったので、淡色 bg + 濃文字で
-     可読性を上げる
-   - 時刻 (1 行目, 大きめ太字) と案件名 (2 行目, 小さめ) を 2 行で
-     表示する。タイムテーブル的に時刻を主軸として見たいユーザー
-     向け
-   - 絵文字アイコンは廃止。色 (status 別の背景) で日報か予定かは
-     十分区別がつくので、横幅を稼ぐためにシンプル化
-   - 予定チップ (.drwp-archive-cal-plan-chip) も同じ系統 */
+
+/* セル上部 — 日付 / 今日バッジ / 要対応バッジを横並びに */
+.drwp-archive-cal-cell-head {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 3px;
+}
+.drwp-archive-cal-day {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px;
+    font-size: 0.82rem; font-weight: 600; border-radius: 50%;
+    color: #1e293b;
+}
+.drwp-archive-cal-today-badge {
+    padding: 1px 7px;
+    background: #2563eb; color: #fff;
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em;
+    border-radius: 999px; line-height: 1.5;
+}
+.drwp-archive-cal-needs-badge {
+    margin-left: auto;
+    padding: 1px 8px;
+    background: #ffedd5; color: #9a3412;
+    font-size: 0.68rem; font-weight: 700;
+    border-radius: 999px; line-height: 1.55;
+    white-space: nowrap;
+}
+/* ============================================================
+   日報チップ (要対応 = pending / needs_revision / edit_requested)
+   ============================================================
+   案件名を 1 行目に太字、時刻 + ステータスピルを 2 行目に並べる
+   塗りカード型。クロードデザインに合わせた淡色 bg + 濃文字 + 同色
+   左ボーダー (3px)。 */
 .drwp-archive-cal-chip {
-    display: grid;
-    grid-template-columns: 1fr;
-    width: 100%; margin-top: 2px;
-    padding: 3px 6px;
+    display: block;
+    width: 100%; margin-top: 3px;
+    padding: 4px 7px;
     border: 0; border-left: 3px solid #94a3b8;
     border-radius: 4px;
     background: #f1f5f9; color: #1e293b;
@@ -564,13 +653,11 @@
     text-decoration: none;
     overflow: hidden;
     text-align: left; cursor: pointer;
+    box-sizing: border-box;
 }
 .drwp-archive-cal-chip:hover { filter: brightness(0.96); }
 .drwp-archive-cal-chip.status-pending {
     background: #ffedd5; color: #9a3412; border-left-color: #d97706;
-}
-.drwp-archive-cal-chip.status-approved {
-    background: #dcfce7; color: #14532d; border-left-color: #059669;
 }
 .drwp-archive-cal-chip.status-needs_revision {
     background: #fee2e2; color: #7f1d1d; border-left-color: #dc2626;
@@ -578,25 +665,85 @@
 .drwp-archive-cal-chip.status-edit_requested {
     background: #dbeafe; color: #1e3a8a; border-left-color: #2563eb;
 }
-.drwp-archive-cal-chip-time {
-    grid-row: 1;
-    font-size: 1.05em; line-height: 1.2;
-    font-weight: 700;
-    white-space: nowrap;
-}
 .drwp-archive-cal-chip-text {
-    grid-row: 2;
-    font-size: 0.88em; line-height: 1.2;
-    font-weight: 500; opacity: 0.88;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+    display: block;
+    font-size: 0.95em; line-height: 1.25;
+    font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.drwp-archive-cal-chip-meta {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 2px;
+    font-size: 0.82em; line-height: 1.2;
+    opacity: 0.88;
+}
+.drwp-archive-cal-chip-time {
+    font-weight: 600; white-space: nowrap;
+}
+.drwp-archive-cal-chip-status {
+    padding: 0 6px;
+    border-radius: 999px;
+    background: currentColor; /* 親色 (status 別) を背景に */
+    /* color プロパティとの両立: テキストだけ反転白にする */
+    font-size: 0.92em; font-weight: 600;
+}
+.drwp-archive-cal-chip-status { background: rgba(0,0,0,0.07); color: inherit; }
+
+/* ============================================================
+   承認済み (status-approved) — 控えめなテキスト行 (塗りなし)
+   ============================================================ */
+.drwp-archive-cal-chip.is-compact {
+    background: transparent !important;
+    border-left: 0 !important;
+    padding: 1px 4px 1px 14px;
+    margin-top: 2px;
+    color: #1e293b;
+    display: flex; align-items: baseline; gap: 6px;
+    position: relative;
+}
+.drwp-archive-cal-chip.is-compact::before {
+    content: '';
+    position: absolute; left: 2px; top: 7px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #94a3b8;
+}
+.drwp-archive-cal-chip.is-compact.status-approved::before { background: #059669; }
+.drwp-archive-cal-chip.is-compact .drwp-archive-cal-chip-text {
+    flex: 1 1 auto;
+    font-weight: 500; font-size: 0.86em;
+    color: #1e293b;
+}
+.drwp-archive-cal-chip.is-compact .drwp-archive-cal-chip-meta {
+    margin-top: 0; opacity: 1;
+    font-size: 0.82em; color: #475569;
+}
+.drwp-archive-cal-chip.is-compact .drwp-archive-cal-chip-time {
+    font-weight: 500;
+}
+
+/* オーバーフローしたチップは display: none で隠す。
+   セル側に .is-expanded がついたら全部見せる。 */
+.drwp-archive-cal-chip.is-overflow-hidden,
+.drwp-archive-cal-plan-chip.is-overflow-hidden { display: none; }
+.drwp-archive-cal-cell.is-expanded .drwp-archive-cal-chip.is-overflow-hidden,
+.drwp-archive-cal-cell.is-expanded .drwp-archive-cal-plan-chip.is-overflow-hidden { display: block; }
+
+/* 「+ 他 N 件」ボタン */
+.drwp-archive-cal-overflow {
+    margin-top: 4px;
+    padding: 2px 6px;
+    background: transparent; border: 0; border-radius: 4px;
+    color: #475569; font-size: 0.78rem; font-weight: 500;
+    cursor: pointer; text-align: left;
+}
+.drwp-archive-cal-overflow:hover { background: #f1f5f9; color: #0f172a; }
+
 @media (max-width: 640px) {
   .drwp-archive-cal-cell { min-height: 70px; padding: 4px; }
   .drwp-archive-cal-chip,
-  .drwp-archive-cal-plan-chip { font-size: 0.72rem; padding: 2px 5px; }
-  /* 狭い画面では案件名行を畳んで時刻 1 行だけにする (タップで開けば
-     詳細が見られるので、一覧では情報密度を優先)。 */
-  .drwp-archive-cal-chip-text { display: none; }
+  .drwp-archive-cal-plan-chip { font-size: 0.72rem; padding: 3px 5px; }
+  /* 狭い画面ではステータスピルを畳んで時刻だけにする。 */
+  .drwp-archive-cal-chip-status { display: none; }
   .drwp-archive-cal-day { width: 22px; height: 22px; font-size: 0.78rem; }
 }
 
@@ -880,23 +1027,30 @@
    calendar and sees at a glance which days have a planned visit
    on top of the actual reports. Linked-back plans get a darker
    fill so we don't keep luring the operator to re-create. */
-/* 予定チップ — pale bg + colored left border ("これは予定だよ")。
-   日報チップとフォントサイズ・パディングを揃え、緑系の淡色 + 太い
-   左ボーダーで「日報」と視覚的に区別する。絵文字アイコンは廃止。 */
+/* ============================================================
+   予定チップ — 承認済みと同じ「控えめテキスト行 + ○ 中抜き丸」
+   ============================================================ */
 .drwp-archive-cal-plan-chip {
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex; align-items: baseline; gap: 6px;
     width: 100%; margin-top: 2px;
-    padding: 3px 6px;
-    border: 0; border-left: 3px solid #16a34a;
-    background: #ecfdf5; color: #064e3b;
+    padding: 1px 4px 1px 14px;
+    border: 0; background: transparent; color: #1e293b;
     border-radius: 4px;
-    font-size: 0.78rem;
+    font-family: inherit; font-size: 0.78rem;
     text-align: left; cursor: pointer;
-    overflow: hidden;
+    overflow: hidden; position: relative;
+    box-sizing: border-box;
 }
-.drwp-archive-cal-plan-chip:hover { background: #d1fae5; }
-.drwp-archive-cal-plan-chip.is-linked { background: #f3f4f6; color: #6b7280; border-left-color: #9ca3af; }
+.drwp-archive-cal-plan-chip::before {
+    content: '';
+    position: absolute; left: 2px; top: 7px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px #94a3b8;
+}
+.drwp-archive-cal-plan-chip:hover { background: #f1f5f9; }
+.drwp-archive-cal-plan-chip.is-linked { color: #94a3b8; }
+.drwp-archive-cal-plan-chip.is-linked::before { box-shadow: inset 0 0 0 1.5px #cbd5e1; }
 /* Drag-to-reschedule affordance. The chip itself gets the grab
    cursor when draggable, and a drop-target cell shows an amber
    dashed outline so the worker can see exactly where the chip
@@ -916,19 +1070,17 @@
     color: #475569; background: #f8fafc;
     border-radius: 6px; text-align: center;
 }
-/* 予定チップの time/text も日報チップと同じ Grid 配置
-   (時刻 1 行目 = 大きめ太字、案件名 2 行目 = 小さめ)。 */
-.drwp-archive-cal-plan-chip .drwp-archive-cal-chip-time {
-    grid-row: 1;
-    font-size: 1.05em; line-height: 1.2;
-    font-weight: 700;
-    white-space: nowrap;
-}
+/* 予定チップの time/text — is-compact レイアウトで使う寸法。
+   テキストは flex 残り、時刻は固定幅で右寄せ。 */
 .drwp-archive-cal-plan-chip .drwp-archive-cal-chip-text {
-    grid-row: 2;
-    font-size: 0.88em; line-height: 1.2;
-    font-weight: 500; opacity: 0.88;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+    flex: 1 1 auto;
+    font-weight: 500; font-size: 0.86em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.drwp-archive-cal-plan-chip .drwp-archive-cal-chip-time {
+    flex: 0 0 auto;
+    font-weight: 500; font-size: 0.82em;
+    color: #475569; white-space: nowrap;
 }
 
 /* Secondary new-button variant — outlined green for "予定を書く"

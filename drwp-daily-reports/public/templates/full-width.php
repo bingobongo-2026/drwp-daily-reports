@@ -36,8 +36,10 @@ if (!defined('ABSPATH')) exit;
     a:hover { color: #1d4ed8; }
     img { max-width: 100%; height: auto; }
 
-    /* 1400px までの可変ラッパー。中央寄せで両端 16px のパディング。 */
-    .drwp-fullwidth-wrap { max-width: 1400px; margin: 0 auto; padding: 24px 16px; box-sizing: border-box; }
+    /* 1800px までの可変ラッパー。中央寄せで両端 24px のパディング。
+       日報カレンダーを縦長に積んだ時に、両側の白余白が目立たない
+       ぐらい広めに取る。 */
+    .drwp-fullwidth-wrap { max-width: 1800px; margin: 0 auto; padding: 24px 24px; box-sizing: border-box; }
     .drwp-fullwidth-content { width: 100%; }
 
     /* admin bar が出る (ログイン状態) ときは上から 32/46px ぶん
