@@ -1187,8 +1187,6 @@ class DRWP_Report_Archive {
 
             <?php echo self::render_filter_form($q, $project, $status, $month_param, $projects, !empty($_GET['drwp_mine'])); ?>
 
-            <?php echo self::render_status_legend(); ?>
-
             <?php
             $total_count = count($rows);
             if ($view === 'list'): ?>
