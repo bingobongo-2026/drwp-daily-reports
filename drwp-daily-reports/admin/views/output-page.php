@@ -42,6 +42,18 @@
           <p class="description"><?php esc_html_e('既にアイキャッチが設定された投稿には影響しません。', 'drwp-daily-reports'); ?></p>
         </td>
       </tr>
+      <tr>
+        <th><?php esc_html_e('テストデータメニュー', 'drwp-daily-reports'); ?></th>
+        <td>
+          <label>
+            <input type="checkbox" name="seed_menu_visible" value="1" <?php checked($settings['seed_menu_visible']); ?> />
+            <?php esc_html_e('サイドバーに「テストデータ」メニューを表示する', 'drwp-daily-reports'); ?>
+          </label>
+          <p class="description">
+            <?php esc_html_e('動作確認用のサンプル投入ページです。本番運用に入ったらオフにして見えなくしておけます。OFF にすると URL 直叩きでも開けなくなりますが、この画面から再度オンにすれば戻ります。', 'drwp-daily-reports'); ?>
+          </p>
+        </td>
+      </tr>
     </table>
 
     <?php submit_button(__('保存', 'drwp-daily-reports')); ?>

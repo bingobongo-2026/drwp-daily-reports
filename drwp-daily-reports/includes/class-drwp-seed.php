@@ -12,13 +12,29 @@ if (!defined('ABSPATH')) exit;
  * `manage_options` を持つ管理者にだけ見せる。
  */
 class DRWP_Seed {
-    const OPT_STATE = 'drwp_seed_state';
+    const OPT_STATE        = 'drwp_seed_state';
+    const OPT_MENU_VISIBLE = 'drwp_show_seed_menu';
     const SLUG = 'drwp_seed';
     const TAG = 'drwp-seed';
 
     public static function init() {
         add_action('admin_post_drwp_seed_run',   [__CLASS__, 'handle_run']);
         add_action('admin_post_drwp_seed_reset', [__CLASS__, 'handle_reset']);
+    }
+
+    /**
+     * サイドバーに「テストデータ」メニューを表示するかどうか。
+     * 既定値は `1` (表示) — 既存環境の見た目を壊さないため。
+     * オフにしても option を読み書きするだけなので、再度オンに
+     * したくなれば「公開設定」画面から戻せる。
+     */
+    public static function is_menu_visible() {
+        $v = get_option(self::OPT_MENU_VISIBLE, '1');
+        return $v === '1' || $v === 1 || $v === true;
+    }
+
+    public static function set_menu_visible($visible) {
+        update_option(self::OPT_MENU_VISIBLE, !empty($visible) ? '1' : '0');
     }
 
     /** State accessor — keeps the option shape in one place. */
