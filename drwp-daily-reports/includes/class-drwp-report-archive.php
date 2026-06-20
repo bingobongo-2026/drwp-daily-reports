@@ -131,7 +131,9 @@ class DRWP_Report_Archive {
     private static function render_list() {
         // "自分のみ" filter — checkbox on the form, persisted via
         // ?drwp_mine=1. When set we scope the calendar to the
-        // current user just like the old [drwp_report_form] my-list.
+        // current user (replaces the legacy "my reports" view that
+        // used to live behind a separate shortcode before the archive
+        // absorbed it).
         $mine = !empty($_GET['drwp_mine']) && is_user_logged_in();
         $user_id = $mine ? get_current_user_id() : 0;
         // Retired users keep their read access (so they can review

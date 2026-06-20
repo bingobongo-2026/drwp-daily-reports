@@ -22,10 +22,12 @@ its responses with Ed25519 so a tampered status can't unlock features.
   project / date range, and pagination.
 
 ### Mobile submission (shortcode)
-- `[drwp_report_form]` renders a mobile-first front-end form on any
-  page or post. Field workers log in once on their phone and bookmark
-  the page; the shortcode talks to the REST endpoints with a
-  `wp_rest` nonce.
+- `[drwp_report_archive]` renders the field-worker hub on any page or
+  post: a calendar/list of own reports, a "日報を書く" button that
+  opens the mobile-first new-report form in a modal, and inline edit
+  for own pending / needs-revision reports. Field workers log in once
+  on their phone and bookmark the page; the shortcode talks to the
+  REST endpoints with a `wp_rest` nonce.
 - Fields are kept short: project, date, work description, issues,
   next plan, photos. Photo input declares `capture="environment"` so
   the phone goes straight to the rear camera; multiple files queue up

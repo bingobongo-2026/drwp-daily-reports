@@ -70,7 +70,7 @@
     font-weight: 600; font-size: 1rem;
 }
 
-/* ---- My-reports list (default view of [drwp_report_form]) ---- */
+/* ---- My-reports list (legacy class — kept for any stray markup) ---- */
 .drwp-mform-list-wrap { display: flex; flex-direction: column; gap: 14px; }
 .drwp-mform-list-actions { margin: 0; }
 .drwp-mform-new-btn {

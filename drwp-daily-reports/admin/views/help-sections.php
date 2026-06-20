@@ -42,7 +42,7 @@ case 'report': ?>
       <h3><?php esc_html_e('どこから日報を書ける？', 'drwp-daily-reports'); ?></h3>
       <ul>
         <li><strong><?php esc_html_e('WordPress 管理画面から', 'drwp-daily-reports'); ?></strong> — <code>日報マン → 日報一覧 → 新規追加</code>。PC で腰を据えて書く場合に向きます。</li>
-        <li><strong><?php esc_html_e('フロント（社外）画面から', 'drwp-daily-reports'); ?></strong> — 公開ページにショートコード <code>[drwp_report_form]</code> を貼り付けたページにアクセスして書きます。スマホからの現場入力に最適です。</li>
+        <li><strong><?php esc_html_e('フロント（社外）画面から', 'drwp-daily-reports'); ?></strong> — 公開ページにショートコード <code>[drwp_report_archive]</code> を貼り付けたページにアクセスして書きます。スマホからの現場入力に最適です。</li>
       </ul>
 
       <h3><?php esc_html_e('入力項目', 'drwp-daily-reports'); ?></h3>

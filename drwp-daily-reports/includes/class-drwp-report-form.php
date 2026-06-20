@@ -4,9 +4,7 @@ if (!defined('ABSPATH')) exit;
 /**
  * New-report form rendering for the front-end.
  *
- * The [drwp_report_form] shortcode is kept registered for backward
- * compatibility but no longer produces any output on its own —
- * [drwp_report_archive] is the single user-facing entry point and:
+ * `[drwp_report_archive]` is the single user-facing entry point and:
  *   - calls render_form() to embed the new-report form in a modal
  *   - provides a calendar view of reports
  *   - handles ?drwp_edit=N (its own render_edit) + report PATCH via REST
@@ -21,7 +19,6 @@ class DRWP_Report_Form {
     const HANDLE = 'drwp-mform';
 
     public static function init() {
-        add_shortcode('drwp_report_form', [__CLASS__, 'render']);
         add_action('wp_enqueue_scripts', [__CLASS__, 'register_assets']);
     }
 
@@ -41,21 +38,9 @@ class DRWP_Report_Form {
         );
     }
 
-    public static function render($atts = [], $content = '') {
-        // This shortcode is kept registered for backward compatibility
-        // but no longer renders anything — [drwp_report_archive] is
-        // now the single user-facing entry point and handles
-        // ?drwp_new / ?drwp_edit on its own.
-        return '';
-    }
-
     /* ------------------------------------------------------------
-     * Form rendering (?drwp_new=1) — public so [drwp_report_archive]
-     * can embed the form inside a modal dialog.
-     * ------------------------------------------------------------ */
-
-    /* ------------------------------------------------------------
-     * Input form — ?drwp_new=1
+     * Form rendering — public so [drwp_report_archive] can embed the
+     * form inside a modal dialog.
      * ------------------------------------------------------------ */
 
     public static function render_form() {
