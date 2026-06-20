@@ -537,40 +537,51 @@
     pointer-events: none;
 }
 .drwp-archive-cal-day { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; font-size: 0.85rem; font-weight: 600; border-radius: 50%; color: #1e293b; }
-/* 日報チップ — solid colored bg ("これは実施済の記録")。予定チップと
-   同じ寸法 (font-size / padding / line-height) に揃え、`::before` で
-   📝 アイコンを必ず先頭につける。アイコンは flex item として常に
-   表示されるので、モバイルで time 列が消えても残る。 */
+/* 日報チップ — light tinted bg + 同色の左ボーダー + 濃色テキストで、
+   従来の白文字 on 飽和色から「Google Calendar / Outlook 風」の柔ら
+   かい見た目に変更。
+   - 強い飽和色 + 白文字は小サイズだと文字がかすれて「09:00 林…」
+     のように 1〜2 文字しか読めなかったので、淡色 bg + 濃文字で
+     可読性を上げる
+   - 予定チップ (.drwp-archive-cal-plan-chip) と同じスタイル系統に
+     揃えて、報告/予定の見た目を統一する */
 .drwp-archive-cal-chip {
     display: flex; align-items: center; gap: 4px;
     width: 100%; margin-top: 2px;
-    padding: 2px 4px; border-radius: 4px;
+    padding: 3px 6px 3px 5px;
+    border: 0; border-left: 3px solid #94a3b8;
+    border-radius: 4px;
+    background: #f1f5f9; color: #1e293b;
     /* `font-family: inherit` だけ親から取る。`font: inherit` の
        ショートハンドだと font-size まで継承されて、ボタンが
        親要素のフォントサイズで巨大化するので絶対に使わない。 */
-    font-family: inherit; font-size: 0.72rem; line-height: 1.2;
-    color: #fff; text-decoration: none;
-    background: #64748b;
+    font-family: inherit; font-size: 0.78rem; line-height: 1.3;
+    text-decoration: none;
     overflow: hidden;
-    border: 0; text-align: left; cursor: pointer;
+    text-align: left; cursor: pointer;
 }
 .drwp-archive-cal-chip::before {
     content: '📝'; flex-shrink: 0; font-size: 0.95em; line-height: 1;
-    /* Solid background makes the emoji color clash; the slight
-       brightness boost keeps it from disappearing into the chip. */
-    filter: brightness(1.15) saturate(0.85);
 }
-.drwp-archive-cal-chip:hover { filter: brightness(0.92); color: #fff; }
-.drwp-archive-cal-chip.status-pending { background: #d97706; }
-.drwp-archive-cal-chip.status-approved { background: #059669; }
-.drwp-archive-cal-chip.status-needs_revision { background: #dc2626; }
-.drwp-archive-cal-chip.status-edit_requested { background: #2563eb; }
-.drwp-archive-cal-chip-time { font-weight: 600; white-space: nowrap; }
+.drwp-archive-cal-chip:hover { filter: brightness(0.96); }
+.drwp-archive-cal-chip.status-pending {
+    background: #ffedd5; color: #9a3412; border-left-color: #d97706;
+}
+.drwp-archive-cal-chip.status-approved {
+    background: #dcfce7; color: #14532d; border-left-color: #059669;
+}
+.drwp-archive-cal-chip.status-needs_revision {
+    background: #fee2e2; color: #7f1d1d; border-left-color: #dc2626;
+}
+.drwp-archive-cal-chip.status-edit_requested {
+    background: #dbeafe; color: #1e3a8a; border-left-color: #2563eb;
+}
+.drwp-archive-cal-chip-time { font-weight: 600; white-space: nowrap; flex-shrink: 0; }
 .drwp-archive-cal-chip-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 @media (max-width: 640px) {
   .drwp-archive-cal-cell { min-height: 70px; padding: 4px; }
   .drwp-archive-cal-chip,
-  .drwp-archive-cal-plan-chip { font-size: 0.68rem; padding: 1px 4px; }
+  .drwp-archive-cal-plan-chip { font-size: 0.72rem; padding: 2px 5px; }
   .drwp-archive-cal-chip-time { display: none; }
   .drwp-archive-cal-day { width: 22px; height: 22px; font-size: 0.78rem; }
 }
