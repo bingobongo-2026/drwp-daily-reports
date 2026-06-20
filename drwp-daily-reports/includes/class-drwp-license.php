@@ -91,6 +91,8 @@ class DRWP_License {
      * requested feature.
      *
      * Plans (extend the matrix as we add tiers):
+     *   - `free`  : 30-day trial — same feature set as basic, just
+     *               distinguished for billing / expiry handling
      *   - `basic` : everything except AI
      *   - `pro`   : everything including AI
      *
@@ -101,6 +103,7 @@ class DRWP_License {
     public static function plan_allows($feature) {
         if (!self::can_write()) return false;
         $matrix = [
+            'free'  => [],
             'basic' => [],
             'pro'   => ['ai'],
         ];

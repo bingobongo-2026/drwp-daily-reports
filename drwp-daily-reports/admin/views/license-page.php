@@ -116,6 +116,9 @@
             } elseif ($plan_slug === 'basic') {
                 echo '<span class="drwp-plan-pill is-basic">Basic</span>';
                 echo ' <span class="description">' . esc_html__('AI 以外の機能が利用できます。', 'drwp-daily-reports') . '</span>';
+            } elseif ($plan_slug === 'free') {
+                echo '<span class="drwp-plan-pill is-free">Free</span>';
+                echo ' <span class="description">' . esc_html__('30 日間の体験プランです。期限切れ後は機能が停止します。', 'drwp-daily-reports') . '</span>';
             } elseif ($plan_slug !== '') {
                 echo esc_html($license['plan']);
                 echo ' <span class="description">' . esc_html__('未知のプラン名のため Basic として扱われます。', 'drwp-daily-reports') . '</span>';
@@ -162,4 +165,5 @@
 .drwp-plan-pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.8em;font-weight:700;color:#fff;letter-spacing:.04em}
 .drwp-plan-pill.is-pro{background:linear-gradient(135deg,#6366f1,#8b5cf6)}
 .drwp-plan-pill.is-basic{background:#475569}
+.drwp-plan-pill.is-free{background:#16a34a}
 </style>
