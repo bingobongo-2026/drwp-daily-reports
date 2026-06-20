@@ -34,14 +34,7 @@
         <th><?php esc_html_e('レビュー待ち通知', 'drwp-daily-reports'); ?></th>
         <td>
           <label><input type="checkbox" name="on_pending" value="1" <?php checked($settings['on_pending']); ?> />
-            <?php
-              printf(
-                  /* translators: 1: pending status code 2: review capability */
-                  esc_html__('日報が %1$s で保存されたら %2$s 権限を持つユーザーに通知', 'drwp-daily-reports'),
-                  '<code>pending</code>',
-                  '<code>edit_others_posts</code>'
-              );
-            ?>
+            <?php esc_html_e('日報が「レビュー待ち」で保存されたら、承認権限を持つユーザーに通知', 'drwp-daily-reports'); ?>
           </label>
         </td>
       </tr>
@@ -49,14 +42,7 @@
         <th><?php esc_html_e('レビュー結果通知', 'drwp-daily-reports'); ?></th>
         <td>
           <label><input type="checkbox" name="on_review" value="1" <?php checked($settings['on_review']); ?> />
-            <?php
-              printf(
-                  /* translators: 1: approved status 2: needs_revision status */
-                  esc_html__('%1$s / %2$s に変わったら作成者に通知', 'drwp-daily-reports'),
-                  '<code>approved</code>',
-                  '<code>needs_revision</code>'
-              );
-            ?>
+            <?php esc_html_e('レビュー結果が「承認済み」または「差戻し」に変わったら作成者に通知', 'drwp-daily-reports'); ?>
           </label>
         </td>
       </tr>
