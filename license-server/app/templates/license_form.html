@@ -18,74 +18,84 @@
   <h1>{{ 'ライセンス編集' if license else 'ライセンス作成' }}</h1>
   <form method="post" action="{{ action_url }}">
 
-    <h2 style="margin:16px 0 8px; font-size:1em; color:#374151; border-bottom:1px solid #e5e7eb; padding-bottom:6px;">ライセンス情報</h2>
+    <section class="drwp-form-section is-primary">
+      <header class="drwp-form-section-head">
+        <h2><span class="drwp-form-section-icon" aria-hidden="true">🔑</span>ライセンス情報</h2>
+        <p>プラグインに渡される値です。ここを書き換えると WP 側のライセンス状態に影響します。</p>
+      </header>
 
-    <label for="license_key">ライセンスキー</label>
-    {% if license %}
-      <input type="text" id="license_key" name="license_key"
-             value="{{ license.license_key }}" readonly>
-    {% else %}
-      <div class="row" style="gap: 8px;">
+      <label for="license_key">ライセンスキー</label>
+      {% if license %}
         <input type="text" id="license_key" name="license_key"
-               value="" placeholder="空欄なら自動生成 (NPM-XXXX-XXXX-XXXX-XXXX)"
-               autocomplete="off" style="flex: 1;">
-        <button type="button" class="btn ghost" onclick="generateLicenseKey()">自動生成</button>
-      </div>
-    {% endif %}
+               value="{{ license.license_key }}" readonly>
+      {% else %}
+        <div class="row" style="gap: 8px;">
+          <input type="text" id="license_key" name="license_key"
+                 value="" placeholder="空欄なら自動生成 (NPM-XXXX-XXXX-XXXX-XXXX)"
+                 autocomplete="off" style="flex: 1;">
+          <button type="button" class="btn ghost" onclick="generateLicenseKey()">自動生成</button>
+        </div>
+      {% endif %}
 
-    <label for="domain">ドメイン</label>
-    <input type="text" id="domain" name="domain"
-           value="{{ license.domain if license else '' }}" required>
+      <label for="domain">ドメイン</label>
+      <input type="text" id="domain" name="domain"
+             value="{{ license.domain if license else '' }}" required>
 
-    <label for="plan">プラン</label>
-    <select id="plan" name="plan" onchange="onPlanChange()">
-      {# slug は英小文字、表示は plan_label フィルタで日本語化 #}
-      {% for p in ['free', 'basic', 'pro'] %}
-        <option value="{{ p }}" {% if license and license.plan == p %}selected{% endif %}>{{ p|plan_label }}</option>
-      {% endfor %}
-    </select>
+      <label for="plan">プラン</label>
+      <select id="plan" name="plan" onchange="onPlanChange()">
+        {# slug は英小文字、表示は plan_label フィルタで日本語化 #}
+        {% for p in ['free', 'basic', 'pro'] %}
+          <option value="{{ p }}" {% if license and license.plan == p %}selected{% endif %}>{{ p|plan_label }}</option>
+        {% endfor %}
+      </select>
 
-    <label for="status">状態</label>
-    <select id="status" name="status">
-      {# slug は英小文字、表示は status_label フィルタで日本語化 #}
-      {% for s in ['active', 'inactive'] %}
-        <option value="{{ s }}" {% if license and license.status == s %}selected{% endif %}>{{ s|status_label }}</option>
-      {% endfor %}
-    </select>
+      <label for="status">状態</label>
+      <select id="status" name="status">
+        {# slug は英小文字、表示は status_label フィルタで日本語化 #}
+        {% for s in ['active', 'inactive'] %}
+          <option value="{{ s }}" {% if license and license.status == s %}selected{% endif %}>{{ s|status_label }}</option>
+        {% endfor %}
+      </select>
 
-    <label for="expires_at">有効期限 (空欄 = 無期限、フリー選択時は 30 日後)</label>
-    <input type="datetime-local" id="expires_at" name="expires_at"
-           value="{{ license.expires_at[:16] if license and license.expires_at else '' }}">
+      <label for="expires_at">有効期限 (空欄 = 無期限、フリー選択時は 30 日後)</label>
+      <input type="datetime-local" id="expires_at" name="expires_at"
+             value="{{ license.expires_at[:16] if license and license.expires_at else '' }}">
+    </section>
 
-    <h2 style="margin:24px 0 8px; font-size:1em; color:#374151; border-bottom:1px solid #e5e7eb; padding-bottom:6px;">ユーザー情報</h2>
+    <section class="drwp-form-section is-secondary">
+      <header class="drwp-form-section-head">
+        <h2><span class="drwp-form-section-icon" aria-hidden="true">👤</span>ユーザー情報</h2>
+        <p>サーバ管理用のメモです。ここの値はプラグインには送信されません。</p>
+      </header>
 
-    <label for="user_name">ユーザー名（会社名 / 個人名）</label>
-    <input type="text" id="user_name" name="user_name"
-           value="{{ license.user_name if license else '' }}">
+      <label for="user_name">ユーザー名（会社名 / 個人名）</label>
+      <input type="text" id="user_name" name="user_name"
+             value="{{ license.user_name if license else '' }}">
 
-    <label for="postal_code">郵便番号</label>
-    <input type="text" id="postal_code" name="postal_code"
-           value="{{ license.postal_code if license else '' }}"
-           placeholder="123-4567">
+      <label for="postal_code">郵便番号</label>
+      <input type="text" id="postal_code" name="postal_code"
+             value="{{ license.postal_code if license else '' }}"
+             placeholder="123-4567">
 
-    <label for="address">住所</label>
-    <input type="text" id="address" name="address"
-           value="{{ license.address if license else '' }}">
+      <label for="address">住所</label>
+      <input type="text" id="address" name="address"
+             value="{{ license.address if license else '' }}">
 
-    <label for="company_phone">代表電話番号</label>
-    <input type="tel" id="company_phone" name="company_phone"
-           value="{{ license.company_phone if license else '' }}">
+      <label for="company_phone">代表電話番号</label>
+      <input type="tel" id="company_phone" name="company_phone"
+             value="{{ license.company_phone if license else '' }}">
 
-    <label for="contact_person">担当者名</label>
-    <input type="text" id="contact_person" name="contact_person"
-           value="{{ license.contact_person if license else '' }}">
+      <label for="contact_person">担当者名</label>
+      <input type="text" id="contact_person" name="contact_person"
+             value="{{ license.contact_person if license else '' }}">
 
-    <label for="contact_phone">担当者電話番号</label>
-    <input type="tel" id="contact_phone" name="contact_phone"
-           value="{{ license.contact_phone if license else '' }}">
+      <label for="contact_phone">担当者電話番号</label>
+      <input type="tel" id="contact_phone" name="contact_phone"
+             value="{{ license.contact_phone if license else '' }}">
 
-    <label for="notes">備考</label>
-    <textarea id="notes" name="notes" rows="3">{{ license.notes if license else '' }}</textarea>
+      <label for="notes">備考</label>
+      <textarea id="notes" name="notes" rows="3">{{ license.notes if license else '' }}</textarea>
+    </section>
 
     <div class="row" style="margin-top: 16px;">
       <button class="btn" type="submit">{{ '更新' if license else '作成' }}</button>
@@ -93,6 +103,37 @@
     </div>
   </form>
 </div>
+
+<style>
+/* セクションカード — フォームを「ライセンス情報 (= プラグインに
+   渡る値)」と「ユーザー情報 (= サーバ内のメモ)」に視覚的に分けて、
+   どちらの編集をしているか一目で分かるようにする。
+   - 青の左ボーダー = ライセンス情報 (本番影響あり)
+   - 灰の左ボーダー = ユーザー情報 (メモ)
+   .card 自体の白背景に乗せるので、セクションは浅いベタ塗りで
+   コントラストを出す。 */
+.drwp-form-section {
+  margin: 18px 0;
+  padding: 14px 18px 18px;
+  border: 1px solid #e5e7eb;
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+.drwp-form-section.is-primary { border-left-color: #2563eb; }
+.drwp-form-section.is-secondary { border-left-color: #94a3b8; }
+.drwp-form-section-head { margin-bottom: 6px; }
+.drwp-form-section-head h2 {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0; font-size: 1rem; color: #0f172a;
+}
+.drwp-form-section-icon { font-size: 1.1em; line-height: 1; }
+.drwp-form-section-head p {
+  margin: 4px 0 0; font-size: .82rem; color: #64748b; line-height: 1.5;
+}
+/* セクション内の label は最初のものだけ上余白を詰める */
+.drwp-form-section > label:first-of-type { margin-top: 12px; }
+</style>
 
 {% if not license %}
 <script>
