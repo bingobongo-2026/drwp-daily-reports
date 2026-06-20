@@ -1,5 +1,6 @@
 /**
- * Field-worker mobile form for the [drwp_report_form] shortcode.
+ * Field-worker mobile form embedded inside the [drwp_report_archive]
+ * "日報を書く" modal (DRWP_Report_Form::render_form()).
  *
  * 1 form = 1 report = 1 site visit. Photos are uploaded one at a
  * time to the REST /upload-photo endpoint before the report

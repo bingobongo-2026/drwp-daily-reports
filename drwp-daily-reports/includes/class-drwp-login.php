@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) exit;
  * Authenticator (TOTP) support.
  *
  * Why this lives in the daily-reports plugin
- *   The same field workers who use [drwp_report_form] also need
+ *   The same field workers who use [drwp_report_archive] also need
  *   to sign in. Surfacing a branded login page + 2FA setup from
  *   the same plugin keeps "what to install" to a single item.
  *
