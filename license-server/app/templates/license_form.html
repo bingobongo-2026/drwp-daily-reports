@@ -19,10 +19,10 @@
   <form method="post" action="{{ action_url }}">
 
     <section class="drwp-form-section is-primary">
-      <header class="drwp-form-section-head">
+      <div class="drwp-form-section-head">
         <h2><span class="drwp-form-section-icon" aria-hidden="true">🔑</span>ライセンス情報</h2>
         <p>プラグインに渡される値です。ここを書き換えると WP 側のライセンス状態に影響します。</p>
-      </header>
+      </div>
 
       <label for="license_key">ライセンスキー</label>
       {% if license %}
@@ -63,10 +63,10 @@
     </section>
 
     <section class="drwp-form-section is-secondary">
-      <header class="drwp-form-section-head">
+      <div class="drwp-form-section-head">
         <h2><span class="drwp-form-section-icon" aria-hidden="true">👤</span>ユーザー情報</h2>
         <p>サーバ管理用のメモです。ここの値はプラグインには送信されません。</p>
-      </header>
+      </div>
 
       <label for="user_name">ユーザー名（会社名 / 個人名）</label>
       <input type="text" id="user_name" name="user_name"
