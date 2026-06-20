@@ -586,6 +586,118 @@ def test_canonical_form_is_sorted_compact_utf8(tmp_path, monkeypatch):
     assert bytes_ == b'{"a":"1","b":"2","c":"\xe6\x97\xa5\xe6\x9c\xac","url":"https://example.test/x"}'
 
 
+# --- フリープラン + 自動キー生成 ----------------------------------------
+
+def test_license_key_auto_generated_when_omitted(tmp_path, monkeypatch):
+    """JSON API で license_key を省略するとサーバが自動生成する。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    r = c.post(
+        "/admin/licenses",
+        auth=("admin", "test-token"),
+        json={"domain": "auto.test"},
+    )
+    assert r.status_code == 201
+    key = r.json()["license_key"]
+    # NPM- プレフィクス + 4 ブロック * 4 文字 = NPM-XXXX-XXXX-XXXX-XXXX
+    assert key.startswith("NPM-")
+    assert len(key.split("-")) == 5
+    # 同じ POST で再度自動生成しても別のキーが返る (= 衝突しない)
+    r2 = c.post("/admin/licenses", auth=("admin", "test-token"),
+                json={"domain": "auto.test"})
+    assert r2.status_code == 201
+    assert r2.json()["license_key"] != key
+
+
+def test_license_key_explicit_still_works(tmp_path, monkeypatch):
+    """明示的にキーを指定したらそれを使う (既存挙動を壊さない)。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    r = c.post(
+        "/admin/licenses",
+        auth=("admin", "test-token"),
+        json={"license_key": "MY-CUSTOM-KEY", "domain": "x.test"},
+    )
+    assert r.status_code == 201
+    assert r.json()["license_key"] == "MY-CUSTOM-KEY"
+
+
+def test_free_plan_default_30_day_expiry(tmp_path, monkeypatch):
+    """フリープラン + 有効期限未指定 → 約 30 日後が自動セット。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    r = c.post(
+        "/admin/licenses",
+        auth=("admin", "test-token"),
+        json={"domain": "free.test", "plan": "free"},
+    )
+    assert r.status_code == 201
+    expires = r.json()["expires_at"]
+    assert expires, "free plan should have default expires_at"
+    from datetime import datetime, timezone
+    exp_dt = datetime.fromisoformat(expires.replace("Z", "+00:00"))
+    delta = exp_dt - datetime.now(timezone.utc)
+    # 30 日 ± 1 分の許容 (テスト実行のタイムラグを考慮)
+    assert 30 * 86400 - 60 < delta.total_seconds() < 30 * 86400 + 60
+
+
+def test_free_plan_explicit_expiry_is_preserved(tmp_path, monkeypatch):
+    """フリープランでも有効期限を明示したら、そちらが優先される。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    r = c.post(
+        "/admin/licenses",
+        auth=("admin", "test-token"),
+        json={
+            "domain": "free.test", "plan": "free",
+            "expires_at": "2099-01-01T00:00:00+00:00",
+        },
+    )
+    assert r.status_code == 201
+    assert r.json()["expires_at"] == "2099-01-01T00:00:00+00:00"
+
+
+def test_basic_pro_plan_no_default_expiry(tmp_path, monkeypatch):
+    """basic / pro は無期限デフォルト維持。フリーだけ 30 日後にする。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    for plan in ("basic", "pro"):
+        r = c.post("/admin/licenses", auth=("admin", "test-token"),
+                   json={"domain": f"{plan}.test", "plan": plan})
+        assert r.status_code == 201
+        assert (r.json()["expires_at"] or "") == ""
+
+
+def test_ui_create_with_blank_key_auto_generates(tmp_path, monkeypatch):
+    """UI フォームでもキー空欄なら自動生成。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    r = c.post(
+        "/admin/ui/licenses",
+        auth=("admin", "test-token"),
+        data={
+            "license_key": "",
+            "domain": "ui-auto.test",
+            "plan": "free",
+            "status": "active",
+            "expires_at": "",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "msg=created" in r.headers["location"]
+    items = c.get("/admin/licenses", auth=("admin", "test-token")).json()["items"]
+    assert len(items) == 1
+    assert items[0]["license_key"].startswith("NPM-")
+    # フリープランなので有効期限が自動で 30 日後にセットされている
+    assert items[0]["expires_at"]
+
+
+def test_free_plan_renders_in_dropdown(tmp_path, monkeypatch):
+    """ライセンス作成画面のプラン select に free が並ぶ。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    page = c.get("/admin/ui/licenses/new", auth=("admin", "test-token"))
+    assert page.status_code == 200
+    assert 'value="free"' in page.text
+    assert "フリー" in page.text
+    # 自動生成ボタンも出る
+    assert "自動生成" in page.text
+
+
 # --- ライセンス一覧の絞り込み --------------------------------------------
 
 def test_admin_list_filters_by_plan_and_status(tmp_path, monkeypatch):

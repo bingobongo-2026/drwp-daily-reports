@@ -30,6 +30,7 @@ templates = Jinja2Templates(
 # `basic` / `pro` をそのまま使い、ユーザー向けの表示だけ
 # 日本語化することで API レスポンスや DB 値は触らずに済む。
 _PLAN_LABELS = {
+    "free": "フリー",
     "basic": "ベーシック",
     "pro": "プロ",
 }
@@ -299,7 +300,9 @@ class CheckRequest(BaseModel):
 
 
 class LicenseIn(BaseModel):
-    license_key: str
+    # `license_key` 空 → サーバ側で自動生成。発行運用が楽になるよう、
+    # JSON API でもキー入力を省略できる。
+    license_key: Optional[str] = None
     domain: str
     plan: str = "basic"
     status: str = "active"
@@ -329,6 +332,49 @@ class LicenseUpdate(BaseModel):
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+# フリー (= 体験) プランの初期有効期限。発行日から 30 日後。
+# 環境変数で上書きできるので、トライアル期間を運用で変えたくなった
+# ときコードを触らずに調整できる。
+FREE_PLAN_TRIAL_DAYS = int(os.environ.get("DRWP_FREE_PLAN_DAYS", "30"))
+
+
+def _default_expires_for_plan(plan: str) -> Optional[str]:
+    """プランごとの有効期限デフォルト。`free` だけ 30 日後 (= 体験期間)。
+    `basic` / `pro` は無期限 (None)。"""
+    if (plan or "").strip().lower() == "free":
+        from datetime import timedelta
+        dt = datetime.now(timezone.utc) + timedelta(days=FREE_PLAN_TRIAL_DAYS)
+        return dt.isoformat(timespec="seconds")
+    return None
+
+
+# ライセンスキー自動生成用の英大文字+数字の集合。
+# I / O / 0 / 1 など見分けにくい字は除外して、印刷物や口頭伝達でも
+# 取り違えが起きにくいようにする (Crockford's Base32 と同じ思想)。
+_KEY_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def _generate_license_key() -> str:
+    """`NPM-XXXX-XXXX-XXXX-XXXX` 形式のランダムキー。30^16 ≒ 4e23 通り
+    あるので衝突確率は実質ゼロだが、念のため呼び出し側で重複チェック。"""
+    blocks = []
+    for _ in range(4):
+        blocks.append("".join(secrets.choice(_KEY_ALPHABET) for _ in range(4)))
+    return "NPM-" + "-".join(blocks)
+
+
+def _generate_unique_license_key(max_tries: int = 5) -> str:
+    """既存ライセンスと衝突しない `_generate_license_key()` の値を返す。"""
+    for _ in range(max_tries):
+        key = _generate_license_key()
+        if db.get_license(key) is None:
+            return key
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="license_key auto-generation collided repeatedly",
+    )
 
 
 def _normalize_expires(raw: Optional[str]) -> Optional[str]:
@@ -427,9 +473,18 @@ def admin_list(
 
 @app.post("/admin/licenses", status_code=status.HTTP_201_CREATED)
 def admin_create(payload: LicenseIn, _: str = Depends(require_admin)):
-    if db.get_license(payload.license_key) is not None:
+    data = payload.model_dump()
+    # キー未指定 → 自動生成 (衝突しないものが当たるまで数回試行)
+    key = (data.get("license_key") or "").strip()
+    if not key:
+        key = _generate_unique_license_key()
+    elif db.get_license(key) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="License key already exists")
-    return db.create_license(**payload.model_dump())
+    data["license_key"] = key
+    # フリー プランで有効期限未指定 → 30 日後にデフォルトする
+    if not data.get("expires_at"):
+        data["expires_at"] = _default_expires_for_plan(data.get("plan") or "")
+    return db.create_license(**data)
 
 
 @app.get("/admin/licenses/{license_key}")
@@ -509,7 +564,7 @@ def ui_new(request: Request, msg: Optional[str] = None, _: str = Depends(require
 
 @app.post("/admin/ui/licenses", include_in_schema=False)
 def ui_create(
-    license_key: str = Form(...),
+    license_key: str = Form(""),
     domain: str = Form(...),
     plan: str = Form("basic"),
     status_: str = Form("active", alias="status"),
@@ -524,17 +579,23 @@ def ui_create(
     _: str = Depends(require_admin),
 ):
     key = license_key.strip()
-    if not key or db.get_license(key) is not None:
+    if not key:
+        # 空欄なら自動生成 (NPM-XXXX-XXXX-XXXX-XXXX 形式)
+        key = _generate_unique_license_key()
+    elif db.get_license(key) is not None:
         return RedirectResponse(
             "/admin/ui/licenses/new?msg=conflict",
             status_code=status.HTTP_303_SEE_OTHER,
         )
+    plan_v = plan.strip() or "basic"
+    # フリープランで有効期限未指定 → 30 日後を自動セット
+    expires_v = _normalize_expires(expires_at) or _default_expires_for_plan(plan_v)
     db.create_license(
         license_key=key,
         domain=domain.strip(),
-        plan=plan.strip() or "basic",
+        plan=plan_v,
         status=status_.strip() or "active",
-        expires_at=_normalize_expires(expires_at),
+        expires_at=expires_v,
         user_name=user_name.strip(),
         postal_code=postal_code.strip(),
         address=address.strip(),
