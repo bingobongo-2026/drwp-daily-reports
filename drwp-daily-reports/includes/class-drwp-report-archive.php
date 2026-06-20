@@ -167,14 +167,12 @@ class DRWP_Report_Archive {
         ]);
 
         $modals = self::render_modals($can_write);
-        // Stick the "X さんとしてログイン中 / ログアウト" bar in the
-        // archive output too — so operators who only use
-        // `[drwp_report_archive]` still get the same logged-in
-        // affordance the dedicated `[drwp_login_form]` used to
-        // provide. The bar dedups internally if both shortcodes are
-        // on the same page.
-        $bar = DRWP_Login::render_logged_in_bar(wp_get_current_user());
-        return $bar . $body . $modals;
+        // ログインバー (X さんとしてログイン中 / ログアウト) はカレンダー
+        // 画面の上に乗せると視覚的に重く、せっかくのデザイン整理が
+        // 台無しになるので archive 出力には含めない。ユーザー識別は
+        // ダッシュボードのサブタイトルで控えめに出している。ログアウト
+        // は WP の admin bar や別の場所から行う想定。
+        return $body . $modals;
     }
 
     /**
@@ -1115,6 +1113,14 @@ class DRWP_Report_Archive {
         $stat['needs_action'] = $stat['needs_revision'] + $stat['pending'] + $stat['edit_requested'];
         $stat['plans']        = count($plans);
 
+        // ユーザー名はダッシュボードに小さなサブタイトルとして添える。
+        // 「shizuoka-company さんとしてログイン中」のような大きな
+        // ピル表示は重いので、display_name だけ控えめに出す。
+        $current_user = wp_get_current_user();
+        $brand_sub = $current_user && $current_user->ID
+            ? ($current_user->display_name ?: $current_user->user_login)
+            : '';
+
         ob_start();
         ?>
         <div class="drwp-archive-wrap">
@@ -1132,6 +1138,9 @@ class DRWP_Report_Archive {
             <header class="drwp-archive-dashboard">
                 <div class="drwp-archive-dashboard-head">
                     <div class="drwp-archive-dashboard-brand">
+                        <?php if ($brand_sub): ?>
+                            <p class="drwp-archive-dashboard-sub"><?php echo esc_html($brand_sub); ?></p>
+                        <?php endif; ?>
                         <h1 class="drwp-archive-dashboard-title">
                             <?php echo esc_html(!empty($opts['title']) ? $opts['title'] : __('日報カレンダー', 'drwp-daily-reports')); ?>
                         </h1>
