@@ -507,61 +507,63 @@
 .drwp-archive-edit-cancel { color: #64748b; text-decoration: underline; }
 
 /* ============================================================
-   Dashboard header (ブランド名 + ページタイトル + CTA + 統計カード)
+   Dashboard header (ページタイトル + CTA + 統計カード)
+   - 全体カードの「外枠」は使わず、各サブパーツが背景上に直接
+     乗る (デザインモックに準拠)。背景は body の #F4F3EF。
    ============================================================ */
 .drwp-archive-dashboard {
-    background: #fff;
-    border: 1px solid #e2e8f0; border-radius: 14px;
-    padding: 18px 22px;
-    margin-bottom: 16px;
+    margin-bottom: 18px;
 }
 .drwp-archive-dashboard-head {
-    display: flex; justify-content: space-between; align-items: flex-end;
+    display: flex; justify-content: space-between; align-items: center;
     gap: 16px; flex-wrap: wrap;
     margin-bottom: 14px;
 }
 .drwp-archive-dashboard-brand { min-width: 0; }
-.drwp-archive-dashboard-sub {
-    margin: 0; font-size: 0.78rem; color: #64748b;
-    line-height: 1.3; font-weight: 500;
-}
 .drwp-archive-dashboard-title {
-    margin: 2px 0 0; font-size: 1.5rem; font-weight: 800;
+    margin: 0; font-size: 1.65rem; font-weight: 800;
     color: #0f172a; line-height: 1.2;
 }
 .drwp-archive-dashboard-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
+/* 統計カード — 6 列均等。1 つ目 (要対応) だけ淡橙背景で強調。 */
 .drwp-archive-stats {
     display: grid;
-    grid-template-columns: 1.5fr repeat(5, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
 }
 .drwp-archive-stat {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 12px 14px;
-    display: flex; flex-direction: column; gap: 2px;
+    background: #fff;
+    border: 0;
+    border-radius: 12px;
+    padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 6px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
 }
 .drwp-archive-stat-label {
-    margin: 0; font-size: 0.78rem; color: #64748b; font-weight: 500;
-    display: flex; align-items: center; gap: 5px;
+    margin: 0; font-size: 0.82rem; color: #64748b; font-weight: 500;
+    display: flex; align-items: center; gap: 6px;
 }
 .drwp-archive-stat-label::before {
     content: ''; flex-shrink: 0;
-    width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;
+    width: 9px; height: 9px; border-radius: 50%; background: #94a3b8;
 }
 .drwp-archive-stat-value {
-    margin: 0; font-size: 1.5rem; font-weight: 700; color: #0f172a;
+    margin: 0; font-size: 1.65rem; font-weight: 700; color: #0f172a;
     line-height: 1.1;
 }
-.drwp-archive-stat-unit { font-size: 0.7em; font-weight: 600; opacity: 0.7; margin-left: 2px; }
-.drwp-archive-stat-hero {
-    background: #fef3c7; border-color: #fcd34d;
+.drwp-archive-stat-unit {
+    font-size: 0.55em; font-weight: 600; color: #64748b;
+    margin-left: 3px;
 }
-.drwp-archive-stat-hero .drwp-archive-stat-label { color: #78350f; }
+.drwp-archive-stat-hero {
+    background: #fef3c7;
+}
+.drwp-archive-stat-hero .drwp-archive-stat-label { color: #92400e; font-weight: 600; font-size: 0.78rem; }
 .drwp-archive-stat-hero .drwp-archive-stat-label::before { display: none; }
 .drwp-archive-stat-hero .drwp-archive-stat-value { color: #78350f; }
+.drwp-archive-stat-hero .drwp-archive-stat-unit { color: #92400e; }
+
 .drwp-archive-stat.status-needs_revision .drwp-archive-stat-label::before { background: #dc2626; }
 .drwp-archive-stat.status-pending        .drwp-archive-stat-label::before { background: #d97706; }
 .drwp-archive-stat.status-edit_requested .drwp-archive-stat-label::before { background: #2563eb; }
@@ -570,24 +572,51 @@
 }
 .drwp-archive-stat.status-approved       .drwp-archive-stat-label::before { background: #16a34a; }
 
-@media (max-width: 900px) {
-    .drwp-archive-stats { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 1200px) {
+    .drwp-archive-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .drwp-archive-stat-hero { grid-column: 1 / -1; }
 }
 @media (max-width: 600px) {
-    .drwp-archive-dashboard { padding: 14px 16px; }
-    .drwp-archive-dashboard-title { font-size: 1.25rem; }
+    .drwp-archive-dashboard-title { font-size: 1.35rem; }
     .drwp-archive-stats { grid-template-columns: 1fr 1fr; }
-    .drwp-archive-stat-value { font-size: 1.25rem; }
+    .drwp-archive-stat { padding: 12px 14px; }
+    .drwp-archive-stat-value { font-size: 1.35rem; }
 }
 
 /* Event calendar (Google Calendar style) */
 .drwp-archive-cal { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
-.drwp-archive-cal-nav { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
-.drwp-archive-cal-month { margin: 0; font-size: 1.05rem; font-weight: 700; color: #0f172a; min-width: 130px; text-align: center; }
-.drwp-archive-cal-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; color: #1e293b; text-decoration: none; font-size: 1.2rem; line-height: 1; }
-.drwp-archive-cal-btn:hover { background: #f1f5f9; }
-.drwp-archive-cal-today { margin-left: auto; padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; color: #1e293b; text-decoration: none; font-size: 0.85rem; }
+.drwp-archive-cal-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; flex-wrap: wrap;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+}
+.drwp-archive-cal-nav-left {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.drwp-archive-cal-month {
+    margin: 0 4px; font-size: 1.05rem; font-weight: 700;
+    color: #0f172a; text-align: center; line-height: 1.2;
+}
+.drwp-archive-cal-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px;
+    border: 1px solid #e5e7eb; border-radius: 999px;
+    background: #fff; color: #475569;
+    text-decoration: none; font-size: 1.05rem; line-height: 1;
+    transition: background-color .12s, border-color .12s, color .12s;
+}
+.drwp-archive-cal-btn:hover { background: #f1f5f9; border-color: #cbd5e1; color: #0f172a; }
+.drwp-archive-cal-count {
+    margin-left: 4px;
+    color: #64748b; font-size: 0.85rem; font-weight: 500;
+}
+.drwp-archive-cal-today {
+    padding: 5px 12px; border: 1px solid #d1d5db; border-radius: 999px;
+    background: #fff; color: #1e293b; text-decoration: none;
+    font-size: 0.82rem; font-weight: 500;
+}
 .drwp-archive-cal-today:hover { background: #f1f5f9; }
 .drwp-archive-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: #e2e8f0; gap: 1px; }
 .drwp-archive-cal-dow { background: #f8fafc; text-align: center; font-size: 0.8rem; font-weight: 600; color: #475569; padding: 6px 0; }

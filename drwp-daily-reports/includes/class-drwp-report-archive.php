@@ -1115,11 +1115,6 @@ class DRWP_Report_Archive {
         $stat['needs_action'] = $stat['needs_revision'] + $stat['pending'] + $stat['edit_requested'];
         $stat['plans']        = count($plans);
 
-        $current_user = wp_get_current_user();
-        $brand_sub = $current_user && $current_user->ID
-            ? ($current_user->display_name ?: $current_user->user_login)
-            : get_bloginfo('name');
-
         ob_start();
         ?>
         <div class="drwp-archive-wrap">
@@ -1137,9 +1132,6 @@ class DRWP_Report_Archive {
             <header class="drwp-archive-dashboard">
                 <div class="drwp-archive-dashboard-head">
                     <div class="drwp-archive-dashboard-brand">
-                        <?php if ($brand_sub): ?>
-                            <p class="drwp-archive-dashboard-sub"><?php echo esc_html($brand_sub); ?></p>
-                        <?php endif; ?>
                         <h1 class="drwp-archive-dashboard-title">
                             <?php echo esc_html(!empty($opts['title']) ? $opts['title'] : __('日報カレンダー', 'drwp-daily-reports')); ?>
                         </h1>
@@ -1195,26 +1187,24 @@ class DRWP_Report_Archive {
 
             <?php echo self::render_filter_form($q, $project, $status, $month_param, $projects, !empty($_GET['drwp_mine'])); ?>
 
-            <div class="drwp-archive-toolbar">
-                <p class="drwp-archive-summary">
-                    <?php
-                    $count = count($rows);
-                    printf(
-                        esc_html__('%1$s（%2$d 件）', 'drwp-daily-reports'),
-                        esc_html(date_i18n('Y年n月', strtotime($month_start))),
-                        $count
-                    );
-                    ?>
-                </p>
-                <?php echo self::render_view_toggle($view); ?>
-            </div>
-
             <?php echo self::render_status_legend(); ?>
 
-            <?php if ($view === 'list'): ?>
+            <?php
+            $total_count = count($rows);
+            if ($view === 'list'): ?>
+                <div class="drwp-archive-toolbar">
+                    <p class="drwp-archive-summary">
+                        <?php printf(
+                            esc_html__('%1$s（%2$d 件）', 'drwp-daily-reports'),
+                            esc_html(date_i18n('Y年n月', strtotime($month_start))),
+                            $total_count
+                        ); ?>
+                    </p>
+                    <?php echo self::render_view_toggle($view); ?>
+                </div>
                 <?php echo self::render_archive_list_view($rows, $plans_by_date); ?>
             <?php else: ?>
-                <?php echo self::render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, ['q' => $q, 'project' => $project, 'status' => $status], $plans_by_date); ?>
+                <?php echo self::render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, ['q' => $q, 'project' => $project, 'status' => $status], $plans_by_date, $view, $total_count); ?>
             <?php endif; ?>
         </div>
         <?php
@@ -1518,7 +1508,7 @@ class DRWP_Report_Archive {
         return ob_get_clean();
     }
 
-    private static function render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, $filters, $plans_by_date = []) {
+    private static function render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, $filters, $plans_by_date = [], $view = 'calendar', $total_count = 0) {
         // Use the FULL REQUEST_URI as the base so add_query_arg merges
         // new args into the existing query string instead of replacing
         // it. This preserves params like ?page_id=N that WordPress
@@ -1546,12 +1536,18 @@ class DRWP_Report_Archive {
         ?>
         <div class="drwp-archive-cal">
           <div class="drwp-archive-cal-nav">
-            <a class="drwp-archive-cal-btn" href="<?php echo $build_url($prev_month); ?>" aria-label="<?php esc_attr_e('前の月', 'drwp-daily-reports'); ?>">‹</a>
-            <h3 class="drwp-archive-cal-month"><?php echo esc_html($year . '年 ' . $month . '月'); ?></h3>
-            <a class="drwp-archive-cal-btn" href="<?php echo $build_url($next_month); ?>" aria-label="<?php esc_attr_e('次の月', 'drwp-daily-reports'); ?>">›</a>
-            <?php if ($month_param !== $today_month): ?>
-              <a class="drwp-archive-cal-today" href="<?php echo $build_url($today_month); ?>"><?php esc_html_e('今月', 'drwp-daily-reports'); ?></a>
-            <?php endif; ?>
+            <div class="drwp-archive-cal-nav-left">
+                <a class="drwp-archive-cal-btn" href="<?php echo $build_url($prev_month); ?>" aria-label="<?php esc_attr_e('前の月', 'drwp-daily-reports'); ?>">‹</a>
+                <h3 class="drwp-archive-cal-month"><?php echo esc_html($year . '年 ' . $month . '月'); ?></h3>
+                <a class="drwp-archive-cal-btn" href="<?php echo $build_url($next_month); ?>" aria-label="<?php esc_attr_e('次の月', 'drwp-daily-reports'); ?>">›</a>
+                <span class="drwp-archive-cal-count">
+                    <?php printf(esc_html__('%d 件', 'drwp-daily-reports'), (int) $total_count); ?>
+                </span>
+                <?php if ($month_param !== $today_month): ?>
+                  <a class="drwp-archive-cal-today" href="<?php echo $build_url($today_month); ?>"><?php esc_html_e('今月', 'drwp-daily-reports'); ?></a>
+                <?php endif; ?>
+            </div>
+            <?php echo self::render_view_toggle($view); ?>
           </div>
 
           <div class="drwp-archive-cal-grid">
