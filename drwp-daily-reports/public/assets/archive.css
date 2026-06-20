@@ -543,18 +543,17 @@
    - 強い飽和色 + 白文字は小サイズだと文字がかすれて「09:00 林…」
      のように 1〜2 文字しか読めなかったので、淡色 bg + 濃文字で
      可読性を上げる
-   - 案件名 (1 行目, 太字) と時刻 (2 行目, 小さめ) を 2 行に分けて
-     表示することで、案件名がカレンダーの狭いセルの中でも 1.5 倍
-     ぐらい読める文字数になる。HTML は触らず CSS Grid で並べる
-     (::before の絵文字は 2 行分ぶち抜き、time/text は 2 列目に
-     上下で配置)
-   - 予定チップ (.drwp-archive-cal-plan-chip) も同じ系統で 2 行化 */
+   - 時刻 (1 行目, 大きめ太字) と案件名 (2 行目, 小さめ) を 2 行で
+     表示する。タイムテーブル的に時刻を主軸として見たいユーザー
+     向け
+   - 絵文字アイコンは廃止。色 (status 別の背景) で日報か予定かは
+     十分区別がつくので、横幅を稼ぐためにシンプル化
+   - 予定チップ (.drwp-archive-cal-plan-chip) も同じ系統 */
 .drwp-archive-cal-chip {
     display: grid;
-    grid-template-columns: auto 1fr;
-    column-gap: 5px;
+    grid-template-columns: 1fr;
     width: 100%; margin-top: 2px;
-    padding: 3px 6px 3px 5px;
+    padding: 3px 6px;
     border: 0; border-left: 3px solid #94a3b8;
     border-radius: 4px;
     background: #f1f5f9; color: #1e293b;
@@ -565,12 +564,6 @@
     text-decoration: none;
     overflow: hidden;
     text-align: left; cursor: pointer;
-}
-.drwp-archive-cal-chip::before {
-    content: '📝';
-    grid-column: 1; grid-row: 1 / span 2;
-    align-self: center;
-    flex-shrink: 0; font-size: 0.95em; line-height: 1;
 }
 .drwp-archive-cal-chip:hover { filter: brightness(0.96); }
 .drwp-archive-cal-chip.status-pending {
@@ -585,24 +578,25 @@
 .drwp-archive-cal-chip.status-edit_requested {
     background: #dbeafe; color: #1e3a8a; border-left-color: #2563eb;
 }
-.drwp-archive-cal-chip-text {
-    grid-column: 2; grid-row: 1;
-    font-weight: 600; line-height: 1.2;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
-}
 .drwp-archive-cal-chip-time {
-    grid-column: 2; grid-row: 2;
-    font-size: 0.86em; line-height: 1.15;
-    font-weight: 500; opacity: 0.78;
+    grid-row: 1;
+    font-size: 1.05em; line-height: 1.2;
+    font-weight: 700;
     white-space: nowrap;
+}
+.drwp-archive-cal-chip-text {
+    grid-row: 2;
+    font-size: 0.88em; line-height: 1.2;
+    font-weight: 500; opacity: 0.88;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
 }
 @media (max-width: 640px) {
   .drwp-archive-cal-cell { min-height: 70px; padding: 4px; }
   .drwp-archive-cal-chip,
   .drwp-archive-cal-plan-chip { font-size: 0.72rem; padding: 2px 5px; }
-  /* 狭い画面では時刻行を畳んで案件名 1 行だけにする (タップで開けば
+  /* 狭い画面では案件名行を畳んで時刻 1 行だけにする (タップで開けば
      詳細が見られるので、一覧では情報密度を優先)。 */
-  .drwp-archive-cal-chip-time { display: none; }
+  .drwp-archive-cal-chip-text { display: none; }
   .drwp-archive-cal-day { width: 22px; height: 22px; font-size: 0.78rem; }
 }
 
@@ -887,27 +881,19 @@
    on top of the actual reports. Linked-back plans get a darker
    fill so we don't keep luring the operator to re-create. */
 /* 予定チップ — pale bg + colored left border ("これは予定だよ")。
-   日報チップとフォントサイズ・パディングを揃えて、視覚的な差は
-   「solid colored 日報」vs「pale outlined 予定」+ 先頭アイコンの
-   📝 vs 📋 で出す。 */
+   日報チップとフォントサイズ・パディングを揃え、緑系の淡色 + 太い
+   左ボーダーで「日報」と視覚的に区別する。絵文字アイコンは廃止。 */
 .drwp-archive-cal-plan-chip {
     display: grid;
-    grid-template-columns: auto 1fr;
-    column-gap: 5px;
+    grid-template-columns: 1fr;
     width: 100%; margin-top: 2px;
-    padding: 3px 6px 3px 5px;
+    padding: 3px 6px;
     border: 0; border-left: 3px solid #16a34a;
     background: #ecfdf5; color: #064e3b;
     border-radius: 4px;
     font-size: 0.78rem;
     text-align: left; cursor: pointer;
     overflow: hidden;
-}
-.drwp-archive-cal-plan-chip::before {
-    content: '📋';
-    grid-column: 1; grid-row: 1 / span 2;
-    align-self: center;
-    flex-shrink: 0; font-size: 0.95em; line-height: 1;
 }
 .drwp-archive-cal-plan-chip:hover { background: #d1fae5; }
 .drwp-archive-cal-plan-chip.is-linked { background: #f3f4f6; color: #6b7280; border-left-color: #9ca3af; }
@@ -930,17 +916,18 @@
     color: #475569; background: #f8fafc;
     border-radius: 6px; text-align: center;
 }
-/* 予定チップの time/text も日報チップと同じ Grid 配置 (案件名 1 行目、
-   時刻 2 行目)。1 つ前のセレクタが負ければここで上書きされる。 */
+/* 予定チップの time/text も日報チップと同じ Grid 配置
+   (時刻 1 行目 = 大きめ太字、案件名 2 行目 = 小さめ)。 */
 .drwp-archive-cal-plan-chip .drwp-archive-cal-chip-time {
-    grid-column: 2; grid-row: 2;
-    font-size: 0.86em; line-height: 1.15;
-    font-weight: 500; opacity: 0.78;
+    grid-row: 1;
+    font-size: 1.05em; line-height: 1.2;
+    font-weight: 700;
     white-space: nowrap;
 }
 .drwp-archive-cal-plan-chip .drwp-archive-cal-chip-text {
-    grid-column: 2; grid-row: 1;
-    font-weight: 600; line-height: 1.2;
+    grid-row: 2;
+    font-size: 0.88em; line-height: 1.2;
+    font-weight: 500; opacity: 0.88;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
 }
 
