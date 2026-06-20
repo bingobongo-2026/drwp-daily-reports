@@ -84,6 +84,22 @@ templates.env.filters["plan_label"] = _plan_label
 templates.env.filters["status_label"] = _status_label
 templates.env.filters["audit_label"] = _audit_label
 
+
+def _short_date(iso: Optional[str]) -> str:
+    """ISO 8601 文字列を `YYYY/MM/DD` に整形。タイムスタンプ部分は
+    捨てる (ライセンス期限の用途では時刻まで見たいケースが稀なため)。
+    パース失敗時 / 空入力時はダッシュ。"""
+    if not iso:
+        return "—"
+    try:
+        dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+        return dt.strftime("%Y/%m/%d")
+    except (ValueError, TypeError):
+        return str(iso)
+
+
+templates.env.filters["short_date"] = _short_date
+
 _FLASH = {
     "created": ("作成しました。", "ok"),
     "updated": ("更新しました。", "ok"),
