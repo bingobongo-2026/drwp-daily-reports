@@ -527,16 +527,21 @@
     margin-bottom: 14px;
 }
 .drwp-archive-dashboard-brand { min-width: 0; }
-.drwp-archive-dashboard-sub {
-    margin: 0 0 2px; font-size: 0.78rem; color: #6b7280;
-    font-weight: 500; line-height: 1.3;
-    letter-spacing: 0.01em;
-}
 .drwp-archive-dashboard-title {
     margin: 0; font-size: 1.65rem; font-weight: 800;
     color: #0f172a; line-height: 1.2;
 }
-.drwp-archive-dashboard-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+/* 右上アクションエリア: ニックネーム (上, 控えめ) + CTA ボタン (下) */
+.drwp-archive-dashboard-actions {
+    display: flex; flex-direction: column;
+    align-items: flex-end; gap: 8px;
+}
+.drwp-archive-dashboard-user {
+    margin: 0; font-size: 0.78rem; color: #64748b;
+    font-weight: 500; display: inline-flex; align-items: center; gap: 4px;
+}
+.drwp-archive-dashboard-user-icon { opacity: 0.7; font-size: 0.9em; line-height: 1; }
+.drwp-archive-dashboard-actions-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
 
 /* 統計カード — 6 列均等。1 つ目 (要対応) だけ淡橙背景で強調。 */
 .drwp-archive-stats {

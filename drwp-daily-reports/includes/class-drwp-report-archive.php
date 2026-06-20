@@ -1138,29 +1138,34 @@ class DRWP_Report_Archive {
             <header class="drwp-archive-dashboard">
                 <div class="drwp-archive-dashboard-head">
                     <div class="drwp-archive-dashboard-brand">
-                        <?php if ($brand_sub): ?>
-                            <p class="drwp-archive-dashboard-sub"><?php echo esc_html($brand_sub); ?></p>
-                        <?php endif; ?>
                         <h1 class="drwp-archive-dashboard-title">
                             <?php echo esc_html(!empty($opts['title']) ? $opts['title'] : __('日報カレンダー', 'drwp-daily-reports')); ?>
                         </h1>
                     </div>
-                    <?php if ($opts['show_new_button'] && $opts['new_url']): ?>
-                        <div class="drwp-archive-dashboard-actions">
-                            <?php if (!empty($opts['use_modals'])): ?>
-                                <button type="button" id="drwp-archive-new-btn" class="drwp-archive-new-btn">
-                                    + <?php esc_html_e('日報を書く', 'drwp-daily-reports'); ?>
-                                </button>
-                                <button type="button" id="drwp-archive-new-plan-btn" class="drwp-archive-new-btn drwp-archive-new-btn-secondary">
-                                    + <?php esc_html_e('予定を書く', 'drwp-daily-reports'); ?>
-                                </button>
-                            <?php else: ?>
-                                <a class="drwp-archive-new-btn" href="<?php echo esc_url($opts['new_url']); ?>">
-                                    + <?php esc_html_e('日報を書く', 'drwp-daily-reports'); ?>
-                                </a>
-                            <?php endif; ?>
-                        </div>
-                    <?php endif; ?>
+                    <div class="drwp-archive-dashboard-actions">
+                        <?php if ($brand_sub): ?>
+                            <p class="drwp-archive-dashboard-user">
+                                <span class="drwp-archive-dashboard-user-icon" aria-hidden="true">👤</span>
+                                <?php echo esc_html($brand_sub); ?>
+                            </p>
+                        <?php endif; ?>
+                        <?php if ($opts['show_new_button'] && $opts['new_url']): ?>
+                            <div class="drwp-archive-dashboard-actions-buttons">
+                                <?php if (!empty($opts['use_modals'])): ?>
+                                    <button type="button" id="drwp-archive-new-btn" class="drwp-archive-new-btn">
+                                        + <?php esc_html_e('日報を書く', 'drwp-daily-reports'); ?>
+                                    </button>
+                                    <button type="button" id="drwp-archive-new-plan-btn" class="drwp-archive-new-btn drwp-archive-new-btn-secondary">
+                                        + <?php esc_html_e('予定を書く', 'drwp-daily-reports'); ?>
+                                    </button>
+                                <?php else: ?>
+                                    <a class="drwp-archive-new-btn" href="<?php echo esc_url($opts['new_url']); ?>">
+                                        + <?php esc_html_e('日報を書く', 'drwp-daily-reports'); ?>
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
                 <?php // 要対応カード (大きめ) + ステータス別カード (小さめ)。 ?>
