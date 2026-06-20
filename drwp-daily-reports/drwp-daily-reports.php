@@ -59,6 +59,7 @@ require_once DRWP_PATH . 'includes/class-drwp-post-converter.php';
 require_once DRWP_PATH . 'includes/class-drwp-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-report-form.php';
 require_once DRWP_PATH . 'includes/class-drwp-report-archive.php';
+require_once DRWP_PATH . 'includes/class-drwp-page-template.php';
 require_once DRWP_PATH . 'includes/class-drwp-login.php';
 require_once DRWP_PATH . 'includes/class-drwp-print.php';
 require_once DRWP_PATH . 'includes/class-drwp-ai-backend.php';
@@ -99,6 +100,7 @@ add_action('plugins_loaded', function () {
     DRWP_Output_Admin::init();
     DRWP_Report_Form::init();
     DRWP_Report_Archive::init();
+    DRWP_Page_Template::init();
     DRWP_Login::init();
     DRWP_AI_Admin::init();
     DRWP_Help::init();
