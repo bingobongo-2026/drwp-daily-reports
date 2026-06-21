@@ -178,74 +178,80 @@
    左 4px の枠線とバッジで示す。背景ベタ塗りはやらない (色弱の人に
    厳しい + 本文が背景に埋もれる)。 */
 /* ============================================================
-   日報リスト (.drwp-archive-list) — モック準拠
+   日報リスト (.drwp-archive-list) — 日付ごとにグループ化
    ============================================================
-   行: 96px (日付) | 102px (ステータス) | 312px (案件+時刻) |
-       1fr (説明) | auto (写真/作者)
-   左 3px の status accent カラーボーダー、下境界 1px #f1efe8 で
-   テーブル行のように繋がる見た目に。背景は淡色 tint。 */
+   日付ヘッダ (sticky) + 白カード内に行を並べる形。行内には日付列を
+   持たず、左から: badge (96) | time (102) | title (312) | desc (1fr) | side (auto) */
 .drwp-archive-list {
-    background: #fff;
-    border: 1px solid #e8e6e1;
-    border-radius: 14px;
-    overflow: hidden;
+    display: flex; flex-direction: column;
+    gap: 14px;
     margin: 8px 0 16px;
-    box-shadow: 0 1px 3px rgba(40, 35, 25, 0.04);
+    background: transparent; border: 0; box-shadow: none;
 }
 .drwp-archive-list-empty {
-    text-align: center;
-    padding: 50px 12px;
-    color: #9b958a;
-    background: #fff;
-    border-radius: 14px;
-    border: 1px solid #e8e6e1;
+    text-align: center; padding: 50px 12px;
+    color: #9b958a; background: #fff;
+    border-radius: 14px; border: 1px solid #e8e6e1;
 }
 
+.drwp-archive-list-group { /* 1 日分のまとまり */ }
+.drwp-archive-list-group-head {
+    position: sticky; top: 0; z-index: 3;
+    display: flex; align-items: baseline; gap: 9px;
+    padding: 9px 6px 8px;
+    background: #efeee9;
+}
+.drwp-archive-list-group-date {
+    font-size: 15px; font-weight: 700; color: #2a333c;
+    font-variant-numeric: tabular-nums;
+}
+.drwp-archive-list-group-dow {
+    font-size: 13px; color: #9aa1a8; font-weight: 500;
+}
+.drwp-archive-list-group-count {
+    font-size: 12px; color: #aab0b6; font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+.drwp-archive-list-group-body {
+    background: #fff;
+    border: 1px solid #e8e6dd;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(40, 40, 30, 0.04);
+}
+
+/* 1 行 — 日付列は無し */
 .drwp-archive-list .drwp-archive-list-row {
     display: grid;
     grid-template-columns: 96px 102px 312px minmax(0, 1fr) auto;
     align-items: center;
     column-gap: 18px;
     padding: 11px 16px;
-    border: 0; border-left: 3px solid #9aa3ab;
+    border: 0;
+    border-left: 3px solid #9aa3ab;
     border-bottom: 1px solid #f1efe8;
     background: #fff; color: #1f2937;
     font-size: 13px; line-height: 1.4;
     text-align: left; cursor: pointer; width: 100%;
     transition: background 0.12s;
 }
-.drwp-archive-list .drwp-archive-list-row:last-child { border-bottom: 0; }
-.drwp-archive-list .drwp-archive-list-row:hover { background: #faf9f5; }
+.drwp-archive-list-group-body > .drwp-archive-list-row:last-child { border-bottom: 0; }
+.drwp-archive-list .drwp-archive-list-row:hover { background: #f7f6f1; }
 
-/* status ごとの行アクセント (左ボーダー + 淡い背景 tint) */
-.drwp-archive-list-row.status-needs_revision { border-left-color: #e0413e; background: #fef9f9; }
-.drwp-archive-list-row.status-pending        { border-left-color: #e2920a; background: #fefcf6; }
-.drwp-archive-list-row.status-edit_requested { border-left-color: #2f6fe0; background: #f7faff; }
-.drwp-archive-list-row.is-plan               { border-left-color: #9aa3ab; background: #fafafa; }
-.drwp-archive-list-row.status-approved       { border-left-color: #1f9d5f; background: #f8fbf9; }
-.drwp-archive-list-row.status-needs_revision:hover { background: #fdf3f3; }
-.drwp-archive-list-row.status-pending:hover        { background: #fdf8ec; }
-.drwp-archive-list-row.status-edit_requested:hover { background: #f0f5ff; }
-.drwp-archive-list-row.is-plan:hover               { background: #f4f3f0; }
-.drwp-archive-list-row.status-approved:hover       { background: #f1f8f3; }
+/* status ごとの左ボーダー (背景は白のまま、行をテーブル風にしたいので) */
+.drwp-archive-list-row.status-needs_revision { border-left-color: #e0413e; }
+.drwp-archive-list-row.status-pending        { border-left-color: #e2920a; }
+.drwp-archive-list-row.status-edit_requested { border-left-color: #2f6fe0; }
+.drwp-archive-list-row.is-plan               { border-left-color: #9aa3ab; }
+.drwp-archive-list-row.status-approved       { border-left-color: #1f9d5f; }
 
-/* 列 1: 日付 */
-.drwp-archive-list-date {
-    font-weight: 700; color: #1f2937;
-    white-space: nowrap; font-size: 14px;
-    font-variant-numeric: tabular-nums;
-}
-.drwp-archive-list-date small {
-    font-weight: 500; color: #7c8694;
-    font-size: 12px; margin-left: 3px;
-}
-
-/* 列 2: status バッジ — 淡背景 + 濃色文字 + 太字 */
+/* 列 1: status バッジ */
 .drwp-archive-list-badge {
-    display: inline-block; justify-self: start;
-    padding: 3px 10px; border-radius: 999px;
-    font-size: 11.5px; font-weight: 700;
+    justify-self: start;
+    display: inline-block; min-width: 84px;
+    padding: 3px 0; border-radius: 6px;
     text-align: center;
+    font-size: 11.5px; font-weight: 600;
     background: #eef0f2; color: #5d6770;
     white-space: nowrap; letter-spacing: 0.02em;
 }
@@ -255,65 +261,59 @@
 .drwp-archive-list-badge.status-approved       { background: #e2f4ea; color: #157a48; }
 .drwp-archive-list-badge.is-plan-badge         { background: #eef0f2; color: #5d6770; }
 
-/* 列 3: 案件名 + 時刻 — 1 行で並列、案件名フル幅、時刻ミュート */
-.drwp-archive-list-main {
-    display: flex; align-items: center; gap: 12px;
-    min-width: 0;
-}
-.drwp-archive-list-title {
-    flex: 1 1 auto; min-width: 0;
-    font-weight: 600; color: #1f2937;
-    font-size: 13.5px;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+/* 列 2: 時刻 */
 .drwp-archive-list-time {
-    flex: 0 0 auto;
-    color: #7c8694;
-    font-size: 12px; font-weight: 500;
-    font-variant-numeric: tabular-nums;
+    font-size: 13px; color: #5d646c;
+    font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
     white-space: nowrap;
+}
+
+/* 列 3: 案件名 */
+.drwp-archive-list-title {
+    font-size: 14.5px; font-weight: 600; color: #222c35;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 /* 列 4: 説明 */
 .drwp-archive-list-snippet {
-    color: #5d6770;
-    font-size: 12.5px;
+    font-size: 13px; color: #828990;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* 列 5: アイコン + 作者 */
+/* 列 5: 右端 (アイコン + 作者) */
 .drwp-archive-list-side {
-    display: inline-flex; align-items: center;
-    gap: 10px;
-    white-space: nowrap;
-    color: #64748b;
-    font-size: 0.85rem;
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 9px; min-width: 120px;
+    color: #a3a9af;
 }
-.drwp-archive-list-icon { font-variant-numeric: tabular-nums; }
+.drwp-archive-list-icon {
+    font-size: 12.5px; font-variant-numeric: tabular-nums;
+    color: #828990;
+}
 .drwp-archive-list-author {
-    color: #6b7280;
-    font-size: 0.78rem;
-    padding: 2px 8px;
-    background: #f3f4f6;
-    border-radius: 999px;
+    font-size: 11.5px; color: #a3a9af;
+    background: #f3f1ea; padding: 3px 9px; border-radius: 6px;
+    white-space: nowrap;
 }
 
-/* スマホ幅: 行内グリッドを 2 段組に折り返す */
+/* スマホ幅: 行内グリッドを 2 段組に折り返す。バッジ + 時刻 + 案件は
+   上段に詰め、説明は下段全幅、右端アイコンは上段右に。 */
 @media (max-width: 900px) {
+    .drwp-archive-list-group-head { gap: 6px; padding: 8px 4px 6px; }
     .drwp-archive-list .drwp-archive-list-row {
-        grid-template-columns: 72px 90px 1fr auto;
+        grid-template-columns: 84px 84px 1fr auto;
         grid-template-rows: auto auto;
-        gap: 6px 12px;
+        gap: 4px 12px;
         padding: 10px 14px;
     }
-    .drwp-archive-list-date { grid-row: 1; }
-    .drwp-archive-list-badge { grid-row: 1; }
-    .drwp-archive-list-main { grid-row: 1; grid-column: 3 / -1; }
+    .drwp-archive-list-badge { grid-row: 1; min-width: 0; }
+    .drwp-archive-list-time { grid-row: 1; }
+    .drwp-archive-list-title { grid-row: 1; }
+    .drwp-archive-list-side { grid-row: 1; min-width: 0; }
     .drwp-archive-list-snippet {
         grid-row: 2; grid-column: 1 / -1;
         white-space: normal; line-height: 1.5;
     }
-    .drwp-archive-list-side { grid-row: 1; }
 }
 
 /* ---- List ---- */
