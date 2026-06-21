@@ -1,8 +1,10 @@
 name: CI
 
+# CI は PR でしか走らせない。main への push (= squash-merge 後の再実行)
+# は同じコードを PR で既に検証済みなのでスキップする。
+# - 月の Actions 残量を一番大きく削れるのがここ
+# - 「main で初めて壊れる」事故が起きたら次の PR で気付ける
 on:
-  push:
-    branches: [main]
   pull_request:
 
 # 同じブランチで新しいコミットが来たら、走行中の古い実行をキャンセル
@@ -14,8 +16,8 @@ jobs:
   changes:
     name: Detect changed areas
     runs-on: ubuntu-latest
-    # ドラフトPRではCIを回さない（使わないなら下の条件は github.event... を消してOK）
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    # ドラフトPRではCIを回さない
+    if: github.event.pull_request.draft == false
     outputs:
       php: ${{ steps.filter.outputs.php }}
       python: ${{ steps.filter.outputs.python }}
@@ -58,13 +60,14 @@ jobs:
           exit $fail
 
   phpunit:
-    name: PHPUnit (PHP ${{ matrix.php-version }})
+    name: PHPUnit
     needs: changes
     if: needs.changes.outputs.php == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        php-version: ['7.4', '8.2']
+    # PHP マトリクスは廃止。実行コストの高い PHPUnit は 1 バージョン
+    # (本番想定の 8.2) だけにし、7.4 と 8.4 の互換性は php-lint の構文
+    # チェックでカバーする。両方走らせると 1 PR あたり ~6 分余計に
+    # かかるため、月の Actions 残量に効く。
     services:
       mysql:
         image: mysql:8.0
@@ -85,10 +88,19 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-version }}
+          php-version: '8.2'
           extensions: mysqli, zip, libsodium
           tools: composer
           coverage: none
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('drwp-daily-reports/composer.json', 'drwp-daily-reports/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
       - name: Install Subversion (for WP test lib)
         run: sudo apt-get update && sudo apt-get install -y subversion
       - name: Install WP test library + DB
