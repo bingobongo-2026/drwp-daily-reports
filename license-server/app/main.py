@@ -7,6 +7,7 @@ import zipfile
 from datetime import datetime, timezone
 from typing import Optional
 
+import httpx
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -323,6 +324,8 @@ class LicenseIn(BaseModel):
     plan: str = "basic"
     status: str = "active"
     expires_at: Optional[str] = None
+    # None のままならプラン既定のクォータ。整数指定で override。
+    ai_quota_override: Optional[int] = None
     user_name: str = ""
     postal_code: str = ""
     address: str = ""
@@ -344,6 +347,23 @@ class LicenseUpdate(BaseModel):
     contact_person: Optional[str] = None
     contact_phone: Optional[str] = None
     notes: Optional[str] = None
+    # NULL のまま PATCH しても更新しない (Optional 既定)。整数を渡すと
+    # ai_quota_override を上書き。明示的に「プラン既定に戻したい」場合は
+    # -1 を送ると NULL 化する (Pydantic v2 で None と「未送信」を区別
+    # するのが面倒なため簡易シグナルにする)。
+    ai_quota_override: Optional[int] = None
+
+
+class AIChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class AIChatRequest(BaseModel):
+    license_key: str
+    domain: str
+    messages: list[AIChatMessage]
+    max_tokens: Optional[int] = 2048
 
 
 def _now_iso() -> str:
@@ -475,6 +495,191 @@ def check_license(payload: CheckRequest):
         allowed_domain=lic["domain"],
     )
     return _sign_response(base)
+
+
+# =========================================================================
+# AI proxy — 「運営契約の API」モードで使うエンドポイント。
+# プラグイン側 (DRWP_AI_Backend_Managed) からの POST を受け、ライセンス
+# 検証 + 月次クォータをサーバ側で一元管理し、本物の LLM プロバイダに
+# 転送する。プラグインから直接 OpenAI/Anthropic に行く「own key」モード
+# とは別系統。
+# =========================================================================
+
+# プラン → 月次クォータ既定値。0 は「AI 不可」の意味で扱う。
+# 個別ライセンスでは `ai_quota_override` カラムで上書きできる。
+PLAN_AI_QUOTA: dict[str, int] = {
+    "free": 0,
+    "basic": int(os.environ.get("DRWP_AI_QUOTA_BASIC", "100")),
+    "pro":   int(os.environ.get("DRWP_AI_QUOTA_PRO",   "500")),
+}
+
+# 運営側の AI プロバイダ設定。env 経由で 1 社固定にすることでコストを
+# 予測可能にする (今回の方針: Anthropic Haiku など 1 モデルに集約)。
+# 値が無い時は /api/ai/chat は 503 を返す ("運営が AI を未契約")。
+MANAGED_AI_PROVIDER = os.environ.get("DRWP_MANAGED_AI_PROVIDER", "anthropic").lower()
+MANAGED_AI_API_KEY  = os.environ.get("DRWP_MANAGED_AI_API_KEY", "")
+MANAGED_AI_MODEL    = os.environ.get("DRWP_MANAGED_AI_MODEL", "claude-haiku-4-5-20251001")
+MANAGED_AI_URL      = os.environ.get(
+    "DRWP_MANAGED_AI_URL",
+    "https://api.anthropic.com" if MANAGED_AI_PROVIDER == "anthropic" else "https://api.openai.com",
+).rstrip("/")
+MANAGED_AI_TIMEOUT  = float(os.environ.get("DRWP_MANAGED_AI_TIMEOUT", "60"))
+
+
+def _current_period() -> str:
+    """UTC で YYYY-MM。サーバの TZ に依存させないため UTC で固定。
+    日本のユーザでも月初 0:00 JST 前後の数時間ズレるだけなので影響軽微。"""
+    return datetime.now(timezone.utc).strftime("%Y-%m")
+
+
+def _resolve_quota(lic: dict) -> int:
+    """プラン既定とライセンス個別 override を見て、その licenseに対する
+    当月クォータを返す。override が None の時はプラン既定。"""
+    override = lic.get("ai_quota_override")
+    if isinstance(override, int) and override >= 0:
+        return int(override)
+    plan = str(lic.get("plan") or "").lower()
+    return PLAN_AI_QUOTA.get(plan, 0)
+
+
+async def _call_managed_provider(messages: list[dict], max_tokens: int) -> str:
+    """運営契約のキーを使って LLM プロバイダに 1 回チャット呼び出し。
+    成功時は assistant 文字列、失敗時は HTTPException を投げる。"""
+    if not MANAGED_AI_API_KEY:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Managed AI is not configured on the license server.",
+        )
+    async with httpx.AsyncClient(timeout=MANAGED_AI_TIMEOUT) as client:
+        if MANAGED_AI_PROVIDER == "anthropic":
+            # Anthropic は system を messages 外に分離するスキーマ
+            system = ""
+            filtered = []
+            for m in messages:
+                if m.get("role") == "system":
+                    system = (system + "\n\n" + str(m.get("content") or "")).strip()
+                else:
+                    filtered.append({"role": m["role"], "content": m["content"]})
+            body: dict = {
+                "model":      MANAGED_AI_MODEL,
+                "max_tokens": int(max_tokens),
+                "messages":   filtered,
+            }
+            if system:
+                body["system"] = system
+            r = await client.post(
+                f"{MANAGED_AI_URL}/v1/messages",
+                headers={
+                    "Content-Type":      "application/json",
+                    "x-api-key":         MANAGED_AI_API_KEY,
+                    "anthropic-version": "2023-06-01",
+                },
+                json=body,
+            )
+            if r.status_code != 200:
+                raise HTTPException(
+                    status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Upstream LLM error ({r.status_code}): {r.text[:300]}",
+                )
+            data = r.json()
+            text = ""
+            for part in (data.get("content") or []):
+                if part.get("type") == "text":
+                    text += str(part.get("text") or "")
+            return text
+        else:  # openai (含む互換 API)
+            body = {
+                "model":      MANAGED_AI_MODEL,
+                "messages":   [{"role": m["role"], "content": m["content"]} for m in messages],
+                "max_tokens": int(max_tokens),
+            }
+            r = await client.post(
+                f"{MANAGED_AI_URL}/v1/chat/completions",
+                headers={
+                    "Content-Type":  "application/json",
+                    "Authorization": f"Bearer {MANAGED_AI_API_KEY}",
+                },
+                json=body,
+            )
+            if r.status_code != 200:
+                raise HTTPException(
+                    status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Upstream LLM error ({r.status_code}): {r.text[:300]}",
+                )
+            data = r.json()
+            try:
+                return str(data["choices"][0]["message"]["content"])
+            except (KeyError, IndexError, TypeError):
+                raise HTTPException(
+                    status.HTTP_502_BAD_GATEWAY,
+                    detail="Upstream LLM response did not contain a message.",
+                )
+
+
+def _check_license_for_ai(license_key: str, domain: str) -> dict:
+    """AI 呼び出し前のライセンス検証。失敗は HTTPException で返す。
+    /api/check と同様の判定ロジックだが署名は不要 (呼び出し側が
+    レスポンスのキャッシュをしないため)。"""
+    lic = db.get_license(license_key)
+    if lic is None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="License not found")
+    if lic["status"] != "active":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=f"License is {lic['status']}")
+    if lic["expires_at"] and lic["expires_at"] < _now_iso():
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="License is expired")
+    if lic["domain"] and lic["domain"] != domain:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Domain mismatch")
+    return lic
+
+
+@app.post("/api/ai/chat")
+async def ai_chat(payload: AIChatRequest):
+    lic = _check_license_for_ai(payload.license_key, payload.domain)
+    period = _current_period()
+    used = db.get_ai_usage(payload.license_key, period)
+    limit = _resolve_quota(lic)
+    if limit <= 0:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="AI is not included in your current plan.",
+        )
+    if used >= limit:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Monthly quota reached ({used}/{limit}). Resets next month.",
+            headers={"X-RateLimit-Limit": str(limit),
+                     "X-RateLimit-Remaining": "0",
+                     "X-RateLimit-Period": period},
+        )
+    # プロバイダに転送 (失敗時はカウントを増やさず例外スロー)
+    text = await _call_managed_provider(
+        [m.model_dump() for m in payload.messages],
+        payload.max_tokens or 2048,
+    )
+    new_used = db.increment_ai_usage(payload.license_key, period)
+    return {
+        "text": text,
+        "usage": {"used": new_used, "limit": limit, "period": period},
+    }
+
+
+@app.get("/api/ai/quota")
+def ai_quota(license_key: str, domain: str):
+    """プラグイン側で「今月の残り何回」表示用にポーリングする。
+    AI 呼び出し前の事前チェックにも使える。"""
+    lic = _check_license_for_ai(license_key, domain)
+    period = _current_period()
+    used = db.get_ai_usage(license_key, period)
+    limit = _resolve_quota(lic)
+    return {
+        "used": used,
+        "limit": limit,
+        "period": period,
+        "plan": lic["plan"],
+        "managed_configured": bool(MANAGED_AI_API_KEY),
+        "provider": MANAGED_AI_PROVIDER if MANAGED_AI_API_KEY else None,
+        "model":    MANAGED_AI_MODEL    if MANAGED_AI_API_KEY else None,
+    }
 
 
 @app.get("/admin/licenses")

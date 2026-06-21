@@ -75,6 +75,21 @@ def init_db() -> None:
         )
         c.execute("CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_audit_event ON audit_log(event)")
+        # AI 使用量カウンタ — 月単位で「このライセンスは今月何回 AI を
+        # 呼んだか」を保持する。プラン or ライセンス個別 override の
+        # 上限と比較してクォータ判定に使う。period は YYYY-MM (UTC)。
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ai_usage (
+                license_key TEXT NOT NULL,
+                period      TEXT NOT NULL,
+                count       INTEGER NOT NULL DEFAULT 0,
+                updated_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (license_key, period)
+            )
+            """
+        )
+        c.execute("CREATE INDEX IF NOT EXISTS idx_ai_usage_period ON ai_usage(period)")
         # Migration for existing DBs: add columns if missing.
         _migrate_add_columns(c)
         # Migration for existing DBs: rename the legacy `standard`
@@ -119,6 +134,9 @@ def _migrate_add_columns(c: sqlite3.Connection) -> None:
         ("contact_person", "TEXT DEFAULT ''"),
         ("contact_phone", "TEXT DEFAULT ''"),
         ("notes", "TEXT DEFAULT ''"),
+        # NULL のときはプラン既定のクォータを採用。整数 (>= 0) の時だけ
+        # 個別 override として有効。手動でお試し枠を増減するときに使う。
+        ("ai_quota_override", "INTEGER"),
     ]
     for col_name, col_def in new_cols:
         if col_name not in existing:
@@ -177,13 +195,15 @@ def create_license(
     plan: str = "basic",
     status: str = "active",
     expires_at: Optional[str] = None,
+    ai_quota_override: Optional[int] = None,
     **extra,
 ) -> dict:
     user_vals = {k: extra.get(k, "") for k in _USER_FIELDS}
     with connection() as c:
-        cols = "license_key, domain, plan, status, expires_at, " + ", ".join(_USER_FIELDS)
-        placeholders = "?, ?, ?, ?, ?, " + ", ".join("?" for _ in _USER_FIELDS)
-        params = [license_key, domain, plan, status, expires_at] + [
+        cols = ("license_key, domain, plan, status, expires_at, ai_quota_override, "
+                + ", ".join(_USER_FIELDS))
+        placeholders = "?, ?, ?, ?, ?, ?, " + ", ".join("?" for _ in _USER_FIELDS)
+        params = [license_key, domain, plan, status, expires_at, ai_quota_override] + [
             user_vals[k] for k in _USER_FIELDS
         ]
         c.execute(f"INSERT INTO licenses ({cols}) VALUES ({placeholders})", params)
@@ -191,8 +211,12 @@ def create_license(
 
 
 def update_license(license_key: str, **fields) -> Optional[dict]:
-    allowed = {"domain", "plan", "status", "expires_at"} | _USER_FIELDS
+    allowed = {"domain", "plan", "status", "expires_at", "ai_quota_override"} | _USER_FIELDS
     updates = {k: v for k, v in fields.items() if k in allowed and v is not None}
+    # ai_quota_override は -1 を「NULL 化シグナル」として扱う
+    # (Pydantic で None=未送信 と Null=明示クリア を区別しにくいため)
+    if updates.get("ai_quota_override") == -1:
+        updates["ai_quota_override"] = None
     if not updates:
         return get_license(license_key)
     updates["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -215,6 +239,51 @@ def delete_license(license_key: str) -> bool:
             (license_key,),
         )
         return cur.rowcount > 0
+
+
+# --- AI usage counters ---------------------------------------------------
+
+def get_ai_usage(license_key: str, period: str) -> int:
+    """指定ライセンス × 月の使用回数。レコードが無ければ 0。"""
+    with connection() as c:
+        row = c.execute(
+            "SELECT count FROM ai_usage WHERE license_key = ? AND period = ?",
+            (license_key, period),
+        ).fetchone()
+        return int(row["count"]) if row else 0
+
+
+def increment_ai_usage(license_key: str, period: str, delta: int = 1) -> int:
+    """`(license_key, period)` のカウンタを +delta して新しい合計を返す。
+    レコードが無ければ作成。同月内で大量に並列呼び出しが来ても
+    INSERT ... ON CONFLICT で原子的にカウントされる(SQLite は 1 ライタ
+    なのでロックされるが、本用途では十分高速)。"""
+    with connection() as c:
+        c.execute(
+            "INSERT INTO ai_usage (license_key, period, count, updated_at) "
+            "VALUES (?, ?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(license_key, period) DO UPDATE SET "
+            "count = count + excluded.count, updated_at = CURRENT_TIMESTAMP",
+            (license_key, period, int(delta)),
+        )
+        row = c.execute(
+            "SELECT count FROM ai_usage WHERE license_key = ? AND period = ?",
+            (license_key, period),
+        ).fetchone()
+        return int(row["count"]) if row else 0
+
+
+def recent_ai_usage(license_key: str, months: int = 6) -> list[dict]:
+    """直近 N 月分の (period, count) を新しい順で返す。管理 UI で
+    「過去 6 ヶ月の使用推移」を表示するために使う。"""
+    months = max(1, min(int(months), 24))
+    with connection() as c:
+        rows = c.execute(
+            "SELECT period, count FROM ai_usage WHERE license_key = ? "
+            "ORDER BY period DESC LIMIT ?",
+            (license_key, months),
+        ).fetchall()
+        return [dict(r) for r in rows]
 
 
 # --- audit log -----------------------------------------------------------

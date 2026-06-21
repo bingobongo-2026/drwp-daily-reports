@@ -980,3 +980,138 @@ def test_totp_session_cookie_invalidated_when_token_version_bumps(tmp_path, monk
     ver_after = main.db.get_setting("admin_token_version") or "0"
     assert ver_after != ver_before
     assert main.totp.verify_session_cookie(value, ver_after) is False
+
+
+# =========================================================================
+# AI proxy endpoints
+# =========================================================================
+
+def _seed_ai_license(client, key="AI-PRO-KEY", plan="pro",
+                     domain="example.test", override=None):
+    body = {
+        "license_key": key,
+        "domain": domain,
+        "plan": plan,
+        "status": "active",
+        "expires_at": "2099-12-31T23:59:59+00:00",
+    }
+    if override is not None:
+        body["ai_quota_override"] = override
+    r = client.post("/admin/licenses", auth=("admin", "test-token"), json=body)
+    assert r.status_code == 201, r.text
+
+
+def test_ai_quota_returns_plan_default(tmp_path, monkeypatch):
+    monkeypatch.setenv("DRWP_AI_QUOTA_BASIC", "100")
+    monkeypatch.setenv("DRWP_AI_QUOTA_PRO", "500")
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    _seed_ai_license(c, "AI-PRO-KEY", plan="pro")
+    _seed_ai_license(c, "AI-BASIC-KEY", plan="basic")
+    _seed_ai_license(c, "AI-FREE-KEY", plan="free")
+
+    r = c.get("/api/ai/quota?license_key=AI-PRO-KEY&domain=example.test")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["used"] == 0
+    assert body["limit"] == 500
+    assert body["plan"] == "pro"
+
+    r = c.get("/api/ai/quota?license_key=AI-BASIC-KEY&domain=example.test")
+    assert r.json()["limit"] == 100
+
+    r = c.get("/api/ai/quota?license_key=AI-FREE-KEY&domain=example.test")
+    assert r.json()["limit"] == 0
+
+
+def test_ai_quota_uses_override(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_ai_license(c, "AI-CUSTOM", plan="basic", override=25)
+    r = c.get("/api/ai/quota?license_key=AI-CUSTOM&domain=example.test")
+    assert r.status_code == 200
+    assert r.json()["limit"] == 25
+
+
+def test_ai_quota_unknown_license_403(client):
+    r = client.get("/api/ai/quota?license_key=DOES-NOT-EXIST&domain=example.test")
+    assert r.status_code == 403
+
+
+def test_ai_quota_domain_mismatch_403(tmp_path, monkeypatch):
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    _seed_ai_license(c, "AI-DOMAIN", plan="pro", domain="ok.test")
+    r = c.get("/api/ai/quota?license_key=AI-DOMAIN&domain=evil.test")
+    assert r.status_code == 403
+
+
+def test_ai_chat_free_plan_forbidden(tmp_path, monkeypatch):
+    monkeypatch.setenv("DRWP_MANAGED_AI_API_KEY", "fake-key")
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    _seed_ai_license(c, "AI-FREE", plan="free")
+    r = c.post("/api/ai/chat", json={
+        "license_key": "AI-FREE",
+        "domain": "example.test",
+        "messages": [{"role": "user", "content": "hi"}],
+    })
+    assert r.status_code == 403
+
+
+def test_ai_chat_not_configured_503(tmp_path, monkeypatch):
+    monkeypatch.delenv("DRWP_MANAGED_AI_API_KEY", raising=False)
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    _seed_ai_license(c, "AI-PRO", plan="pro")
+    r = c.post("/api/ai/chat", json={
+        "license_key": "AI-PRO",
+        "domain": "example.test",
+        "messages": [{"role": "user", "content": "hi"}],
+    })
+    # 503 — running server has no DRWP_MANAGED_AI_API_KEY env var
+    assert r.status_code == 503
+
+
+def test_ai_chat_quota_consumed_and_429(tmp_path, monkeypatch):
+    """3 回呼んだら 4 回目は 429。プロバイダ呼び出し部分は monkeypatch。"""
+    monkeypatch.setenv("DRWP_MANAGED_AI_API_KEY", "fake-key")
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_ai_license(c, "AI-LIMITED", plan="basic", override=3)
+
+    async def fake_call(messages, max_tokens):
+        return "pong"
+    monkeypatch.setattr(main, "_call_managed_provider", fake_call)
+
+    payload = {
+        "license_key": "AI-LIMITED",
+        "domain": "example.test",
+        "messages": [{"role": "user", "content": "ping"}],
+    }
+    for i in range(3):
+        r = c.post("/api/ai/chat", json=payload)
+        assert r.status_code == 200, r.text
+        assert r.json()["text"] == "pong"
+        assert r.json()["usage"]["used"] == i + 1
+        assert r.json()["usage"]["limit"] == 3
+    r = c.post("/api/ai/chat", json=payload)
+    assert r.status_code == 429
+    assert "Monthly quota reached" in r.json()["detail"]
+
+
+def test_ai_chat_provider_failure_does_not_count(tmp_path, monkeypatch):
+    """プロバイダがエラーを返したら使用量カウンタは増えない。"""
+    monkeypatch.setenv("DRWP_MANAGED_AI_API_KEY", "fake-key")
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_ai_license(c, "AI-PRO-2", plan="pro")
+
+    async def fail_call(messages, max_tokens):
+        from fastapi import HTTPException, status as st
+        raise HTTPException(st.HTTP_502_BAD_GATEWAY, detail="upstream down")
+    monkeypatch.setattr(main, "_call_managed_provider", fail_call)
+
+    payload = {
+        "license_key": "AI-PRO-2",
+        "domain": "example.test",
+        "messages": [{"role": "user", "content": "ping"}],
+    }
+    r = c.post("/api/ai/chat", json=payload)
+    assert r.status_code == 502
+    # カウンタは 0 のまま
+    r2 = c.get("/api/ai/quota?license_key=AI-PRO-2&domain=example.test")
+    assert r2.json()["used"] == 0
