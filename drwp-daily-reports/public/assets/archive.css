@@ -680,11 +680,11 @@
     white-space: nowrap;
 }
 /* ============================================================
-   日報チップ (全 status 共通)
+   日報チップ (要対応 = pending / needs_revision / edit_requested)
    ============================================================
-   案件名を 1 行目に太字、時刻 + ステータスピルを 2 行目に並べる
-   塗りカード型。status ごとに bg / 文字色 / 左ボーダーを変える。
-   approved も同形 (緑系) で揃え、視覚的に統一感を出す。 */
+   案件名・時刻は status に依らず常に黒文字で読みやすく。
+   塗り背景と左ボーダーで status を区別、ステータスラベルは
+   背景なし + 太字 + status カラー で控えめに目立たせる。 */
 .drwp-archive-cal-chip {
     display: block;
     width: 100%; margin-top: 0;
@@ -703,44 +703,76 @@
 }
 .drwp-archive-cal-chip:hover { filter: brightness(0.96); }
 .drwp-archive-cal-chip.status-pending {
-    background: #ffedd5; color: #9a3412; border-left-color: #d97706;
+    background: #ffedd5; border-left-color: #d97706;
 }
 .drwp-archive-cal-chip.status-needs_revision {
-    background: #fee2e2; color: #7f1d1d; border-left-color: #dc2626;
+    background: #fee2e2; border-left-color: #dc2626;
 }
 .drwp-archive-cal-chip.status-edit_requested {
-    background: #dbeafe; color: #1e3a8a; border-left-color: #2563eb;
-}
-.drwp-archive-cal-chip.status-approved {
-    background: #dcfce7; color: #14532d; border-left-color: #059669;
+    background: #dbeafe; border-left-color: #2563eb;
 }
 .drwp-archive-cal-chip-text {
     display: block;
     font-size: 0.95em; line-height: 1.25;
-    font-weight: 600;
+    font-weight: 700;
+    color: #1f2937;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .drwp-archive-cal-chip-meta {
-    display: flex; align-items: center; gap: 6px;
+    display: flex; align-items: center; gap: 8px;
     margin-top: 2px;
     font-size: 0.82em; line-height: 1.2;
-    opacity: 0.88;
 }
 .drwp-archive-cal-chip-time {
-    font-weight: 600; white-space: nowrap;
+    font-weight: 600; color: #1f2937; white-space: nowrap;
 }
+/* ステータスラベル: 背景なし + 太字 + status カラー。塗りカードと
+   組み合わせて "目立つ + 主張しすぎない" バランス。 */
 .drwp-archive-cal-chip-status {
-    padding: 0 6px;
-    border-radius: 999px;
-    background: rgba(0,0,0,0.07); color: inherit;
-    font-size: 0.92em; font-weight: 600;
+    padding: 0; background: transparent;
+    font-weight: 700; font-size: 0.94em;
+    color: #475569;
+}
+.drwp-archive-cal-chip.status-pending        .drwp-archive-cal-chip-status { color: #b45309; }
+.drwp-archive-cal-chip.status-needs_revision .drwp-archive-cal-chip-status { color: #b91c1c; }
+.drwp-archive-cal-chip.status-edit_requested .drwp-archive-cal-chip-status { color: #1d4ed8; }
+
+/* ============================================================
+   承認済み (status-approved) — 控えめなテキスト行 (塗りなし)
+   ============================================================ */
+.drwp-archive-cal-chip.is-compact {
+    background: transparent !important;
+    border-left: 0 !important;
+    padding: 3px 4px 3px 16px;
+    margin-top: 0;
+    color: #1e293b;
+    display: flex; align-items: baseline; gap: 6px;
+    position: relative;
+}
+.drwp-archive-cal-chip.is-compact::before {
+    content: '';
+    position: absolute; left: 4px; top: 9px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #059669;
+}
+.drwp-archive-cal-chip.is-compact .drwp-archive-cal-chip-text {
+    flex: 1 1 auto;
+    font-weight: 500; font-size: 0.86em;
+    color: #1e293b;
+}
+.drwp-archive-cal-chip.is-compact .drwp-archive-cal-chip-meta {
+    margin-top: 0;
+    font-size: 0.82em; color: #475569;
+}
+.drwp-archive-cal-chip.is-compact .drwp-archive-cal-chip-time {
+    font-weight: 500; color: #475569;
 }
 
 @media (max-width: 640px) {
   .drwp-archive-cal-cell { min-height: 70px; padding: 4px; }
   .drwp-archive-cal-chip,
   .drwp-archive-cal-plan-chip { font-size: 0.72rem; padding: 3px 5px; }
-  /* 狭い画面ではステータスピルを畳んで時刻だけにする。 */
+  /* 狭い画面ではステータスラベルを畳んで時刻だけにする。 */
   .drwp-archive-cal-chip-status { display: none; }
   .drwp-archive-cal-day { width: 22px; height: 22px; font-size: 0.78rem; }
 }
