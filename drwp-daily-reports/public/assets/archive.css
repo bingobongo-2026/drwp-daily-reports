@@ -116,6 +116,37 @@
     margin: 10px 0 8px;
 }
 .drwp-archive-toolbar .drwp-archive-summary { margin: 0; }
+.drwp-archive-toolbar-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* ---- Sort toggle (日付昇順 / 降順) — リスト表示時のみ。クリックで
+   方向を反転させる単一の小さなピル。トグルだと一目で「並びを変える
+   ボタン」と分かりやすい。 */
+.drwp-archive-sort-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4b5563;
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid #d6d3cd;
+    border-radius: 8px;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background-color .15s, color .15s, border-color .15s;
+}
+.drwp-archive-sort-btn:hover {
+    color: #1f2937;
+    background: #f8f7f3;
+    border-color: #b8b4ac;
+}
 
 /* ---- View toggle (カレンダー / リスト) — ピル型のセグメント
    モックの背景 #f1efea (ベージュ寄り) に揃える。 */

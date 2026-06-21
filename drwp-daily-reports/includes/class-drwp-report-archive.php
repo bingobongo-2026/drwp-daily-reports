@@ -1195,6 +1195,7 @@ class DRWP_Report_Archive {
 
             <?php
             $total_count = count($rows);
+            $sort = (isset($_GET['drwp_sort']) && (string) $_GET['drwp_sort'] === 'date_asc') ? 'date_asc' : 'date_desc';
             if ($view === 'list'): ?>
                 <div class="drwp-archive-toolbar">
                     <p class="drwp-archive-summary">
@@ -1204,9 +1205,12 @@ class DRWP_Report_Archive {
                             $total_count
                         ); ?>
                     </p>
-                    <?php echo self::render_view_toggle($view); ?>
+                    <div class="drwp-archive-toolbar-actions">
+                        <?php echo self::render_sort_toggle($sort); ?>
+                        <?php echo self::render_view_toggle($view); ?>
+                    </div>
                 </div>
-                <?php echo self::render_archive_list_view($rows, $plans_by_date); ?>
+                <?php echo self::render_archive_list_view($rows, $plans_by_date, $sort); ?>
             <?php else: ?>
                 <?php echo self::render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, ['q' => $q, 'project' => $project, 'status' => $status], $plans_by_date, $view, $total_count); ?>
             <?php endif; ?>
@@ -1243,7 +1247,7 @@ class DRWP_Report_Archive {
         $drwp_keys = ['drwp_q', 'drwp_project', 'drwp_status', 'drwp_month',
                       'drwp_mine', 'drwp_id', 'drwp_edit', 'drwp_new',
                       'drwp_saved', 'drwp_requested', 'drwp_err', 'drwp_p', 'drwp_per',
-                      'drwp_view'];
+                      'drwp_view', 'drwp_sort'];
         $preserve = [];
         foreach ($current_query as $k => $v) {
             if (!in_array($k, $drwp_keys, true) && is_scalar($v)) {
@@ -1279,6 +1283,9 @@ class DRWP_Report_Archive {
                 <input type="hidden" name="drwp_month" value="<?php echo esc_attr($month_param); ?>" />
                 <?php if (!empty($_GET['drwp_view']) && $_GET['drwp_view'] === 'list'): ?>
                     <input type="hidden" name="drwp_view" value="list" />
+                <?php endif; ?>
+                <?php if (!empty($_GET['drwp_sort'])): ?>
+                    <input type="hidden" name="drwp_sort" value="<?php echo esc_attr((string) $_GET['drwp_sort']); ?>" />
                 <?php endif; ?>
                 <div class="drwp-archive-filter-row">
                     <label class="drwp-archive-field grow">
@@ -1354,6 +1361,35 @@ class DRWP_Report_Archive {
     }
 
     /**
+     * リストビューの日付ソート切替。クリックで降順 / 昇順をトグルする
+     * 単一ボタン。URL の drwp_sort クエリで状態を保持。
+     */
+    private static function render_sort_toggle($current) {
+        $base = $_SERVER['REQUEST_URI'] ?? '';
+        $is_asc = ($current === 'date_asc');
+        // 押すと反対方向に切り替わる
+        $next_url = $is_asc
+            ? esc_url(remove_query_arg('drwp_sort', $base))
+            : esc_url(add_query_arg(['drwp_sort' => 'date_asc'], $base));
+        $label = $is_asc
+            ? __('日付 ↑ 古い順', 'drwp-daily-reports')
+            : __('日付 ↓ 新しい順', 'drwp-daily-reports');
+        $aria = $is_asc
+            ? __('日付の新しい順に並べ替える', 'drwp-daily-reports')
+            : __('日付の古い順に並べ替える', 'drwp-daily-reports');
+        ob_start();
+        ?>
+        <a class="drwp-archive-sort-btn<?php echo $is_asc ? ' is-asc' : ' is-desc'; ?>"
+           href="<?php echo $next_url; ?>"
+           title="<?php echo esc_attr($aria); ?>"
+           aria-label="<?php echo esc_attr($aria); ?>">
+            <?php echo esc_html($label); ?>
+        </a>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
      * カレンダー / リスト 共通の色凡例。覚えなくても色の意味が分かる
      * よう、毎回常時表示するシンプルな帯。
      */
@@ -1389,7 +1425,7 @@ class DRWP_Report_Archive {
      * カレンダーチップと同じ詳細モーダルが開けるように `data-id` を
      * 仕込む。
      */
-    private static function render_archive_list_view($rows, $plans_by_date = []) {
+    private static function render_archive_list_view($rows, $plans_by_date = [], $sort = 'date_desc') {
         if (empty($rows) && empty($plans_by_date)) {
             ob_start();
             ?>
@@ -1432,10 +1468,11 @@ class DRWP_Report_Archive {
             }
         }
         // 既定の並びは「日付の降順 (新しい順)」。同日内は時刻昇順
-        // (古い時間が先) で安定。リストで日報を上から読んで「最新が
-        // 上にある」感覚を出す。
-        usort($entries, function ($a, $b) {
-            $d = strcmp($b['date'], $a['date']);
+        // (古い時間が先) で安定。?drwp_sort=date_asc を指定すると
+        // 「古い順」(上に古い日付) に切り替わる。
+        $asc = ($sort === 'date_asc');
+        usort($entries, function ($a, $b) use ($asc) {
+            $d = $asc ? strcmp($a['date'], $b['date']) : strcmp($b['date'], $a['date']);
             if ($d !== 0) return $d;
             return strcmp($a['time'], $b['time']);
         });
