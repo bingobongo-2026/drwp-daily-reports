@@ -31,8 +31,9 @@ if (!defined('ABSPATH')) exit;
  */
 class DRWP_Report_Archive {
 
-    const HANDLE      = 'drwp-archive';
-    const HANDLE_EDIT = 'drwp-archive-edit';
+    const HANDLE       = 'drwp-archive';
+    const HANDLE_EDIT  = 'drwp-archive-edit';
+    const HANDLE_COMBO = 'drwp-combo';
 
     public static function init() {
         add_shortcode('drwp_report_archive', [__CLASS__, 'shortcode']);
@@ -75,6 +76,9 @@ class DRWP_Report_Archive {
 
     public static function shortcode($atts = []) {
         wp_enqueue_style(self::HANDLE);
+        // 案件選択コンボボックス (DRWP_Report_Form 側で登録済み)
+        wp_enqueue_style(self::HANDLE_COMBO);
+        wp_enqueue_script(self::HANDLE_COMBO);
 
         // 現にログイン中の退職者(init ログアウト前のレース) — データ
         // に到達する前に通知だけ出して止める。
@@ -190,8 +194,17 @@ class DRWP_Report_Archive {
             'needs_revision' => DRWP_Labels::review_status('needs_revision'),
             'edit_requested' => DRWP_Labels::review_status('edit_requested'),
         ];
-        $project_list = array_map(function ($p) {
-            return ['id' => (int) $p->id, 'name' => (string) $p->name];
+        // 案件 (active のみ) と「最近使った」案件 ID。前者を combobox の
+        // 全件、後者を上部ピン留めに使う。recent_for_user は空ユーザ
+        // (未ログイン) に空配列を返すので分岐は不要。
+        $recent_project_ids = DRWP_Project::recent_for_user(get_current_user_id(), 8);
+        $recent_project_lookup = array_flip(array_map('intval', $recent_project_ids));
+        $project_list = array_map(function ($p) use ($recent_project_lookup) {
+            return [
+                'id'        => (int) $p->id,
+                'name'      => (string) $p->name,
+                'is_recent' => isset($recent_project_lookup[(int) $p->id]) ? 1 : 0,
+            ];
         }, DRWP_Project::all(true));
 
         // 担当者ドロップダウン — 事務所(`edit_others_posts`)だけが
@@ -206,6 +219,7 @@ class DRWP_Report_Archive {
             'nonce'     => $nonce,
             'labels'    => $labels,
             'projects'  => $project_list,
+            'recentProjectIds' => array_values(array_map('intval', $recent_project_ids)),
             'canAssignPlans' => $can_assign_plans,
             // The archive's edit flow uses ?drwp_id=N&drwp_edit=1
             // (see shortcode() dispatch); we build a link template
@@ -250,15 +264,10 @@ class DRWP_Report_Archive {
                         <span><?php esc_html_e('日付', 'drwp-daily-reports'); ?> <em>*</em></span>
                         <input type="date" name="planned_date" required />
                     </label>
-                    <label class="drwp-archive-plan-field">
+                    <div class="drwp-archive-plan-field">
                         <span><?php esc_html_e('案件', 'drwp-daily-reports'); ?></span>
-                        <select name="project_id">
-                            <option value=""><?php esc_html_e('（未設定）', 'drwp-daily-reports'); ?></option>
-                            <?php foreach ($project_list as $p): ?>
-                                <option value="<?php echo (int) $p['id']; ?>"><?php echo esc_html($p['name']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
+                        <?php echo self::project_combo_select($project_list, 0, 'project_id', __('（未設定）', 'drwp-daily-reports'), false); ?>
+                    </div>
                     <?php if ($can_assign_plans && !empty($worker_options)): ?>
                     <label class="drwp-archive-plan-field">
                         <span><?php esc_html_e('担当者', 'drwp-daily-reports'); ?></span>
@@ -305,15 +314,10 @@ class DRWP_Report_Archive {
                         <span><?php esc_html_e('日付', 'drwp-daily-reports'); ?> <em>*</em></span>
                         <input type="date" name="planned_date" value="<?php echo esc_attr(current_time('Y-m-d')); ?>" required />
                     </label>
-                    <label class="drwp-archive-plan-field">
+                    <div class="drwp-archive-plan-field">
                         <span><?php esc_html_e('案件', 'drwp-daily-reports'); ?></span>
-                        <select name="project_id">
-                            <option value=""><?php esc_html_e('（未設定）', 'drwp-daily-reports'); ?></option>
-                            <?php foreach (DRWP_Project::all(true) as $p): ?>
-                                <option value="<?php echo (int) $p->id; ?>"><?php echo esc_html($p->name); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
+                        <?php echo self::project_combo_select($project_list, 0, 'project_id', __('（未設定）', 'drwp-daily-reports'), false); ?>
+                    </div>
                     <div class="drwp-archive-plan-times">
                         <label class="drwp-archive-plan-field">
                             <span><?php esc_html_e('開始時刻', 'drwp-daily-reports'); ?></span>
@@ -471,16 +475,34 @@ class DRWP_Report_Archive {
             html += '<input type="date" name="report_date" value="' + esc(d.report_date) + '" required />';
             html += '</label>';
 
-            html += '<label class="drwp-archive-inline-field">';
+            html += '<div class="drwp-archive-inline-field">';
             html += '<span><?php echo esc_js(__('案件', 'drwp-daily-reports')); ?> <em>*</em></span>';
+            html += '<div class="drwp-combo" data-drwp-combo>';
             html += '<select name="project_id" required>';
             html += '<option value=""><?php echo esc_js(__('選択してください', 'drwp-daily-reports')); ?></option>';
-            projects.forEach(function (p) {
-              var sel = (String(p.id) === String(d.project_id || '')) ? ' selected' : '';
-              html += '<option value="' + esc(p.id) + '"' + sel + '>' + esc(p.name) + '</option>';
-            });
+            // 「最近使った」と「案件」で optgroup を分けて combo.js のグループ
+            // 見出しを効かせる。is_recent フラグは PHP 側で付与済み。
+            var recentProjects = projects.filter(function (p) { return !!p.is_recent; });
+            var otherProjects  = projects.filter(function (p) { return !p.is_recent; });
+            if (recentProjects.length) {
+              html += '<optgroup label="<?php echo esc_js(__('最近使った', 'drwp-daily-reports')); ?>">';
+              recentProjects.forEach(function (p) {
+                var sel = (String(p.id) === String(d.project_id || '')) ? ' selected' : '';
+                html += '<option value="' + esc(p.id) + '"' + sel + '>' + esc(p.name) + '</option>';
+              });
+              html += '</optgroup>';
+            }
+            if (otherProjects.length) {
+              html += '<optgroup label="<?php echo esc_js(__('案件', 'drwp-daily-reports')); ?>">';
+              otherProjects.forEach(function (p) {
+                var sel = (String(p.id) === String(d.project_id || '')) ? ' selected' : '';
+                html += '<option value="' + esc(p.id) + '"' + sel + '>' + esc(p.name) + '</option>';
+              });
+              html += '</optgroup>';
+            }
             html += '</select>';
-            html += '</label>';
+            html += '</div>';
+            html += '</div>';
 
             html += '<div class="drwp-archive-inline-times">';
             html += '<label class="drwp-archive-inline-field"><span><?php echo esc_js(__('開始時刻', 'drwp-daily-reports')); ?></span>';
@@ -524,6 +546,9 @@ class DRWP_Report_Archive {
             html += '</form>';
 
             viewBody.innerHTML = html;
+            // combobox 拡張は DOMContentLoaded 時点で 1 度走るだけなので、
+            // ここで挿入したフォームに対して明示的に再適用する。
+            if (window.DRWP_Combo) window.DRWP_Combo.enhance(viewBody);
           }
 
           function renderEditPhoto(id, url, caption) {
@@ -648,7 +673,11 @@ class DRWP_Report_Archive {
             var form = document.getElementById('drwp-mform');
             if (form) {
               if (form.report_date) form.report_date.value = d.planDate || '';
-              if (form.project_id) form.project_id.value  = d.planProjectId || '';
+              if (form.project_id) {
+                form.project_id.value = d.planProjectId || '';
+                // combobox 拡張側に同期させる (input 表示の更新)
+                form.project_id.dispatchEvent(new Event('change', { bubbles: true }));
+              }
               if (form.started_at) form.started_at.value  = d.planStart || '';
               if (form.ended_at)   form.ended_at.value    = d.planEnd || '';
               var hidden = form.querySelector('input[name="linked_plan_id"]');
@@ -871,6 +900,7 @@ class DRWP_Report_Archive {
             if (planEditForm.project_id) {
               var pid = chip.dataset.planProjectId || '';
               planEditForm.project_id.value = (pid && pid !== '0') ? pid : '';
+              planEditForm.project_id.dispatchEvent(new Event('change', { bubbles: true }));
             }
             // 担当者 select は事務所だけ。データ属性は data-plan-user-id
             // で出してる(case-sensitive で正規化済み — dataset は
@@ -1400,6 +1430,57 @@ class DRWP_Report_Archive {
                 </div>
             </form>
         </details>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * 案件選択用の <select> を combo-box 対応の markup で出力する。
+     * combo.js が data-drwp-combo を拾って検索可能な UI に昇格させる。
+     *
+     * @param array  $projects     ['id', 'name', 'is_recent'] の連想配列
+     * @param int    $selected     初期選択 (0 で未選択)
+     * @param string $name         input name (project_id 等)
+     * @param string $placeholder  空 option のラベル
+     * @param bool   $required     required 属性を付けるか
+     */
+    private static function project_combo_select($projects, $selected = 0, $name = 'project_id', $placeholder = '', $required = false) {
+        $recent = [];
+        $other  = [];
+        foreach ($projects as $p) {
+            $row = ['id' => (int) $p['id'], 'name' => (string) $p['name']];
+            if (!empty($p['is_recent'])) $recent[] = $row;
+            else                         $other[]  = $row;
+        }
+        if ($placeholder === '') {
+            $placeholder = __('選択してください', 'drwp-daily-reports');
+        }
+        $sel = (int) $selected;
+        ob_start();
+        ?>
+        <div class="drwp-combo" data-drwp-combo>
+            <select name="<?php echo esc_attr($name); ?>"<?php echo $required ? ' required' : ''; ?>>
+                <option value=""><?php echo esc_html($placeholder); ?></option>
+                <?php if (!empty($recent)): ?>
+                    <optgroup label="<?php esc_attr_e('最近使った', 'drwp-daily-reports'); ?>">
+                        <?php foreach ($recent as $p): ?>
+                            <option value="<?php echo (int) $p['id']; ?>" <?php selected($sel, (int) $p['id']); ?>>
+                                <?php echo esc_html($p['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </optgroup>
+                <?php endif; ?>
+                <?php if (!empty($other)): ?>
+                    <optgroup label="<?php esc_attr_e('案件', 'drwp-daily-reports'); ?>">
+                        <?php foreach ($other as $p): ?>
+                            <option value="<?php echo (int) $p['id']; ?>" <?php selected($sel, (int) $p['id']); ?>>
+                                <?php echo esc_html($p['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </optgroup>
+                <?php endif; ?>
+            </select>
+        </div>
         <?php
         return ob_get_clean();
     }
@@ -1994,8 +2075,30 @@ class DRWP_Report_Archive {
         }
 
         wp_enqueue_script(self::HANDLE_EDIT);
+        wp_enqueue_style(self::HANDLE_COMBO);
+        wp_enqueue_script(self::HANDLE_COMBO);
 
-        $projects     = DRWP_Project::all();
+        // 編集フォームの案件ドロップダウンも combobox + 最近使った
+        // ピン留めに揃える。閉鎖済み案件は出さない (active のみ)。
+        // 現在の案件が inactive 化されている場合のみ追加する。
+        $projects_active = DRWP_Project::all(true);
+        $current_in_list = false;
+        foreach ($projects_active as $p) {
+            if ((int) $p->id === (int) $report->project_id) { $current_in_list = true; break; }
+        }
+        if (!$current_in_list && $report->project_id) {
+            $cur = DRWP_Project::find((int) $report->project_id);
+            if ($cur) array_unshift($projects_active, $cur);
+        }
+        $recent_ids_edit = DRWP_Project::recent_for_user(get_current_user_id(), 8);
+        $recent_lookup_edit = array_flip(array_map('intval', $recent_ids_edit));
+        $projects = array_map(function ($p) use ($recent_lookup_edit) {
+            return [
+                'id'        => (int) $p->id,
+                'name'      => (string) $p->name,
+                'is_recent' => isset($recent_lookup_edit[(int) $p->id]) ? 1 : 0,
+            ];
+        }, $projects_active);
         $report_photos = DRWP_Media::for_report((int) $report->id);
         $back         = esc_url(remove_query_arg('drwp_edit'));
         $action       = esc_url(get_permalink());
@@ -2034,17 +2137,10 @@ class DRWP_Report_Archive {
                     <input type="date" name="report_date"
                            value="<?php echo esc_attr((string) $report->report_date); ?>" required />
                 </label>
-                <label class="drwp-archive-edit-field">
+                <div class="drwp-archive-edit-field">
                     <span><?php esc_html_e('案件', 'drwp-daily-reports'); ?></span>
-                    <select name="project_id" required>
-                        <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
-                        <?php foreach ($projects as $p): ?>
-                            <option value="<?php echo (int) $p->id; ?>" <?php selected((int) $report->project_id, (int) $p->id); ?>>
-                                <?php echo esc_html($p->name); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </label>
+                    <?php echo self::project_combo_select($projects, (int) $report->project_id, 'project_id', __('選択してください', 'drwp-daily-reports'), true); ?>
+                </div>
                 <div class="drwp-archive-edit-times">
                     <label class="drwp-archive-edit-field">
                         <span><?php esc_html_e('開始時刻', 'drwp-daily-reports'); ?></span>
