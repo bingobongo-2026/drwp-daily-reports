@@ -679,15 +679,6 @@ class DRWP_Report_Archive {
           }
 
           document.addEventListener('click', function(e){
-            // 「+ 他N件」を押したらそのセル内の隠れたチップを展開する。
-            var overflowBtn = e.target.closest('.drwp-archive-cal-overflow');
-            if (overflowBtn) {
-              e.preventDefault();
-              var cell = overflowBtn.closest('.drwp-archive-cal-cell');
-              if (cell) cell.classList.add('is-expanded');
-              overflowBtn.remove();
-              return;
-            }
             // Tap a plan chip → open the report form pre-filled from it.
             // Linked plans (already tied to a report) are excluded:
             // they're non-draggable / non-editable, so they should not
@@ -1572,10 +1563,6 @@ class DRWP_Report_Archive {
             <?php endfor; ?>
 
             <?php
-            // 1 セルあたりの最大チップ数。これを超えたら「+ 他 N 件」
-            // ボタンを出して、押すと残りも展開する (CSS で is-expanded
-            // クラスで制御)。
-            $max_chips = 5;
             for ($d = 1; $d <= $days_in_month; $d++):
               $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
               $dow = ((int) date('w', strtotime($date)));
@@ -1591,14 +1578,11 @@ class DRWP_Report_Archive {
               foreach ($items as $r) {
                   if ($r->review_status !== 'approved') $cell_needs_action++;
               }
-              // 要対応の方を優先的にカードの上に出すため、ソート
-              // 結果のままだが、表示順は本来の (時刻順) を保つ。
-              // overflow 表示の対象は items + plans の連結リスト。
+              // 表示順: 予定 → 日報 (報告の前にその日に「何を予定して
+              // いたか」が来る方が一日の見通しが立てやすい)
               $combined = [];
-              foreach ($items as $r)      $combined[] = ['type' => 'report', 'data' => $r];
               foreach ($plan_items as $p) $combined[] = ['type' => 'plan',   'data' => $p];
-              $total_count = count($combined);
-              $hidden_count = max(0, $total_count - $max_chips);
+              foreach ($items as $r)      $combined[] = ['type' => 'report', 'data' => $r];
             ?>
               <div class="<?php echo esc_attr($cell_cls); ?>" data-date="<?php echo esc_attr($date); ?>">
                 <div class="drwp-archive-cal-cell-head">
@@ -1619,30 +1603,24 @@ class DRWP_Report_Archive {
                 </div>
 
                 <?php
-                $shown = 0;
                 foreach ($combined as $entry):
-                    $is_hidden = ($shown >= $max_chips);
-                    $extra_cls = $is_hidden ? ' is-overflow-hidden' : '';
                     if ($entry['type'] === 'report'):
                         $r = $entry['data'];
                         $proj = $r->project_id ? DRWP_Project::find((int) $r->project_id) : null;
                         $proj_name = $proj ? $proj->name : __('（案件未設定）', 'drwp-daily-reports');
                         $time = self::format_time_window($r->started_at ?? '', $r->ended_at ?? '');
                         $status_label = DRWP_Labels::review_status((string) $r->review_status);
-                        // approved の時はステータスラベルを描画しない
-                        // (見た目を控えめにしたいので) 。それ以外はピル
-                        // でステータス名を貼る。
-                        $is_approved = ((string) $r->review_status === 'approved');
+                        // 全 status で同じ「塗りカード + 案件名(太字) +
+                        // 時刻 + ステータスピル」のレイアウトに統一する。
+                        // approved も同形 (緑系の塗りで承認済みピル付き)。
                 ?>
-                  <button type="button" class="drwp-archive-cal-chip status-<?php echo esc_attr((string) $r->review_status); ?><?php echo $is_approved ? ' is-compact' : ''; ?><?php echo $extra_cls; ?>"
+                  <button type="button" class="drwp-archive-cal-chip status-<?php echo esc_attr((string) $r->review_status); ?>"
                           data-id="<?php echo (int) $r->id; ?>"
                           title="<?php echo esc_attr($proj_name . ($time ? ' / ' . $time : '') . ' / ' . $status_label); ?>">
                     <span class="drwp-archive-cal-chip-text"><?php echo esc_html($proj_name); ?></span>
                     <span class="drwp-archive-cal-chip-meta">
                         <?php if ($time !== ''): ?><span class="drwp-archive-cal-chip-time"><?php echo esc_html(substr($time, 0, 5)); ?></span><?php endif; ?>
-                        <?php if (!$is_approved): ?>
-                            <span class="drwp-archive-cal-chip-status"><?php echo esc_html($status_label); ?></span>
-                        <?php endif; ?>
+                        <span class="drwp-archive-cal-chip-status"><?php echo esc_html($status_label); ?></span>
                     </span>
                   </button>
                 <?php else:
@@ -1655,7 +1633,7 @@ class DRWP_Report_Archive {
                         $tip = __('予定', 'drwp-daily-reports') . ': ' . $pproj_name . ($ptime ? ' / ' . $ptime : '');
                         if (!empty($pl->linked_report_id)) $tip .= ' (' . __('日報 #', 'drwp-daily-reports') . (int) $pl->linked_report_id . ' に紐づき)';
                 ?>
-                  <button type="button" class="drwp-archive-cal-plan-chip is-compact<?php echo !empty($pl->linked_report_id) ? ' is-linked' : ''; ?><?php echo $extra_cls; ?>"
+                  <button type="button" class="drwp-archive-cal-plan-chip is-compact<?php echo !empty($pl->linked_report_id) ? ' is-linked' : ''; ?>"
                           data-plan-id="<?php echo (int) $pl->id; ?>"
                           data-plan-date="<?php echo esc_attr((string) $pl->planned_date); ?>"
                           data-plan-project-id="<?php echo (int) ($pl->project_id ?? 0); ?>"
@@ -1670,15 +1648,7 @@ class DRWP_Report_Archive {
                     <?php if ($ptime !== ''): ?><span class="drwp-archive-cal-chip-time"><?php echo esc_html(substr($ptime, 0, 5)); ?></span><?php endif; ?>
                   </button>
                 <?php endif;
-                    $shown++;
                 endforeach; ?>
-
-                <?php if ($hidden_count > 0): ?>
-                    <button type="button" class="drwp-archive-cal-overflow"
-                            aria-label="<?php echo esc_attr(sprintf(__('残り %d 件を表示', 'drwp-daily-reports'), $hidden_count)); ?>">
-                        <?php printf(esc_html__('+ 他 %d 件', 'drwp-daily-reports'), (int) $hidden_count); ?>
-                    </button>
-                <?php endif; ?>
               </div>
             <?php endfor;
 
