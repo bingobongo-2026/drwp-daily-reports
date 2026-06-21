@@ -117,31 +117,29 @@
 }
 .drwp-archive-toolbar .drwp-archive-summary { margin: 0; }
 
-/* ---- View toggle (カレンダー / リスト) — ピル型のセグメント ----
-   薄グレー容器の中で、選択中だけ白カードが浮いて見えるスタイル
-   (Slack / Google の Segmented control 風)。 */
+/* ---- View toggle (カレンダー / リスト) — ピル型のセグメント
+   モックの背景 #f1efea (ベージュ寄り) に揃える。 */
 .drwp-archive-view-toggle {
     display: inline-flex;
     padding: 3px;
-    background: #f1f5f9;
-    border-radius: 8px;
+    background: #f1efea;
+    border-radius: 10px;
     gap: 2px;
 }
 .drwp-archive-view-btn {
-    padding: 5px 16px;
-    font-size: 0.85rem; font-weight: 500;
-    color: #64748b;
+    padding: 7px 16px;
+    font-size: 13px; font-weight: 600;
+    color: #9b958a;
     text-decoration: none;
     background: transparent;
-    border-radius: 6px;
+    border-radius: 8px;
     transition: background-color .15s, color .15s, box-shadow .15s;
 }
-.drwp-archive-view-btn:hover { color: #1e293b; }
+.drwp-archive-view-btn:hover { color: #1f2937; }
 .drwp-archive-view-btn.is-active {
     background: #fff;
-    color: #0f172a;
-    font-weight: 600;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, .12);
+    color: #1f2937;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
 }
 
 /* ---- Status legend (色凡例) ---- */
@@ -515,79 +513,90 @@
 
 /* ============================================================
    Dashboard header (ページタイトル + CTA + 統計カード)
-   - 全体カードの「外枠」は使わず、各サブパーツが背景上に直接
-     乗る (デザインモックに準拠)。背景は body の #F4F3EF。
+   モック準拠: ベージュ寄り背景 (#F4F3EF) の上にカードを並べる。
    ============================================================ */
 .drwp-archive-dashboard {
     margin-bottom: 18px;
 }
 .drwp-archive-dashboard-head {
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex; justify-content: space-between; align-items: flex-end;
     gap: 16px; flex-wrap: wrap;
-    margin-bottom: 14px;
+    margin-bottom: 22px;
 }
 .drwp-archive-dashboard-brand { min-width: 0; }
 .drwp-archive-dashboard-title {
-    margin: 0; font-size: 1.65rem; font-weight: 800;
-    color: #0f172a; line-height: 1.2;
+    margin: 2px 0 0; font-size: 27px; font-weight: 700;
+    color: #1f2937; line-height: 1.2; letter-spacing: -0.01em;
 }
-/* 右上アクションエリア: ニックネーム (上, 控えめ) + CTA ボタン (下) */
 .drwp-archive-dashboard-actions {
     display: flex; flex-direction: column;
     align-items: flex-end; gap: 8px;
 }
 .drwp-archive-dashboard-user {
-    margin: 0; font-size: 0.78rem; color: #64748b;
-    font-weight: 500; display: inline-flex; align-items: center; gap: 4px;
+    margin: 0; font-size: 13px; color: #9b958a;
+    font-weight: 500; letter-spacing: 0.02em;
+    display: inline-flex; align-items: center; gap: 4px;
 }
 .drwp-archive-dashboard-user-icon { opacity: 0.7; font-size: 0.9em; line-height: 1; }
 .drwp-archive-dashboard-actions-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
 
-/* 統計カード — 6 列均等。1 つ目 (要対応) だけ淡橙背景で強調。 */
+/* サマリー帯 — モック: 要対応 hero (左) + 5 つのステータスカード (右) */
 .drwp-archive-stats {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 12px;
+    display: flex;
+    align-items: stretch; gap: 12px;
+    flex-wrap: wrap;
 }
 .drwp-archive-stat {
+    flex: 1 1 0; min-width: 130px;
     background: #fff;
-    border: 0;
-    border-radius: 12px;
-    padding: 16px 18px;
+    border: 1px solid #ececea;
+    border-radius: 14px;
+    padding: 13px 15px;
     display: flex; flex-direction: column; gap: 6px;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
 }
+.drwp-archive-stat:hover { border-color: #dcdad5; }
 .drwp-archive-stat-label {
-    margin: 0; font-size: 0.82rem; color: #64748b; font-weight: 500;
-    display: flex; align-items: center; gap: 6px;
+    margin: 0; font-size: 11.5px; color: #6b7280;
+    font-weight: 600; white-space: nowrap;
+    display: flex; align-items: center; gap: 7px;
 }
 .drwp-archive-stat-label::before {
     content: ''; flex-shrink: 0;
     width: 9px; height: 9px; border-radius: 50%; background: #94a3b8;
 }
 .drwp-archive-stat-value {
-    margin: 0; font-size: 1.65rem; font-weight: 700; color: #0f172a;
-    line-height: 1.1;
+    margin: 0; font-size: 23px; font-weight: 700; color: #374151;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
 }
 .drwp-archive-stat-unit {
-    font-size: 0.55em; font-weight: 600; color: #64748b;
+    font-size: 14px; font-weight: 600; color: #b8730a;
     margin-left: 3px;
 }
 .drwp-archive-stat-hero {
-    background: #fef3c7;
+    flex: 0 0 auto; min-width: 150px;
+    background: #fff5e3;
+    border: 1px solid #f3dca8;
+    padding: 14px 22px;
+    justify-content: center;
+    gap: 2px;
 }
-.drwp-archive-stat-hero .drwp-archive-stat-label { color: #92400e; font-weight: 600; font-size: 0.78rem; }
+.drwp-archive-stat-hero .drwp-archive-stat-label {
+    color: #b8730a; font-size: 12px; letter-spacing: 0.02em;
+}
 .drwp-archive-stat-hero .drwp-archive-stat-label::before { display: none; }
-.drwp-archive-stat-hero .drwp-archive-stat-value { color: #78350f; }
-.drwp-archive-stat-hero .drwp-archive-stat-unit { color: #92400e; }
-
-.drwp-archive-stat.status-needs_revision .drwp-archive-stat-label::before { background: #dc2626; }
-.drwp-archive-stat.status-pending        .drwp-archive-stat-label::before { background: #d97706; }
-.drwp-archive-stat.status-edit_requested .drwp-archive-stat-label::before { background: #2563eb; }
-.drwp-archive-stat.is-plan               .drwp-archive-stat-label::before {
-    background: transparent; box-shadow: inset 0 0 0 1.5px #94a3b8;
+.drwp-archive-stat-hero .drwp-archive-stat-value {
+    color: #9a5e05; font-size: 30px;
+    display: flex; align-items: baseline; gap: 4px;
 }
-.drwp-archive-stat.status-approved       .drwp-archive-stat-label::before { background: #16a34a; }
+
+.drwp-archive-stat.status-needs_revision .drwp-archive-stat-label::before { background: #DC2F2F; }
+.drwp-archive-stat.status-pending        .drwp-archive-stat-label::before { background: #D9820A; }
+.drwp-archive-stat.status-edit_requested .drwp-archive-stat-label::before { background: #2563EB; }
+.drwp-archive-stat.is-plan               .drwp-archive-stat-label::before {
+    background: #fff; box-shadow: inset 0 0 0 1.5px #7B8494;
+}
+.drwp-archive-stat.status-approved       .drwp-archive-stat-label::before { background: #1C9C58; }
 
 @media (max-width: 1200px) {
     .drwp-archive-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -600,187 +609,218 @@
     .drwp-archive-stat-value { font-size: 1.35rem; }
 }
 
-/* Event calendar (Google Calendar style) */
-.drwp-archive-cal { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+/* カレンダーカード — モックの淡いベージュ寄りボーダーで囲む */
+.drwp-archive-cal {
+    margin-top: 6px;
+    background: #fff;
+    border: 1px solid #e8e6e1; border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(40, 35, 25, 0.04);
+    overflow: hidden;
+}
 .drwp-archive-cal-nav {
     display: flex; align-items: center; justify-content: space-between;
     gap: 14px; flex-wrap: wrap;
-    padding: 14px 18px;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 16px 20px;
+    border-bottom: 1px solid #efedea;
     background: #fff;
 }
 .drwp-archive-cal-nav-left {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
 }
 .drwp-archive-cal-month {
-    margin: 0 4px; font-size: 1.05rem; font-weight: 700;
-    color: #0f172a; text-align: center; line-height: 1.2;
+    margin: 0; font-size: 18px; font-weight: 700;
+    color: #1f2937; letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
 }
 .drwp-archive-cal-btn {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 32px; height: 32px;
-    border: 1px solid #e5e7eb; border-radius: 999px;
-    background: #fff; color: #475569;
-    text-decoration: none; font-size: 1.05rem; line-height: 1;
-    transition: background-color .12s, border-color .12s, color .12s;
+    width: 34px; height: 34px;
+    border: 1px solid #e3e1dc; border-radius: 9px;
+    background: #fff; color: #6b7280;
+    text-decoration: none; font-size: 16px; line-height: 1;
+    cursor: pointer;
+    transition: background-color .12s;
 }
-.drwp-archive-cal-btn:hover { background: #f1f5f9; border-color: #cbd5e1; color: #0f172a; }
+.drwp-archive-cal-btn:hover { background: #f7f6f3; }
 .drwp-archive-cal-count {
-    margin-left: 4px;
-    color: #64748b; font-size: 0.85rem; font-weight: 500;
+    color: #9b958a; font-size: 12.5px; margin-left: 4px;
+    font-variant-numeric: tabular-nums;
 }
 .drwp-archive-cal-today {
-    padding: 5px 12px; border: 1px solid #d1d5db; border-radius: 999px;
-    background: #fff; color: #1e293b; text-decoration: none;
-    font-size: 0.82rem; font-weight: 500;
+    padding: 5px 12px; border: 1px solid #e3e1dc; border-radius: 999px;
+    background: #fff; color: #6b7280; text-decoration: none;
+    font-size: 12.5px; font-weight: 500;
 }
-.drwp-archive-cal-today:hover { background: #f1f5f9; }
-.drwp-archive-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: #e2e8f0; gap: 1px; }
-.drwp-archive-cal-dow { background: #f8fafc; text-align: center; font-size: 0.8rem; font-weight: 600; color: #475569; padding: 6px 0; }
-.drwp-archive-cal-dow.sun { color: #dc2626; }
-.drwp-archive-cal-dow.sat { color: #2563eb; }
-.drwp-archive-cal-cell { background: #fff; min-height: 130px; padding: 8px 8px 10px; display: flex; flex-direction: column; gap: 4px; position: relative; }
-.drwp-archive-cal-cell.empty { background: #f8fafc; }
-.drwp-archive-cal-cell.sun .drwp-archive-cal-day { color: #dc2626; }
-.drwp-archive-cal-cell.sat .drwp-archive-cal-day { color: #2563eb; }
-/* 当日セル — 一目で判別できるように:
-   - 背景をやや濃い水色 (#dbeafe)
-   - 青のリング (inset box-shadow)
-   - 日付丸を青ベタ
-   - 「今日」ピルは別要素 (.drwp-archive-cal-today-badge) で出す */
-.drwp-archive-cal-cell.today { background: #dbeafe; box-shadow: inset 0 0 0 2px #2563eb; }
-.drwp-archive-cal-cell.today .drwp-archive-cal-day {
-    background: #2563eb; color: #fff;
-    box-shadow: 0 1px 3px rgba(37, 99, 235, .35);
+.drwp-archive-cal-today:hover { background: #f7f6f3; }
+.drwp-archive-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.drwp-archive-cal-dow {
+    text-align: center; padding: 11px 0;
+    font-size: 13px; font-weight: 700;
+    color: #6b7280;
+    border-bottom: 1px solid #efedea;
+}
+.drwp-archive-cal-dow.sun { color: #DC2F2F; }
+.drwp-archive-cal-dow.sat { color: #2563EB; }
+/* セル本体 — 1 日分の枠。モックの値に合わせて min-height 172px、
+   薄い白背景、両隣との境界は淡いベージュ寄りグレーで区切る。 */
+.drwp-archive-cal-cell {
+    background: #fff;
+    min-height: 172px;
+    padding: 9px 9px 11px;
+    display: flex; flex-direction: column; gap: 5px;
+    position: relative;
+    border-right: 1px solid #efedea;
+    border-bottom: 1px solid #efedea;
+}
+.drwp-archive-cal-cell.empty { background: #FAF9F6; }
+.drwp-archive-cal-cell.sun .drwp-archive-cal-day { color: #DC2F2F; }
+.drwp-archive-cal-cell.sat .drwp-archive-cal-day { color: #2563EB; }
+/* 当日セル — 淡い青背景 + 青リング。 */
+.drwp-archive-cal-cell.today {
+    background: #F3F8FF;
+    box-shadow: inset 0 0 0 2px #2563EB;
+    z-index: 2;
 }
 
 /* セル上部 — 日付 / 今日バッジ / 要対応バッジを横並びに */
 .drwp-archive-cal-cell-head {
-    display: flex; align-items: center; gap: 6px;
-    margin-bottom: 3px;
+    display: flex; align-items: center; justify-content: space-between;
+    min-height: 24px;
 }
 .drwp-archive-cal-day {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 24px; height: 24px;
-    font-size: 0.82rem; font-weight: 600; border-radius: 50%;
-    color: #1e293b;
+    font-size: 15px; font-weight: 700;
+    color: #3f4856; padding-left: 2px;
+    font-variant-numeric: tabular-nums;
 }
-.drwp-archive-cal-today-badge {
-    padding: 1px 7px;
-    background: #2563eb; color: #fff;
-    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em;
-    border-radius: 999px; line-height: 1.5;
+/* 当日: 日付と「今日」を 1 つの青ピルにまとめる */
+.drwp-archive-cal-today-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px 3px 7px;
+    border-radius: 20px;
+    background: #2563EB; color: #fff;
+    font-size: 12px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
 }
+.drwp-archive-cal-today-pill small {
+    font-size: 10px; font-weight: 600; opacity: 0.95;
+}
+/* 要対応バッジ — 通常はアンバー、差戻し含まれる時だけ赤に */
 .drwp-archive-cal-needs-badge {
-    margin-left: auto;
-    padding: 1px 8px;
-    background: #ffedd5; color: #9a3412;
-    font-size: 0.68rem; font-weight: 700;
-    border-radius: 999px; line-height: 1.55;
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px;
+    background: #FFF1D9; color: #B8730A;
+    font-size: 10.5px; font-weight: 700;
+    border-radius: 20px; line-height: 1.55;
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.drwp-archive-cal-needs-badge.is-returned {
+    background: #FDECEC; color: #DC2F2F;
 }
 /* ============================================================
-   日報チップ (要対応 = pending / needs_revision / edit_requested)
+   要対応カード (.drwp-archive-cal-card)
    ============================================================
-   案件名・時刻は status に依らず常に黒文字で読みやすく。
-   塗り背景と左ボーダーで status を区別、ステータスラベルは
-   背景なし + 太字 + status カラー で控えめに目立たせる。 */
-.drwp-archive-cal-chip {
-    display: block;
-    width: 100%; margin-top: 0;
-    padding: 5px 9px;
-    border: 0; border-left: 3px solid #94a3b8;
-    border-radius: 5px;
-    background: #f1f5f9; color: #1e293b;
-    /* `font-family: inherit` だけ親から取る。`font: inherit` の
-       ショートハンドだと font-size まで継承されて、ボタンが
-       親要素のフォントサイズで巨大化するので絶対に使わない。 */
+   pending / needs_revision / edit_requested を塗りカードで表示。
+   背景は淡色、左ボーダー 3px の status カラー、案件名は黒太字、
+   時刻はミュート、ステータスラベルは背景なしの太字 status カラー。 */
+.mono { font-variant-numeric: tabular-nums; }
+
+.drwp-archive-cal-card {
+    display: flex; flex-direction: column; gap: 2px;
+    width: 100%; margin: 0;
+    padding: 6px 8px;
+    border: 1px solid #ededeb; border-radius: 8px;
+    background: #fff; color: #1f2937;
     font-family: inherit; font-size: 0.78rem;
-    text-decoration: none;
-    overflow: hidden;
     text-align: left; cursor: pointer;
-    box-sizing: border-box;
+    overflow: hidden; box-sizing: border-box;
 }
-.drwp-archive-cal-chip:hover { filter: brightness(0.96); }
-.drwp-archive-cal-chip.status-pending {
-    background: #ffedd5; border-left-color: #d97706;
+.drwp-archive-cal-card:hover { filter: brightness(0.985); }
+.drwp-archive-cal-card.status-pending {
+    background: #FFF5E3; border-left: 3px solid #D9820A;
 }
-.drwp-archive-cal-chip.status-needs_revision {
-    background: #fee2e2; border-left-color: #dc2626;
+.drwp-archive-cal-card.status-needs_revision {
+    background: #FDECEC; border-left: 3px solid #DC2F2F;
 }
-.drwp-archive-cal-chip.status-edit_requested {
-    background: #dbeafe; border-left-color: #2563eb;
+.drwp-archive-cal-card.status-edit_requested {
+    background: #ECF1FE; border-left: 3px solid #2563EB;
 }
-.drwp-archive-cal-chip-text {
-    display: block;
-    font-size: 0.95em; line-height: 1.25;
-    font-weight: 700;
-    color: #1f2937;
+.drwp-archive-cal-card-title {
+    font-size: 12.5px; font-weight: 600;
+    color: #1f2937; line-height: 1.25;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.drwp-archive-cal-chip-meta {
-    display: flex; align-items: center; gap: 8px;
-    margin-top: 2px;
-    font-size: 0.82em; line-height: 1.2;
+.drwp-archive-cal-card-meta {
+    display: flex; align-items: center; gap: 7px;
 }
-.drwp-archive-cal-chip-time {
-    font-weight: 600; color: #1f2937; white-space: nowrap;
+.drwp-archive-cal-card-time {
+    font-size: 11px; color: #7c8694; font-weight: 500;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-/* ステータスラベル: 背景なし + 太字 + status カラー。塗りカードと
-   組み合わせて "目立つ + 主張しすぎない" バランス。 */
-.drwp-archive-cal-chip-status {
-    padding: 0; background: transparent;
-    font-weight: 700; font-size: 0.94em;
+.drwp-archive-cal-card-status {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.01em;
     color: #475569;
 }
-.drwp-archive-cal-chip.status-pending        .drwp-archive-cal-chip-status { color: #b45309; }
-.drwp-archive-cal-chip.status-needs_revision .drwp-archive-cal-chip-status { color: #b91c1c; }
-.drwp-archive-cal-chip.status-edit_requested .drwp-archive-cal-chip-status { color: #1d4ed8; }
+.drwp-archive-cal-card.status-pending        .drwp-archive-cal-card-status { color: #D9820A; }
+.drwp-archive-cal-card.status-needs_revision .drwp-archive-cal-card-status { color: #DC2F2F; }
+.drwp-archive-cal-card.status-edit_requested .drwp-archive-cal-card-status { color: #2563EB; }
 
 /* ============================================================
-   承認済み (status-approved) — 控えめなテキスト行 (塗りなし)
-   ============================================================ */
-.drwp-archive-cal-chip.is-compact {
-    background: transparent !important;
-    border-left: 0 !important;
-    padding: 3px 4px 3px 16px;
-    margin-top: 0;
-    color: #1e293b;
-    display: flex; align-items: baseline; gap: 6px;
-    position: relative;
+   完了 / 予定 1 行 (.drwp-archive-cal-line)
+   ============================================================
+   承認済み = ●緑丸 / 予定 = ○ 中抜き丸。ホバーで薄ベージュに浮く。 */
+.drwp-archive-cal-line {
+    display: flex; align-items: center; gap: 7px;
+    width: 100%; margin: 0;
+    padding: 3px 5px;
+    border: 0; border-radius: 6px;
+    background: transparent; color: #3f4856;
+    font-family: inherit; font-size: 0.78rem;
+    text-align: left; cursor: pointer;
+    overflow: hidden; box-sizing: border-box;
 }
-.drwp-archive-cal-chip.is-compact::before {
-    content: '';
-    position: absolute; left: 4px; top: 9px;
-    width: 7px; height: 7px; border-radius: 50%;
-    background: #059669;
+.drwp-archive-cal-line:hover { background: #f8f7f4; }
+.drwp-archive-cal-line-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex: none;
+    background: #94a3b8;
 }
-.drwp-archive-cal-chip.is-compact .drwp-archive-cal-chip-text {
-    flex: 1 1 auto;
-    font-weight: 500; font-size: 0.86em;
-    color: #1e293b;
+.drwp-archive-cal-line-approved .drwp-archive-cal-line-dot { background: #1C9C58; }
+.drwp-archive-cal-line-plan .drwp-archive-cal-line-dot {
+    background: #fff; box-shadow: inset 0 0 0 1.5px #9CA3AF;
 }
-.drwp-archive-cal-chip.is-compact .drwp-archive-cal-chip-meta {
-    margin-top: 0;
-    font-size: 0.82em; color: #475569;
+.drwp-archive-cal-line-plan.is-linked { color: #9b958a; }
+.drwp-archive-cal-line-plan.is-linked .drwp-archive-cal-line-dot {
+    box-shadow: inset 0 0 0 1.5px #cbd5e1;
 }
-.drwp-archive-cal-chip.is-compact .drwp-archive-cal-chip-time {
-    font-weight: 500; color: #475569;
+.drwp-archive-cal-line-title {
+    flex: 1 1 auto; min-width: 0;
+    font-size: 12px; color: #3f4856;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.drwp-archive-cal-line-time {
+    font-size: 10.5px; color: #a7a298; font-weight: 500;
+    font-variant-numeric: tabular-nums; flex: none;
 }
 
 @media (max-width: 640px) {
   .drwp-archive-cal-cell { min-height: 70px; padding: 4px; }
-  .drwp-archive-cal-chip,
-  .drwp-archive-cal-plan-chip { font-size: 0.72rem; padding: 3px 5px; }
-  /* 狭い画面ではステータスラベルを畳んで時刻だけにする。 */
-  .drwp-archive-cal-chip-status { display: none; }
+  .drwp-archive-cal-card { font-size: 0.72rem; padding: 4px 6px; }
+  .drwp-archive-cal-line { font-size: 0.72rem; padding: 2px 4px; }
+  .drwp-archive-cal-card-status { display: none; }
   .drwp-archive-cal-day { width: 22px; height: 22px; font-size: 0.78rem; }
 }
 
 /* Shared "+日報を書く" CTA */
 .drwp-archive-actions { margin: 0 0 12px; }
-.drwp-archive-new-btn { display: inline-block; padding: 10px 18px; background: #111827; color: #fff; border-radius: 10px; text-decoration: none; font-weight: 700; }
-.drwp-archive-new-btn:hover { background: #1f2937; color: #fff; }
+.drwp-archive-new-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 11px 18px; border: 0; border-radius: 10px;
+    background: #1f2937; color: #fff;
+    font-size: 14px; font-weight: 600; font-family: inherit;
+    text-decoration: none; cursor: pointer;
+}
+.drwp-archive-new-btn:hover { background: #0f172a; color: #fff; }
 /* Flash messages from the my-list view (.drwp-mform-status legacy class) */
 .drwp-mform-status.ok { padding: 10px 14px; background: #ecfdf5; border: 1px solid #86efac; color: #166534; border-radius: 10px; margin: 0 0 12px; font-weight: 600; }
 
@@ -1117,10 +1157,10 @@
    so it's clearly the planning action, distinct from the solid
    primary "日報を書く" CTA. */
 .drwp-archive-new-btn-secondary {
-    background: #fff; color: #15803d;
-    border: 1px solid #16a34a;
+    background: #fff; color: #1c9c58;
+    border: 1.5px solid #1c9c58;
 }
-.drwp-archive-new-btn-secondary:hover { background: #f0fdf4; }
+.drwp-archive-new-btn-secondary:hover { background: #f0faf4; color: #1c9c58; }
 
 /* Plan hint banner injected into the report form dialog when the
    user opened it by clicking a plan chip. */

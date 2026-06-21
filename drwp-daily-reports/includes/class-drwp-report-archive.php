@@ -690,7 +690,7 @@ class DRWP_Report_Archive {
               openReportFromPlan(listPlan);
               return;
             }
-            var planChip = e.target.closest('.drwp-archive-cal-plan-chip[data-plan-id]:not(.is-linked)');
+            var planChip = e.target.closest('.drwp-archive-cal-line-plan[data-plan-id]:not(.is-linked)');
             if (planChip) {
               e.preventDefault();
               openReportFromPlan(planChip);
@@ -703,7 +703,8 @@ class DRWP_Report_Archive {
               openView(listRow.dataset.id);
               return;
             }
-            var chip = e.target.closest('.drwp-archive-cal-chip[data-id]');
+            // カレンダーの日報チップ → 詳細モーダル (要対応カード or 承認済み行)
+            var chip = e.target.closest('.drwp-archive-cal-card[data-id], .drwp-archive-cal-line-approved[data-id]');
             if (chip) {
               e.preventDefault();
               openView(chip.dataset.id);
@@ -782,7 +783,7 @@ class DRWP_Report_Archive {
           // `DRWP_Plan::can_edit($plan)` が無理な書き込みを弾く。
           var draggingPlan = null;
           var moveErrMsg = <?php echo wp_json_encode(__('日付の変更に失敗しました', 'drwp-daily-reports')); ?>;
-          document.querySelectorAll('.drwp-archive-cal-plan-chip:not(.is-linked)').forEach(function (chip) {
+          document.querySelectorAll('.drwp-archive-cal-line-plan:not(.is-linked)').forEach(function (chip) {
             chip.setAttribute('draggable', 'true');
             chip.addEventListener('dragstart', function (e) {
               draggingPlan = chip;
@@ -925,7 +926,7 @@ class DRWP_Report_Archive {
             }, true);
           }
 
-          document.querySelectorAll('.drwp-archive-cal-plan-chip:not(.is-linked)').forEach(function (chip) {
+          document.querySelectorAll('.drwp-archive-cal-line-plan:not(.is-linked)').forEach(function (chip) {
             setupLongPress(chip, function () { openPlanEditDialog(chip); });
           });
 
@@ -1575,29 +1576,51 @@ class DRWP_Report_Archive {
 
               // 「要対応 N」 = approved 以外の日報数
               $cell_needs_action = 0;
+              $cell_has_returned = false;
               foreach ($items as $r) {
                   if ($r->review_status !== 'approved') $cell_needs_action++;
+                  if ($r->review_status === 'needs_revision') $cell_has_returned = true;
               }
-              // 表示順: 予定 → 日報 (報告の前にその日に「何を予定して
-              // いたか」が来る方が一日の見通しが立てやすい)
+
+              // 表示順 (ユーザー指定): 予定 → レビュー待ち → 編集依頼中
+              // → 差戻し → 承認済み。1 つの配列にまとめてキーで並べ替え。
+              $priority_map = [
+                  'plan'           => 0,
+                  'pending'        => 1,
+                  'edit_requested' => 2,
+                  'needs_revision' => 3,
+                  'approved'       => 4,
+              ];
               $combined = [];
-              foreach ($plan_items as $p) $combined[] = ['type' => 'plan',   'data' => $p];
-              foreach ($items as $r)      $combined[] = ['type' => 'report', 'data' => $r];
+              foreach ($plan_items as $p) {
+                  $combined[] = ['type' => 'plan', 'data' => $p, 'prio' => 0, 'time' => (string) ($p->started_at ?? '')];
+              }
+              foreach ($items as $r) {
+                  $st = (string) $r->review_status;
+                  $combined[] = [
+                      'type' => 'report', 'data' => $r,
+                      'prio' => $priority_map[$st] ?? 99,
+                      'time' => (string) ($r->started_at ?? ''),
+                  ];
+              }
+              usort($combined, function ($a, $b) {
+                  if ($a['prio'] !== $b['prio']) return $a['prio'] - $b['prio'];
+                  return strcmp($a['time'], $b['time']);
+              });
+
+              // 要対応バッジの色: 差戻しがあれば赤系、それ以外は橙系。
+              $needs_badge_cls = $cell_has_returned ? ' is-returned' : '';
             ?>
               <div class="<?php echo esc_attr($cell_cls); ?>" data-date="<?php echo esc_attr($date); ?>">
                 <div class="drwp-archive-cal-cell-head">
-                    <div class="drwp-archive-cal-day"><?php echo (int) $d; ?></div>
                     <?php if ($date === $today): ?>
-                        <span class="drwp-archive-cal-today-badge"><?php esc_html_e('今日', 'drwp-daily-reports'); ?></span>
+                        <span class="drwp-archive-cal-today-pill"><span class="mono"><?php echo (int) $d; ?></span><small><?php esc_html_e('今日', 'drwp-daily-reports'); ?></small></span>
+                    <?php else: ?>
+                        <span class="drwp-archive-cal-day"><?php echo (int) $d; ?></span>
                     <?php endif; ?>
                     <?php if ($cell_needs_action > 0): ?>
-                        <span class="drwp-archive-cal-needs-badge">
-                            <?php
-                            printf(
-                                esc_html__('要対応 %d', 'drwp-daily-reports'),
-                                (int) $cell_needs_action
-                            );
-                            ?>
+                        <span class="drwp-archive-cal-needs-badge<?php echo esc_attr($needs_badge_cls); ?>">
+                            <?php printf(esc_html__('要対応 %d', 'drwp-daily-reports'), (int) $cell_needs_action); ?>
                         </span>
                     <?php endif; ?>
                 </div>
@@ -1610,25 +1633,31 @@ class DRWP_Report_Archive {
                         $proj_name = $proj ? $proj->name : __('（案件未設定）', 'drwp-daily-reports');
                         $time = self::format_time_window($r->started_at ?? '', $r->ended_at ?? '');
                         $status_label = DRWP_Labels::review_status((string) $r->review_status);
-                        // 要対応系 (pending / needs_revision / edit_requested) は
-                        // 塗りカード型。承認済みは控えめなテキスト行 (.is-compact)
-                        // で「終わった案件」感を出して目立たなくする。
                         $is_approved = ((string) $r->review_status === 'approved');
-                ?>
-                  <button type="button" class="drwp-archive-cal-chip status-<?php echo esc_attr((string) $r->review_status); ?><?php echo $is_approved ? ' is-compact' : ''; ?>"
-                          data-id="<?php echo (int) $r->id; ?>"
-                          title="<?php echo esc_attr($proj_name . ($time ? ' / ' . $time : '') . ' / ' . $status_label); ?>">
-                    <span class="drwp-archive-cal-chip-text"><?php echo esc_html($proj_name); ?></span>
-                    <span class="drwp-archive-cal-chip-meta">
-                        <?php if ($time !== ''): ?><span class="drwp-archive-cal-chip-time"><?php echo esc_html(substr($time, 0, 5)); ?></span><?php endif; ?>
-                        <?php if (!$is_approved): ?>
-                            <span class="drwp-archive-cal-chip-status"><?php echo esc_html($status_label); ?></span>
+                        // 「要対応」 (pending / needs_revision / edit_requested)
+                        // は塗りカード型 (.ev-card)、承認済みは控えめなテキスト
+                        // 行型 (.ev-line) で「終わった案件」感を表現
+                        if ($is_approved): ?>
+                          <button type="button" class="drwp-archive-cal-line drwp-archive-cal-line-approved"
+                                  data-id="<?php echo (int) $r->id; ?>"
+                                  title="<?php echo esc_attr($proj_name . ($time ? ' / ' . $time : '') . ' / ' . $status_label); ?>">
+                            <span class="drwp-archive-cal-line-dot"></span>
+                            <span class="drwp-archive-cal-line-title"><?php echo esc_html($proj_name); ?></span>
+                            <?php if ($time !== ''): ?><span class="drwp-archive-cal-line-time mono"><?php echo esc_html(substr($time, 0, 5)); ?></span><?php endif; ?>
+                          </button>
+                        <?php else: ?>
+                          <button type="button" class="drwp-archive-cal-card status-<?php echo esc_attr((string) $r->review_status); ?>"
+                                  data-id="<?php echo (int) $r->id; ?>"
+                                  title="<?php echo esc_attr($proj_name . ($time ? ' / ' . $time : '') . ' / ' . $status_label); ?>">
+                            <span class="drwp-archive-cal-card-title"><?php echo esc_html($proj_name); ?></span>
+                            <span class="drwp-archive-cal-card-meta">
+                                <?php if ($time !== ''): ?><span class="drwp-archive-cal-card-time mono"><?php echo esc_html(substr($time, 0, 5)); ?></span><?php endif; ?>
+                                <span class="drwp-archive-cal-card-status"><?php echo esc_html($status_label); ?></span>
+                            </span>
+                          </button>
                         <?php endif; ?>
-                    </span>
-                  </button>
                 <?php else:
-                        // 予定。テキスト + 時刻 + ○ アイコンの控えめな
-                        // 1 行レイアウト。
+                        // 予定 — 1 行テキスト + ○ 中抜き丸の控えめ行
                         $pl = $entry['data'];
                         $pproj = $pl->project_id ? DRWP_Project::find((int) $pl->project_id) : null;
                         $pproj_name = $pproj ? $pproj->name : __('（案件未設定）', 'drwp-daily-reports');
@@ -1636,7 +1665,7 @@ class DRWP_Report_Archive {
                         $tip = __('予定', 'drwp-daily-reports') . ': ' . $pproj_name . ($ptime ? ' / ' . $ptime : '');
                         if (!empty($pl->linked_report_id)) $tip .= ' (' . __('日報 #', 'drwp-daily-reports') . (int) $pl->linked_report_id . ' に紐づき)';
                 ?>
-                  <button type="button" class="drwp-archive-cal-plan-chip is-compact<?php echo !empty($pl->linked_report_id) ? ' is-linked' : ''; ?>"
+                  <button type="button" class="drwp-archive-cal-line drwp-archive-cal-line-plan<?php echo !empty($pl->linked_report_id) ? ' is-linked' : ''; ?>"
                           data-plan-id="<?php echo (int) $pl->id; ?>"
                           data-plan-date="<?php echo esc_attr((string) $pl->planned_date); ?>"
                           data-plan-project-id="<?php echo (int) ($pl->project_id ?? 0); ?>"
@@ -1647,8 +1676,9 @@ class DRWP_Report_Archive {
                           data-plan-notes="<?php echo esc_attr((string) ($pl->notes ?? '')); ?>"
                           data-plan-linked="<?php echo (int) ($pl->linked_report_id ?? 0); ?>"
                           title="<?php echo esc_attr($tip); ?>">
-                    <span class="drwp-archive-cal-chip-text"><?php echo esc_html($pproj_name); ?></span>
-                    <?php if ($ptime !== ''): ?><span class="drwp-archive-cal-chip-time"><?php echo esc_html(substr($ptime, 0, 5)); ?></span><?php endif; ?>
+                    <span class="drwp-archive-cal-line-dot"></span>
+                    <span class="drwp-archive-cal-line-title"><?php echo esc_html($pproj_name); ?></span>
+                    <?php if ($ptime !== ''): ?><span class="drwp-archive-cal-line-time mono"><?php echo esc_html(substr($ptime, 0, 5)); ?></span><?php endif; ?>
                   </button>
                 <?php endif;
                 endforeach; ?>
