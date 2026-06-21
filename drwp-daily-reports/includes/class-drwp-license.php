@@ -102,9 +102,13 @@ class DRWP_License {
      */
     public static function plan_allows($feature) {
         if (!self::can_write()) return false;
+        // AI は basic / pro どちらも可能 (free は不可)。
+        // managed モード (運営契約) では月次回数がプラン依存:
+        // free=0 / basic=100 / pro=500 (ライセンスサーバ側で制御)。
+        // own モード (自前 API キー) では回数制限なし。
         $matrix = [
             'free'  => [],
-            'basic' => [],
+            'basic' => ['ai'],
             'pro'   => ['ai'],
         ];
         $plan = self::plan();
