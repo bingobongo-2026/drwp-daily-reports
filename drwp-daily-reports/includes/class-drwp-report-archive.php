@@ -1431,8 +1431,13 @@ class DRWP_Report_Archive {
                 $entries[] = ['kind' => 'plan', 'date' => (string) $pdate, 'time' => (string) ($pl->started_at ?? ''), 'row' => $pl];
             }
         }
+        // 既定の並びは「日付の降順 (新しい順)」。同日内は時刻昇順
+        // (古い時間が先) で安定。リストで日報を上から読んで「最新が
+        // 上にある」感覚を出す。
         usort($entries, function ($a, $b) {
-            return strcmp($a['date'], $b['date']) ?: strcmp($a['time'], $b['time']);
+            $d = strcmp($b['date'], $a['date']);
+            if ($d !== 0) return $d;
+            return strcmp($a['time'], $b['time']);
         });
 
         ob_start();
@@ -1446,32 +1451,36 @@ class DRWP_Report_Archive {
                 $dow_label  = ($dow >= 0) ? $weekdays[$dow] : '';
             ?>
             <?php if ($e['kind'] === 'plan'): ?>
+                <?php
+                  $pp = $row->project_id ? DRWP_Project::find((int) $row->project_id) : null;
+                  $pp_name = $pp ? (string) $pp->name : __('（案件未設定）', 'drwp-daily-reports');
+                  $ptime = self::format_time_window($row->started_at ?? '', $row->ended_at ?? '');
+                  $pnote = trim((string) ($row->notes ?? ''));
+                  if (mb_strlen($pnote) > 80) $pnote = mb_substr($pnote, 0, 80) . '…';
+                ?>
                 <button type="button" class="drwp-archive-list-row is-plan"
                         data-plan-id="<?php echo (int) $row->id; ?>"
                         data-plan-date="<?php echo esc_attr((string) $row->planned_date); ?>"
                         data-plan-project-id="<?php echo (int) ($row->project_id ?? 0); ?>"
-                        data-plan-project-name="<?php
-                            $pp = $row->project_id ? DRWP_Project::find((int) $row->project_id) : null;
-                            echo esc_attr($pp ? (string) $pp->name : __('（案件未設定）', 'drwp-daily-reports'));
-                        ?>"
+                        data-plan-project-name="<?php echo esc_attr($pp_name); ?>"
                         data-plan-user-id="<?php echo (int) ($row->user_id ?? 0); ?>"
                         data-plan-start="<?php echo esc_attr(substr((string) ($row->started_at ?? ''), 0, 5)); ?>"
                         data-plan-end="<?php echo esc_attr(substr((string) ($row->ended_at ?? ''), 0, 5)); ?>"
                         data-plan-notes="<?php echo esc_attr((string) ($row->notes ?? '')); ?>"
                         data-plan-linked="<?php echo (int) ($row->linked_report_id ?? 0); ?>">
-                    <span class="drwp-archive-list-date"><?php echo esc_html($date_label); ?>
-                        <small>(<?php echo esc_html($dow_label); ?>)</small></span>
-                    <span class="drwp-archive-list-badge is-plan-badge"><?php esc_html_e('予定', 'drwp-daily-reports'); ?></span>
-                    <?php $time = self::format_time_window($row->started_at ?? '', $row->ended_at ?? ''); ?>
-                    <span class="drwp-archive-list-time"><?php echo esc_html($time); ?></span>
-                    <?php
-                      $proj = $row->project_id ? DRWP_Project::find((int) $row->project_id) : null;
-                      $proj_name = $proj ? (string) $proj->name : __('（案件未設定）', 'drwp-daily-reports');
-                    ?>
-                    <span class="drwp-archive-list-project"><?php echo esc_html($proj_name); ?></span>
-                    <span class="drwp-archive-list-snippet">
-                        <?php echo esc_html(mb_substr((string) ($row->notes ?? ''), 0, 60)); ?>
+                    <span class="drwp-archive-list-date mono">
+                        <?php echo esc_html($date_label); ?>
+                        <small>(<?php echo esc_html($dow_label); ?>)</small>
                     </span>
+                    <span class="drwp-archive-list-badge is-plan-badge"><?php esc_html_e('予定', 'drwp-daily-reports'); ?></span>
+                    <span class="drwp-archive-list-main">
+                        <span class="drwp-archive-list-title"><?php echo esc_html($pp_name); ?></span>
+                        <?php if ($ptime !== ''): ?>
+                            <span class="drwp-archive-list-time mono"><?php echo esc_html($ptime); ?></span>
+                        <?php endif; ?>
+                    </span>
+                    <span class="drwp-archive-list-snippet"><?php echo esc_html($pnote); ?></span>
+                    <span class="drwp-archive-list-side"></span>
                 </button>
             <?php else:
                 $r = $row;
@@ -1481,21 +1490,27 @@ class DRWP_Report_Archive {
                 $status_label = DRWP_Labels::review_status((string) $r->review_status);
                 $author = DRWP_User::display_name((int) $r->user_id) ?: ('#' . (int) $r->user_id);
                 $snippet = trim((string) ($r->work_description ?? ''));
-                if (mb_strlen($snippet) > 70) $snippet = mb_substr($snippet, 0, 70) . '…';
+                if (mb_strlen($snippet) > 80) $snippet = mb_substr($snippet, 0, 80) . '…';
                 $issues = trim((string) ($r->issues ?? ''));
                 $photo_n = $photo_counts[(int) $r->id] ?? 0;
             ?>
                 <button type="button" class="drwp-archive-list-row drwp-archive-list-report status-<?php echo esc_attr((string) $r->review_status); ?>"
                         data-id="<?php echo (int) $r->id; ?>">
-                    <span class="drwp-archive-list-date"><?php echo esc_html($date_label); ?>
-                        <small>(<?php echo esc_html($dow_label); ?>)</small></span>
+                    <span class="drwp-archive-list-date mono">
+                        <?php echo esc_html($date_label); ?>
+                        <small>(<?php echo esc_html($dow_label); ?>)</small>
+                    </span>
                     <span class="drwp-archive-list-badge status-<?php echo esc_attr((string) $r->review_status); ?>">
                         <?php echo esc_html($status_label); ?>
                     </span>
-                    <span class="drwp-archive-list-time"><?php echo esc_html($time); ?></span>
-                    <span class="drwp-archive-list-project"><?php echo esc_html($proj_name); ?></span>
+                    <span class="drwp-archive-list-main">
+                        <span class="drwp-archive-list-title"><?php echo esc_html($proj_name); ?></span>
+                        <?php if ($time !== ''): ?>
+                            <span class="drwp-archive-list-time mono"><?php echo esc_html($time); ?></span>
+                        <?php endif; ?>
+                    </span>
                     <span class="drwp-archive-list-snippet"><?php echo esc_html($snippet); ?></span>
-                    <span class="drwp-archive-list-icons">
+                    <span class="drwp-archive-list-side">
                         <?php if ($photo_n > 0): ?>
                             <span class="drwp-archive-list-icon" title="<?php echo esc_attr(sprintf(__('写真 %d 枚', 'drwp-daily-reports'), $photo_n)); ?>">📷 <?php echo (int) $photo_n; ?></span>
                         <?php endif; ?>

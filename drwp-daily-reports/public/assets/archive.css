@@ -177,117 +177,113 @@
 /* 設計方針: 行は白背景でテキストが読みやすいことを最優先。状態は
    左 4px の枠線とバッジで示す。背景ベタ塗りはやらない (色弱の人に
    厳しい + 本文が背景に埋もれる)。 */
+/* ============================================================
+   日報リスト (.drwp-archive-list) — モック準拠
+   ============================================================
+   行: 96px (日付) | 102px (ステータス) | 312px (案件+時刻) |
+       1fr (説明) | auto (写真/作者)
+   左 3px の status accent カラーボーダー、下境界 1px #f1efe8 で
+   テーブル行のように繋がる見た目に。背景は淡色 tint。 */
 .drwp-archive-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    background: #fff;
+    border: 1px solid #e8e6e1;
+    border-radius: 14px;
+    overflow: hidden;
     margin: 8px 0 16px;
+    box-shadow: 0 1px 3px rgba(40, 35, 25, 0.04);
 }
 .drwp-archive-list-empty {
     text-align: center;
-    padding: 30px 12px;
-    color: #94a3b8;
-    background: #f8fafc;
-    border-radius: 6px;
-}
-
-/* `.drwp-archive-cal-chip` の status-* 背景色ルールがあとから上書き
-   してくるため、リスト行は & 二重指定で specificity を上げて確実に
-   白背景を保つ。 */
-.drwp-archive-list .drwp-archive-list-row,
-.drwp-archive-list .drwp-archive-list-row.status-pending,
-.drwp-archive-list .drwp-archive-list-row.status-approved,
-.drwp-archive-list .drwp-archive-list-row.status-needs_revision,
-.drwp-archive-list .drwp-archive-list-row.status-edit_requested,
-.drwp-archive-list .drwp-archive-list-row.is-plan {
+    padding: 50px 12px;
+    color: #9b958a;
     background: #fff;
-    color: #1f2937;
-}
-.drwp-archive-list .drwp-archive-list-row:hover {
-    background: #f8fafc;
-    color: #1f2937;
+    border-radius: 14px;
+    border: 1px solid #e8e6e1;
 }
 
-.drwp-archive-list-row {
+.drwp-archive-list .drwp-archive-list-row {
     display: grid;
-    grid-template-columns: 80px 96px 84px minmax(160px, 1.4fr) minmax(0, 2fr) auto;
+    grid-template-columns: 96px 102px 312px minmax(0, 1fr) auto;
     align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    border: 1px solid #e5e7eb;
-    border-left-width: 5px;
-    border-radius: 6px;
-    text-align: left;
-    font-size: 0.92rem;
-    line-height: 1.4;
-    cursor: pointer;
-    transition: background 0.1s, border-color 0.1s, box-shadow 0.1s;
-    width: 100%;
+    column-gap: 18px;
+    padding: 11px 16px;
+    border: 0; border-left: 3px solid #9aa3ab;
+    border-bottom: 1px solid #f1efe8;
+    background: #fff; color: #1f2937;
+    font-size: 13px; line-height: 1.4;
+    text-align: left; cursor: pointer; width: 100%;
+    transition: background 0.12s;
 }
-.drwp-archive-list .drwp-archive-list-row:hover {
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-}
-.drwp-archive-list-row.status-pending { border-left-color: #d97706; }
-.drwp-archive-list-row.status-approved { border-left-color: #059669; }
-.drwp-archive-list-row.status-needs_revision { border-left-color: #dc2626; }
-.drwp-archive-list-row.status-edit_requested { border-left-color: #2563eb; }
-.drwp-archive-list-row.is-plan {
-    border-left-color: #10b981;
-    border-style: dashed;
-    border-top-style: solid;
-    border-right-style: solid;
-    border-bottom-style: solid;
-}
+.drwp-archive-list .drwp-archive-list-row:last-child { border-bottom: 0; }
+.drwp-archive-list .drwp-archive-list-row:hover { background: #faf9f5; }
 
+/* status ごとの行アクセント (左ボーダー + 淡い背景 tint) */
+.drwp-archive-list-row.status-needs_revision { border-left-color: #e0413e; background: #fef9f9; }
+.drwp-archive-list-row.status-pending        { border-left-color: #e2920a; background: #fefcf6; }
+.drwp-archive-list-row.status-edit_requested { border-left-color: #2f6fe0; background: #f7faff; }
+.drwp-archive-list-row.is-plan               { border-left-color: #9aa3ab; background: #fafafa; }
+.drwp-archive-list-row.status-approved       { border-left-color: #1f9d5f; background: #f8fbf9; }
+.drwp-archive-list-row.status-needs_revision:hover { background: #fdf3f3; }
+.drwp-archive-list-row.status-pending:hover        { background: #fdf8ec; }
+.drwp-archive-list-row.status-edit_requested:hover { background: #f0f5ff; }
+.drwp-archive-list-row.is-plan:hover               { background: #f4f3f0; }
+.drwp-archive-list-row.status-approved:hover       { background: #f1f8f3; }
+
+/* 列 1: 日付 */
 .drwp-archive-list-date {
-    font-weight: 700;
-    color: #111827;
-    white-space: nowrap;
-    font-size: 0.95rem;
+    font-weight: 700; color: #1f2937;
+    white-space: nowrap; font-size: 14px;
+    font-variant-numeric: tabular-nums;
 }
-.drwp-archive-list-date small { font-weight: 500; color: #64748b; font-size: 0.85em; margin-left: 2px; }
+.drwp-archive-list-date small {
+    font-weight: 500; color: #7c8694;
+    font-size: 12px; margin-left: 3px;
+}
 
+/* 列 2: status バッジ — 淡背景 + 濃色文字 + 太字 */
 .drwp-archive-list-badge {
-    display: inline-block;
-    padding: 2px 10px;
-    border-radius: 999px;
-    font-size: 0.76rem;
-    font-weight: 700;
+    display: inline-block; justify-self: start;
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 700;
     text-align: center;
-    background: #e5e7eb;
-    color: #1f2937;
-    white-space: nowrap;
-    letter-spacing: 0.02em;
+    background: #eef0f2; color: #5d6770;
+    white-space: nowrap; letter-spacing: 0.02em;
 }
-.drwp-archive-list-badge.status-pending { background: #fef3c7; color: #92400e; }
-.drwp-archive-list-badge.status-approved { background: #d1fae5; color: #065f46; }
-.drwp-archive-list-badge.status-needs_revision { background: #fee2e2; color: #991b1b; }
-.drwp-archive-list-badge.status-edit_requested { background: #dbeafe; color: #1e40af; }
-.drwp-archive-list-badge.is-plan-badge { background: #ecfdf5; color: #065f46; border: 1px solid #6ee7b7; }
+.drwp-archive-list-badge.status-needs_revision { background: #fde7e7; color: #c0322f; }
+.drwp-archive-list-badge.status-pending        { background: #fbf0d7; color: #b3720a; }
+.drwp-archive-list-badge.status-edit_requested { background: #e6efff; color: #2456b8; }
+.drwp-archive-list-badge.status-approved       { background: #e2f4ea; color: #157a48; }
+.drwp-archive-list-badge.is-plan-badge         { background: #eef0f2; color: #5d6770; }
 
+/* 列 3: 案件名 + 時刻 — 1 行で並列、案件名フル幅、時刻ミュート */
+.drwp-archive-list-main {
+    display: flex; align-items: center; gap: 12px;
+    min-width: 0;
+}
+.drwp-archive-list-title {
+    flex: 1 1 auto; min-width: 0;
+    font-weight: 600; color: #1f2937;
+    font-size: 13.5px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .drwp-archive-list-time {
-    color: #475569;
+    flex: 0 0 auto;
+    color: #7c8694;
+    font-size: 12px; font-weight: 500;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
-    font-size: 0.87rem;
 }
-.drwp-archive-list-project {
-    font-weight: 600;
-    color: #111827;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
+
+/* 列 4: 説明 */
 .drwp-archive-list-snippet {
-    color: #475569;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 0.88rem;
+    color: #5d6770;
+    font-size: 12.5px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.drwp-archive-list-icons {
-    display: inline-flex;
-    align-items: center;
+
+/* 列 5: アイコン + 作者 */
+.drwp-archive-list-side {
+    display: inline-flex; align-items: center;
     gap: 10px;
     white-space: nowrap;
     color: #64748b;
@@ -302,27 +298,22 @@
     border-radius: 999px;
 }
 
-/* スマホ幅: 2 段組に折り返してスクロール量を抑える。 */
-@media (max-width: 640px) {
-    .drwp-archive-list-row {
-        grid-template-columns: 60px 90px 1fr auto;
+/* スマホ幅: 行内グリッドを 2 段組に折り返す */
+@media (max-width: 900px) {
+    .drwp-archive-list .drwp-archive-list-row {
+        grid-template-columns: 72px 90px 1fr auto;
         grid-template-rows: auto auto;
-        gap: 6px 10px;
+        gap: 6px 12px;
+        padding: 10px 14px;
     }
     .drwp-archive-list-date { grid-row: 1; }
     .drwp-archive-list-badge { grid-row: 1; }
-    .drwp-archive-list-time { grid-row: 1; color: #475569; }
-    .drwp-archive-list-icons { grid-row: 1; }
-    .drwp-archive-list-project {
-        grid-row: 2;
-        grid-column: 1 / -1;
-    }
+    .drwp-archive-list-main { grid-row: 1; grid-column: 3 / -1; }
     .drwp-archive-list-snippet {
-        grid-row: 3;
-        grid-column: 1 / -1;
-        white-space: normal;
-        line-height: 1.5;
+        grid-row: 2; grid-column: 1 / -1;
+        white-space: normal; line-height: 1.5;
     }
+    .drwp-archive-list-side { grid-row: 1; }
 }
 
 /* ---- List ---- */
