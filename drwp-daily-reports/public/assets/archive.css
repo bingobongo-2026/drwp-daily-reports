@@ -82,6 +82,40 @@
     font: inherit;
     font-size: 0.95rem;
 }
+/* ---- Date range presets (リスト表示の期間絞り込み) ----
+   date 入力 2 つと並べる小さなピル群。クリックで URL に
+   drwp_from / drwp_to を載せるだけのリンク。 */
+.drwp-archive-filter-range {
+    align-items: flex-end;
+}
+.drwp-archive-range-presets {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-self: flex-end;
+    padding-bottom: 1px;
+}
+.drwp-archive-range-preset {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 11px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4b5563;
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid #d6d3cd;
+    border-radius: 999px;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background-color .15s, color .15s, border-color .15s;
+}
+.drwp-archive-range-preset:hover {
+    color: #1f2937;
+    background: #f8f7f3;
+    border-color: #b8b4ac;
+}
+
 .drwp-archive-submit {
     padding: 10px 20px;
     border: 0;

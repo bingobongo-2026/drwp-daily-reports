@@ -1045,8 +1045,32 @@ class DRWP_Report_Archive {
         $next_month  = date('Y-m', strtotime($month_start . ' +1 month'));
         $today_month = current_time('Y-m');
 
+        // 日付範囲 (リストビュー専用)。?drwp_from / ?drwp_to が指定されて
+        // いるとき、リスト表示では月単位の絞り込みを無視してこの範囲で
+        // クエリを発行する。カレンダーは月グリッドが前提なので無視。
+        $from_raw = isset($_GET['drwp_from']) ? sanitize_text_field((string) $_GET['drwp_from']) : '';
+        $to_raw   = isset($_GET['drwp_to'])   ? sanitize_text_field((string) $_GET['drwp_to'])   : '';
+        $range_from = preg_match('/^\d{4}-\d{2}-\d{2}$/', $from_raw) ? $from_raw : '';
+        $range_to   = preg_match('/^\d{4}-\d{2}-\d{2}$/', $to_raw)   ? $to_raw   : '';
+        // 片方だけ指定された場合の補完: from だけ -> to は今日、
+        // to だけ -> from は to の 30 日前。利用者が「ここから今まで」
+        // をやりがちなので、from だけのケースを優先サポートする。
+        if ($range_from !== '' && $range_to === '') {
+            $range_to = current_time('Y-m-d');
+        }
+        if ($range_to !== '' && $range_from === '') {
+            $range_from = date('Y-m-d', strtotime($range_to . ' -30 days'));
+        }
+        // from > to の入れ違いはひっくり返して保護
+        if ($range_from !== '' && $range_to !== '' && strcmp($range_from, $range_to) > 0) {
+            [$range_from, $range_to] = [$range_to, $range_from];
+        }
+        $use_range = ($view === 'list' && $range_from !== '' && $range_to !== '');
+        $q_start = $use_range ? $range_from : $month_start;
+        $q_end   = $use_range ? $range_to   : $month_end;
+
         $where = ['r.report_date >= %s', 'r.report_date <= %s'];
-        $args  = [$month_start, $month_end];
+        $args  = [$q_start, $q_end];
         if ($opts['user_id']) {
             $where[] = 'r.user_id = %d';
             $args[]  = (int) $opts['user_id'];
@@ -1078,7 +1102,7 @@ class DRWP_Report_Archive {
         // either to the toggled "自分のみ" view or the default
         // worker/operator rule. Operators get every active plan;
         // workers get the ones they own or were assigned.
-        $plans = DRWP_Plan::for_archive_month($month_start, $month_end, (bool) $opts['user_id']);
+        $plans = DRWP_Plan::for_archive_month($q_start, $q_end, (bool) $opts['user_id']);
         $plans_by_date = [];
         foreach ($plans as $pl) {
             $plans_by_date[(string) $pl->planned_date][] = $pl;
@@ -1191,7 +1215,7 @@ class DRWP_Report_Archive {
                 </div>
             </header>
 
-            <?php echo self::render_filter_form($q, $project, $status, $month_param, $projects, !empty($_GET['drwp_mine'])); ?>
+            <?php echo self::render_filter_form($q, $project, $status, $month_param, $projects, !empty($_GET['drwp_mine']), $view, $range_from, $range_to); ?>
 
             <?php
             $total_count = count($rows);
@@ -1199,11 +1223,20 @@ class DRWP_Report_Archive {
             if ($view === 'list'): ?>
                 <div class="drwp-archive-toolbar">
                     <p class="drwp-archive-summary">
-                        <?php printf(
-                            esc_html__('%1$s（%2$d 件）', 'drwp-daily-reports'),
-                            esc_html(date_i18n('Y年n月', strtotime($month_start))),
-                            $total_count
-                        ); ?>
+                        <?php if ($use_range): ?>
+                            <?php printf(
+                                esc_html__('%1$s 〜 %2$s（%3$d 件）', 'drwp-daily-reports'),
+                                esc_html(date_i18n('Y/n/j', strtotime($q_start))),
+                                esc_html(date_i18n('Y/n/j', strtotime($q_end))),
+                                $total_count
+                            ); ?>
+                        <?php else: ?>
+                            <?php printf(
+                                esc_html__('%1$s（%2$d 件）', 'drwp-daily-reports'),
+                                esc_html(date_i18n('Y年n月', strtotime($month_start))),
+                                $total_count
+                            ); ?>
+                        <?php endif; ?>
                     </p>
                     <div class="drwp-archive-toolbar-actions">
                         <?php echo self::render_sort_toggle($sort); ?>
@@ -1236,7 +1269,7 @@ class DRWP_Report_Archive {
         return $projects;
     }
 
-    private static function render_filter_form($q, $project, $status, $month_param, $projects, $mine = false) {
+    private static function render_filter_form($q, $project, $status, $month_param, $projects, $mine = false, $view = 'calendar', $range_from = '', $range_to = '') {
         // On non-permalink sites the page is identified by ?page_id=N
         // (or similar). A GET form replaces the entire query string
         // with its form fields, so those external params would be lost
@@ -1247,14 +1280,14 @@ class DRWP_Report_Archive {
         $drwp_keys = ['drwp_q', 'drwp_project', 'drwp_status', 'drwp_month',
                       'drwp_mine', 'drwp_id', 'drwp_edit', 'drwp_new',
                       'drwp_saved', 'drwp_requested', 'drwp_err', 'drwp_p', 'drwp_per',
-                      'drwp_view', 'drwp_sort'];
+                      'drwp_view', 'drwp_sort', 'drwp_from', 'drwp_to'];
         $preserve = [];
         foreach ($current_query as $k => $v) {
             if (!in_array($k, $drwp_keys, true) && is_scalar($v)) {
                 $preserve[$k] = (string) $v;
             }
         }
-        $reset_url = remove_query_arg(['drwp_q', 'drwp_project', 'drwp_status', 'drwp_month', 'drwp_mine'], $_SERVER['REQUEST_URI'] ?? '');
+        $reset_url = remove_query_arg(['drwp_q', 'drwp_project', 'drwp_status', 'drwp_month', 'drwp_mine', 'drwp_from', 'drwp_to'], $_SERVER['REQUEST_URI'] ?? '');
 
         $statuses = [
             ''                   => __('すべて', 'drwp-daily-reports'),
@@ -1266,7 +1299,7 @@ class DRWP_Report_Archive {
         // active so the user can see why the list looks scoped
         // without having to click through. Default closed otherwise
         // so the calendar gets more vertical space.
-        $has_filters = ($q !== '') || $project || ($status !== '') || $mine;
+        $has_filters = ($q !== '') || $project || ($status !== '') || $mine || ($range_from !== '') || ($range_to !== '');
         ob_start();
         ?>
         <details class="drwp-archive-filter-card" <?php echo $has_filters ? 'open' : ''; ?>>
@@ -1321,6 +1354,42 @@ class DRWP_Report_Archive {
                     </label>
                     <?php endif; ?>
                 </div>
+                <?php if ($view === 'list'):
+                    // リストビュー専用: 日付範囲。空のまま送信されると month
+                    // 単位の既定 (例: 今月) に戻る。プリセットは form-submit
+                    // 不要の <a> で URL に直接 drwp_from / drwp_to を載せる。
+                    $today  = current_time('Y-m-d');
+                    $base_uri = $_SERVER['REQUEST_URI'] ?? '';
+                    $preset_url = function ($from, $to) use ($base_uri) {
+                        return esc_url(add_query_arg([
+                            'drwp_from' => $from,
+                            'drwp_to'   => $to,
+                            // 月切替を消して範囲側を効かせる
+                            'drwp_month' => false,
+                        ], $base_uri));
+                    };
+                    $first_of_month = current_time('Y-m') . '-01';
+                    $first_of_prev  = date('Y-m-01', strtotime($first_of_month . ' -1 month'));
+                    $last_of_prev   = date('Y-m-t',  strtotime($first_of_prev));
+                ?>
+                <div class="drwp-archive-filter-row drwp-archive-filter-range">
+                    <label class="drwp-archive-field">
+                        <span><?php esc_html_e('開始日', 'drwp-daily-reports'); ?></span>
+                        <input type="date" name="drwp_from" value="<?php echo esc_attr($range_from); ?>" />
+                    </label>
+                    <label class="drwp-archive-field">
+                        <span><?php esc_html_e('終了日', 'drwp-daily-reports'); ?></span>
+                        <input type="date" name="drwp_to" value="<?php echo esc_attr($range_to); ?>" />
+                    </label>
+                    <div class="drwp-archive-range-presets" role="group" aria-label="<?php esc_attr_e('期間プリセット', 'drwp-daily-reports'); ?>">
+                        <a class="drwp-archive-range-preset" href="<?php echo $preset_url(date('Y-m-d', strtotime($today . ' -6 days')), $today); ?>"><?php esc_html_e('直近7日', 'drwp-daily-reports'); ?></a>
+                        <a class="drwp-archive-range-preset" href="<?php echo $preset_url(date('Y-m-d', strtotime($today . ' -29 days')), $today); ?>"><?php esc_html_e('直近30日', 'drwp-daily-reports'); ?></a>
+                        <a class="drwp-archive-range-preset" href="<?php echo $preset_url(date('Y-m-d', strtotime($today . ' -89 days')), $today); ?>"><?php esc_html_e('直近90日', 'drwp-daily-reports'); ?></a>
+                        <a class="drwp-archive-range-preset" href="<?php echo $preset_url($first_of_month, $today); ?>"><?php esc_html_e('今月', 'drwp-daily-reports'); ?></a>
+                        <a class="drwp-archive-range-preset" href="<?php echo $preset_url($first_of_prev, $last_of_prev); ?>"><?php esc_html_e('先月', 'drwp-daily-reports'); ?></a>
+                    </div>
+                </div>
+                <?php endif; ?>
                 <div class="drwp-archive-filter-row">
                     <button type="submit" class="drwp-archive-submit">
                         <?php esc_html_e('絞り込み', 'drwp-daily-reports'); ?>
