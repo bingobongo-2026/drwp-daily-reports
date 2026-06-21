@@ -1610,17 +1610,20 @@ class DRWP_Report_Archive {
                         $proj_name = $proj ? $proj->name : __('（案件未設定）', 'drwp-daily-reports');
                         $time = self::format_time_window($r->started_at ?? '', $r->ended_at ?? '');
                         $status_label = DRWP_Labels::review_status((string) $r->review_status);
-                        // 全 status で同じ「塗りカード + 案件名(太字) +
-                        // 時刻 + ステータスピル」のレイアウトに統一する。
-                        // approved も同形 (緑系の塗りで承認済みピル付き)。
+                        // 要対応系 (pending / needs_revision / edit_requested) は
+                        // 塗りカード型。承認済みは控えめなテキスト行 (.is-compact)
+                        // で「終わった案件」感を出して目立たなくする。
+                        $is_approved = ((string) $r->review_status === 'approved');
                 ?>
-                  <button type="button" class="drwp-archive-cal-chip status-<?php echo esc_attr((string) $r->review_status); ?>"
+                  <button type="button" class="drwp-archive-cal-chip status-<?php echo esc_attr((string) $r->review_status); ?><?php echo $is_approved ? ' is-compact' : ''; ?>"
                           data-id="<?php echo (int) $r->id; ?>"
                           title="<?php echo esc_attr($proj_name . ($time ? ' / ' . $time : '') . ' / ' . $status_label); ?>">
                     <span class="drwp-archive-cal-chip-text"><?php echo esc_html($proj_name); ?></span>
                     <span class="drwp-archive-cal-chip-meta">
                         <?php if ($time !== ''): ?><span class="drwp-archive-cal-chip-time"><?php echo esc_html(substr($time, 0, 5)); ?></span><?php endif; ?>
-                        <span class="drwp-archive-cal-chip-status"><?php echo esc_html($status_label); ?></span>
+                        <?php if (!$is_approved): ?>
+                            <span class="drwp-archive-cal-chip-status"><?php echo esc_html($status_label); ?></span>
+                        <?php endif; ?>
                     </span>
                   </button>
                 <?php else:
