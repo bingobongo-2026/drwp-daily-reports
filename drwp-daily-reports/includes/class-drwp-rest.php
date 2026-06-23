@@ -392,6 +392,10 @@ class DRWP_REST {
             $photos[] = [
                 'attachment_id' => (int) $ph->attachment_id,
                 'url'           => $thumb,
+                // full_url はモザイク編集 (Canvas) のソースに使う。元の
+                // アスペクト比を保つため medium (リサイズ済み) ではなく
+                // オリジナルを返す。
+                'full_url'      => wp_get_attachment_url((int) $ph->attachment_id),
                 'caption'       => (string) ($ph->caption ?? ''),
                 'kind'          => DRWP_Media::normalize_kind($ph->photo_kind ?? ''),
             ];

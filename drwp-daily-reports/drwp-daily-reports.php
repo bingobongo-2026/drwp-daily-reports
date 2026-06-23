@@ -3,7 +3,7 @@
  * Plugin Name: 日報マン
  * Plugin URI: https://nippoman.example.com/
  * Description: 現場日報のレビュー・写真添付・公開記事化を一体化したライセンス制プラグイン。ライセンスサーバと連動して書込・記事化を有効化します。
- * Version: 1.53.2
+ * Version: 1.53.3
  * Author: 日報マン
  * Author URI: https://nippoman.example.com/
  * Text Domain: drwp-daily-reports
@@ -27,7 +27,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('DRWP_VERSION', '1.53.2');
+define('DRWP_VERSION', '1.53.3');
 define('DRWP_PATH', plugin_dir_path(__FILE__));
 define('DRWP_URL', plugin_dir_url(__FILE__));
 

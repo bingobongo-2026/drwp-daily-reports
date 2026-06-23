@@ -548,7 +548,7 @@ class DRWP_Report_Archive {
             html += '<span><?php echo esc_js(__('写真', 'drwp-daily-reports')); ?></span>';
             html += '<div class="drwp-archive-inline-photos" data-role="photos">';
             (d.photos || []).forEach(function (p) {
-              html += renderEditPhoto(p.attachment_id, p.url, p.caption || '');
+              html += renderEditPhoto(p.attachment_id, p.url, p.caption || '', p.full_url || p.url);
             });
             html += '</div>';
             html += '<label class="drwp-archive-inline-photo-pick">+ <?php echo esc_js(__('写真を追加', 'drwp-daily-reports')); ?>'
@@ -569,8 +569,13 @@ class DRWP_Report_Archive {
             if (window.DRWP_Combo) window.DRWP_Combo.enhance(viewBody);
           }
 
-          function renderEditPhoto(id, url, caption) {
-            return '<div class="drwp-archive-inline-photo-item" data-url="' + esc(url) + '">'
+          function renderEditPhoto(id, url, caption, fullUrl) {
+            // url = サムネ表示用 (WP medium / thumbnail)
+            // fullUrl = モザイク編集用のオリジナル (アスペクト比を保つため)
+            //   WP thumbnail は 150x150 ハードクロップなので、ぼかし
+            //   ソースにそれを使うと画像が正方形に切れる事故が出る。
+            var fu = fullUrl || url;
+            return '<div class="drwp-archive-inline-photo-item" data-url="' + esc(url) + '" data-full-url="' + esc(fu) + '">'
                  + '<img src="' + esc(url) + '" alt="" />'
                  + '<input type="hidden" name="attachment_ids[]" value="' + esc(id) + '" />'
                  + '<input type="text" name="attachment_captions[]" placeholder="<?php echo esc_js(__('キャプション', 'drwp-daily-reports')); ?>" value="' + esc(caption) + '" />'
@@ -616,7 +621,10 @@ class DRWP_Report_Archive {
               // 上書きはせず「新しい添付」として作る方が安全。
               var item = e.target.closest('.drwp-archive-inline-photo-item');
               if (!item || !window.DRWP_Mosaic) return;
-              var url = item.dataset.url || (item.querySelector('img') || {}).src;
+              // モザイク編集はオリジナル (data-full-url) で開く。サムネ
+              // URL (data-url) は WP の hard-crop された thumbnail だと
+              // 正方形に切れて困るので、フル URL を優先する。
+              var url = item.dataset.fullUrl || item.dataset.url || (item.querySelector('img') || {}).src;
               if (!url) return;
               var btn = e.target;
               btn.disabled = true;
@@ -638,9 +646,11 @@ class DRWP_Report_Archive {
                     var img = item.querySelector('img');
                     var hidden = item.querySelector('input[name="attachment_ids[]"]');
                     var newUrl = j.thumbnail_url || j.full_url || '';
+                    var newFull = j.full_url || j.thumbnail_url || '';
                     if (img && newUrl) img.src = newUrl;
                     if (hidden) hidden.value = String(j.id);
                     item.dataset.url = newUrl;
+                    item.dataset.fullUrl = newFull;
                     btn.disabled = false;
                   }).catch(function (err) {
                     alert((err && err.message) || '<?php echo esc_js(__('アップロード失敗', 'drwp-daily-reports')); ?>');
@@ -672,7 +682,7 @@ class DRWP_Report_Archive {
               if (status) status.textContent = '<?php echo esc_js(__('アップロード中…', 'drwp-daily-reports')); ?> (' + i + '/' + files.length + ')';
               uploadPhoto(f).then(function (j) {
                 var tmp = document.createElement('div');
-                tmp.innerHTML = renderEditPhoto(j.id, j.thumbnail_url || j.full_url || '', '');
+                tmp.innerHTML = renderEditPhoto(j.id, j.thumbnail_url || j.full_url || '', '', j.full_url || j.thumbnail_url || '');
                 photoList.appendChild(tmp.firstChild);
                 next();
               }).catch(function (err) {
