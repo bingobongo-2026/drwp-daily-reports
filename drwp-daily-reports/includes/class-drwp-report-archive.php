@@ -239,6 +239,12 @@ class DRWP_Report_Archive {
             'projects'  => $project_list,
             'recentProjectIds' => array_values(array_map('intval', $recent_project_ids)),
             'canAssignPlans' => $can_assign_plans,
+            // 「自分以外の日報も編集できる」事務所権限。レビュー権限と
+            // 同じ判定 (edit_others_posts)。UI 側で「他人の日報の編集
+            // ボタンを隠す/出す」の判定に使う。サーバ側 (PATCH) は
+            // 別途 can_edit_one でガード済み。
+            'canEditOthers' => current_user_can('edit_others_posts'),
+            'currentUserId' => (int) get_current_user_id(),
             // The archive's edit flow uses ?drwp_id=N&drwp_edit=1
             // (see shortcode() dispatch); we build a link template
             // with __ID__ that JS replaces per-report.
@@ -456,9 +462,13 @@ class DRWP_Report_Archive {
 
             // pending (レビュー待ち) と needs_revision (差戻し) は
             // 投稿者がまだ自力で修正できる状態なので、両方で「編集
-            // する」ボタンを出す。実際の本人チェックは PATCH 側で
-            // 行うので、ここは UI 上の見せ方だけ。
-            if ((d.review_status === 'pending' || d.review_status === 'needs_revision') && !cfg.isRetired) {
+            // する」ボタンを出す。投稿者本人 (= user_id 一致) または
+            // 事務所 (edit_others_posts) のみ。他社員には出さない
+            // (他人の日報は閲覧のみで編集不可)。
+            var canEdit = !cfg.isRetired
+                       && (d.review_status === 'pending' || d.review_status === 'needs_revision')
+                       && (cfg.canEditOthers || Number(d.user_id) === Number(cfg.currentUserId));
+            if (canEdit) {
               html += '<div class="drwp-archive-view-actions">';
               html += '<button type="button" class="drwp-archive-new-btn" data-action="enter-edit">'
                     + '<?php echo esc_js(__('編集する', 'drwp-daily-reports')); ?></button>';
@@ -1207,11 +1217,35 @@ class DRWP_Report_Archive {
             $by_date[(string) $r->report_date][] = $r;
         }
 
-        // 予定オーバーレイ — same month window, visibility scoped
+        // 予定オーバーレイ — same date window, visibility scoped
         // either to the toggled "自分のみ" view or the default
         // worker/operator rule. Operators get every active plan;
         // workers get the ones they own or were assigned.
         $plans = DRWP_Plan::for_archive_month($q_start, $q_end, (bool) $opts['user_id']);
+        // 絞り込み条件を予定にも適用する。元の実装では予定だけ全件
+        // 出ていて「案件で絞り込んだのに違う案件の予定が混ざる」
+        // 不具合になっていた。
+        // - project: 予定にも project_id があるので同じ ID だけ残す
+        // - status:  予定にレビュー状態は無いので、ステータス絞り込みの
+        //            時は予定を一律で隠す (差戻し / 承認済み だけ見たい
+        //            状況で予定が混ざっても役に立たない)
+        // - q (キーワード): 予定の notes に対して同じ LIKE を掛ける
+        if ($project) {
+            $plans = array_values(array_filter($plans, function ($pl) use ($project) {
+                return (int) ($pl->project_id ?? 0) === (int) $project;
+            }));
+        }
+        if ($status && in_array($status, ['pending', 'approved', 'needs_revision', 'edit_requested'], true)) {
+            $plans = [];
+        }
+        if ($q !== '') {
+            $needle = function_exists('mb_strtolower') ? mb_strtolower($q) : strtolower($q);
+            $plans = array_values(array_filter($plans, function ($pl) use ($needle) {
+                $notes = (string) ($pl->notes ?? '');
+                $hay = function_exists('mb_strtolower') ? mb_strtolower($notes) : strtolower($notes);
+                return $needle === '' || strpos($hay, $needle) !== false;
+            }));
+        }
         $plans_by_date = [];
         foreach ($plans as $pl) {
             $plans_by_date[(string) $pl->planned_date][] = $pl;
