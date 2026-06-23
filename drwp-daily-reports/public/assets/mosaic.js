@@ -45,8 +45,10 @@
           +     '</div>'
           +     '<div class="drwp-mosaic-body">'
           +       '<div class="drwp-mosaic-canvas-wrap" data-role="wrap">'
-          +         '<canvas class="drwp-mosaic-canvas" data-role="canvas"></canvas>'
-          +         '<canvas class="drwp-mosaic-overlay-canvas" data-role="overlay"></canvas>'
+          +         '<div class="drwp-mosaic-canvas-stack" data-role="stack">'
+          +           '<canvas class="drwp-mosaic-canvas" data-role="canvas"></canvas>'
+          +           '<canvas class="drwp-mosaic-overlay-canvas" data-role="overlay"></canvas>'
+          +         '</div>'
           +       '</div>'
           +       '<p class="drwp-mosaic-hint">'
           +         'ぼかしたい部分をドラッグで囲んでください。複数の範囲を追加できます。'
@@ -82,6 +84,7 @@
         });
 
         var wrap     = overlay.querySelector('[data-role=wrap]');
+        var stack    = overlay.querySelector('[data-role=stack]');
         var base     = overlay.querySelector('[data-role=canvas]');
         var overlayC = overlay.querySelector('[data-role=overlay]');
         var strengthEl = overlay.querySelector('[data-role=strength]');
@@ -134,7 +137,7 @@
 
         function fitCanvas() {
             // 画像本来のサイズに合わせて canvas のピクセル幅 / 高さを決める。
-            // 表示サイズ (CSS) は wrap 幅にフィットさせて scale を求める。
+            // 表示サイズ (CSS) は wrap 幅 + 利用可能な縦に収まるよう scale を計算。
             base.width  = image.naturalWidth;
             base.height = image.naturalHeight;
             overlayC.width  = image.naturalWidth;
@@ -142,15 +145,18 @@
 
             baseCtx.drawImage(image, 0, 0);
 
-            var maxW = wrap.clientWidth || 600;
+            // wrap.clientWidth は左右の padding を含むので 16 引いて中身に使える幅を出す
+            var maxW = Math.max(200, (wrap.clientWidth || 600) - 16);
             var maxH = Math.min(window.innerHeight * 0.55, 600);
             scale = Math.min(maxW / image.naturalWidth, maxH / image.naturalHeight, 1);
             var dispW = image.naturalWidth * scale;
             var dispH = image.naturalHeight * scale;
-            base.style.width = dispW + 'px';
-            base.style.height = dispH + 'px';
-            overlayC.style.width = dispW + 'px';
-            overlayC.style.height = dispH + 'px';
+            // stack コンテナのサイズを CSS で決める。overlay は absolute で
+            // width/height 100% を持つので、stack に合わせて自動でフィット。
+            stack.style.width  = dispW + 'px';
+            stack.style.height = dispH + 'px';
+            base.style.width   = dispW + 'px';
+            base.style.height  = dispH + 'px';
 
             // 既定の粒度は長辺の 1.5% くらい (扱いやすい値)
             var auto = Math.max(6, Math.round(Math.max(image.naturalWidth, image.naturalHeight) * 0.015));

@@ -2,14 +2,16 @@
 
 /* <dialog> 要素自体のデフォルト枠 / padding を打ち消し、自前の
    .drwp-mosaic-dialog を中身として使う。showModal() で top layer に
-   上がるので親 dialog (日報モーダル) の裏に潜ることはなくなる。 */
+   上がるので親 dialog (日報モーダル) の裏に潜ることはなくなる。
+   width を明示しないと、内側 max-width だけでは中央寄せが効かない
+   ケースがあったので、ここで決め打ち。 */
 dialog.drwp-mosaic-overlay {
     border: 0;
     padding: 0;
     background: transparent;
-    max-width: 100vw;
-    max-height: 100vh;
-    width: auto;
+    width: min(760px, calc(100vw - 32px));
+    max-width: 760px;
+    max-height: calc(100vh - 32px);
     overflow: visible;
 }
 dialog.drwp-mosaic-overlay::backdrop {
@@ -19,8 +21,7 @@ dialog.drwp-mosaic-overlay::backdrop {
     background: #fff;
     border-radius: 12px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-    width: calc(100vw - 32px);
-    max-width: 760px;
+    width: 100%;
     max-height: calc(100vh - 32px);
     display: flex;
     flex-direction: column;
@@ -28,6 +29,7 @@ dialog.drwp-mosaic-overlay::backdrop {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
                  "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
     color: #1f2937;
+    box-sizing: border-box;
 }
 .drwp-mosaic-head {
     display: flex; align-items: center; justify-content: space-between;
@@ -49,7 +51,6 @@ dialog.drwp-mosaic-overlay::backdrop {
 }
 
 .drwp-mosaic-canvas-wrap {
-    position: relative;
     background: #0f172a;
     border-radius: 8px;
     padding: 8px;
@@ -58,6 +59,13 @@ dialog.drwp-mosaic-overlay::backdrop {
     justify-content: center;
     min-height: 200px;
     overflow: hidden;
+}
+/* 2 枚の canvas をぴったり重ねるためのコンテナ。サイズは中身の
+   base canvas が決め、overlay は absolute で 100% フィルする。 */
+.drwp-mosaic-canvas-stack {
+    position: relative;
+    display: inline-block;
+    line-height: 0; /* canvas 下の baseline 余白を消す */
 }
 .drwp-mosaic-canvas,
 .drwp-mosaic-overlay-canvas {
@@ -70,8 +78,8 @@ dialog.drwp-mosaic-overlay::backdrop {
 }
 .drwp-mosaic-overlay-canvas {
     position: absolute;
-    top: 8px; left: 50%;
-    transform: translateX(-50%);
+    top: 0; left: 0;
+    width: 100%; height: 100%;
     cursor: crosshair;
     touch-action: none;
 }
