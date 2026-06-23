@@ -331,19 +331,30 @@ class DRWP_REST {
     }
 
     public static function can_view_one(WP_REST_Request $request) {
+        // 読み取り (GET) は edit_posts を持つ社員なら誰でも可能。
+        // 過去には「自分の日報か edit_others_posts のみ」に絞っていたが、
+        // 「他のメンバーがどんな現場をやってるか軽く見たい」「コメント
+        // を残したい」という業務上のニーズが普通にあるため、読み取りは
+        // 全社員に開放する。書き込み (PATCH / レビュー) は can_edit_one /
+        // can_review で別途絞る。
         if (DRWP_User::is_retired()) return false;
         if (!current_user_can('edit_posts')) return false;
         $report = self::find_report((int) $request['id']);
         if (!$report) return new WP_Error('drwp_not_found', '指定された日報が見つかりませんでした。', ['status' => 404]);
-        if (current_user_can('edit_others_posts')) return true;
-        return (int) $report->user_id === get_current_user_id()
-            ? true
-            : new WP_Error('drwp_forbidden', 'この日報を編集する権限がありません。', ['status' => 403]);
+        return true;
     }
 
     public static function can_edit_one(WP_REST_Request $request) {
-        $base = self::can_view_one($request);
-        if ($base !== true) return $base;
+        // 編集 (PATCH) は「自分の日報」か「事務所 (edit_others_posts)」に限定。
+        if (DRWP_User::is_retired()) return false;
+        if (!current_user_can('edit_posts')) return false;
+        $report = self::find_report((int) $request['id']);
+        if (!$report) return new WP_Error('drwp_not_found', '指定された日報が見つかりませんでした。', ['status' => 404]);
+        if (!current_user_can('edit_others_posts')
+            && (int) $report->user_id !== get_current_user_id()) {
+            return new WP_Error('drwp_forbidden',
+                'この日報を編集する権限がありません。', ['status' => 403]);
+        }
         // Operators (`edit_others_posts`) can edit any report in any
         // state — that's the review/fix-up workflow. Everyone else
         // (a worker editing their own report) is restricted to
@@ -351,7 +362,6 @@ class DRWP_REST {
         // いない」状態だけ。差戻し中もここを通すことで再編集 →
         // 再提出ができる。承認済みを後から書き換えるのは塞ぐ。
         if (current_user_can('edit_others_posts')) return true;
-        $report = self::find_report((int) $request['id']);
         if ($report && !in_array((string) $report->review_status, ['pending', 'needs_revision'], true)) {
             return new WP_Error(
                 'drwp_forbidden',
@@ -363,8 +373,11 @@ class DRWP_REST {
     }
 
     public static function can_convert(WP_REST_Request $request) {
+        // 記事化 (publish_posts) は事務所のみ。can_view_one が「全社員
+        // 読める」に緩んだので、ここでは元の編集権限相当 (can_edit_one
+        // の入口) でゲートする。
         if (!current_user_can('publish_posts')) return false;
-        return self::can_view_one($request);
+        return self::can_edit_one($request);
     }
 
     public static function can_archive_report(WP_REST_Request $request) {

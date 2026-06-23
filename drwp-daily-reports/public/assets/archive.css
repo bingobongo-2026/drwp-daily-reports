@@ -361,24 +361,62 @@
     white-space: nowrap;
 }
 
-/* スマホ幅: 行内グリッドを 2 段組に折り返す。バッジ + 時刻 + 案件は
-   上段に詰め、説明は下段全幅、右端アイコンは上段右に。 */
+/* スマホ幅: 3 段組に再配置して可読性を優先する。
+   1段目: [バッジ] [時刻] [アイコン]  (横一列の薄ヘッダ)
+   2段目: 案件名 (太字、折り返し可)
+   3段目: 作業内容 (折り返し可)
+   投稿者は 1 行目右端に小さく置く (詳細はモーダルで確認)。 */
 @media (max-width: 900px) {
     .drwp-archive-list-group-head { gap: 6px; padding: 8px 4px 6px; }
     .drwp-archive-list .drwp-archive-list-row {
-        grid-template-columns: 84px 84px 1fr auto;
-        grid-template-rows: auto auto;
-        gap: 4px 12px;
-        padding: 10px 14px;
+        grid-template-columns: auto 1fr auto;
+        grid-template-rows: auto auto auto;
+        gap: 4px 10px;
+        padding: 10px 12px;
     }
-    .drwp-archive-list-badge { grid-row: 1; min-width: 0; }
-    .drwp-archive-list-time { grid-row: 1; }
-    .drwp-archive-list-title { grid-row: 1; }
-    .drwp-archive-list-side { grid-row: 1; min-width: 0; }
-    .drwp-archive-list-snippet {
+    .drwp-archive-list-badge {
+        grid-row: 1; grid-column: 1;
+        min-width: 0;
+        padding: 2px 8px;
+        font-size: 11px;
+    }
+    .drwp-archive-list-time  {
+        grid-row: 1; grid-column: 2;
+        font-size: 12px;
+    }
+    .drwp-archive-list-title {
         grid-row: 2; grid-column: 1 / -1;
-        white-space: normal; line-height: 1.5;
+        white-space: normal;       /* 長い案件名も全部読める */
+        font-size: 15px;
+        line-height: 1.35;
     }
+    .drwp-archive-list-snippet {
+        grid-row: 3; grid-column: 1 / -1;
+        white-space: normal;
+        line-height: 1.5;
+        color: #4b5563;            /* 説明はもう少し読みやすい濃さに */
+    }
+    .drwp-archive-list-side {
+        grid-row: 1; grid-column: 3;
+        min-width: 0;
+        gap: 6px;
+    }
+    .drwp-archive-list-author {
+        /* 投稿者名の長いピル ("shizuoka-company" 等) は行を圧迫するため、
+           モバイルでは控えめなテキストにダウングレード。詳細モーダルで
+           誰の日報かは確認できる。 */
+        background: transparent;
+        padding: 0;
+        font-size: 11px;
+        color: #94a3b8;
+        max-width: 88px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+/* さらに狭い (~420px = 旧 iPhone SE 等) では投稿者は完全に隠す */
+@media (max-width: 420px) {
+    .drwp-archive-list-author { display: none; }
 }
 
 /* ---- List ---- */
