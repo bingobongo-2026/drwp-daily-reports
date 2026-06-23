@@ -18,6 +18,7 @@ class DRWP_Report_Form {
 
     const HANDLE      = 'drwp-mform';
     const HANDLE_COMBO = 'drwp-combo';
+    const HANDLE_MOSAIC = 'drwp-mosaic';
 
     public static function init() {
         add_action('wp_enqueue_scripts', [__CLASS__, 'register_assets']);
@@ -48,6 +49,20 @@ class DRWP_Report_Form {
         wp_register_script(
             self::HANDLE_COMBO,
             DRWP_URL . 'public/assets/combo.js',
+            [],
+            DRWP_VERSION,
+            true
+        );
+        // 共有のモザイク編集モーダル (Canvas)。
+        wp_register_style(
+            self::HANDLE_MOSAIC,
+            DRWP_URL . 'public/assets/mosaic.css',
+            [],
+            DRWP_VERSION
+        );
+        wp_register_script(
+            self::HANDLE_MOSAIC,
+            DRWP_URL . 'public/assets/mosaic.js',
             [],
             DRWP_VERSION,
             true
@@ -88,6 +103,7 @@ class DRWP_Report_Form {
                 'send_failed'         => __('送信に失敗しました。', 'drwp-daily-reports'),
                 'remove_photo'        => __('削除', 'drwp-daily-reports'),
                 'caption_placeholder' => __('説明文（任意）', 'drwp-daily-reports'),
+                'mosaic_button'       => __('ぼかし', 'drwp-daily-reports'),
             ],
         ];
 
@@ -95,6 +111,8 @@ class DRWP_Report_Form {
         wp_enqueue_script(self::HANDLE);
         wp_enqueue_style(self::HANDLE_COMBO);
         wp_enqueue_script(self::HANDLE_COMBO);
+        wp_enqueue_style(self::HANDLE_MOSAIC);
+        wp_enqueue_script(self::HANDLE_MOSAIC);
 
         $config_attr = wp_json_encode($config);
         if ($config_attr === false) $config_attr = '{}';

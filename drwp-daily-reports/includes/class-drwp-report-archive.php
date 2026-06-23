@@ -79,6 +79,9 @@ class DRWP_Report_Archive {
         // 案件選択コンボボックス (DRWP_Report_Form 側で登録済み)
         wp_enqueue_style(self::HANDLE_COMBO);
         wp_enqueue_script(self::HANDLE_COMBO);
+        // 共有モザイク編集 (DRWP_Report_Form 側で登録済み)
+        wp_enqueue_style('drwp-mosaic');
+        wp_enqueue_script('drwp-mosaic');
 
         // 現にログイン中の退職者(init ログアウト前のレース) — データ
         // に到達する前に通知だけ出して止める。
@@ -567,10 +570,13 @@ class DRWP_Report_Archive {
           }
 
           function renderEditPhoto(id, url, caption) {
-            return '<div class="drwp-archive-inline-photo-item">'
+            return '<div class="drwp-archive-inline-photo-item" data-url="' + esc(url) + '">'
                  + '<img src="' + esc(url) + '" alt="" />'
                  + '<input type="hidden" name="attachment_ids[]" value="' + esc(id) + '" />'
                  + '<input type="text" name="attachment_captions[]" placeholder="<?php echo esc_js(__('キャプション', 'drwp-daily-reports')); ?>" value="' + esc(caption) + '" />'
+                 + '<button type="button" class="drwp-archive-inline-photo-mosaic" data-role="mosaic-photo">'
+                 +   '<?php echo esc_js(__('ぼかし', 'drwp-daily-reports')); ?>'
+                 + '</button>'
                  + '<button type="button" class="drwp-archive-inline-photo-remove" data-role="remove-photo">×</button>'
                  + '</div>';
           }
@@ -601,6 +607,48 @@ class DRWP_Report_Archive {
             if (e.target.dataset && e.target.dataset.role === 'remove-photo') {
               var item = e.target.closest('.drwp-archive-inline-photo-item');
               if (item) item.remove();
+              return;
+            }
+            if (e.target.dataset && e.target.dataset.role === 'mosaic-photo') {
+              // 既存の attachment をモザイク編集 → 新規アップロード →
+              // この行の attachment_id を新しいものに差し替える。
+              // 元の attachment は別の場所で参照されている可能性があるので、
+              // 上書きはせず「新しい添付」として作る方が安全。
+              var item = e.target.closest('.drwp-archive-inline-photo-item');
+              if (!item || !window.DRWP_Mosaic) return;
+              var url = item.dataset.url || (item.querySelector('img') || {}).src;
+              if (!url) return;
+              var btn = e.target;
+              btn.disabled = true;
+              window.DRWP_Mosaic.open({
+                imageUrl: url,
+                onApply: function (blob) {
+                  if (!blob) { btn.disabled = false; return; }
+                  var body = new FormData();
+                  body.append('file', blob, 'mosaic.jpg');
+                  fetch(cfg.restRoot + '/upload-photo', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'X-WP-Nonce': cfg.nonce },
+                    body: body
+                  }).then(function (r) {
+                    return r.json().then(function (j) { if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status); return j; });
+                  }).then(function (j) {
+                    // この行のサムネ・hidden id・data-url を新規 attachment に差し替え
+                    var img = item.querySelector('img');
+                    var hidden = item.querySelector('input[name="attachment_ids[]"]');
+                    var newUrl = j.thumbnail_url || j.full_url || '';
+                    if (img && newUrl) img.src = newUrl;
+                    if (hidden) hidden.value = String(j.id);
+                    item.dataset.url = newUrl;
+                    btn.disabled = false;
+                  }).catch(function (err) {
+                    alert((err && err.message) || '<?php echo esc_js(__('アップロード失敗', 'drwp-daily-reports')); ?>');
+                    btn.disabled = false;
+                  });
+                },
+                onCancel: function () { btn.disabled = false; }
+              });
               return;
             }
           });

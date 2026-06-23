@@ -1123,6 +1123,18 @@
     font-size: 14px; line-height: 1; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
 }
+/* ぼかし編集ボタン — サムネ右下に小さく重ねる */
+.drwp-archive-inline-photo-mosaic {
+    position: absolute;
+    top: 12px; right: 12px;
+    padding: 3px 8px;
+    border: 0; border-radius: 999px;
+    background: rgba(0, 0, 0, .65); color: #fff;
+    font-size: 0.72rem; font-weight: 600;
+    line-height: 1.2; cursor: pointer;
+}
+.drwp-archive-inline-photo-mosaic:hover { background: rgba(0, 0, 0, .85); }
+.drwp-archive-inline-photo-mosaic:disabled { opacity: .6; cursor: progress; }
 .drwp-archive-inline-photo-pick {
     display: inline-block; padding: 6px 12px;
     background: #f1f5f9; border: 1px dashed #94a3b8;
