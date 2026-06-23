@@ -1129,9 +1129,15 @@ class DRWP_Report_Archive {
         $q       = isset($_GET['drwp_q']) ? sanitize_text_field(wp_unslash((string) $_GET['drwp_q'])) : '';
         $project = isset($_GET['drwp_project']) ? absint($_GET['drwp_project']) : 0;
         $status  = isset($_GET['drwp_status']) ? sanitize_key((string) $_GET['drwp_status']) : '';
-        // 表示モードはリスト固定 (カレンダー表示はスマホで可読性が低い
-        // ため撤去)。drwp_view クエリは互換のため受け付けるが無視する。
-        $view = 'list';
+        // 表示モード: calendar (PC 既定) / list。
+        // スマートフォン (UA 判定) ではカレンダーが可読性に欠けるため、
+        // ?drwp_view を無視して常に list 固定にする。
+        // PC では従来通り ?drwp_view=list で切り替え、トグルから操作可。
+        if (wp_is_mobile()) {
+            $view = 'list';
+        } else {
+            $view = (isset($_GET['drwp_view']) && (string) $_GET['drwp_view'] === 'list') ? 'list' : 'calendar';
+        }
 
         // Month navigation. Default to the current month so the view
         // opens on "今月". URL state lets users bookmark a specific month.
@@ -1323,29 +1329,37 @@ class DRWP_Report_Archive {
             <?php
             $total_count = count($rows);
             $sort = (isset($_GET['drwp_sort']) && (string) $_GET['drwp_sort'] === 'date_asc') ? 'date_asc' : 'date_desc';
-            ?>
-            <div class="drwp-archive-toolbar">
-                <p class="drwp-archive-summary">
-                    <?php if ($use_range): ?>
-                        <?php printf(
-                            esc_html__('%1$s 〜 %2$s（%3$d 件）', 'drwp-daily-reports'),
-                            esc_html(date_i18n('Y/n/j', strtotime($q_start))),
-                            esc_html(date_i18n('Y/n/j', strtotime($q_end))),
-                            $total_count
-                        ); ?>
-                    <?php else: ?>
-                        <?php printf(
-                            esc_html__('%1$s（%2$d 件）', 'drwp-daily-reports'),
-                            esc_html(date_i18n('Y年n月', strtotime($month_start))),
-                            $total_count
-                        ); ?>
-                    <?php endif; ?>
-                </p>
-                <div class="drwp-archive-toolbar-actions">
-                    <?php echo self::render_sort_toggle($sort); ?>
+            // ビュー切替トグルはスマホ (wp_is_mobile) では出さない
+            // (どちらにせよ表示は list 固定なので、選択肢を見せて
+            // 混乱させないため)。
+            $show_view_toggle = !wp_is_mobile();
+            if ($view === 'list'): ?>
+                <div class="drwp-archive-toolbar">
+                    <p class="drwp-archive-summary">
+                        <?php if ($use_range): ?>
+                            <?php printf(
+                                esc_html__('%1$s 〜 %2$s（%3$d 件）', 'drwp-daily-reports'),
+                                esc_html(date_i18n('Y/n/j', strtotime($q_start))),
+                                esc_html(date_i18n('Y/n/j', strtotime($q_end))),
+                                $total_count
+                            ); ?>
+                        <?php else: ?>
+                            <?php printf(
+                                esc_html__('%1$s（%2$d 件）', 'drwp-daily-reports'),
+                                esc_html(date_i18n('Y年n月', strtotime($month_start))),
+                                $total_count
+                            ); ?>
+                        <?php endif; ?>
+                    </p>
+                    <div class="drwp-archive-toolbar-actions">
+                        <?php echo self::render_sort_toggle($sort); ?>
+                        <?php if ($show_view_toggle) echo self::render_view_toggle($view); ?>
+                    </div>
                 </div>
-            </div>
-            <?php echo self::render_archive_list_view($rows, $plans_by_date, $sort); ?>
+                <?php echo self::render_archive_list_view($rows, $plans_by_date, $sort); ?>
+            <?php else: ?>
+                <?php echo self::render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, ['q' => $q, 'project' => $project, 'status' => $status], $plans_by_date, $view, $total_count); ?>
+            <?php endif; ?>
         </div>
         <?php
         return ob_get_clean();
