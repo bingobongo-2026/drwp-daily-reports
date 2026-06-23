@@ -110,9 +110,24 @@ class DRWP_Report_Archive {
             return DRWP_Login::render_login_box(get_permalink() ?: null);
         }
         if (!current_user_can('edit_posts')) {
-            return self::wrap('<p class="drwp-archive-message">'
+            // ログイン済みだが閲覧権限を持たないアカウント (Subscriber 等)
+            // で詰まる人がいるので、別アカウントで入り直せるよう
+            // ログアウト動線を必ず添える。ログアウト後の戻り先は
+            // 同じページにして、未ログイン分岐で出るログインボックスに
+            // 接続する (#issue: ユーザが「閲覧する権限がありません」で
+            // 立ち往生する)。
+            $here = get_permalink() ?: home_url();
+            $logout_url = wp_logout_url($here);
+            return self::wrap(
+                '<p class="drwp-archive-message">'
                 . esc_html__('閲覧する権限がありません。', 'drwp-daily-reports')
-                . '</p>');
+                . '</p>'
+                . '<p class="drwp-archive-message" style="text-align:center;">'
+                . '<a class="button" href="' . esc_url($logout_url) . '">'
+                . esc_html__('別のアカウントでログイン', 'drwp-daily-reports')
+                . '</a>'
+                . '</p>'
+            );
         }
 
         $id = absint($_GET['drwp_id'] ?? 0);
