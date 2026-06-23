@@ -31,39 +31,55 @@
         if (!source) throw new Error('DRWP_Mosaic.open: imageUrl required');
 
         // ----- DOM 構築 -----
-        var overlay = document.createElement('div');
+        // <dialog showModal()> を使うことで「呼び出し元も dialog だった
+        // ケース」(日報モーダル内のインライン編集) でも上に重なる。
+        // 普通の <div + z-index> だと top layer に上がれず、親 dialog の
+        // 裏に隠れてクリックできなくなる。
+        var overlay = document.createElement('dialog');
         overlay.className = 'drwp-mosaic-overlay';
         overlay.innerHTML = ''
           + '<div class="drwp-mosaic-dialog" role="dialog" aria-modal="true" aria-label="モザイク編集">'
-          +   '<div class="drwp-mosaic-head">'
-          +     '<h3 class="drwp-mosaic-title">画像のモザイク編集</h3>'
-          +     '<button type="button" class="drwp-mosaic-close" data-act="cancel" aria-label="閉じる">×</button>'
-          +   '</div>'
-          +   '<div class="drwp-mosaic-body">'
-          +     '<div class="drwp-mosaic-canvas-wrap" data-role="wrap">'
-          +       '<canvas class="drwp-mosaic-canvas" data-role="canvas"></canvas>'
-          +       '<canvas class="drwp-mosaic-overlay-canvas" data-role="overlay"></canvas>'
+          +     '<div class="drwp-mosaic-head">'
+          +       '<h3 class="drwp-mosaic-title">画像のモザイク編集</h3>'
+          +       '<button type="button" class="drwp-mosaic-close" data-act="cancel" aria-label="閉じる">×</button>'
           +     '</div>'
-          +     '<p class="drwp-mosaic-hint">'
-          +       'ぼかしたい部分をドラッグで囲んでください。複数の範囲を追加できます。'
-          +     '</p>'
-          +     '<div class="drwp-mosaic-controls">'
-          +       '<label class="drwp-mosaic-strength">'
-          +         '<span>粒度</span>'
-          +         '<input type="range" min="6" max="40" value="14" data-role="strength" />'
-          +         '<span class="drwp-mosaic-strength-val" data-role="strength-val">14</span>'
-          +       '</label>'
-          +       '<button type="button" class="drwp-mosaic-btn" data-act="undo">↶ 1つ取り消し</button>'
-          +       '<button type="button" class="drwp-mosaic-btn" data-act="clear">すべて消す</button>'
+          +     '<div class="drwp-mosaic-body">'
+          +       '<div class="drwp-mosaic-canvas-wrap" data-role="wrap">'
+          +         '<canvas class="drwp-mosaic-canvas" data-role="canvas"></canvas>'
+          +         '<canvas class="drwp-mosaic-overlay-canvas" data-role="overlay"></canvas>'
+          +       '</div>'
+          +       '<p class="drwp-mosaic-hint">'
+          +         'ぼかしたい部分をドラッグで囲んでください。複数の範囲を追加できます。'
+          +       '</p>'
+          +       '<div class="drwp-mosaic-controls">'
+          +         '<label class="drwp-mosaic-strength">'
+          +           '<span>粒度</span>'
+          +           '<input type="range" min="6" max="40" value="14" data-role="strength" />'
+          +           '<span class="drwp-mosaic-strength-val" data-role="strength-val">14</span>'
+          +         '</label>'
+          +         '<button type="button" class="drwp-mosaic-btn" data-act="undo">↶ 1つ取り消し</button>'
+          +         '<button type="button" class="drwp-mosaic-btn" data-act="clear">すべて消す</button>'
+          +       '</div>'
           +     '</div>'
-          +   '</div>'
-          +   '<div class="drwp-mosaic-foot">'
-          +     '<button type="button" class="drwp-mosaic-btn drwp-mosaic-btn-ghost" data-act="cancel">キャンセル</button>'
-          +     '<button type="button" class="drwp-mosaic-btn drwp-mosaic-btn-primary" data-act="apply" disabled>適用</button>'
-          +   '</div>'
+          +     '<div class="drwp-mosaic-foot">'
+          +       '<button type="button" class="drwp-mosaic-btn drwp-mosaic-btn-ghost" data-act="cancel">キャンセル</button>'
+          +       '<button type="button" class="drwp-mosaic-btn drwp-mosaic-btn-primary" data-act="apply" disabled>適用</button>'
+          +     '</div>'
           + '</div>';
 
         document.body.appendChild(overlay);
+        if (typeof overlay.showModal === 'function') {
+            overlay.showModal();
+        } else {
+            overlay.setAttribute('open', '');
+        }
+        // <dialog> はデフォルトで cancel イベント (Esc) で閉じようとする。
+        // 自前の done() を通して onCancel コールバックを必ず呼ぶよう
+        // preventDefault してから明示的に処理する。
+        overlay.addEventListener('cancel', function (e) {
+            e.preventDefault();
+            done(null, null, 'cancel');
+        });
 
         var wrap     = overlay.querySelector('[data-role=wrap]');
         var base     = overlay.querySelector('[data-role=canvas]');
@@ -87,13 +103,12 @@
             if (action === 'cancel' && typeof opts.onCancel === 'function') opts.onCancel();
         }
         function cleanup() {
+            // <dialog> なら close してから外す (top layer を解除する)
+            if (overlay.open && typeof overlay.close === 'function') {
+                try { overlay.close(); } catch (_) {}
+            }
             overlay.parentNode && overlay.parentNode.removeChild(overlay);
-            document.removeEventListener('keydown', onKeyDown);
         }
-        function onKeyDown(e) {
-            if (e.key === 'Escape') done(null, null, 'cancel');
-        }
-        document.addEventListener('keydown', onKeyDown);
 
         // ----- 画像読み込み -----
         var img = new Image();
@@ -251,8 +266,12 @@
             blockSize = Math.max(2, parseInt(strengthEl.value, 10) || 14);
             strengthVal.textContent = String(blockSize);
         });
-        // バックドロップクリックで閉じる
-        overlay.addEventListener('mousedown', function (e) {
+        // バックドロップクリックで閉じる。<dialog> の場合 ::backdrop は
+        // クリックイベントを発火しないが、dialog 要素自体への click は
+        // 「内側の .drwp-mosaic-dialog の外」をクリックした時に発火する
+        // (中央寄せだと dialog 要素のサイズは中身ぴったりなのでこれは
+        //  rare; max-width 設定下で余白部分をクリックした時に効く)。
+        overlay.addEventListener('click', function (e) {
             if (e.target === overlay) done(null, null, 'cancel');
         });
     }
