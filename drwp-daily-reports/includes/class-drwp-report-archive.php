@@ -152,15 +152,19 @@ class DRWP_Report_Archive {
 
     private static function render_list() {
         // "自分のみ" filter.
-        // 既定は「自分のみ表示」(ログイン中ユーザの日報だけ)。
+        // 既定の挙動はクライアントタイプで分岐:
+        //   - モバイル (リスト固定): 既定で「自分のみ」ON。現場の作業員
+        //     が自分の日報をすぐ見つけられるように。
+        //   - PC (カレンダー / リスト切替可): 既定は「全員」。事務所が
+        //     チームの動きを俯瞰するシナリオを優先。
         // 利用者が一度フォームを操作すると hidden `drwp_scope_set=1` が
         // URL に乗るので、その後はチェックボックスの状態 (drwp_mine)
-        // をそのまま尊重する。これでチェックを外しても初期値に戻らない。
+        // をそのまま尊重 (チェックを外せば確定で外れる)。
         $scope_set = isset($_GET['drwp_scope_set']);
         if ($scope_set) {
             $mine = !empty($_GET['drwp_mine']) && is_user_logged_in();
         } else {
-            $mine = is_user_logged_in();
+            $mine = is_user_logged_in() && wp_is_mobile();
         }
         $user_id = $mine ? get_current_user_id() : 0;
         // Retired users keep their read access (so they can review
