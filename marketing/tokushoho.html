@@ -1,0 +1,245 @@
+<!--
+  日報マン — 特定商取引法に基づく表記 (WordPress 固定ページ用)
+
+  使い方:
+    1. WordPress 管理画面 → 固定ページ → 新規追加
+    2. ページタイトルに「特定商取引法に基づく表記」と入力
+    3. ブロックエディタで「カスタム HTML」ブロックを追加
+    4. このファイルの中身 (この HTML コメントの下、<style> から最後まで) を
+       そのままコピー&ペーストして公開
+    5. 事業者情報・電話番号・料金は必ず実値に置き換えてください。
+       電話番号は法定の必須項目です (個人事業の場合は「請求時のみ通知」も
+       可能ですが、消費者庁ガイドラインの条件を満たす必要あり)。
+-->
+<style>
+  .nm-legal { max-width: 880px; margin: 0 auto; padding: 0 8px; line-height: 1.85; color: #1f2937;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN",
+                            "Yu Gothic", "Meiryo", sans-serif; }
+  .nm-legal h2 { font-size: 1.25rem; margin: 2.2em 0 0.6em; padding-bottom: 0.3em;
+                 border-bottom: 2px solid #e5e7eb; color: #111827; line-height: 1.4; }
+  .nm-legal h3 { font-size: 1.05rem; margin: 1.4em 0 0.4em; color: #1f2937; line-height: 1.5; }
+  .nm-legal p  { margin: 0.6em 0; }
+  .nm-legal ul, .nm-legal ol { padding-left: 1.6em; margin: 0.4em 0 0.8em; }
+  .nm-legal li { margin: 0.25em 0; }
+  .nm-legal strong { color: #111827; }
+  .nm-legal .nm-meta { color: #64748b; font-size: 0.92rem; margin-bottom: 1.4em; }
+  .nm-legal .nm-notice {
+      margin: 1.4em 0; padding: 14px 18px;
+      background: #fff7ed; border-left: 4px solid #f59e0b;
+      border-radius: 6px; color: #7c2d12; font-size: 0.95rem;
+  }
+  .nm-legal .nm-tbl-wrap { overflow-x: auto; margin: 1em 0; }
+  .nm-legal table {
+      width: 100%; border-collapse: collapse; font-size: 0.95rem;
+      background: #fff;
+  }
+  .nm-legal th, .nm-legal td {
+      padding: 12px 14px; border: 1px solid #e5e7eb;
+      text-align: left; vertical-align: top;
+  }
+  .nm-legal .nm-tbl-main th { width: 32%; background: #f8fafc; font-weight: 700; color: #0f172a; }
+  .nm-legal thead th { background: #f8fafc; font-weight: 700; color: #0f172a; }
+  .nm-legal td { line-height: 1.7; }
+  .nm-legal hr { border: 0; border-top: 1px solid #e5e7eb; margin: 2em 0; }
+  .nm-legal a { color: #2563eb; }
+  @media (max-width: 600px) {
+      .nm-legal h2 { font-size: 1.15rem; }
+      .nm-legal .nm-tbl-main th { width: 40%; }
+      .nm-legal th, .nm-legal td { padding: 8px 10px; }
+  }
+</style>
+
+<div class="nm-legal">
+
+  <p class="nm-meta">最終改定日: ____年__月__日</p>
+
+  <div class="nm-notice">
+    <strong>※ 公開前注意:</strong> 本書は弁護士レビュー前のドラフトです。
+    2022 年 6 月施行の改正特定商取引法 (サブスクリプション関連の表示義務強化) を反映した構成にしていますが、
+    料金・連絡先・解約方法の動線等はサービス公開前に必ず法務確認を受けてください。
+  </div>
+
+  <div class="nm-tbl-wrap">
+    <table class="nm-tbl-main">
+      <tbody>
+        <tr>
+          <th>販売事業者名</th>
+          <td>株式会社○○○○</td>
+        </tr>
+        <tr>
+          <th>運営統括責任者</th>
+          <td>○○ ○○</td>
+        </tr>
+        <tr>
+          <th>所在地</th>
+          <td>〒XXX-XXXX  ○○県○○市○○ X-Y-Z ○○ビル X 階</td>
+        </tr>
+        <tr>
+          <th>電話番号</th>
+          <td>
+            0XX-XXXX-XXXX (受付時間: 平日 10:00–17:00、土日祝日・年末年始を除く)<br>
+            ※ お問い合わせは原則メールにて承ります。電話番号は法令の表示義務に基づき記載しています。
+          </td>
+        </tr>
+        <tr>
+          <th>メールアドレス</th>
+          <td><a href="mailto:support@nippoman.example.com">support@nippoman.example.com</a></td>
+        </tr>
+        <tr>
+          <th>ウェブサイト URL</th>
+          <td><a href="https://nippoman.example.com/" target="_blank" rel="noopener">https://nippoman.example.com/</a></td>
+        </tr>
+        <tr>
+          <th>販売価格</th>
+          <td>
+            各プランの月額料金は本ページ末尾の「<strong>料金表</strong>」に記載のとおり。<br>
+            表示価格は別段の記載がない限り<strong>消費税込み</strong>です。
+          </td>
+        </tr>
+        <tr>
+          <th>商品代金以外の必要料金</th>
+          <td>
+            ・通信料金 (利用者の通信環境による)<br>
+            ・WordPress サイトの運用にかかるサーバ・ドメイン費用 (利用者負担)<br>
+            ・「自分の API キーを使う」モードを選択した場合の AI プロバイダ (OpenAI / Anthropic 等) への支払 (利用者が直接当該プロバイダに支払い)
+          </td>
+        </tr>
+        <tr>
+          <th>支払方法</th>
+          <td>クレジットカード (Visa / Mastercard / JCB / American Express / Diners Club)</td>
+        </tr>
+        <tr>
+          <th>支払時期</th>
+          <td>サブスクリプション申込時に初回課金を行い、以後は契約期間の更新日に自動課金</td>
+        </tr>
+        <tr>
+          <th>商品 (サービス) の引渡時期</th>
+          <td>お申込み・初回決済の完了後、即時にライセンスキーと管理画面 URL を登録メールアドレスへお送りします。</td>
+        </tr>
+        <tr>
+          <th>動作環境</th>
+          <td>
+            ・WordPress 6.0 以降<br>
+            ・PHP 7.4 以降 (推奨 8.2 以降)<br>
+            ・MySQL 5.7 以降 / MariaDB 10.3 以降<br>
+            ・モダンブラウザ (Chrome / Safari / Edge / Firefox の最新版)
+          </td>
+        </tr>
+        <tr>
+          <th>返品・キャンセルについて</th>
+          <td>サービスの性質上、提供開始後の返金には原則応じられません。詳細は本ページ末尾の「<strong>返金・解約に関する取扱い</strong>」をご参照ください。</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>料金表</h2>
+  <div class="nm-tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>プラン</th>
+          <th>月額料金 (税込)</th>
+          <th>年額料金 (税込)</th>
+          <th>内容</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Free (お試し)</td>
+          <td>0 円</td>
+          <td>–</td>
+          <td>サインアップから 30 日間、Basic と同等の機能をお試しいただけます。AI 機能は利用不可。</td>
+        </tr>
+        <tr>
+          <td>Basic</td>
+          <td>○,○○○ 円 / 月</td>
+          <td>○○,○○○ 円 / 年 (○ヶ月分お得)</td>
+          <td>基本機能 + AI 機能 (運営契約 AI モードで月 100 回まで)</td>
+        </tr>
+        <tr>
+          <td>Pro</td>
+          <td>○,○○○ 円 / 月</td>
+          <td>○○,○○○ 円 / 年 (○ヶ月分お得)</td>
+          <td>Basic の全機能 + 運営契約 AI モードで月 500 回まで</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <ul>
+    <li>1 ライセンスにつき WordPress サイト 1 ドメインで利用可能です。複数ドメインで利用する場合は、必要数の追加契約をお願いします。</li>
+    <li>「運営契約 AI」モードの月間呼び出し上限を超えた場合、その月の AI 機能は停止し、翌月初 (UTC) に自動リセットされます。</li>
+    <li>上限の追加購入には対応していません。</li>
+  </ul>
+
+  <h2>申込・契約成立のタイミング</h2>
+  <ol>
+    <li>当社ウェブサイトで料金プランを選択し、所定のフォームに必要事項を入力します。</li>
+    <li>入力内容と料金を確認のうえ、「申込確定」ボタンをクリック → カード情報入力 → 決済完了 で契約が成立します。</li>
+    <li>契約成立後、登録メールアドレス宛にライセンスキー・初期設定方法を記載した「ご利用開始のお知らせ」を自動送信します (通常数分以内に到達します)。</li>
+  </ol>
+
+  <h2>自動更新について</h2>
+  <ul>
+    <li>本サービスのサブスクリプションは<strong>自動更新方式</strong>です。</li>
+    <li>月額プラン: 毎月、契約日の応当日 (例: 5 日に契約した場合、翌月 5 日) に同額が課金されます。</li>
+    <li>年額プラン: 1 年ごとに同額が課金されます。</li>
+    <li><strong>次回更新を希望されない場合は、更新日の前日 23:59 (日本時間) までに解約手続を完了してください。</strong></li>
+  </ul>
+
+  <h2>返金・解約に関する取扱い</h2>
+
+  <h3>Free プラン (30 日間お試し)</h3>
+  <ul>
+    <li>30 日経過時点で自動的に課金は発生しません (有料プランへの自動移行は行われません)。</li>
+    <li>お試し期間中のキャンセルはいつでも管理画面から可能で、利用料金は発生しません。</li>
+  </ul>
+
+  <h3>Basic / Pro プラン</h3>
+  <ul>
+    <li>解約は管理画面の「ライセンス設定」ページから随時手続きできます。</li>
+    <li>解約手続きを完了した時点で次回更新が停止されます。契約期間の途中で解約した場合も、<strong>残りの契約期間中は引き続きサービスをご利用いただけます。</strong></li>
+    <li><strong>日割り計算による返金は行いません。</strong></li>
+    <li>ただし、次のいずれかに該当する場合は、お客様からの請求により未経過期間分を返金します。
+      <ul>
+        <li>当社の責に帰すべき重大な障害により、合計 72 時間以上連続してサービスをご利用いただけなかった場合</li>
+        <li>法令に基づき返金義務が生じる場合</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h3>解約方法</h3>
+  <ol>
+    <li>管理画面にログイン → 左メニュー「ライセンス設定」を開く</li>
+    <li>「サブスクリプション」セクションの「解約する」ボタンをクリック</li>
+    <li>確認ダイアログで「解約を確定する」を選択 → 完了</li>
+    <li>完了後、登録メールアドレス宛に「解約受付のお知らせ」を自動送信します</li>
+  </ol>
+  <p>管理画面からの解約が技術的に困難な場合は、<a href="mailto:support@nippoman.example.com">support@nippoman.example.com</a> 宛に「解約希望」の旨と契約者情報 (会社名・登録メールアドレス・ライセンスキー) を明記のうえご連絡ください。受領後 3 営業日以内に解約処理を行います。</p>
+
+  <h3>最低利用期間 / 違約金</h3>
+  <ul>
+    <li>最低利用期間はありません。</li>
+    <li>解約による違約金は発生しません。</li>
+  </ul>
+
+  <h2>クーリング・オフについて</h2>
+  <p>本サービスは特定商取引法上の「通信販売」に該当し、クーリング・オフ制度の対象外です。お申込み内容を十分にご確認のうえお手続きください。</p>
+
+  <h2>サービスの中断・終了</h2>
+  <p>当社が本サービスの提供を終了する場合は、3 ヶ月以上前に登録メールアドレス及び本サービスのウェブサイト上で告知します。終了に伴う未経過期間分の料金は、終了月の翌月末までに返金します。</p>
+
+  <h2>個人情報の取扱い</h2>
+  <p>お預かりした個人情報の取扱いについては、当社「<a href="/privacy/">プライバシーポリシー</a>」をご確認ください。</p>
+
+  <h2>利用規約</h2>
+  <p>本サービスの利用条件の詳細は、当社「<a href="/terms/">利用規約</a>」をご確認ください。</p>
+
+  <h2>お問い合わせ窓口</h2>
+  <ul>
+    <li>メール: <a href="mailto:support@nippoman.example.com">support@nippoman.example.com</a></li>
+    <li>受付時間: 平日 10:00–17:00 (土日祝日、年末年始を除く)</li>
+    <li>通常 2 営業日以内にご返信します</li>
+  </ul>
+
+</div>
