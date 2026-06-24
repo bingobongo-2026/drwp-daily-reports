@@ -104,6 +104,51 @@
   </form>
 </div>
 
+{% if license and ai_info %}
+{# AI 利用状況 + 追加枠 (bonus) 操作。 編集フォームの POST と URL が
+   違うので、別カードに切り出して別フォームにする。 #}
+<div class="card">
+  <section class="drwp-form-section is-tertiary">
+    <div class="drwp-form-section-head">
+      <h2><span class="drwp-form-section-icon" aria-hidden="true">🤖</span>AI 利用状況 ({{ ai_info.period }})</h2>
+      <p>運営契約 AI モードの当月使用量です。ベース枠 (プラン or 個別 override) と当月の追加枠 (bonus) を合算した上限と比較します。</p>
+    </div>
+
+    <div class="drwp-ai-usage">
+      <div class="drwp-ai-usage-line">
+        <strong>{{ ai_info.used }} / {{ ai_info.limit }} 回</strong>
+        <span class="muted">
+          (ベース {{ ai_info.base }}
+          {%- if ai_info.bonus > 0 %} + 追加 {{ ai_info.bonus }}{% endif -%}
+          、残り {{ ai_info.remaining }})
+        </span>
+      </div>
+      {% set pct = 100 if ai_info.limit <= 0 else (ai_info.used * 100 // ai_info.limit) %}
+      {% if pct > 100 %}{% set pct = 100 %}{% endif %}
+      <div class="drwp-ai-usage-bar">
+        <div class="drwp-ai-usage-bar-fill"
+             style="width: {{ pct }}%; background: {% if pct >= 90 %}#dc2626{% elif pct >= 70 %}#f59e0b{% else %}#16a34a{% endif %};">
+        </div>
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top: 10px;">
+      利用者から「枠を使い切った」と連絡が来た時に、下のボタンで追加枠を付与できます。<br>
+      追加枠は <strong>当月のみ有効</strong> で、翌月初 (UTC) になると自動的に 0 リセットされます。
+    </p>
+
+    <form method="post" action="/admin/ui/licenses/{{ license.license_key }}/ai-bonus" class="drwp-ai-bonus-form">
+      <div class="row" style="gap: 6px; flex-wrap: wrap;">
+        <button type="submit" name="amount" value="50" class="btn">+50 回 追加</button>
+        <button type="submit" name="amount" value="100" class="btn secondary">+100 回 追加</button>
+        <button type="submit" name="amount" value="-50" class="btn ghost"
+                onclick="return confirm('当月の追加枠を 50 回減らします。よろしいですか？');">−50 回 取り消し</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endif %}
+
 <style>
 /* セクションカード — フォームを「ライセンス情報 (= プラグインに
    渡る値)」と「ユーザー情報 (= サーバ内のメモ)」に視覚的に分けて、
@@ -122,6 +167,14 @@
 }
 .drwp-form-section.is-primary { border-left-color: #2563eb; }
 .drwp-form-section.is-secondary { border-left-color: #94a3b8; }
+.drwp-form-section.is-tertiary  { border-left-color: #16a34a; }
+.drwp-ai-usage-line { font-size: 1.05rem; color: #0f172a; margin: 6px 0; }
+.drwp-ai-usage-bar {
+  background: #e5e7eb; border-radius: 4px; height: 10px;
+  width: 320px; max-width: 100%; overflow: hidden; margin-top: 4px;
+}
+.drwp-ai-usage-bar-fill { height: 100%; transition: width .3s; }
+.drwp-ai-bonus-form { margin-top: 12px; }
 .drwp-form-section-head { margin-bottom: 6px; }
 .drwp-form-section-head h2 {
   display: flex; align-items: center; gap: 8px;

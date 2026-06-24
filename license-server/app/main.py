@@ -121,6 +121,8 @@ _FLASH = {
     "totp_setup_cancelled": ("2FA セットアップをキャンセルしました。", "ok"),
     "totp_code_invalid": ("コードが一致しませんでした。Authenticator の時刻ズレや入力ミスを確認してください。", "err"),
     "totp_not_pending": ("セットアップ中の状態ではありません。最初からやり直してください。", "err"),
+    "bonus_added": ("AI 追加枠を更新しました。", "ok"),
+    "bonus_noop":  ("変更はありませんでした (0 回指定)。", "ok"),
 }
 
 
@@ -532,14 +534,20 @@ def _current_period() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
-def _resolve_quota(lic: dict) -> int:
-    """プラン既定とライセンス個別 override を見て、その licenseに対する
-    当月クォータを返す。override が None の時はプラン既定。"""
+def _resolve_base_quota(lic: dict) -> int:
+    """プラン既定とライセンス個別 override を見て、その license の
+    「ベース」月間クォータを返す。override が None の時はプラン既定。
+    当月の追加枠 (bonus) は別途加算する。"""
     override = lic.get("ai_quota_override")
     if isinstance(override, int) and override >= 0:
         return int(override)
     plan = str(lic.get("plan") or "").lower()
     return PLAN_AI_QUOTA.get(plan, 0)
+
+
+def _resolve_quota(lic: dict, bonus: int = 0) -> int:
+    """ベースクォータ + 当月追加枠の合計。AI 呼び出し可能な上限値。"""
+    return _resolve_base_quota(lic) + max(0, int(bonus))
 
 
 async def _call_managed_provider(messages: list[dict], max_tokens: int) -> str:
@@ -637,8 +645,10 @@ async def ai_chat(payload: AIChatRequest):
     lic = _check_license_for_ai(payload.license_key, payload.domain)
     period = _current_period()
     used = db.get_ai_usage(payload.license_key, period)
-    limit = _resolve_quota(lic)
-    if limit <= 0:
+    bonus = db.get_ai_bonus(payload.license_key, period)
+    base = _resolve_base_quota(lic)
+    limit = base + bonus
+    if base <= 0 and bonus <= 0:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
             detail="AI is not included in your current plan.",
@@ -659,7 +669,7 @@ async def ai_chat(payload: AIChatRequest):
     new_used = db.increment_ai_usage(payload.license_key, period)
     return {
         "text": text,
-        "usage": {"used": new_used, "limit": limit, "period": period},
+        "usage": {"used": new_used, "limit": limit, "bonus": bonus, "period": period},
     }
 
 
@@ -670,10 +680,13 @@ def ai_quota(license_key: str, domain: str):
     lic = _check_license_for_ai(license_key, domain)
     period = _current_period()
     used = db.get_ai_usage(license_key, period)
-    limit = _resolve_quota(lic)
+    bonus = db.get_ai_bonus(license_key, period)
+    base = _resolve_base_quota(lic)
     return {
         "used": used,
-        "limit": limit,
+        "limit": base + bonus,
+        "base": base,
+        "bonus": bonus,
         "period": period,
         "plan": lic["plan"],
         "managed_configured": bool(MANAGED_AI_API_KEY),
@@ -848,14 +861,60 @@ def ui_edit(
             "/admin/ui/licenses?msg=not_found",
             status_code=status.HTTP_303_SEE_OTHER,
         )
+    # AI 使用状況 (現在月) を集約してフォームに渡す。bonus 操作 UI で
+    # 「今月どれくらい使ったか / 残量」を一目で見せる。
+    period = _current_period()
+    ai_info = {
+        "period": period,
+        "used":   db.get_ai_usage(license_key, period),
+        "bonus":  db.get_ai_bonus(license_key, period),
+        "base":   _resolve_base_quota(lic),
+    }
+    ai_info["limit"]    = ai_info["base"] + ai_info["bonus"]
+    ai_info["remaining"] = max(0, ai_info["limit"] - ai_info["used"])
     return templates.TemplateResponse(
         request,
         "license_form.html",
         {
             "license": lic,
             "action_url": f"/admin/ui/licenses/{license_key}/edit",
+            "ai_info": ai_info,
             **_flash_ctx(msg),
         },
+    )
+
+
+@app.post("/admin/ui/licenses/{license_key}/ai-bonus", include_in_schema=False)
+def ui_ai_bonus(
+    license_key: str,
+    amount: int = Form(50),
+    _: str = Depends(require_admin),
+):
+    """指定ライセンスの今月分 AI 追加枠 (bonus) に +amount する。
+    既定は 50 回。負の値で減算も可能 (例: 誤って付与した分を取り消す)。
+    減算側は実用上ほぼ要らないが、`+50 / +100 / -50` 等を運営の判断で
+    出せるようにしている。"""
+    lic = db.get_license(license_key)
+    if lic is None:
+        return RedirectResponse(
+            "/admin/ui/licenses?msg=not_found",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    delta = int(amount)
+    # 一度の操作で動かせる量は ±1000 までに制限 (誤操作で爆発しない
+    # ようにする安全弁。本当に大量に増やしたいなら edit から
+    # ai_quota_override を直接いじる)。
+    delta = max(-1000, min(1000, delta))
+    if delta == 0:
+        return RedirectResponse(
+            f"/admin/ui/licenses/{license_key}/edit?msg=bonus_noop",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    period = _current_period()
+    db.add_ai_bonus(license_key, period, delta)
+    return RedirectResponse(
+        f"/admin/ui/licenses/{license_key}/edit?msg=bonus_added",
+        status_code=status.HTTP_303_SEE_OTHER,
     )
 
 

@@ -1115,3 +1115,64 @@ def test_ai_chat_provider_failure_does_not_count(tmp_path, monkeypatch):
     # カウンタは 0 のまま
     r2 = c.get("/api/ai/quota?license_key=AI-PRO-2&domain=example.test")
     assert r2.json()["used"] == 0
+
+
+def test_ai_bonus_extends_quota(tmp_path, monkeypatch):
+    """add_ai_bonus が当月の上限を加算し、429 を超えて呼べるようになる。"""
+    monkeypatch.setenv("DRWP_MANAGED_AI_API_KEY", "fake-key")
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_ai_license(c, "AI-BONUS", plan="basic", override=2)  # ベース 2 回
+
+    async def fake_call(messages, max_tokens):
+        return "ok"
+    monkeypatch.setattr(main, "_call_managed_provider", fake_call)
+
+    payload = {
+        "license_key": "AI-BONUS",
+        "domain": "example.test",
+        "messages": [{"role": "user", "content": "ping"}],
+    }
+    for _ in range(2):
+        assert c.post("/api/ai/chat", json=payload).status_code == 200
+    assert c.post("/api/ai/chat", json=payload).status_code == 429
+
+    # 運営が +50 追加 → 上限が 52 になり、また通る
+    main.db.add_ai_bonus("AI-BONUS", main._current_period(), 50)
+    r = c.post("/api/ai/chat", json=payload)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["usage"]["used"] == 3
+    assert body["usage"]["limit"] == 52
+    assert body["usage"]["bonus"] == 50
+
+
+def test_ai_quota_endpoint_reports_bonus(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_ai_license(c, "AI-Q", plan="basic", override=10)
+    main.db.add_ai_bonus("AI-Q", main._current_period(), 25)
+    r = c.get("/api/ai/quota?license_key=AI-Q&domain=example.test")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["base"] == 10
+    assert body["bonus"] == 25
+    assert body["limit"] == 35
+
+
+def test_admin_ui_ai_bonus_adds_to_period(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_ai_license(c, "AI-UI", plan="basic", override=5)
+    auth = ("admin", "test-token")
+    r = c.post("/admin/ui/licenses/AI-UI/ai-bonus", auth=auth,
+               data={"amount": "50"}, follow_redirects=False)
+    assert r.status_code == 303
+    assert "bonus_added" in r.headers["location"]
+    assert main.db.get_ai_bonus("AI-UI", main._current_period()) == 50
+
+
+def test_admin_ui_ai_bonus_clamps_to_safety_limit(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_ai_license(c, "AI-CLAMP", plan="basic", override=5)
+    auth = ("admin", "test-token")
+    c.post("/admin/ui/licenses/AI-CLAMP/ai-bonus", auth=auth,
+           data={"amount": "999999"}, follow_redirects=False)
+    assert main.db.get_ai_bonus("AI-CLAMP", main._current_period()) == 1000

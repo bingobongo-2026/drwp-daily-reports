@@ -78,18 +78,23 @@ def init_db() -> None:
         # AI 使用量カウンタ — 月単位で「このライセンスは今月何回 AI を
         # 呼んだか」を保持する。プラン or ライセンス個別 override の
         # 上限と比較してクォータ判定に使う。period は YYYY-MM (UTC)。
+        # bonus 列 = 当月だけ加算する追加枠 (運営が "+50" 操作で増やす)。
+        # 翌月になれば自動的に 0 リセット (period が変わるため別行になる)。
         c.execute(
             """
             CREATE TABLE IF NOT EXISTS ai_usage (
                 license_key TEXT NOT NULL,
                 period      TEXT NOT NULL,
                 count       INTEGER NOT NULL DEFAULT 0,
+                bonus       INTEGER NOT NULL DEFAULT 0,
                 updated_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (license_key, period)
             )
             """
         )
         c.execute("CREATE INDEX IF NOT EXISTS idx_ai_usage_period ON ai_usage(period)")
+        # 既存 DB に bonus 列が無ければ追加
+        _migrate_ai_usage_bonus(c)
         # Migration for existing DBs: add columns if missing.
         _migrate_add_columns(c)
         # Migration for existing DBs: rename the legacy `standard`
@@ -120,6 +125,14 @@ def set_setting(key: str, value: str) -> None:
 def delete_setting(key: str) -> None:
     with connection() as c:
         c.execute("DELETE FROM settings WHERE key = ?", (key,))
+
+
+def _migrate_ai_usage_bonus(c: sqlite3.Connection) -> None:
+    """ai_usage.bonus 列の後付け。CREATE TABLE IF NOT EXISTS だと
+    既存テーブルには列が追加されないので、PRAGMA で確認して足す。"""
+    cols = {row[1] for row in c.execute("PRAGMA table_info(ai_usage)").fetchall()}
+    if "bonus" not in cols:
+        c.execute("ALTER TABLE ai_usage ADD COLUMN bonus INTEGER NOT NULL DEFAULT 0")
 
 
 def _migrate_add_columns(c: sqlite3.Connection) -> None:
@@ -251,6 +264,37 @@ def get_ai_usage(license_key: str, period: str) -> int:
             (license_key, period),
         ).fetchone()
         return int(row["count"]) if row else 0
+
+
+def get_ai_bonus(license_key: str, period: str) -> int:
+    """指定ライセンス × 月の追加枠 (運営が "+50" 等で付与した分)。
+    レコードが無ければ 0。"""
+    with connection() as c:
+        row = c.execute(
+            "SELECT bonus FROM ai_usage WHERE license_key = ? AND period = ?",
+            (license_key, period),
+        ).fetchone()
+        return int(row["bonus"]) if row else 0
+
+
+def add_ai_bonus(license_key: str, period: str, amount: int) -> int:
+    """`(license_key, period)` の bonus を +amount して新しい bonus 合計
+    を返す。レコードが無ければ作成 (count=0, bonus=amount)。負の amount
+    で減算もできる (使い切らせたい時用)。"""
+    amount = int(amount)
+    with connection() as c:
+        c.execute(
+            "INSERT INTO ai_usage (license_key, period, count, bonus, updated_at) "
+            "VALUES (?, ?, 0, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(license_key, period) DO UPDATE SET "
+            "bonus = bonus + excluded.bonus, updated_at = CURRENT_TIMESTAMP",
+            (license_key, period, amount),
+        )
+        row = c.execute(
+            "SELECT bonus FROM ai_usage WHERE license_key = ? AND period = ?",
+            (license_key, period),
+        ).fetchone()
+        return int(row["bonus"]) if row else 0
 
 
 def increment_ai_usage(license_key: str, period: str, delta: int = 1) -> int:

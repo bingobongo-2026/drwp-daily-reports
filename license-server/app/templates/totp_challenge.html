@@ -1,5 +1,12 @@
 {% extends "base.html" %}
 {% block title %}2FA 認証 / 日報マン ライセンスサーバー{% endblock %}
+{# 認証前なので、ヘッダーのナビ (ライセンス / サーバー設定 / Health) は
+   隠して認証フォームに集中させる。代わりにブランド名だけの薄い帯を出す。 #}
+{% block site_header %}
+<header style="background:#1f2937;color:#fff;padding:14px 24px;">
+  <strong>日報マン ライセンスサーバー</strong>
+</header>
+{% endblock %}
 {% block content %}
 
 <div class="card" style="max-width:480px;margin:60px auto;">
