@@ -4,7 +4,10 @@
  */
 class Test_DRWP_AI extends WP_UnitTestCase {
 
-    private $fake_response = '';
+    // 差し替えバックエンド (下の匿名クラス) から読むため public。
+    // private だと匿名クラスは別クラス扱いでアクセスできず
+    // 「Cannot access private property」エラーになる。
+    public $fake_response = '';
 
     public function set_up() {
         parent::set_up();
