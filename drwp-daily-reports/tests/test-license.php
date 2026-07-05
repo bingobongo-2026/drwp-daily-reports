@@ -89,9 +89,17 @@ class Test_DRWP_License extends WP_UnitTestCase {
         $this->assertTrue(DRWP_License::plan_allows('ai'));
     }
 
-    public function test_plan_allows_basic_blocks_ai() {
+    public function test_plan_allows_basic_unlocks_ai() {
         update_option(DRWP_License::OPT_STATUS, 'active');
         update_option(DRWP_License::OPT_PLAN, 'basic');
+        // basic でも AI 可 (free のみ不可)。managed モードは月次上限、
+        // own モードは無制限、という差はプラグイン/サーバ側で制御する。
+        $this->assertTrue(DRWP_License::plan_allows('ai'));
+    }
+
+    public function test_plan_allows_free_blocks_ai() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_PLAN, 'free');
         $this->assertFalse(DRWP_License::plan_allows('ai'));
     }
 
@@ -105,8 +113,8 @@ class Test_DRWP_License extends WP_UnitTestCase {
     public function test_plan_allows_unknown_plan_falls_back_to_basic() {
         update_option(DRWP_License::OPT_STATUS, 'active');
         update_option(DRWP_License::OPT_PLAN, 'enterprise');
-        // 不明プランは保守的に basic 扱い — AI は使えない。
-        $this->assertFalse(DRWP_License::plan_allows('ai'));
+        // 不明プランは basic 扱い。basic は AI 可なので ai は許可される。
+        $this->assertTrue(DRWP_License::plan_allows('ai'));
     }
 
     public function test_plan_allows_blocks_everything_when_license_inactive() {

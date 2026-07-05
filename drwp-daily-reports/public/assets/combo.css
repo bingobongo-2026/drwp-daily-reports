@@ -1,0 +1,106 @@
+/* drwp-combo: 検索可能な案件ピッカー。combo.js が <select> を視覚的に
+   隠し、その横にこのテキスト入力 + 候補リストを生成する。 */
+
+.drwp-combo {
+    position: relative;
+    width: 100%;
+}
+
+/* native <select> は a11y / フォーム互換のため残しつつ視覚的にだけ隠す。
+   tab-index を奪わないよう display:none ではなく見えない overlay にする
+   ……のが理想だが、ここでは送信さえできれば十分なので絶対に display:none
+   で OK。tab フォーカスは生成した input 側に向ける。 */
+.drwp-combo > .drwp-combo-native {
+    display: none !important;
+}
+
+.drwp-combo-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 36px 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    font: inherit;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: #1f2937;
+}
+.drwp-combo-input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .15);
+}
+.drwp-combo.is-open .drwp-combo-input {
+    border-color: #2563eb;
+}
+
+.drwp-combo-clear {
+    position: absolute;
+    top: 50%; right: 8px;
+    transform: translateY(-50%);
+    width: 22px; height: 22px;
+    padding: 0;
+    border: 0; border-radius: 50%;
+    background: #e2e8f0; color: #475569;
+    font-size: 14px; line-height: 1; cursor: pointer;
+}
+.drwp-combo-clear:hover { background: #cbd5e1; color: #1f2937; }
+
+.drwp-combo-list {
+    position: absolute;
+    top: calc(100% + 4px); left: 0; right: 0;
+    z-index: 30;
+    max-height: 280px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 4px 0;
+    list-style: none;
+    background: #fff;
+    border: 1px solid #d6d3cd;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(40, 40, 30, 0.12);
+}
+
+.drwp-combo-group {
+    padding: 6px 12px 2px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: #94a3b8;
+    text-transform: none;
+    cursor: default;
+}
+
+.drwp-combo-item {
+    padding: 8px 12px;
+    font-size: 0.92rem;
+    color: #1f2937;
+    cursor: pointer;
+    line-height: 1.35;
+}
+.drwp-combo-item.is-active {
+    background: #eff6ff;
+}
+.drwp-combo-item.is-selected {
+    font-weight: 700;
+}
+.drwp-combo-item.is-selected::before {
+    content: '✓ ';
+    color: #2563eb;
+    font-weight: 700;
+}
+.drwp-combo-item:hover {
+    background: #f1f5f9;
+}
+
+.drwp-combo-empty {
+    padding: 12px;
+    color: #94a3b8;
+    font-size: 0.9rem;
+    text-align: center;
+    cursor: default;
+}
+
+/* ダイアログ内で使われた時に list がはみ出さないよう (overflow:hidden
+   なダイアログだと切れる可能性) フォーム側で対処することを想定。 */

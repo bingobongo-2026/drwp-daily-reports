@@ -93,6 +93,32 @@
                 renderPhotoPreview();
             };
             thumb.appendChild(del);
+            // ぼかし編集ボタン — 押すと共有モザイクモーダルを開き、
+            // 適用結果 (blob) を新しい File として entry.file に差し替える。
+            if (window.DRWP_Mosaic) {
+                var mos = document.createElement('button');
+                mos.type = 'button';
+                mos.className = 'photo-mosaic';
+                mos.textContent = i18n.mosaic_button || 'ぼかし';
+                mos.onclick = function () {
+                    var origName = entry.file.name || 'photo.jpg';
+                    window.DRWP_Mosaic.open({
+                        imageUrl: entry.file,
+                        onApply: function (blob) {
+                            if (!blob) return;
+                            // 元と同じ名前で File オブジェクトに包み直す
+                            // (サーバ側のファイル名衝突回避は upload-photo 側で済むので、
+                            // ここでは元の名前を保つことで利用者が見分けやすく)
+                            entry.file = new File([blob], origName, {
+                                type: 'image/jpeg',
+                                lastModified: Date.now(),
+                            });
+                            renderPhotoPreview();
+                        }
+                    });
+                };
+                thumb.appendChild(mos);
+            }
             item.appendChild(thumb);
 
             var caption = document.createElement('input');

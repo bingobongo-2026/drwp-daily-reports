@@ -16,6 +16,13 @@ class DRWP_AI {
     const OPT_MODEL    = 'drwp_ai_model';
     const OPT_API_KEY  = 'drwp_ai_api_key';
     const OPT_ENABLED  = 'drwp_ai_enabled';
+    // 'own' = 自分の API キーで直接プロバイダを叩く (従来動作)
+    // 'managed' = ライセンスサーバ経由で運営契約のキーを借りる
+    //             (月次回数制限あり、API キー入力不要)
+    // 新規インストールも既定 'own' にしておくことで、過去仕様と同じ
+    // 振る舞いから始まる (利用者が能動的に "managed" を選ばないと
+    // ライセンスサーバの AI 枠は消費されない)。
+    const OPT_KEY_MODE = 'drwp_ai_key_mode';
 
     const BRIEFING_LIMIT = 10;
 
@@ -53,8 +60,20 @@ class DRWP_AI {
         return get_option(self::OPT_ENABLED) === 'yes';
     }
 
+    public static function key_mode() {
+        $m = (string) get_option(self::OPT_KEY_MODE, 'own');
+        return in_array($m, ['own', 'managed'], true) ? $m : 'own';
+    }
+
     /** Factory: build the configured backend implementation. */
     public static function backend() {
+        // 'managed' モード: ライセンスサーバ経由 (運営契約 AI)
+        if (self::key_mode() === 'managed') {
+            $cfg = ['server_url' => (string) get_option(DRWP_License::OPT_API_URL, '')];
+            $backend = new DRWP_AI_Backend_Managed($cfg);
+            return apply_filters('drwp_ai_backend', $backend, 'managed', $cfg);
+        }
+        // 'own' モード: 自分の API キー (既定・従来動作)
         $cfg = [
             'url'     => self::url(),
             'model'   => self::model(),

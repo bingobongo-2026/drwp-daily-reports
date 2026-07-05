@@ -134,7 +134,12 @@ class DRWP_Plan {
         global $wpdb;
         $where = ["status = 'active'", 'planned_date >= %s', 'planned_date <= %s'];
         $args  = [$month_start, $month_end];
-        if ($self_only || !self::can_view_all()) {
+        // 旧仕様では can_view_all (= edit_others_posts) を持たないユーザに
+        // 自動的に「自分の予定だけ」スコープを掛けていたが、現場の運用
+        // 上「他のメンバーの予定を見たい」というニーズが普通にあるので
+        // 撤去。$self_only (= ?drwp_mine=1) が明示で来た時だけ絞る。
+        // 編集権限の絞り (can_edit) は別途残っているので、見えても触れない。
+        if ($self_only) {
             $uid = get_current_user_id();
             $where[] = '(user_id = %d OR created_by = %d)';
             $args[] = $uid; $args[] = $uid;

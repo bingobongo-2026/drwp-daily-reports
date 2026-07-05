@@ -6,14 +6,14 @@
     <div class="notice notice-success"><p><?php esc_html_e('保存しました。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>
 
-  <p><?php esc_html_e('日報を AI に渡して、文章生成・要約・チェックを行います。バックエンドは OpenAI 互換 / Anthropic から選択できます。', 'drwp-daily-reports'); ?></p>
+  <p><?php esc_html_e('日報を AI に渡して、文章生成・要約・チェックを行います。「運営契約 API」モードでは月次回数制限があり、API キーは不要です。「自分の API キー」モードでは OpenAI / Anthropic のキーを設定して直接利用します。', 'drwp-daily-reports'); ?></p>
 
   <div class="notice notice-info inline" style="margin:8px 0;">
-    <p style="margin:.5em 0;"><strong><?php esc_html_e('有効にすると、次の場所に AI ボタンが表示されます（Pro プラン）:', 'drwp-daily-reports'); ?></strong></p>
+    <p style="margin:.5em 0;"><strong><?php esc_html_e('有効にすると、次の場所に AI ボタンが表示されます:', 'drwp-daily-reports'); ?></strong></p>
     <ul style="margin:0 0 .5em 1.4em;list-style:disc;">
       <li><?php esc_html_e('案件ページ — 各案件の行に「AI ブリーフィング」「AI サマリ」', 'drwp-daily-reports'); ?></li>
       <li><?php esc_html_e('日報編集ページ — 「公開用コンテンツ」に「AI で下書きを生成」', 'drwp-daily-reports'); ?></li>
-      <li><?php esc_html_e('日報一覧ページ — 上部に「AI 対応アラート」と「AI 振り返りアドバイス」(絞り込み中の最新60件をAIが読んで成功例・失敗例・今後の動き方を提案)', 'drwp-daily-reports'); ?></li>
+      <li><?php esc_html_e('日報一覧ページ — 上部に「AI 対応アラート」と「AI 振り返りアドバイス」', 'drwp-daily-reports'); ?></li>
     </ul>
   </div>
 
@@ -32,33 +32,80 @@
         </td>
       </tr>
       <tr>
+        <th><?php esc_html_e('API キーのモード', 'drwp-daily-reports'); ?></th>
+        <td>
+          <fieldset>
+            <label style="display:block;margin-bottom:6px;">
+              <input type="radio" name="key_mode" value="own" data-key-mode="own" <?php checked($mode, 'own'); ?> />
+              <?php esc_html_e('自分の API キーを使う', 'drwp-daily-reports'); ?>
+              <span class="description"><?php esc_html_e(' — OpenAI / Anthropic に直接接続。回数制限なし、料金は自分の契約から。', 'drwp-daily-reports'); ?></span>
+            </label>
+            <label style="display:block;">
+              <input type="radio" name="key_mode" value="managed" data-key-mode="managed" <?php checked($mode, 'managed'); ?> />
+              <?php esc_html_e('運営契約の API を使う', 'drwp-daily-reports'); ?>
+              <span class="description"><?php esc_html_e(' — API キー不要。プランごとに月間呼び出し回数の上限あり。', 'drwp-daily-reports'); ?></span>
+            </label>
+          </fieldset>
+        </td>
+      </tr>
+
+      <?php // ---- managed モード時の使用量パネル ---- ?>
+      <tr class="drwp-ai-managed-only">
+        <th><?php esc_html_e('今月の使用量', 'drwp-daily-reports'); ?></th>
+        <td>
+          <?php if (is_array($managed_quota)):
+              $used  = (int) ($managed_quota['used'] ?? 0);
+              $limit = (int) ($managed_quota['limit'] ?? 0);
+              $remain = max(0, $limit - $used);
+              $pct = $limit > 0 ? min(100, (int) round($used / $limit * 100)) : 100;
+          ?>
+            <p style="margin:.2em 0;">
+              <strong><?php echo (int) $used; ?> / <?php echo (int) $limit; ?> 回</strong>
+              <span class="description"><?php printf(esc_html__('（残り %d 回、%s 分）', 'drwp-daily-reports'),
+                  (int) $remain, esc_html((string) ($managed_quota['period'] ?? ''))); ?></span>
+            </p>
+            <div style="background:#e5e7eb;border-radius:4px;height:10px;width:300px;overflow:hidden;">
+              <div style="background:<?php echo $pct >= 90 ? '#dc2626' : ($pct >= 70 ? '#f59e0b' : '#16a34a'); ?>;
+                          height:100%;width:<?php echo (int) $pct; ?>%;transition:width .3s;"></div>
+            </div>
+            <p class="description" style="margin-top:6px;"><?php esc_html_e('使用量は月初 (UTC) にリセットされます。', 'drwp-daily-reports'); ?></p>
+          <?php else: ?>
+            <p class="description">
+              <?php esc_html_e('まだ取得できていません。「接続テスト」を実行すると最新の残量が表示されます。', 'drwp-daily-reports'); ?>
+            </p>
+          <?php endif; ?>
+        </td>
+      </tr>
+
+      <?php // ---- own モード時のフィールド ---- ?>
+      <tr class="drwp-ai-own-only">
         <th><?php esc_html_e('バックエンド', 'drwp-daily-reports'); ?></th>
         <td>
           <label style="margin-right:14px;">
-            <input type="radio" name="provider" value="openai" data-needs-key="1" <?php checked($provider, 'openai'); ?> />
+            <input type="radio" name="provider" value="openai" <?php checked($provider, 'openai'); ?> />
             OpenAI 互換 <span class="description">（OpenAI / Groq / Together など）</span>
           </label>
           <label>
-            <input type="radio" name="provider" value="anthropic" data-needs-key="1" <?php checked($provider, 'anthropic'); ?> />
+            <input type="radio" name="provider" value="anthropic" <?php checked($provider, 'anthropic'); ?> />
             Anthropic Claude
           </label>
         </td>
       </tr>
-      <tr>
+      <tr class="drwp-ai-own-only">
         <th><label for="drwp-ai-url"><?php esc_html_e('エンドポイント URL', 'drwp-daily-reports'); ?></label></th>
         <td>
           <input type="url" id="drwp-ai-url" name="url" value="<?php echo esc_attr($url); ?>" class="regular-text" />
           <p class="description" id="drwp-ai-url-hint"></p>
         </td>
       </tr>
-      <tr>
+      <tr class="drwp-ai-own-only">
         <th><label for="drwp-ai-model"><?php esc_html_e('モデル', 'drwp-daily-reports'); ?></label></th>
         <td>
           <input type="text" id="drwp-ai-model" name="model" value="<?php echo esc_attr($model); ?>" class="regular-text" />
           <p class="description" id="drwp-ai-model-hint"></p>
         </td>
       </tr>
-      <tr id="drwp-ai-key-row">
+      <tr class="drwp-ai-own-only" id="drwp-ai-key-row">
         <th><label for="drwp-ai-key"><?php esc_html_e('API キー', 'drwp-daily-reports'); ?></label></th>
         <td>
           <input type="password" id="drwp-ai-key" name="api_key" value="" class="regular-text" autocomplete="new-password"
@@ -83,7 +130,13 @@
     <?php wp_nonce_field('drwp_ai_test'); ?>
     <input type="hidden" name="action" value="drwp_ai_test" />
     <button class="button"><?php esc_html_e('接続テスト', 'drwp-daily-reports'); ?></button>
-    <span class="description" style="margin-left:8px;"><?php esc_html_e('保存した設定でバックエンドに接続し、レスポンスを確認します。', 'drwp-daily-reports'); ?></span>
+    <span class="description" style="margin-left:8px;">
+      <?php if ($mode === 'managed'): ?>
+        <?php esc_html_e('ライセンスサーバ経由で運営契約 AI に接続し、今月の残量を取得します。', 'drwp-daily-reports'); ?>
+      <?php else: ?>
+        <?php esc_html_e('保存した API キーでバックエンドに接続します。', 'drwp-daily-reports'); ?>
+      <?php endif; ?>
+    </span>
   </form>
 
   <?php if ($test): ?>
@@ -94,9 +147,6 @@
           <?php if (!empty($test['ok']['models'])): ?>
             <?php esc_html_e('利用可能なモデル:', 'drwp-daily-reports'); ?>
             <code><?php echo esc_html(implode(', ', array_slice($test['ok']['models'], 0, 20))); ?></code>
-            <?php if (count($test['ok']['models']) > 20): ?>
-              <span class="description"><?php printf(esc_html__('他 %d 件', 'drwp-daily-reports'), count($test['ok']['models']) - 20); ?></span>
-            <?php endif; ?>
           <?php endif; ?>
         </p>
       </div>
@@ -110,6 +160,14 @@
   <hr>
 
   <h2><?php esc_html_e('セットアップガイド', 'drwp-daily-reports'); ?></h2>
+  <details>
+    <summary><strong><?php esc_html_e('運営契約 API を選んだ場合', 'drwp-daily-reports'); ?></strong></summary>
+    <ol>
+      <li><?php esc_html_e('特別な作業は不要です。「AI 機能を有効にする」+ モードを「運営契約の API を使う」にして保存。', 'drwp-daily-reports'); ?></li>
+      <li><?php esc_html_e('プランごとの月間上限は: free=0回, basic=100回, pro=500回 (運営側で調整される可能性があります)。', 'drwp-daily-reports'); ?></li>
+      <li><?php esc_html_e('使用量は月初 (UTC) にリセットされます。', 'drwp-daily-reports'); ?></li>
+    </ol>
+  </details>
   <details>
     <summary><strong>OpenAI / 互換サービス</strong></summary>
     <ol>
@@ -131,27 +189,32 @@
 <script>
 (function(){
   var defaults = <?php echo wp_json_encode($defaults); ?>;
-  var radios = document.querySelectorAll('input[name="provider"]');
+  var modeRadios = document.querySelectorAll('input[name="key_mode"]');
+  var ownRows  = document.querySelectorAll('.drwp-ai-own-only');
+  var mgRows   = document.querySelectorAll('.drwp-ai-managed-only');
+  var providerRadios = document.querySelectorAll('input[name="provider"]');
   var urlEl = document.getElementById('drwp-ai-url');
   var modelEl = document.getElementById('drwp-ai-model');
   var urlHint = document.getElementById('drwp-ai-url-hint');
   var modelHint = document.getElementById('drwp-ai-model-hint');
-  var keyRow = document.getElementById('drwp-ai-key-row');
 
-  function apply(){
+  function applyMode(){
+    var picked = document.querySelector('input[name="key_mode"]:checked');
+    var mode = picked ? picked.value : 'own';
+    ownRows.forEach(function (r) { r.style.display = (mode === 'own') ? '' : 'none'; });
+    mgRows.forEach(function (r)  { r.style.display = (mode === 'managed') ? '' : 'none'; });
+  }
+  function applyProvider(){
     var picked = document.querySelector('input[name="provider"]:checked');
-    if (!picked) return;
+    if (!picked || !urlHint) return;
     var d = defaults[picked.value];
     urlHint.textContent = '推奨: ' + d.url;
     modelHint.textContent = '推奨: ' + d.model;
-    // 残った両プロバイダ(OpenAI / Anthropic)とも API キー必須なので
-    // 常時 keyRow を見せる。data-needs-key 切替は廃止。
-    keyRow.style.display = '';
   }
 
-  // If the URL/model fields are empty when switching, prefill with defaults.
-  radios.forEach(function(r){
-    r.addEventListener('change', function(){
+  modeRadios.forEach(function (r) { r.addEventListener('change', applyMode); });
+  providerRadios.forEach(function (r) {
+    r.addEventListener('change', function () {
       var d = defaults[r.value];
       if (urlEl.value.trim() === '' || urlEl.dataset.prefilled === '1') {
         urlEl.value = d.url; urlEl.dataset.prefilled = '1';
@@ -159,9 +222,10 @@
       if (modelEl.value.trim() === '' || modelEl.dataset.prefilled === '1') {
         modelEl.value = d.model; modelEl.dataset.prefilled = '1';
       }
-      apply();
+      applyProvider();
     });
   });
-  apply();
+  applyMode();
+  applyProvider();
 })();
 </script>

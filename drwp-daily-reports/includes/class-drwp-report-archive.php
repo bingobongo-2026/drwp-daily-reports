@@ -31,8 +31,9 @@ if (!defined('ABSPATH')) exit;
  */
 class DRWP_Report_Archive {
 
-    const HANDLE      = 'drwp-archive';
-    const HANDLE_EDIT = 'drwp-archive-edit';
+    const HANDLE       = 'drwp-archive';
+    const HANDLE_EDIT  = 'drwp-archive-edit';
+    const HANDLE_COMBO = 'drwp-combo';
 
     public static function init() {
         add_shortcode('drwp_report_archive', [__CLASS__, 'shortcode']);
@@ -75,6 +76,12 @@ class DRWP_Report_Archive {
 
     public static function shortcode($atts = []) {
         wp_enqueue_style(self::HANDLE);
+        // 案件選択コンボボックス (DRWP_Report_Form 側で登録済み)
+        wp_enqueue_style(self::HANDLE_COMBO);
+        wp_enqueue_script(self::HANDLE_COMBO);
+        // 共有モザイク編集 (DRWP_Report_Form 側で登録済み)
+        wp_enqueue_style('drwp-mosaic');
+        wp_enqueue_script('drwp-mosaic');
 
         // 現にログイン中の退職者(init ログアウト前のレース) — データ
         // に到達する前に通知だけ出して止める。
@@ -106,9 +113,24 @@ class DRWP_Report_Archive {
             return DRWP_Login::render_login_box(get_permalink() ?: null);
         }
         if (!current_user_can('edit_posts')) {
-            return self::wrap('<p class="drwp-archive-message">'
+            // ログイン済みだが閲覧権限を持たないアカウント (Subscriber 等)
+            // で詰まる人がいるので、別アカウントで入り直せるよう
+            // ログアウト動線を必ず添える。ログアウト後の戻り先は
+            // 同じページにして、未ログイン分岐で出るログインボックスに
+            // 接続する (#issue: ユーザが「閲覧する権限がありません」で
+            // 立ち往生する)。
+            $here = get_permalink() ?: home_url();
+            $logout_url = wp_logout_url($here);
+            return self::wrap(
+                '<p class="drwp-archive-message">'
                 . esc_html__('閲覧する権限がありません。', 'drwp-daily-reports')
-                . '</p>');
+                . '</p>'
+                . '<p class="drwp-archive-message" style="text-align:center;">'
+                . '<a class="button" href="' . esc_url($logout_url) . '">'
+                . esc_html__('別のアカウントでログイン', 'drwp-daily-reports')
+                . '</a>'
+                . '</p>'
+            );
         }
 
         $id = absint($_GET['drwp_id'] ?? 0);
@@ -129,12 +151,21 @@ class DRWP_Report_Archive {
      * ------------------------------------------------------------ */
 
     private static function render_list() {
-        // "自分のみ" filter — checkbox on the form, persisted via
-        // ?drwp_mine=1. When set we scope the calendar to the
-        // current user (replaces the legacy "my reports" view that
-        // used to live behind a separate shortcode before the archive
-        // absorbed it).
-        $mine = !empty($_GET['drwp_mine']) && is_user_logged_in();
+        // "自分のみ" filter.
+        // 既定の挙動はクライアントタイプで分岐:
+        //   - モバイル (リスト固定): 既定で「自分のみ」ON。現場の作業員
+        //     が自分の日報をすぐ見つけられるように。
+        //   - PC (カレンダー / リスト切替可): 既定は「全員」。事務所が
+        //     チームの動きを俯瞰するシナリオを優先。
+        // 利用者が一度フォームを操作すると hidden `drwp_scope_set=1` が
+        // URL に乗るので、その後はチェックボックスの状態 (drwp_mine)
+        // をそのまま尊重 (チェックを外せば確定で外れる)。
+        $scope_set = isset($_GET['drwp_scope_set']);
+        if ($scope_set) {
+            $mine = !empty($_GET['drwp_mine']) && is_user_logged_in();
+        } else {
+            $mine = is_user_logged_in() && wp_is_mobile();
+        }
         $user_id = $mine ? get_current_user_id() : 0;
         // Retired users keep their read access (so they can review
         // their own past work) but lose every write entry point.
@@ -190,8 +221,17 @@ class DRWP_Report_Archive {
             'needs_revision' => DRWP_Labels::review_status('needs_revision'),
             'edit_requested' => DRWP_Labels::review_status('edit_requested'),
         ];
-        $project_list = array_map(function ($p) {
-            return ['id' => (int) $p->id, 'name' => (string) $p->name];
+        // 案件 (active のみ) と「最近使った」案件 ID。前者を combobox の
+        // 全件、後者を上部ピン留めに使う。recent_for_user は空ユーザ
+        // (未ログイン) に空配列を返すので分岐は不要。
+        $recent_project_ids = DRWP_Project::recent_for_user(get_current_user_id(), 8);
+        $recent_project_lookup = array_flip(array_map('intval', $recent_project_ids));
+        $project_list = array_map(function ($p) use ($recent_project_lookup) {
+            return [
+                'id'        => (int) $p->id,
+                'name'      => (string) $p->name,
+                'is_recent' => isset($recent_project_lookup[(int) $p->id]) ? 1 : 0,
+            ];
         }, DRWP_Project::all(true));
 
         // 担当者ドロップダウン — 事務所(`edit_others_posts`)だけが
@@ -206,7 +246,14 @@ class DRWP_Report_Archive {
             'nonce'     => $nonce,
             'labels'    => $labels,
             'projects'  => $project_list,
+            'recentProjectIds' => array_values(array_map('intval', $recent_project_ids)),
             'canAssignPlans' => $can_assign_plans,
+            // 「自分以外の日報も編集できる」事務所権限。レビュー権限と
+            // 同じ判定 (edit_others_posts)。UI 側で「他人の日報の編集
+            // ボタンを隠す/出す」の判定に使う。サーバ側 (PATCH) は
+            // 別途 can_edit_one でガード済み。
+            'canEditOthers' => current_user_can('edit_others_posts'),
+            'currentUserId' => (int) get_current_user_id(),
             // The archive's edit flow uses ?drwp_id=N&drwp_edit=1
             // (see shortcode() dispatch); we build a link template
             // with __ID__ that JS replaces per-report.
@@ -250,15 +297,10 @@ class DRWP_Report_Archive {
                         <span><?php esc_html_e('日付', 'drwp-daily-reports'); ?> <em>*</em></span>
                         <input type="date" name="planned_date" required />
                     </label>
-                    <label class="drwp-archive-plan-field">
+                    <div class="drwp-archive-plan-field">
                         <span><?php esc_html_e('案件', 'drwp-daily-reports'); ?></span>
-                        <select name="project_id">
-                            <option value=""><?php esc_html_e('（未設定）', 'drwp-daily-reports'); ?></option>
-                            <?php foreach ($project_list as $p): ?>
-                                <option value="<?php echo (int) $p['id']; ?>"><?php echo esc_html($p['name']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
+                        <?php echo self::project_combo_select($project_list, 0, 'project_id', __('（未設定）', 'drwp-daily-reports'), false); ?>
+                    </div>
                     <?php if ($can_assign_plans && !empty($worker_options)): ?>
                     <label class="drwp-archive-plan-field">
                         <span><?php esc_html_e('担当者', 'drwp-daily-reports'); ?></span>
@@ -305,15 +347,10 @@ class DRWP_Report_Archive {
                         <span><?php esc_html_e('日付', 'drwp-daily-reports'); ?> <em>*</em></span>
                         <input type="date" name="planned_date" value="<?php echo esc_attr(current_time('Y-m-d')); ?>" required />
                     </label>
-                    <label class="drwp-archive-plan-field">
+                    <div class="drwp-archive-plan-field">
                         <span><?php esc_html_e('案件', 'drwp-daily-reports'); ?></span>
-                        <select name="project_id">
-                            <option value=""><?php esc_html_e('（未設定）', 'drwp-daily-reports'); ?></option>
-                            <?php foreach (DRWP_Project::all(true) as $p): ?>
-                                <option value="<?php echo (int) $p->id; ?>"><?php echo esc_html($p->name); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
+                        <?php echo self::project_combo_select($project_list, 0, 'project_id', __('（未設定）', 'drwp-daily-reports'), false); ?>
+                    </div>
                     <div class="drwp-archive-plan-times">
                         <label class="drwp-archive-plan-field">
                             <span><?php esc_html_e('開始時刻', 'drwp-daily-reports'); ?></span>
@@ -434,9 +471,13 @@ class DRWP_Report_Archive {
 
             // pending (レビュー待ち) と needs_revision (差戻し) は
             // 投稿者がまだ自力で修正できる状態なので、両方で「編集
-            // する」ボタンを出す。実際の本人チェックは PATCH 側で
-            // 行うので、ここは UI 上の見せ方だけ。
-            if ((d.review_status === 'pending' || d.review_status === 'needs_revision') && !cfg.isRetired) {
+            // する」ボタンを出す。投稿者本人 (= user_id 一致) または
+            // 事務所 (edit_others_posts) のみ。他社員には出さない
+            // (他人の日報は閲覧のみで編集不可)。
+            var canEdit = !cfg.isRetired
+                       && (d.review_status === 'pending' || d.review_status === 'needs_revision')
+                       && (cfg.canEditOthers || Number(d.user_id) === Number(cfg.currentUserId));
+            if (canEdit) {
               html += '<div class="drwp-archive-view-actions">';
               html += '<button type="button" class="drwp-archive-new-btn" data-action="enter-edit">'
                     + '<?php echo esc_js(__('編集する', 'drwp-daily-reports')); ?></button>';
@@ -471,16 +512,34 @@ class DRWP_Report_Archive {
             html += '<input type="date" name="report_date" value="' + esc(d.report_date) + '" required />';
             html += '</label>';
 
-            html += '<label class="drwp-archive-inline-field">';
+            html += '<div class="drwp-archive-inline-field">';
             html += '<span><?php echo esc_js(__('案件', 'drwp-daily-reports')); ?> <em>*</em></span>';
+            html += '<div class="drwp-combo" data-drwp-combo>';
             html += '<select name="project_id" required>';
             html += '<option value=""><?php echo esc_js(__('選択してください', 'drwp-daily-reports')); ?></option>';
-            projects.forEach(function (p) {
-              var sel = (String(p.id) === String(d.project_id || '')) ? ' selected' : '';
-              html += '<option value="' + esc(p.id) + '"' + sel + '>' + esc(p.name) + '</option>';
-            });
+            // 「最近使った」と「案件」で optgroup を分けて combo.js のグループ
+            // 見出しを効かせる。is_recent フラグは PHP 側で付与済み。
+            var recentProjects = projects.filter(function (p) { return !!p.is_recent; });
+            var otherProjects  = projects.filter(function (p) { return !p.is_recent; });
+            if (recentProjects.length) {
+              html += '<optgroup label="<?php echo esc_js(__('最近使った', 'drwp-daily-reports')); ?>">';
+              recentProjects.forEach(function (p) {
+                var sel = (String(p.id) === String(d.project_id || '')) ? ' selected' : '';
+                html += '<option value="' + esc(p.id) + '"' + sel + '>' + esc(p.name) + '</option>';
+              });
+              html += '</optgroup>';
+            }
+            if (otherProjects.length) {
+              html += '<optgroup label="<?php echo esc_js(__('案件', 'drwp-daily-reports')); ?>">';
+              otherProjects.forEach(function (p) {
+                var sel = (String(p.id) === String(d.project_id || '')) ? ' selected' : '';
+                html += '<option value="' + esc(p.id) + '"' + sel + '>' + esc(p.name) + '</option>';
+              });
+              html += '</optgroup>';
+            }
             html += '</select>';
-            html += '</label>';
+            html += '</div>';
+            html += '</div>';
 
             html += '<div class="drwp-archive-inline-times">';
             html += '<label class="drwp-archive-inline-field"><span><?php echo esc_js(__('開始時刻', 'drwp-daily-reports')); ?></span>';
@@ -508,7 +567,7 @@ class DRWP_Report_Archive {
             html += '<span><?php echo esc_js(__('写真', 'drwp-daily-reports')); ?></span>';
             html += '<div class="drwp-archive-inline-photos" data-role="photos">';
             (d.photos || []).forEach(function (p) {
-              html += renderEditPhoto(p.attachment_id, p.url, p.caption || '');
+              html += renderEditPhoto(p.attachment_id, p.url, p.caption || '', p.full_url || p.url);
             });
             html += '</div>';
             html += '<label class="drwp-archive-inline-photo-pick">+ <?php echo esc_js(__('写真を追加', 'drwp-daily-reports')); ?>'
@@ -524,13 +583,24 @@ class DRWP_Report_Archive {
             html += '</form>';
 
             viewBody.innerHTML = html;
+            // combobox 拡張は DOMContentLoaded 時点で 1 度走るだけなので、
+            // ここで挿入したフォームに対して明示的に再適用する。
+            if (window.DRWP_Combo) window.DRWP_Combo.enhance(viewBody);
           }
 
-          function renderEditPhoto(id, url, caption) {
-            return '<div class="drwp-archive-inline-photo-item">'
+          function renderEditPhoto(id, url, caption, fullUrl) {
+            // url = サムネ表示用 (WP medium / thumbnail)
+            // fullUrl = モザイク編集用のオリジナル (アスペクト比を保つため)
+            //   WP thumbnail は 150x150 ハードクロップなので、ぼかし
+            //   ソースにそれを使うと画像が正方形に切れる事故が出る。
+            var fu = fullUrl || url;
+            return '<div class="drwp-archive-inline-photo-item" data-url="' + esc(url) + '" data-full-url="' + esc(fu) + '">'
                  + '<img src="' + esc(url) + '" alt="" />'
                  + '<input type="hidden" name="attachment_ids[]" value="' + esc(id) + '" />'
                  + '<input type="text" name="attachment_captions[]" placeholder="<?php echo esc_js(__('キャプション', 'drwp-daily-reports')); ?>" value="' + esc(caption) + '" />'
+                 + '<button type="button" class="drwp-archive-inline-photo-mosaic" data-role="mosaic-photo">'
+                 +   '<?php echo esc_js(__('ぼかし', 'drwp-daily-reports')); ?>'
+                 + '</button>'
                  + '<button type="button" class="drwp-archive-inline-photo-remove" data-role="remove-photo">×</button>'
                  + '</div>';
           }
@@ -563,6 +633,53 @@ class DRWP_Report_Archive {
               if (item) item.remove();
               return;
             }
+            if (e.target.dataset && e.target.dataset.role === 'mosaic-photo') {
+              // 既存の attachment をモザイク編集 → 新規アップロード →
+              // この行の attachment_id を新しいものに差し替える。
+              // 元の attachment は別の場所で参照されている可能性があるので、
+              // 上書きはせず「新しい添付」として作る方が安全。
+              var item = e.target.closest('.drwp-archive-inline-photo-item');
+              if (!item || !window.DRWP_Mosaic) return;
+              // モザイク編集はオリジナル (data-full-url) で開く。サムネ
+              // URL (data-url) は WP の hard-crop された thumbnail だと
+              // 正方形に切れて困るので、フル URL を優先する。
+              var url = item.dataset.fullUrl || item.dataset.url || (item.querySelector('img') || {}).src;
+              if (!url) return;
+              var btn = e.target;
+              btn.disabled = true;
+              window.DRWP_Mosaic.open({
+                imageUrl: url,
+                onApply: function (blob) {
+                  if (!blob) { btn.disabled = false; return; }
+                  var body = new FormData();
+                  body.append('file', blob, 'mosaic.jpg');
+                  fetch(cfg.restRoot + '/upload-photo', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'X-WP-Nonce': cfg.nonce },
+                    body: body
+                  }).then(function (r) {
+                    return r.json().then(function (j) { if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status); return j; });
+                  }).then(function (j) {
+                    // この行のサムネ・hidden id・data-url を新規 attachment に差し替え
+                    var img = item.querySelector('img');
+                    var hidden = item.querySelector('input[name="attachment_ids[]"]');
+                    var newUrl = j.thumbnail_url || j.full_url || '';
+                    var newFull = j.full_url || j.thumbnail_url || '';
+                    if (img && newUrl) img.src = newUrl;
+                    if (hidden) hidden.value = String(j.id);
+                    item.dataset.url = newUrl;
+                    item.dataset.fullUrl = newFull;
+                    btn.disabled = false;
+                  }).catch(function (err) {
+                    alert((err && err.message) || '<?php echo esc_js(__('アップロード失敗', 'drwp-daily-reports')); ?>');
+                    btn.disabled = false;
+                  });
+                },
+                onCancel: function () { btn.disabled = false; }
+              });
+              return;
+            }
           });
 
           viewBody.addEventListener('change', function (e) {
@@ -584,7 +701,7 @@ class DRWP_Report_Archive {
               if (status) status.textContent = '<?php echo esc_js(__('アップロード中…', 'drwp-daily-reports')); ?> (' + i + '/' + files.length + ')';
               uploadPhoto(f).then(function (j) {
                 var tmp = document.createElement('div');
-                tmp.innerHTML = renderEditPhoto(j.id, j.thumbnail_url || j.full_url || '', '');
+                tmp.innerHTML = renderEditPhoto(j.id, j.thumbnail_url || j.full_url || '', '', j.full_url || j.thumbnail_url || '');
                 photoList.appendChild(tmp.firstChild);
                 next();
               }).catch(function (err) {
@@ -648,7 +765,11 @@ class DRWP_Report_Archive {
             var form = document.getElementById('drwp-mform');
             if (form) {
               if (form.report_date) form.report_date.value = d.planDate || '';
-              if (form.project_id) form.project_id.value  = d.planProjectId || '';
+              if (form.project_id) {
+                form.project_id.value = d.planProjectId || '';
+                // combobox 拡張側に同期させる (input 表示の更新)
+                form.project_id.dispatchEvent(new Event('change', { bubbles: true }));
+              }
               if (form.started_at) form.started_at.value  = d.planStart || '';
               if (form.ended_at)   form.ended_at.value    = d.planEnd || '';
               var hidden = form.querySelector('input[name="linked_plan_id"]');
@@ -871,6 +992,7 @@ class DRWP_Report_Archive {
             if (planEditForm.project_id) {
               var pid = chip.dataset.planProjectId || '';
               planEditForm.project_id.value = (pid && pid !== '0') ? pid : '';
+              planEditForm.project_id.dispatchEvent(new Event('change', { bubbles: true }));
             }
             // 担当者 select は事務所だけ。データ属性は data-plan-user-id
             // で出してる(case-sensitive で正規化済み — dataset は
@@ -990,6 +1112,55 @@ class DRWP_Report_Archive {
           if (cfg.autoOpenNew && formDlg) {
             try { formDlg.showModal(); } catch (e) {}
           }
+
+          // ↑↓ 日付ジャンプボタン。リスト内の .drwp-archive-list-group
+          // を順番に見て、ビューポート真ん中より上にある最後の見出し
+          // を「今いる日」と判定し、その前後にスクロールする。日付
+          // ヘッダは sticky なのでスクロール時はビューポート上端に
+          // 張り付くから、その分のオフセットも引いておく。
+          (function () {
+            var jump = document.querySelector('[data-role=date-jump]');
+            if (!jump) return;
+            function groups() {
+              return Array.prototype.slice.call(
+                document.querySelectorAll('.drwp-archive-list-group')
+              );
+            }
+            function currentIndex() {
+              var gs = groups();
+              if (!gs.length) return -1;
+              var threshold = 80; // sticky header の高さ目安
+              var idx = 0;
+              for (var i = 0; i < gs.length; i++) {
+                if (gs[i].getBoundingClientRect().top - threshold <= 0) idx = i;
+              }
+              return idx;
+            }
+            function scrollToGroup(g) {
+              if (!g) return;
+              var y = g.getBoundingClientRect().top + window.pageYOffset - 8;
+              window.scrollTo({ top: y, behavior: 'smooth' });
+            }
+            jump.addEventListener('click', function (e) {
+              var btn = e.target.closest('[data-act]');
+              if (!btn) return;
+              var gs = groups();
+              if (!gs.length) return;
+              var i = currentIndex();
+              if (btn.dataset.act === 'prev-day') {
+                // 「今いる日」のヘッダがビューポート上端付近に張り付いて
+                // いる場合、↑ は 1 つ前の日へ。それ以外 (グループの途中)
+                // ならその日の先頭に戻す = i のまま。
+                var topOfCurrent = gs[i].getBoundingClientRect().top - 80;
+                if (topOfCurrent < -20 && i > 0) i--;
+              } else if (btn.dataset.act === 'next-day') {
+                i = Math.min(gs.length - 1, i + 1);
+              }
+              scrollToGroup(gs[i]);
+            });
+            // リストが 1 日分しか無い (= ジャンプの意味がない) 時は隠す
+            if (groups().length < 2) jump.style.display = 'none';
+          })();
         })();
         </script>
         <?php
@@ -1026,9 +1197,15 @@ class DRWP_Report_Archive {
         $q       = isset($_GET['drwp_q']) ? sanitize_text_field(wp_unslash((string) $_GET['drwp_q'])) : '';
         $project = isset($_GET['drwp_project']) ? absint($_GET['drwp_project']) : 0;
         $status  = isset($_GET['drwp_status']) ? sanitize_key((string) $_GET['drwp_status']) : '';
-        // 表示モード: calendar (既定) / list。リスト側は内容のスキャン用、
-        // カレンダーは「いつあったか」確認用、で使い分け。
-        $view    = (isset($_GET['drwp_view']) && (string) $_GET['drwp_view'] === 'list') ? 'list' : 'calendar';
+        // 表示モード: calendar (PC 既定) / list。
+        // スマートフォン (UA 判定) ではカレンダーが可読性に欠けるため、
+        // ?drwp_view を無視して常に list 固定にする。
+        // PC では従来通り ?drwp_view=list で切り替え、トグルから操作可。
+        if (wp_is_mobile()) {
+            $view = 'list';
+        } else {
+            $view = (isset($_GET['drwp_view']) && (string) $_GET['drwp_view'] === 'list') ? 'list' : 'calendar';
+        }
 
         // Month navigation. Default to the current month so the view
         // opens on "今月". URL state lets users bookmark a specific month.
@@ -1045,8 +1222,32 @@ class DRWP_Report_Archive {
         $next_month  = date('Y-m', strtotime($month_start . ' +1 month'));
         $today_month = current_time('Y-m');
 
+        // 日付範囲 (リストビュー専用)。?drwp_from / ?drwp_to が指定されて
+        // いるとき、リスト表示では月単位の絞り込みを無視してこの範囲で
+        // クエリを発行する。カレンダーは月グリッドが前提なので無視。
+        $from_raw = isset($_GET['drwp_from']) ? sanitize_text_field((string) $_GET['drwp_from']) : '';
+        $to_raw   = isset($_GET['drwp_to'])   ? sanitize_text_field((string) $_GET['drwp_to'])   : '';
+        $range_from = preg_match('/^\d{4}-\d{2}-\d{2}$/', $from_raw) ? $from_raw : '';
+        $range_to   = preg_match('/^\d{4}-\d{2}-\d{2}$/', $to_raw)   ? $to_raw   : '';
+        // 片方だけ指定された場合の補完: from だけ -> to は今日、
+        // to だけ -> from は to の 30 日前。利用者が「ここから今まで」
+        // をやりがちなので、from だけのケースを優先サポートする。
+        if ($range_from !== '' && $range_to === '') {
+            $range_to = current_time('Y-m-d');
+        }
+        if ($range_to !== '' && $range_from === '') {
+            $range_from = date('Y-m-d', strtotime($range_to . ' -30 days'));
+        }
+        // from > to の入れ違いはひっくり返して保護
+        if ($range_from !== '' && $range_to !== '' && strcmp($range_from, $range_to) > 0) {
+            [$range_from, $range_to] = [$range_to, $range_from];
+        }
+        $use_range = ($view === 'list' && $range_from !== '' && $range_to !== '');
+        $q_start = $use_range ? $range_from : $month_start;
+        $q_end   = $use_range ? $range_to   : $month_end;
+
         $where = ['r.report_date >= %s', 'r.report_date <= %s'];
-        $args  = [$month_start, $month_end];
+        $args  = [$q_start, $q_end];
         if ($opts['user_id']) {
             $where[] = 'r.user_id = %d';
             $args[]  = (int) $opts['user_id'];
@@ -1074,11 +1275,35 @@ class DRWP_Report_Archive {
             $by_date[(string) $r->report_date][] = $r;
         }
 
-        // 予定オーバーレイ — same month window, visibility scoped
+        // 予定オーバーレイ — same date window, visibility scoped
         // either to the toggled "自分のみ" view or the default
         // worker/operator rule. Operators get every active plan;
         // workers get the ones they own or were assigned.
-        $plans = DRWP_Plan::for_archive_month($month_start, $month_end, (bool) $opts['user_id']);
+        $plans = DRWP_Plan::for_archive_month($q_start, $q_end, (bool) $opts['user_id']);
+        // 絞り込み条件を予定にも適用する。元の実装では予定だけ全件
+        // 出ていて「案件で絞り込んだのに違う案件の予定が混ざる」
+        // 不具合になっていた。
+        // - project: 予定にも project_id があるので同じ ID だけ残す
+        // - status:  予定にレビュー状態は無いので、ステータス絞り込みの
+        //            時は予定を一律で隠す (差戻し / 承認済み だけ見たい
+        //            状況で予定が混ざっても役に立たない)
+        // - q (キーワード): 予定の notes に対して同じ LIKE を掛ける
+        if ($project) {
+            $plans = array_values(array_filter($plans, function ($pl) use ($project) {
+                return (int) ($pl->project_id ?? 0) === (int) $project;
+            }));
+        }
+        if ($status && in_array($status, ['pending', 'approved', 'needs_revision', 'edit_requested'], true)) {
+            $plans = [];
+        }
+        if ($q !== '') {
+            $needle = function_exists('mb_strtolower') ? mb_strtolower($q) : strtolower($q);
+            $plans = array_values(array_filter($plans, function ($pl) use ($needle) {
+                $notes = (string) ($pl->notes ?? '');
+                $hay = function_exists('mb_strtolower') ? mb_strtolower($notes) : strtolower($notes);
+                return $needle === '' || strpos($hay, $needle) !== false;
+            }));
+        }
         $plans_by_date = [];
         foreach ($plans as $pl) {
             $plans_by_date[(string) $pl->planned_date][] = $pl;
@@ -1159,54 +1384,41 @@ class DRWP_Report_Archive {
                         <?php endif; ?>
                     </div>
                 </div>
-
-                <?php // 要対応カード (大きめ) + ステータス別カード (小さめ)。 ?>
-                <div class="drwp-archive-stats">
-                    <div class="drwp-archive-stat drwp-archive-stat-hero">
-                        <p class="drwp-archive-stat-label"><?php esc_html_e('要対応の日報', 'drwp-daily-reports'); ?></p>
-                        <p class="drwp-archive-stat-value">
-                            <?php echo (int) $stat['needs_action']; ?><span class="drwp-archive-stat-unit"><?php esc_html_e('件', 'drwp-daily-reports'); ?></span>
-                        </p>
-                    </div>
-                    <div class="drwp-archive-stat status-needs_revision">
-                        <p class="drwp-archive-stat-label"><?php echo esc_html(DRWP_Labels::review_status('needs_revision')); ?></p>
-                        <p class="drwp-archive-stat-value"><?php echo (int) $stat['needs_revision']; ?></p>
-                    </div>
-                    <div class="drwp-archive-stat status-pending">
-                        <p class="drwp-archive-stat-label"><?php echo esc_html(DRWP_Labels::review_status('pending')); ?></p>
-                        <p class="drwp-archive-stat-value"><?php echo (int) $stat['pending']; ?></p>
-                    </div>
-                    <div class="drwp-archive-stat status-edit_requested">
-                        <p class="drwp-archive-stat-label"><?php echo esc_html(DRWP_Labels::review_status('edit_requested')); ?></p>
-                        <p class="drwp-archive-stat-value"><?php echo (int) $stat['edit_requested']; ?></p>
-                    </div>
-                    <div class="drwp-archive-stat is-plan">
-                        <p class="drwp-archive-stat-label"><?php esc_html_e('予定', 'drwp-daily-reports'); ?></p>
-                        <p class="drwp-archive-stat-value"><?php echo (int) $stat['plans']; ?></p>
-                    </div>
-                    <div class="drwp-archive-stat status-approved">
-                        <p class="drwp-archive-stat-label"><?php echo esc_html(DRWP_Labels::review_status('approved')); ?></p>
-                        <p class="drwp-archive-stat-value"><?php echo (int) $stat['approved']; ?></p>
-                    </div>
-                </div>
             </header>
 
-            <?php echo self::render_filter_form($q, $project, $status, $month_param, $projects, !empty($_GET['drwp_mine'])); ?>
+            <?php echo self::render_filter_form($q, $project, $status, $month_param, $projects, !empty($_GET['drwp_mine']), $view, $range_from, $range_to); ?>
 
             <?php
             $total_count = count($rows);
+            $sort = (isset($_GET['drwp_sort']) && (string) $_GET['drwp_sort'] === 'date_asc') ? 'date_asc' : 'date_desc';
+            // ビュー切替トグルはスマホ (wp_is_mobile) では出さない
+            // (どちらにせよ表示は list 固定なので、選択肢を見せて
+            // 混乱させないため)。
+            $show_view_toggle = !wp_is_mobile();
             if ($view === 'list'): ?>
                 <div class="drwp-archive-toolbar">
                     <p class="drwp-archive-summary">
-                        <?php printf(
-                            esc_html__('%1$s（%2$d 件）', 'drwp-daily-reports'),
-                            esc_html(date_i18n('Y年n月', strtotime($month_start))),
-                            $total_count
-                        ); ?>
+                        <?php if ($use_range): ?>
+                            <?php printf(
+                                esc_html__('%1$s 〜 %2$s（%3$d 件）', 'drwp-daily-reports'),
+                                esc_html(date_i18n('Y/n/j', strtotime($q_start))),
+                                esc_html(date_i18n('Y/n/j', strtotime($q_end))),
+                                $total_count
+                            ); ?>
+                        <?php else: ?>
+                            <?php printf(
+                                esc_html__('%1$s（%2$d 件）', 'drwp-daily-reports'),
+                                esc_html(date_i18n('Y年n月', strtotime($month_start))),
+                                $total_count
+                            ); ?>
+                        <?php endif; ?>
                     </p>
-                    <?php echo self::render_view_toggle($view); ?>
+                    <div class="drwp-archive-toolbar-actions">
+                        <?php echo self::render_sort_toggle($sort); ?>
+                        <?php if ($show_view_toggle) echo self::render_view_toggle($view); ?>
+                    </div>
                 </div>
-                <?php echo self::render_archive_list_view($rows, $plans_by_date); ?>
+                <?php echo self::render_archive_list_view($rows, $plans_by_date, $sort); ?>
             <?php else: ?>
                 <?php echo self::render_calendar($month_param, $month_start, $by_date, $prev_month, $next_month, $today_month, ['q' => $q, 'project' => $project, 'status' => $status], $plans_by_date, $view, $total_count); ?>
             <?php endif; ?>
@@ -1232,7 +1444,7 @@ class DRWP_Report_Archive {
         return $projects;
     }
 
-    private static function render_filter_form($q, $project, $status, $month_param, $projects, $mine = false) {
+    private static function render_filter_form($q, $project, $status, $month_param, $projects, $mine = false, $view = 'calendar', $range_from = '', $range_to = '') {
         // On non-permalink sites the page is identified by ?page_id=N
         // (or similar). A GET form replaces the entire query string
         // with its form fields, so those external params would be lost
@@ -1241,16 +1453,16 @@ class DRWP_Report_Archive {
         $current_query = [];
         parse_str($_SERVER['QUERY_STRING'] ?? '', $current_query);
         $drwp_keys = ['drwp_q', 'drwp_project', 'drwp_status', 'drwp_month',
-                      'drwp_mine', 'drwp_id', 'drwp_edit', 'drwp_new',
+                      'drwp_mine', 'drwp_scope_set', 'drwp_id', 'drwp_edit', 'drwp_new',
                       'drwp_saved', 'drwp_requested', 'drwp_err', 'drwp_p', 'drwp_per',
-                      'drwp_view'];
+                      'drwp_view', 'drwp_sort', 'drwp_from', 'drwp_to'];
         $preserve = [];
         foreach ($current_query as $k => $v) {
             if (!in_array($k, $drwp_keys, true) && is_scalar($v)) {
                 $preserve[$k] = (string) $v;
             }
         }
-        $reset_url = remove_query_arg(['drwp_q', 'drwp_project', 'drwp_status', 'drwp_month', 'drwp_mine'], $_SERVER['REQUEST_URI'] ?? '');
+        $reset_url = remove_query_arg(['drwp_q', 'drwp_project', 'drwp_status', 'drwp_month', 'drwp_mine', 'drwp_scope_set', 'drwp_from', 'drwp_to'], $_SERVER['REQUEST_URI'] ?? '');
 
         $statuses = [
             ''                   => __('すべて', 'drwp-daily-reports'),
@@ -1262,7 +1474,7 @@ class DRWP_Report_Archive {
         // active so the user can see why the list looks scoped
         // without having to click through. Default closed otherwise
         // so the calendar gets more vertical space.
-        $has_filters = ($q !== '') || $project || ($status !== '') || $mine;
+        $has_filters = ($q !== '') || $project || ($status !== '') || $mine || ($range_from !== '') || ($range_to !== '');
         ob_start();
         ?>
         <details class="drwp-archive-filter-card" <?php echo $has_filters ? 'open' : ''; ?>>
@@ -1277,8 +1489,16 @@ class DRWP_Report_Archive {
                     <input type="hidden" name="<?php echo esc_attr($k); ?>" value="<?php echo esc_attr($v); ?>" />
                 <?php endforeach; ?>
                 <input type="hidden" name="drwp_month" value="<?php echo esc_attr($month_param); ?>" />
+                <?php // フォームから一度でも送信されたことを示すサーバ側センチネル。
+                  //   未送信 → 自動で「自分のみ」スコープ。
+                  //   送信済み → checkbox の状態 (drwp_mine) をそのまま尊重。
+                  ?>
+                <input type="hidden" name="drwp_scope_set" value="1" />
                 <?php if (!empty($_GET['drwp_view']) && $_GET['drwp_view'] === 'list'): ?>
                     <input type="hidden" name="drwp_view" value="list" />
+                <?php endif; ?>
+                <?php if (!empty($_GET['drwp_sort'])): ?>
+                    <input type="hidden" name="drwp_sort" value="<?php echo esc_attr((string) $_GET['drwp_sort']); ?>" />
                 <?php endif; ?>
                 <div class="drwp-archive-filter-row">
                     <label class="drwp-archive-field grow">
@@ -1314,6 +1534,42 @@ class DRWP_Report_Archive {
                     </label>
                     <?php endif; ?>
                 </div>
+                <?php if ($view === 'list'):
+                    // リストビュー専用: 日付範囲。空のまま送信されると month
+                    // 単位の既定 (例: 今月) に戻る。プリセットは form-submit
+                    // 不要の <a> で URL に直接 drwp_from / drwp_to を載せる。
+                    $today  = current_time('Y-m-d');
+                    $base_uri = $_SERVER['REQUEST_URI'] ?? '';
+                    $preset_url = function ($from, $to) use ($base_uri) {
+                        return esc_url(add_query_arg([
+                            'drwp_from' => $from,
+                            'drwp_to'   => $to,
+                            // 月切替を消して範囲側を効かせる
+                            'drwp_month' => false,
+                        ], $base_uri));
+                    };
+                    $first_of_month = current_time('Y-m') . '-01';
+                    $first_of_prev  = date('Y-m-01', strtotime($first_of_month . ' -1 month'));
+                    $last_of_prev   = date('Y-m-t',  strtotime($first_of_prev));
+                ?>
+                <div class="drwp-archive-filter-row drwp-archive-filter-range">
+                    <label class="drwp-archive-field">
+                        <span><?php esc_html_e('開始日', 'drwp-daily-reports'); ?></span>
+                        <input type="date" name="drwp_from" value="<?php echo esc_attr($range_from); ?>" />
+                    </label>
+                    <label class="drwp-archive-field">
+                        <span><?php esc_html_e('終了日', 'drwp-daily-reports'); ?></span>
+                        <input type="date" name="drwp_to" value="<?php echo esc_attr($range_to); ?>" />
+                    </label>
+                    <div class="drwp-archive-range-presets" role="group" aria-label="<?php esc_attr_e('期間プリセット', 'drwp-daily-reports'); ?>">
+                        <a class="drwp-archive-range-preset" href="<?php echo $preset_url(date('Y-m-d', strtotime($today . ' -6 days')), $today); ?>"><?php esc_html_e('直近7日', 'drwp-daily-reports'); ?></a>
+                        <a class="drwp-archive-range-preset" href="<?php echo $preset_url(date('Y-m-d', strtotime($today . ' -29 days')), $today); ?>"><?php esc_html_e('直近30日', 'drwp-daily-reports'); ?></a>
+                        <a class="drwp-archive-range-preset" href="<?php echo $preset_url(date('Y-m-d', strtotime($today . ' -89 days')), $today); ?>"><?php esc_html_e('直近90日', 'drwp-daily-reports'); ?></a>
+                        <a class="drwp-archive-range-preset" href="<?php echo $preset_url($first_of_month, $today); ?>"><?php esc_html_e('今月', 'drwp-daily-reports'); ?></a>
+                        <a class="drwp-archive-range-preset" href="<?php echo $preset_url($first_of_prev, $last_of_prev); ?>"><?php esc_html_e('先月', 'drwp-daily-reports'); ?></a>
+                    </div>
+                </div>
+                <?php endif; ?>
                 <div class="drwp-archive-filter-row">
                     <button type="submit" class="drwp-archive-submit">
                         <?php esc_html_e('絞り込み', 'drwp-daily-reports'); ?>
@@ -1324,6 +1580,57 @@ class DRWP_Report_Archive {
                 </div>
             </form>
         </details>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * 案件選択用の <select> を combo-box 対応の markup で出力する。
+     * combo.js が data-drwp-combo を拾って検索可能な UI に昇格させる。
+     *
+     * @param array  $projects     ['id', 'name', 'is_recent'] の連想配列
+     * @param int    $selected     初期選択 (0 で未選択)
+     * @param string $name         input name (project_id 等)
+     * @param string $placeholder  空 option のラベル
+     * @param bool   $required     required 属性を付けるか
+     */
+    private static function project_combo_select($projects, $selected = 0, $name = 'project_id', $placeholder = '', $required = false) {
+        $recent = [];
+        $other  = [];
+        foreach ($projects as $p) {
+            $row = ['id' => (int) $p['id'], 'name' => (string) $p['name']];
+            if (!empty($p['is_recent'])) $recent[] = $row;
+            else                         $other[]  = $row;
+        }
+        if ($placeholder === '') {
+            $placeholder = __('選択してください', 'drwp-daily-reports');
+        }
+        $sel = (int) $selected;
+        ob_start();
+        ?>
+        <div class="drwp-combo" data-drwp-combo>
+            <select name="<?php echo esc_attr($name); ?>"<?php echo $required ? ' required' : ''; ?>>
+                <option value=""><?php echo esc_html($placeholder); ?></option>
+                <?php if (!empty($recent)): ?>
+                    <optgroup label="<?php esc_attr_e('最近使った', 'drwp-daily-reports'); ?>">
+                        <?php foreach ($recent as $p): ?>
+                            <option value="<?php echo (int) $p['id']; ?>" <?php selected($sel, (int) $p['id']); ?>>
+                                <?php echo esc_html($p['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </optgroup>
+                <?php endif; ?>
+                <?php if (!empty($other)): ?>
+                    <optgroup label="<?php esc_attr_e('案件', 'drwp-daily-reports'); ?>">
+                        <?php foreach ($other as $p): ?>
+                            <option value="<?php echo (int) $p['id']; ?>" <?php selected($sel, (int) $p['id']); ?>>
+                                <?php echo esc_html($p['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </optgroup>
+                <?php endif; ?>
+            </select>
+        </div>
         <?php
         return ob_get_clean();
     }
@@ -1349,6 +1656,35 @@ class DRWP_Report_Archive {
                 <?php esc_html_e('リスト', 'drwp-daily-reports'); ?>
             </a>
         </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * リストビューの日付ソート切替。クリックで降順 / 昇順をトグルする
+     * 単一ボタン。URL の drwp_sort クエリで状態を保持。
+     */
+    private static function render_sort_toggle($current) {
+        $base = $_SERVER['REQUEST_URI'] ?? '';
+        $is_asc = ($current === 'date_asc');
+        // 押すと反対方向に切り替わる
+        $next_url = $is_asc
+            ? esc_url(remove_query_arg('drwp_sort', $base))
+            : esc_url(add_query_arg(['drwp_sort' => 'date_asc'], $base));
+        $label = $is_asc
+            ? __('日付 ↑ 古い順', 'drwp-daily-reports')
+            : __('日付 ↓ 新しい順', 'drwp-daily-reports');
+        $aria = $is_asc
+            ? __('日付の新しい順に並べ替える', 'drwp-daily-reports')
+            : __('日付の古い順に並べ替える', 'drwp-daily-reports');
+        ob_start();
+        ?>
+        <a class="drwp-archive-sort-btn<?php echo $is_asc ? ' is-asc' : ' is-desc'; ?>"
+           href="<?php echo $next_url; ?>"
+           title="<?php echo esc_attr($aria); ?>"
+           aria-label="<?php echo esc_attr($aria); ?>">
+            <?php echo esc_html($label); ?>
+        </a>
         <?php
         return ob_get_clean();
     }
@@ -1389,7 +1725,7 @@ class DRWP_Report_Archive {
      * カレンダーチップと同じ詳細モーダルが開けるように `data-id` を
      * 仕込む。
      */
-    private static function render_archive_list_view($rows, $plans_by_date = []) {
+    private static function render_archive_list_view($rows, $plans_by_date = [], $sort = 'date_desc') {
         if (empty($rows) && empty($plans_by_date)) {
             ob_start();
             ?>
@@ -1432,10 +1768,11 @@ class DRWP_Report_Archive {
             }
         }
         // 既定の並びは「日付の降順 (新しい順)」。同日内は時刻昇順
-        // (古い時間が先) で安定。リストで日報を上から読んで「最新が
-        // 上にある」感覚を出す。
-        usort($entries, function ($a, $b) {
-            $d = strcmp($b['date'], $a['date']);
+        // (古い時間が先) で安定。?drwp_sort=date_asc を指定すると
+        // 「古い順」(上に古い日付) に切り替わる。
+        $asc = ($sort === 'date_asc');
+        usort($entries, function ($a, $b) use ($asc) {
+            $d = $asc ? strcmp($a['date'], $b['date']) : strcmp($b['date'], $a['date']);
             if ($d !== 0) return $d;
             return strcmp($a['time'], $b['time']);
         });
@@ -1527,6 +1864,19 @@ class DRWP_Report_Archive {
                 </div>
             </section>
             <?php endforeach; ?>
+        </div>
+        <?php // ↑↓ で日付グループ間を移動する浮動ボタン。
+            //     画面下右に小さく出して、長いリストでも目的の日付に
+            //     一気に飛べるようにする。JS は drwp_archive_init で
+            //     後付けする (グループ要素は同じ DOM 内にある)。
+        ?>
+        <div class="drwp-archive-jump" data-role="date-jump" aria-hidden="false">
+            <button type="button" class="drwp-archive-jump-btn" data-act="prev-day"
+                    aria-label="<?php esc_attr_e('前の日へ', 'drwp-daily-reports'); ?>"
+                    title="<?php esc_attr_e('前の日へ', 'drwp-daily-reports'); ?>">↑</button>
+            <button type="button" class="drwp-archive-jump-btn" data-act="next-day"
+                    aria-label="<?php esc_attr_e('次の日へ', 'drwp-daily-reports'); ?>"
+                    title="<?php esc_attr_e('次の日へ', 'drwp-daily-reports'); ?>">↓</button>
         </div>
         <?php
         return ob_get_clean();
@@ -1888,8 +2238,30 @@ class DRWP_Report_Archive {
         }
 
         wp_enqueue_script(self::HANDLE_EDIT);
+        wp_enqueue_style(self::HANDLE_COMBO);
+        wp_enqueue_script(self::HANDLE_COMBO);
 
-        $projects     = DRWP_Project::all();
+        // 編集フォームの案件ドロップダウンも combobox + 最近使った
+        // ピン留めに揃える。閉鎖済み案件は出さない (active のみ)。
+        // 現在の案件が inactive 化されている場合のみ追加する。
+        $projects_active = DRWP_Project::all(true);
+        $current_in_list = false;
+        foreach ($projects_active as $p) {
+            if ((int) $p->id === (int) $report->project_id) { $current_in_list = true; break; }
+        }
+        if (!$current_in_list && $report->project_id) {
+            $cur = DRWP_Project::find((int) $report->project_id);
+            if ($cur) array_unshift($projects_active, $cur);
+        }
+        $recent_ids_edit = DRWP_Project::recent_for_user(get_current_user_id(), 8);
+        $recent_lookup_edit = array_flip(array_map('intval', $recent_ids_edit));
+        $projects = array_map(function ($p) use ($recent_lookup_edit) {
+            return [
+                'id'        => (int) $p->id,
+                'name'      => (string) $p->name,
+                'is_recent' => isset($recent_lookup_edit[(int) $p->id]) ? 1 : 0,
+            ];
+        }, $projects_active);
         $report_photos = DRWP_Media::for_report((int) $report->id);
         $back         = esc_url(remove_query_arg('drwp_edit'));
         $action       = esc_url(get_permalink());
@@ -1928,17 +2300,10 @@ class DRWP_Report_Archive {
                     <input type="date" name="report_date"
                            value="<?php echo esc_attr((string) $report->report_date); ?>" required />
                 </label>
-                <label class="drwp-archive-edit-field">
+                <div class="drwp-archive-edit-field">
                     <span><?php esc_html_e('案件', 'drwp-daily-reports'); ?></span>
-                    <select name="project_id" required>
-                        <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
-                        <?php foreach ($projects as $p): ?>
-                            <option value="<?php echo (int) $p->id; ?>" <?php selected((int) $report->project_id, (int) $p->id); ?>>
-                                <?php echo esc_html($p->name); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </label>
+                    <?php echo self::project_combo_select($projects, (int) $report->project_id, 'project_id', __('選択してください', 'drwp-daily-reports'), true); ?>
+                </div>
                 <div class="drwp-archive-edit-times">
                     <label class="drwp-archive-edit-field">
                         <span><?php esc_html_e('開始時刻', 'drwp-daily-reports'); ?></span>

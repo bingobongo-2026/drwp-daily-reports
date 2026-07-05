@@ -16,7 +16,9 @@ if (!defined('ABSPATH')) exit;
  */
 class DRWP_Report_Form {
 
-    const HANDLE = 'drwp-mform';
+    const HANDLE      = 'drwp-mform';
+    const HANDLE_COMBO = 'drwp-combo';
+    const HANDLE_MOSAIC = 'drwp-mosaic';
 
     public static function init() {
         add_action('wp_enqueue_scripts', [__CLASS__, 'register_assets']);
@@ -36,6 +38,35 @@ class DRWP_Report_Form {
             DRWP_VERSION,
             true
         );
+        // 共有の combobox 拡張。case insensitive な部分一致検索 + 「最近
+        // 使った」グループ表示を行う。複数フォームで使い回す。
+        wp_register_style(
+            self::HANDLE_COMBO,
+            DRWP_URL . 'public/assets/combo.css',
+            [],
+            DRWP_VERSION
+        );
+        wp_register_script(
+            self::HANDLE_COMBO,
+            DRWP_URL . 'public/assets/combo.js',
+            [],
+            DRWP_VERSION,
+            true
+        );
+        // 共有のモザイク編集モーダル (Canvas)。
+        wp_register_style(
+            self::HANDLE_MOSAIC,
+            DRWP_URL . 'public/assets/mosaic.css',
+            [],
+            DRWP_VERSION
+        );
+        wp_register_script(
+            self::HANDLE_MOSAIC,
+            DRWP_URL . 'public/assets/mosaic.js',
+            [],
+            DRWP_VERSION,
+            true
+        );
     }
 
     /* ------------------------------------------------------------
@@ -44,9 +75,17 @@ class DRWP_Report_Form {
      * ------------------------------------------------------------ */
 
     public static function render_form() {
+        // 案件ドロップダウンは active のみ表示。閉鎖済み (inactive) の
+        // 案件を出すとリストが膨らんで日報入力時の選び間違いも起きやす
+        // いので、新規入力フォームではあえて隠す。
         $projects = array_map(function ($p) {
             return ['id' => (int) $p->id, 'name' => (string) $p->name];
-        }, DRWP_Project::all());
+        }, DRWP_Project::all(true));
+        // 「最近使った」案件 — 現在のログインユーザが直近で日報を書い
+        // た案件を最大 8 件、リスト先頭にピン留めする。
+        $recent_ids = DRWP_Project::recent_for_user(get_current_user_id(), 8);
+        // 高速参照用に id => index にしておく
+        $recent_lookup = array_flip(array_map('intval', $recent_ids));
 
         $config = [
             'rest_root'   => esc_url_raw(rest_url('drwp/v1/')),
@@ -64,11 +103,16 @@ class DRWP_Report_Form {
                 'send_failed'         => __('送信に失敗しました。', 'drwp-daily-reports'),
                 'remove_photo'        => __('削除', 'drwp-daily-reports'),
                 'caption_placeholder' => __('説明文（任意）', 'drwp-daily-reports'),
+                'mosaic_button'       => __('ぼかし', 'drwp-daily-reports'),
             ],
         ];
 
         wp_enqueue_style(self::HANDLE);
         wp_enqueue_script(self::HANDLE);
+        wp_enqueue_style(self::HANDLE_COMBO);
+        wp_enqueue_script(self::HANDLE_COMBO);
+        wp_enqueue_style(self::HANDLE_MOSAIC);
+        wp_enqueue_script(self::HANDLE_MOSAIC);
 
         $config_attr = wp_json_encode($config);
         if ($config_attr === false) $config_attr = '{}';
@@ -93,17 +137,51 @@ class DRWP_Report_Form {
                     <input type="date" name="report_date" value="<?php echo esc_attr($config['today']); ?>" required>
                 </label>
 
-                <label class="drwp-mform-row">
+                <div class="drwp-mform-row">
                     <span class="drwp-mform-label">
                         <?php esc_html_e('案件', 'drwp-daily-reports'); ?> <em>*</em>
                     </span>
-                    <select name="project_id" required>
-                        <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
-                        <?php foreach ($projects as $p): ?>
-                            <option value="<?php echo (int) $p['id']; ?>"><?php echo esc_html($p['name']); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </label>
+                    <?php
+                    // combo.js が拾って検索可能なコンボボックスに昇格させる。
+                    // 「最近使った」グループはユーザの直近案件、もう一方の
+                    // 「案件」はそれ以外の active 案件全件。
+                    $recent_options = [];
+                    $other_options  = [];
+                    foreach ($projects as $p) {
+                        if (isset($recent_lookup[(int) $p['id']])) $recent_options[] = $p;
+                        else                                       $other_options[]  = $p;
+                    }
+                    // recent はリストに登場した順 (recent_for_user は新しい
+                    // 順で返す) を保つため $recent_ids の並びで取り直す
+                    if (!empty($recent_options)) {
+                        $by_id = [];
+                        foreach ($recent_options as $p) { $by_id[(int) $p['id']] = $p; }
+                        $recent_options = [];
+                        foreach ($recent_ids as $rid) {
+                            if (isset($by_id[(int) $rid])) $recent_options[] = $by_id[(int) $rid];
+                        }
+                    }
+                    ?>
+                    <div class="drwp-combo" data-drwp-combo>
+                        <select name="project_id" required>
+                            <option value=""><?php esc_html_e('選択してください', 'drwp-daily-reports'); ?></option>
+                            <?php if (!empty($recent_options)): ?>
+                                <optgroup label="<?php esc_attr_e('最近使った', 'drwp-daily-reports'); ?>">
+                                    <?php foreach ($recent_options as $p): ?>
+                                        <option value="<?php echo (int) $p['id']; ?>"><?php echo esc_html($p['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            <?php endif; ?>
+                            <?php if (!empty($other_options)): ?>
+                                <optgroup label="<?php esc_attr_e('案件', 'drwp-daily-reports'); ?>">
+                                    <?php foreach ($other_options as $p): ?>
+                                        <option value="<?php echo (int) $p['id']; ?>"><?php echo esc_html($p['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+                </div>
 
                 <div class="drwp-mform-times">
                     <label class="col">
