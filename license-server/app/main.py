@@ -1,14 +1,16 @@
 import asyncio
 import io
+import json
 import logging
 import os
+import re
 import secrets
 import zipfile
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, status
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -120,6 +122,8 @@ _FLASH = {
     "totp_setup_cancelled": ("2FA セットアップをキャンセルしました。", "ok"),
     "totp_code_invalid": ("コードが一致しませんでした。Authenticator の時刻ズレや入力ミスを確認してください。", "err"),
     "totp_not_pending": ("セットアップ中の状態ではありません。最初からやり直してください。", "err"),
+    "plugin_uploaded": ("プラグイン zip をアップロードしました。各サイトは次回の更新チェックで検知します。", "ok"),
+    "plugin_invalid": ("zip からバージョンを読み取れませんでした。drwp-daily-reports.php を含む zip か確認してください。", "err"),
 }
 
 
@@ -477,6 +481,174 @@ def check_license(payload: CheckRequest):
     return _sign_response(base)
 
 
+# =========================================================================
+# プラグイン配布 / 自動アップデート
+# =========================================================================
+# 運営がプラグイン zip を管理 UI からアップロード → 各サイトの日報マンが
+# /api/plugin/update をポーリングして新版を検知 → /api/plugin/download で
+# ライセンス検証付きに取得し、WP 標準の更新フローで適用する。
+#
+# 配布メタ (バージョン等) は settings テーブルに JSON 1 行で持ち、zip 本体
+# は DB と同じ永続領域の plugin/ サブフォルダに置く。
+
+_PLUGIN_META_KEY = "plugin_release"
+_PLUGIN_ZIP_NAME = "drwp-daily-reports.zip"
+_PLUGIN_MAIN_FILE = "drwp-daily-reports.php"
+
+
+def _verify_license_or_403(license_key: str, domain: str) -> dict:
+    """プラグイン配布用のライセンス検証。/api/check と同じ判定だが、
+    失敗時は署名レスポンスではなく 403 を返す (プラグイン側はこの結果を
+    キャッシュしないため署名不要)。"""
+    lic = db.get_license(license_key)
+    if lic is None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="License not found")
+    if lic["status"] != "active":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=f"License is {lic['status']}")
+    if lic["expires_at"] and lic["expires_at"] < _now_iso():
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="License is expired")
+    if lic["domain"] and lic["domain"] != domain:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Domain mismatch")
+    return lic
+
+
+def _plugin_dir() -> str:
+    d = os.path.join(os.path.dirname(os.path.abspath(db._db_path())), "plugin")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _plugin_zip_path() -> str:
+    return os.path.join(_plugin_dir(), _PLUGIN_ZIP_NAME)
+
+
+def _get_plugin_meta() -> Optional[dict]:
+    raw = db.get_setting(_PLUGIN_META_KEY)
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+
+
+def _set_plugin_meta(meta: dict) -> None:
+    db.set_setting(_PLUGIN_META_KEY, json.dumps(meta, ensure_ascii=False))
+
+
+def _extract_plugin_header(zip_bytes: bytes) -> dict:
+    """アップロードされた zip から WP プラグインヘッダを抜き出す。
+    メインファイルは `<何か>/drwp-daily-reports.php` または直下を探す。"""
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(zip_bytes))
+    except zipfile.BadZipFile:
+        return {}
+    target = None
+    for name in zf.namelist():
+        if name.endswith("/" + _PLUGIN_MAIN_FILE) and name.count("/") <= 1:
+            target = name
+            break
+        if name == _PLUGIN_MAIN_FILE:
+            target = name
+            break
+    if target is None:
+        return {}
+    try:
+        head = zf.read(target).decode("utf-8", "ignore")[:8192]
+    except Exception:
+        return {}
+
+    def _field(label: str) -> str:
+        m = re.search(r"^[ \t/*#@]*" + re.escape(label) + r"\s*:\s*(.+)$",
+                      head, re.MULTILINE | re.IGNORECASE)
+        return m.group(1).strip() if m else ""
+
+    return {
+        "version":      _field("Version"),
+        "requires":     _field("Requires at least"),
+        "requires_php": _field("Requires PHP"),
+        "tested":       _field("Tested up to"),
+    }
+
+
+@app.post("/admin/ui/plugin/upload", include_in_schema=False)
+def ui_plugin_upload(
+    file: UploadFile = File(...),
+    changelog: str = Form(""),
+    homepage: str = Form(""),
+    _: str = Depends(require_admin),
+):
+    """管理 UI からプラグイン zip をアップロード。zip 内ヘッダから
+    バージョンを自動抽出し、data/plugin/ に保存 + メタを更新する。"""
+    raw = file.file.read()
+    header = _extract_plugin_header(raw)
+    if not header.get("version"):
+        return RedirectResponse(
+            "/admin/ui/settings?msg=plugin_invalid",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    dest = _plugin_zip_path()
+    tmp = dest + ".upload-tmp"
+    with open(tmp, "wb") as f:
+        f.write(raw)
+    os.replace(tmp, dest)
+
+    meta = {
+        "version":      header["version"],
+        "requires":     header.get("requires", ""),
+        "requires_php": header.get("requires_php", ""),
+        "tested":       header.get("tested", ""),
+        "changelog":    changelog.strip(),
+        "homepage":     homepage.strip(),
+        "size":         len(raw),
+        "uploaded_at":  _now_iso(),
+    }
+    _set_plugin_meta(meta)
+    return RedirectResponse(
+        "/admin/ui/settings?msg=plugin_uploaded",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.get("/api/plugin/update")
+def plugin_update(license_key: str = "", domain: str = "", current: str = ""):
+    """各サイトの日報マンが定期ポーリングする。ライセンス検証後、最新版
+    メタ + ライセンスキー付きダウンロード URL を返す。まだ何も配布されて
+    いなければ version 空を返す (プラグイン側は更新なしと解釈)。"""
+    _verify_license_or_403(license_key, domain)
+    meta = _get_plugin_meta()
+    if not meta or not os.path.exists(_plugin_zip_path()):
+        return {"version": "", "package": ""}
+    from urllib.parse import urlencode
+    qs = urlencode({"license_key": license_key, "domain": domain})
+    return {
+        "version":      meta.get("version", ""),
+        "package":      f"/api/plugin/download?{qs}",
+        "requires":     meta.get("requires", ""),
+        "requires_php": meta.get("requires_php", ""),
+        "tested":       meta.get("tested", ""),
+        "homepage":     meta.get("homepage", ""),
+        "changelog":    meta.get("changelog", ""),
+    }
+
+
+@app.get("/api/plugin/download")
+def plugin_download(license_key: str = "", domain: str = ""):
+    """ライセンス検証してから zip を配信。WP のアップグレーダが package
+    URL を素の GET で取りに来るので、認証はクエリで行う。"""
+    _verify_license_or_403(license_key, domain)
+    path = _plugin_zip_path()
+    if not os.path.exists(path):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No plugin package uploaded")
+    meta = _get_plugin_meta() or {}
+    version = meta.get("version", "latest")
+    return FileResponse(
+        path,
+        media_type="application/zip",
+        filename=f"drwp-daily-reports.{version}.zip",
+    )
+
+
 @app.get("/admin/licenses")
 def admin_list(
     search: str = "",
@@ -743,6 +915,7 @@ def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(re
             "totp_env_disabled": os.environ.get("DRWP_TOTP_DISABLED", "0") == "1",
             "totp_recovery_remaining": totp.remaining_recovery_count(),
             "totp_pending_active": bool(db.get_setting(totp.K_SECRET_PENDING)),
+            "plugin_meta": _get_plugin_meta(),
             **_flash_ctx(msg),
         },
     )

@@ -206,6 +206,45 @@
   </form>
 </div>
 
+<div class="card">
+  <h2>プラグイン配布 / 自動アップデート</h2>
+  <p class="muted">
+    日報マンの zip をアップロードすると、各サイトが更新チェック時に新バージョンを検知して自動更新します。
+    バージョンは zip 内の <code>drwp-daily-reports.php</code> のヘッダから自動で読み取ります。
+  </p>
+
+  {% if plugin_meta and plugin_meta.version %}
+    <table style="width:auto;margin:10px 0;">
+      <tr><th style="text-align:right;padding-right:14px;">配布中バージョン</th><td class="mono"><strong>{{ plugin_meta.version }}</strong></td></tr>
+      <tr><th style="text-align:right;padding-right:14px;">対応 WP / PHP</th><td>{{ plugin_meta.requires or '—' }} 以上 / PHP {{ plugin_meta.requires_php or '—' }} 以上</td></tr>
+      <tr><th style="text-align:right;padding-right:14px;">Tested up to</th><td>{{ plugin_meta.tested or '—' }}</td></tr>
+      <tr><th style="text-align:right;padding-right:14px;">ファイルサイズ</th><td>{{ (plugin_meta.size / 1024) | round(1) }} KB</td></tr>
+      <tr><th style="text-align:right;padding-right:14px;">アップロード日時</th><td class="mono">{{ plugin_meta.uploaded_at or '—' }}</td></tr>
+    </table>
+  {% else %}
+    <p class="muted">まだプラグインはアップロードされていません。</p>
+  {% endif %}
+
+  <h3 style="margin-top:14px;">zip をアップロードして配布</h3>
+  <form method="post" action="/admin/ui/plugin/upload" enctype="multipart/form-data">
+    <p><input type="file" name="file" accept=".zip,application/zip" required /></p>
+
+    <label for="plugin-changelog">変更履歴 (任意 / 「詳細を表示」に出ます)</label>
+    <textarea id="plugin-changelog" name="changelog" rows="4" style="width:100%;max-width:560px;"
+      placeholder="- 〇〇を修正&#10;- △△を追加">{{ plugin_meta.changelog if plugin_meta else '' }}</textarea>
+
+    <p style="margin-top:8px;">
+      <label for="plugin-homepage">ホームページ URL (任意)</label><br />
+      <input type="text" id="plugin-homepage" name="homepage" style="width:100%;max-width:560px;"
+        value="{{ plugin_meta.homepage if plugin_meta else '' }}" placeholder="https://nippoman.example.com/" />
+    </p>
+
+    <div style="margin-top:8px;">
+      <button type="submit" class="btn">アップロードして配布</button>
+    </div>
+  </form>
+</div>
+
 <script>
 function generateToken() {
   var bytes = new Uint8Array(32);
