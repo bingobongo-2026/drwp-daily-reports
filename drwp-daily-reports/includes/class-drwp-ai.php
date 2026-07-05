@@ -149,14 +149,20 @@ class DRWP_AI {
             if ($c !== '') $captions[] = $c;
         }
 
+        // 案件名・日付はプロンプトの文脈としては渡すが、これらは
+        // メタデータであって「記事化できる内容」ではない。記事化の
+        // 素になる実質的な中身 (作業内容 / 特記事項 / 次回予定 /
+        // 写真キャプション) が 1 つも無ければ no_source で弾く。
         $src = [];
         if ($project) $src[] = '案件: ' . $project->name;
-        if (!empty($report->report_date))      $src[] = '日付: ' . $report->report_date;
-        if (!empty($report->work_description))  $src[] = '作業内容: ' . $report->work_description;
-        if (!empty($report->issues))           $src[] = '特記事項: ' . $report->issues;
-        if (!empty($report->next_plan))        $src[] = '次回予定: ' . $report->next_plan;
-        if ($captions)                         $src[] = '写真キャプション: ' . implode(' / ', $captions);
-        if (empty($src)) {
+        if (!empty($report->report_date)) $src[] = '日付: ' . $report->report_date;
+
+        $has_content = false;
+        if (!empty($report->work_description)) { $src[] = '作業内容: ' . $report->work_description; $has_content = true; }
+        if (!empty($report->issues))           { $src[] = '特記事項: ' . $report->issues;          $has_content = true; }
+        if (!empty($report->next_plan))        { $src[] = '次回予定: ' . $report->next_plan;        $has_content = true; }
+        if ($captions)                         { $src[] = '写真キャプション: ' . implode(' / ', $captions); $has_content = true; }
+        if (!$has_content) {
             return new WP_Error('drwp_ai_no_source', 'この日報には記事化できる内容がありません');
         }
 
