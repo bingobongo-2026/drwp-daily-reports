@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
-# Install WordPress test library + a test database. Adapted from the
-# scaffolding script that wp-cli/scaffold-plugin generates.
+# Install WordPress test library + a test database.
+#
+# 取得元は github の WordPress/wordpress-develop 一本に統一している。
+# 旧実装は wordpress.org (コア) と develop.svn.wordpress.org (テスト
+# スイート) からダウンロードしていたが、CI ランナーからこれらへの
+# 到達性が不安定で毎回 PHPUnit ジョブが落ちていた。wordpress-develop
+# は「src/ を ABSPATH、tests/phpunit をテストスイート」とする WP 公式の
+# 開発リポジトリで、これ一つでコア + テスト一式が揃う。github は
+# checkout / raw 取得が通る環境なので安定する。
 #
 # Usage:
 #   bash bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version] [skip-database-creation]
@@ -16,56 +23,66 @@ SKIP_DB_CREATE=${6-false}
 WP_TESTS_DIR="${WP_TESTS_DIR-/tmp/wordpress-tests-lib}"
 WP_CORE_DIR="${WP_CORE_DIR-/tmp/wordpress}"
 
+# wordpress-develop のどのブランチ / タグを使うか。
+#   latest      -> trunk (最新の開発版)
+#   X.Y[.Z]     -> tags/X.Y[.Z]
+if [ "$WP_VERSION" = "latest" ]; then
+  DEV_REF="refs/heads/trunk"
+else
+  DEV_REF="refs/tags/${WP_VERSION}"
+fi
+DEV_TARBALL="https://github.com/WordPress/wordpress-develop/archive/${DEV_REF}.tar.gz"
+DEV_DIR="/tmp/wordpress-develop-src"
+
 download() {
+  # $1 url, $2 dest — transient なネットワーク / HTTP エラーはリトライ。
   if command -v curl >/dev/null; then
-    curl -fsSL -o "$2" "$1"
+    curl -fsSL --retry 3 --retry-delay 2 -o "$2" "$1"
   else
-    wget -nv -O "$2" "$1"
+    wget -nv --tries=3 -O "$2" "$1"
   fi
+}
+
+fetch_develop() {
+  if [ -d "$DEV_DIR" ]; then
+    return
+  fi
+  echo "Downloading wordpress-develop: $DEV_TARBALL"
+  download "$DEV_TARBALL" /tmp/wp-develop.tar.gz
+  local extract=/tmp/wp-develop-extract
+  rm -rf "$extract"
+  mkdir -p "$extract"
+  # --strip-components=1 で `wordpress-develop-<ref>/` の 1 階層を剥がす。
+  tar --strip-components=1 -xzf /tmp/wp-develop.tar.gz -C "$extract"
+  mv "$extract" "$DEV_DIR"
 }
 
 install_wp() {
+  # WP コア = wordpress-develop の src/ (テスト設定の既定 ABSPATH)。
   if [ -d "$WP_CORE_DIR" ]; then
     return
   fi
+  fetch_develop
   mkdir -p "$WP_CORE_DIR"
-
-  if [ "$WP_VERSION" = "latest" ]; then
-    local archive="https://wordpress.org/latest.tar.gz"
-  else
-    local archive="https://wordpress.org/wordpress-${WP_VERSION}.tar.gz"
-  fi
-  echo "Downloading WordPress core: $archive"
-  download "$archive" /tmp/wordpress.tar.gz
-  tar --strip-components=1 -xzf /tmp/wordpress.tar.gz -C "$WP_CORE_DIR"
-
-  download https://raw.githubusercontent.com/markoheijnen/wp-mysqli/master/db.php "$WP_CORE_DIR/wp-content/db.php" || true
+  cp -a "$DEV_DIR/src/." "$WP_CORE_DIR/"
+  # mysqli ドロップイン (無くても最近の PHP なら動くので任意)。
+  download https://raw.githubusercontent.com/markoheijnen/wp-mysqli/master/db.php \
+    "$WP_CORE_DIR/wp-content/db.php" || true
 }
 
 install_test_suite() {
-  if [ ! -d "$WP_TESTS_DIR" ]; then
+  # テストスイート = wordpress-develop の tests/phpunit/{includes,data}。
+  if [ ! -d "$WP_TESTS_DIR/includes" ]; then
+    fetch_develop
     mkdir -p "$WP_TESTS_DIR"
-    echo "Cloning WordPress develop test library"
-    if command -v svn >/dev/null; then
-      svn export --quiet --ignore-externals \
-        "https://develop.svn.wordpress.org/${WP_VERSION/#latest/trunk}/tests/phpunit/includes/" "$WP_TESTS_DIR/includes"
-      svn export --quiet --ignore-externals \
-        "https://develop.svn.wordpress.org/${WP_VERSION/#latest/trunk}/tests/phpunit/data/" "$WP_TESTS_DIR/data"
-    else
-      # Fallback to git tarball.
-      download "https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.tar.gz" /tmp/wp-develop.tar.gz
-      tar -xzf /tmp/wp-develop.tar.gz -C /tmp
-      cp -r /tmp/wordpress-develop-trunk/tests/phpunit/includes "$WP_TESTS_DIR/"
-      cp -r /tmp/wordpress-develop-trunk/tests/phpunit/data "$WP_TESTS_DIR/"
-    fi
+    cp -a "$DEV_DIR/tests/phpunit/includes" "$WP_TESTS_DIR/"
+    cp -a "$DEV_DIR/tests/phpunit/data" "$WP_TESTS_DIR/"
   fi
 
   if [ ! -f "$WP_TESTS_DIR/wp-tests-config.php" ]; then
-    download \
-      "https://develop.svn.wordpress.org/${WP_VERSION/#latest/trunk}/wp-tests-config-sample.php" \
-      "$WP_TESTS_DIR/wp-tests-config.php" || \
-    cp /tmp/wordpress-develop-trunk/wp-tests-config-sample.php "$WP_TESTS_DIR/wp-tests-config.php"
-
+    fetch_develop
+    cp "$DEV_DIR/wp-tests-config-sample.php" "$WP_TESTS_DIR/wp-tests-config.php"
+    # ABSPATH を WP_CORE_DIR に、DB 資格情報を引数の値に差し替える。
     sed -i.bak \
       -e "s:dirname( __FILE__ ) . '/src/':'$WP_CORE_DIR/':" \
       -e "s/youremptytestdbnamehere/$DB_NAME/" \
