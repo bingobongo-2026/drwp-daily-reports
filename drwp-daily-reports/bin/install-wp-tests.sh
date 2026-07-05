@@ -99,7 +99,12 @@ install_db() {
   fi
   local creds=("-u$DB_USER" "-h$DB_HOST")
   [ -n "$DB_PASS" ] && creds+=("-p$DB_PASS")
-  mysqladmin "${creds[@]}" create "$DB_NAME" --force
+  # DB が既に存在する場合 (CI の MySQL service が MYSQL_DATABASE で
+  # 先に作成しているケース等) はエラーを握りつぶして続行する。
+  # set -e 下で「database exists」で全体が落ちるのを防ぐ。
+  if ! mysqladmin "${creds[@]}" create "$DB_NAME" 2>/dev/null; then
+    echo "Database '$DB_NAME' already exists or could not be created; continuing."
+  fi
 }
 
 install_wp
