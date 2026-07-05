@@ -38,6 +38,20 @@
     width: 28px; height: 28px; border-radius: 999px; border: 0;
     background: rgba(0,0,0,.6); color: #fff; font-size: 18px; line-height: 1; cursor: pointer;
 }
+/* ぼかし編集 — × 削除ボタンと並ぶ位置に下部左寄せで配置 */
+.drwp-mform-photos .item .photo-thumb button.photo-mosaic {
+    top: auto; right: auto;
+    bottom: 4px; left: 4px;
+    width: auto; height: auto;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(0,0,0,.65);
+    color: #fff; font-size: 12px; font-weight: 600;
+    line-height: 1.2;
+}
+.drwp-mform-photos .item .photo-thumb button.photo-mosaic:hover {
+    background: rgba(0,0,0,.85);
+}
 .drwp-mform-photos .item .photo-caption {
     width: 100%; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px;
     font-size: 0.9rem; background: #fff;

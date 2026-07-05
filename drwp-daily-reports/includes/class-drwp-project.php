@@ -19,6 +19,33 @@ class DRWP_Project {
         return $wpdb->get_results($sql);
     }
 
+    /**
+     * 指定ユーザが直近で日報を書いた案件 ID を新しい順で返す。
+     * 「最近使った」案件をフォームの案件ドロップダウン上部にピン留め
+     * するために使う。日報 0 件のユーザには空配列を返す。
+     *
+     * @param int $user_id 対象ユーザ (0 のときは空を返す)
+     * @param int $limit   何件まで取るか (既定 10)
+     * @return int[] 案件 ID の配列 (新しい順)
+     */
+    public static function recent_for_user($user_id, $limit = 10) {
+        $user_id = (int) $user_id;
+        $limit   = max(1, (int) $limit);
+        if ($user_id <= 0) return [];
+        global $wpdb;
+        $reports_t = $wpdb->prefix . 'drwp_reports';
+        // 案件ごとに最新の日報日付を求めて降順。案件未設定 (NULL) は除外。
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT project_id FROM $reports_t
+              WHERE user_id = %d AND project_id IS NOT NULL
+              GROUP BY project_id
+              ORDER BY MAX(report_date) DESC, MAX(id) DESC
+              LIMIT %d",
+            $user_id, $limit
+        ));
+        return array_values(array_filter(array_map('intval', (array) $ids)));
+    }
+
     public static function location_title($id) {
         $project = self::find($id);
         if (!$project) return '';

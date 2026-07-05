@@ -82,6 +82,40 @@
     font: inherit;
     font-size: 0.95rem;
 }
+/* ---- Date range presets (リスト表示の期間絞り込み) ----
+   date 入力 2 つと並べる小さなピル群。クリックで URL に
+   drwp_from / drwp_to を載せるだけのリンク。 */
+.drwp-archive-filter-range {
+    align-items: flex-end;
+}
+.drwp-archive-range-presets {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-self: flex-end;
+    padding-bottom: 1px;
+}
+.drwp-archive-range-preset {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 11px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4b5563;
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid #d6d3cd;
+    border-radius: 999px;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background-color .15s, color .15s, border-color .15s;
+}
+.drwp-archive-range-preset:hover {
+    color: #1f2937;
+    background: #f8f7f3;
+    border-color: #b8b4ac;
+}
+
 .drwp-archive-submit {
     padding: 10px 20px;
     border: 0;
@@ -116,6 +150,37 @@
     margin: 10px 0 8px;
 }
 .drwp-archive-toolbar .drwp-archive-summary { margin: 0; }
+.drwp-archive-toolbar-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* ---- Sort toggle (日付昇順 / 降順) — リスト表示時のみ。クリックで
+   方向を反転させる単一の小さなピル。トグルだと一目で「並びを変える
+   ボタン」と分かりやすい。 */
+.drwp-archive-sort-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4b5563;
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid #d6d3cd;
+    border-radius: 8px;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background-color .15s, color .15s, border-color .15s;
+}
+.drwp-archive-sort-btn:hover {
+    color: #1f2937;
+    background: #f8f7f3;
+    border-color: #b8b4ac;
+}
 
 /* ---- View toggle (カレンダー / リスト) — ピル型のセグメント
    モックの背景 #f1efea (ベージュ寄り) に揃える。 */
@@ -192,6 +257,36 @@
     text-align: center; padding: 50px 12px;
     color: #9b958a; background: #fff;
     border-radius: 14px; border: 1px solid #e8e6e1;
+}
+
+/* ---- 日付ジャンプボタン (浮動) -------------------------------------
+   画面右下に縦 2 個並ぶ。↑ で前の日のヘッダへ、↓ で次の日へスクロール。
+   sticky な日付ヘッダと相性が良いように、tap 位置は中身が見える範囲内に
+   留める (親指で押しやすい位置)。 */
+.drwp-archive-jump {
+    position: fixed;
+    right: 14px; bottom: 20px;
+    display: flex; flex-direction: column;
+    gap: 8px;
+    z-index: 50;
+    pointer-events: none; /* 子のボタンだけがクリックを拾う */
+}
+.drwp-archive-jump-btn {
+    pointer-events: auto;
+    width: 44px; height: 44px;
+    border: 0; border-radius: 999px;
+    background: rgba(31, 41, 55, 0.92);
+    color: #fff;
+    font-size: 20px; line-height: 1; font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+    transition: background-color .15s, transform .1s;
+}
+.drwp-archive-jump-btn:hover  { background: rgba(15, 23, 42, 0.95); }
+.drwp-archive-jump-btn:active { transform: scale(0.94); }
+@media (max-width: 420px) {
+    .drwp-archive-jump      { right: 10px; bottom: 14px; gap: 6px; }
+    .drwp-archive-jump-btn  { width: 40px; height: 40px; font-size: 18px; }
 }
 
 .drwp-archive-list-group { /* 1 日分のまとまり */ }
@@ -296,24 +391,62 @@
     white-space: nowrap;
 }
 
-/* スマホ幅: 行内グリッドを 2 段組に折り返す。バッジ + 時刻 + 案件は
-   上段に詰め、説明は下段全幅、右端アイコンは上段右に。 */
+/* スマホ幅: 3 段組に再配置して可読性を優先する。
+   1段目: [バッジ] [時刻] [アイコン]  (横一列の薄ヘッダ)
+   2段目: 案件名 (太字、折り返し可)
+   3段目: 作業内容 (折り返し可)
+   投稿者は 1 行目右端に小さく置く (詳細はモーダルで確認)。 */
 @media (max-width: 900px) {
     .drwp-archive-list-group-head { gap: 6px; padding: 8px 4px 6px; }
     .drwp-archive-list .drwp-archive-list-row {
-        grid-template-columns: 84px 84px 1fr auto;
-        grid-template-rows: auto auto;
-        gap: 4px 12px;
-        padding: 10px 14px;
+        grid-template-columns: auto 1fr auto;
+        grid-template-rows: auto auto auto;
+        gap: 4px 10px;
+        padding: 10px 12px;
     }
-    .drwp-archive-list-badge { grid-row: 1; min-width: 0; }
-    .drwp-archive-list-time { grid-row: 1; }
-    .drwp-archive-list-title { grid-row: 1; }
-    .drwp-archive-list-side { grid-row: 1; min-width: 0; }
-    .drwp-archive-list-snippet {
+    .drwp-archive-list-badge {
+        grid-row: 1; grid-column: 1;
+        min-width: 0;
+        padding: 2px 8px;
+        font-size: 11px;
+    }
+    .drwp-archive-list-time  {
+        grid-row: 1; grid-column: 2;
+        font-size: 12px;
+    }
+    .drwp-archive-list-title {
         grid-row: 2; grid-column: 1 / -1;
-        white-space: normal; line-height: 1.5;
+        white-space: normal;       /* 長い案件名も全部読める */
+        font-size: 15px;
+        line-height: 1.35;
     }
+    .drwp-archive-list-snippet {
+        grid-row: 3; grid-column: 1 / -1;
+        white-space: normal;
+        line-height: 1.5;
+        color: #4b5563;            /* 説明はもう少し読みやすい濃さに */
+    }
+    .drwp-archive-list-side {
+        grid-row: 1; grid-column: 3;
+        min-width: 0;
+        gap: 6px;
+    }
+    .drwp-archive-list-author {
+        /* 投稿者名の長いピル ("shizuoka-company" 等) は行を圧迫するため、
+           モバイルでは控えめなテキストにダウングレード。詳細モーダルで
+           誰の日報かは確認できる。 */
+        background: transparent;
+        padding: 0;
+        font-size: 11px;
+        color: #94a3b8;
+        max-width: 88px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+/* さらに狭い (~420px = 旧 iPhone SE 等) では投稿者は完全に隠す */
+@media (max-width: 420px) {
+    .drwp-archive-list-author { display: none; }
 }
 
 /* ---- List ---- */
@@ -1058,6 +1191,18 @@
     font-size: 14px; line-height: 1; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
 }
+/* ぼかし編集ボタン — サムネ右下に小さく重ねる */
+.drwp-archive-inline-photo-mosaic {
+    position: absolute;
+    top: 12px; right: 12px;
+    padding: 3px 8px;
+    border: 0; border-radius: 999px;
+    background: rgba(0, 0, 0, .65); color: #fff;
+    font-size: 0.72rem; font-weight: 600;
+    line-height: 1.2; cursor: pointer;
+}
+.drwp-archive-inline-photo-mosaic:hover { background: rgba(0, 0, 0, .85); }
+.drwp-archive-inline-photo-mosaic:disabled { opacity: .6; cursor: progress; }
 .drwp-archive-inline-photo-pick {
     display: inline-block; padding: 6px 12px;
     background: #f1f5f9; border: 1px dashed #94a3b8;
@@ -1095,7 +1240,7 @@
     display: flex; align-items: baseline; gap: 6px;
     width: 100%; margin-top: 0;
     padding: 3px 4px 3px 16px;
-    border: 0; background: transparent; color: #1e293b;
+    border: 0; background: #ecfdf5; color: #064e3b;
     border-radius: 4px;
     font-family: inherit; font-size: 0.78rem;
     text-align: left; cursor: pointer;
@@ -1107,10 +1252,10 @@
     position: absolute; left: 4px; top: 9px;
     width: 7px; height: 7px; border-radius: 50%;
     background: transparent;
-    box-shadow: inset 0 0 0 1.5px #94a3b8;
+    box-shadow: inset 0 0 0 1.5px #16a34a;
 }
-.drwp-archive-cal-plan-chip:hover { background: #f1f5f9; }
-.drwp-archive-cal-plan-chip.is-linked { color: #94a3b8; }
+.drwp-archive-cal-plan-chip:hover { background: #d1fae5; }
+.drwp-archive-cal-plan-chip.is-linked { background: #f1f5f9; color: #94a3b8; }
 .drwp-archive-cal-plan-chip.is-linked::before { box-shadow: inset 0 0 0 1.5px #cbd5e1; }
 /* Drag-to-reschedule affordance. The chip itself gets the grab
    cursor when draggable, and a drop-target cell shows an amber

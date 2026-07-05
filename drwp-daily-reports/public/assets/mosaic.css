@@ -1,0 +1,150 @@
+/* drwp-mosaic — モーダル + Canvas エディタの最小スタイル */
+
+/* <dialog> 要素自体のデフォルト枠 / padding を打ち消し、自前の
+   .drwp-mosaic-dialog を中身として使う。showModal() で top layer に
+   上がるので親 dialog (日報モーダル) の裏に潜ることはなくなる。
+   width を明示しないと、内側 max-width だけでは中央寄せが効かない
+   ケースがあったので、ここで決め打ち。 */
+dialog.drwp-mosaic-overlay {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    width: min(760px, calc(100vw - 32px));
+    max-width: 760px;
+    max-height: calc(100vh - 32px);
+    overflow: visible;
+}
+dialog.drwp-mosaic-overlay::backdrop {
+    background: rgba(15, 23, 42, 0.65);
+}
+.drwp-mosaic-dialog {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    width: 100%;
+    max-height: calc(100vh - 32px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                 "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+    color: #1f2937;
+    box-sizing: border-box;
+}
+.drwp-mosaic-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+}
+.drwp-mosaic-title { margin: 0; font-size: 1rem; font-weight: 700; }
+.drwp-mosaic-close {
+    background: transparent; border: 0;
+    font-size: 22px; line-height: 1; cursor: pointer;
+    color: #475569; padding: 4px 8px; border-radius: 6px;
+}
+.drwp-mosaic-close:hover { background: #e2e8f0; color: #1f2937; }
+
+.drwp-mosaic-body {
+    padding: 12px 16px;
+    overflow: auto;
+}
+
+.drwp-mosaic-canvas-wrap {
+    background: #0f172a;
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    overflow: hidden;
+}
+/* 2 枚の canvas をぴったり重ねるためのコンテナ。サイズは中身の
+   base canvas が決め、overlay は absolute で 100% フィルする。 */
+.drwp-mosaic-canvas-stack {
+    position: relative;
+    display: inline-block;
+    line-height: 0; /* canvas 下の baseline 余白を消す */
+}
+.drwp-mosaic-canvas,
+.drwp-mosaic-overlay-canvas {
+    display: block;
+    max-width: 100%;
+    border-radius: 4px;
+}
+.drwp-mosaic-canvas {
+    background: #fff;
+}
+.drwp-mosaic-overlay-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.drwp-mosaic-hint {
+    margin: 10px 2px 4px;
+    font-size: 13px;
+    color: #475569;
+    text-align: center;
+}
+
+.drwp-mosaic-controls {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    justify-content: center;
+}
+.drwp-mosaic-strength {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #1f2937;
+}
+.drwp-mosaic-strength input[type=range] {
+    width: 120px;
+}
+.drwp-mosaic-strength-val {
+    display: inline-block;
+    min-width: 22px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: #475569;
+}
+
+.drwp-mosaic-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid #e5e7eb;
+    background: #f8fafc;
+}
+.drwp-mosaic-btn {
+    padding: 8px 14px;
+    font-size: 13px; font-weight: 600;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #1f2937;
+    cursor: pointer;
+}
+.drwp-mosaic-btn:hover { background: #f1f5f9; }
+.drwp-mosaic-btn:disabled { opacity: .5; cursor: not-allowed; }
+.drwp-mosaic-btn-primary {
+    background: #111827;
+    color: #fff;
+    border-color: #111827;
+}
+.drwp-mosaic-btn-primary:hover:not(:disabled) { background: #1f2937; }
+.drwp-mosaic-btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: #475569;
+}
+.drwp-mosaic-btn-ghost:hover { background: #e2e8f0; color: #1f2937; }
