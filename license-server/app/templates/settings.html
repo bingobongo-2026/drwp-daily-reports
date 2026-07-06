@@ -2,12 +2,45 @@
 {% block title %}サーバー設定 / 日報マン ライセンスサーバー{% endblock %}
 {% block content %}
 
-<div class="card">
+<style>
+  /* 設定ページのタブ。カードが縦に長くなりすぎるので、項目ごとに
+     タブで切り替えて 1 画面に収める。 */
+  .settings-head h1 { margin: 0 0 4px; }
+  .settings-head p  { margin: 0 0 16px; }
+  .settings-tabs {
+    display: flex; flex-wrap: wrap; gap: 2px;
+    margin-bottom: 18px;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  .settings-tab {
+    background: transparent; border: 0;
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+    padding: 10px 16px; font: inherit; font-weight: 600;
+    color: #64748b; cursor: pointer; border-radius: 6px 6px 0 0;
+    white-space: nowrap;
+  }
+  .settings-tab:hover { color: #1f2937; background: #f8fafc; }
+  .settings-tab.is-active { color: #111827; border-bottom-color: #2563eb; }
+  .settings-panel[hidden] { display: none; }
+  /* パネル内カードは上マージンを詰める (タブ直下に来るので) */
+  .settings-panel.card { margin-top: 0; }
+</style>
+
+<div class="settings-head">
   <h1>サーバー設定</h1>
-  <p class="muted">このサーバー自身の管理トークン、署名鍵、バックアップを管理します。</p>
+  <p class="muted">このサーバー自身の管理トークン、署名鍵、バックアップ、プラグイン配布を管理します。</p>
 </div>
 
-<div class="card">
+<nav class="settings-tabs" role="tablist" aria-label="サーバー設定">
+  <button type="button" class="settings-tab is-active" data-tab="auth" role="tab">認証</button>
+  <button type="button" class="settings-tab" data-tab="totp" role="tab">2FA</button>
+  <button type="button" class="settings-tab" data-tab="signing" role="tab">署名鍵</button>
+  <button type="button" class="settings-tab" data-tab="audit" role="tab">監査ログ</button>
+  <button type="button" class="settings-tab" data-tab="backup" role="tab">バックアップ</button>
+  <button type="button" class="settings-tab" data-tab="plugin" role="tab">プラグイン配布</button>
+</nav>
+
+<div class="card settings-panel" id="panel-auth" role="tabpanel">
   <h2>管理ユーザー名 / トークン</h2>
   <p class="muted">
     管理画面と <code>/admin/*</code> API へのアクセスに使う Basic 認証のユーザー名とパスワードです。
@@ -63,7 +96,7 @@
   </form>
 </div>
 
-<div class="card">
+<div class="card settings-panel" id="panel-totp" role="tabpanel" hidden>
   <h2>2 段階認証 (TOTP)</h2>
   <p class="muted">
     Basic 認証に加えて、Google Authenticator 系の 6 桁コードを要求します。
@@ -119,7 +152,7 @@
   {% endif %}
 </div>
 
-<div class="card">
+<div class="card settings-panel" id="panel-signing" role="tabpanel" hidden>
   <h2>署名鍵</h2>
   <p class="muted">ライセンス検証応答に署名するための Ed25519 鍵ペアです。ローテートすると、以降の応答は新しい鍵で署名されます。クライアントは <code>previous_keys</code> 経由で旧鍵による検証もしばらく継続できます。</p>
   <table style="width:auto;margin-bottom:12px;">
@@ -143,7 +176,7 @@
   </p>
 </div>
 
-<div class="card">
+<div class="card settings-panel" id="panel-audit" role="tabpanel" hidden>
   <h2>管理アクセス監査ログ</h2>
   <p class="muted">
     管理画面 / 管理 API へのログイン試行と署名鍵ローテートを記録します。
@@ -183,7 +216,7 @@
   {% endif %}
 </div>
 
-<div class="card">
+<div class="card settings-panel" id="panel-backup" role="tabpanel" hidden>
   <h2>バックアップ / 復元</h2>
   <p class="muted">署名鍵・過去の公開鍵リスト・ライセンス DB をひとつの zip にまとめて取得 / 復元します。ディスク障害やコンテナ消失に備えて、定期的にダウンロードして安全な場所に保管してください。</p>
   <table style="width:auto;margin-bottom:12px;">
@@ -206,7 +239,7 @@
   </form>
 </div>
 
-<div class="card">
+<div class="card settings-panel" id="panel-plugin" role="tabpanel" hidden>
   <h2>プラグイン配布 / 自動アップデート</h2>
   <p class="muted">
     日報マンの zip をアップロードすると、各サイトが更新チェック時に新バージョンを検知して自動更新します。
@@ -255,6 +288,31 @@ function generateToken() {
   }
   document.getElementById('token').value = hex;
 }
+
+// タブ切り替え。フォーム送信 → リダイレクトで再読込されるので、
+// 直前に見ていたタブを sessionStorage に覚えて復元する
+// (保存後に毎回「認証」タブに戻るのを防ぐ)。
+(function () {
+  var KEY = 'drwp_settings_tab';
+  var tabs = document.querySelectorAll('.settings-tab');
+  var panels = document.querySelectorAll('.settings-panel');
+  function activate(name) {
+    tabs.forEach(function (t) { t.classList.toggle('is-active', t.dataset.tab === name); });
+    panels.forEach(function (p) { p.hidden = (p.id !== 'panel-' + name); });
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      activate(t.dataset.tab);
+      try { sessionStorage.setItem(KEY, t.dataset.tab); } catch (e) {}
+    });
+  });
+  var initial = 'auth';
+  try {
+    var saved = sessionStorage.getItem(KEY);
+    if (saved && document.getElementById('panel-' + saved)) initial = saved;
+  } catch (e) {}
+  activate(initial);
+})();
 </script>
 {% endblock %}
 {% block help_title %}サーバー設定について{% endblock %}
