@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}提供の流れ | 日報マン ライセンスサーバー{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h1>日報マン 提供の流れ</h1>
+  <p class="muted">
+    工務店に日報マンを提供するまでの一連の作業をまとめたページです。
+    新しい顧客が決まったら、このページの手順を上から順に進めれば
+    「契約 → 導入 → 運用 → 更新配信 → 解約」まで一通りカバーできます。
+  </p>
+</div>
+
+<div class="card">
+  <h2>全体像</h2>
+  <p class="muted">
+    運営（あなた）がこのライセンスサーバーでライセンスを発行し、
+    顧客の WordPress に日報マンを入れてライセンスキーを設定します。
+    以降のプラグイン更新は、このサーバーから自動配信されます。
+  </p>
+  <div class="flow">
+    <div class="flow-step"><span class="flow-num">1</span><div><strong>契約・準備</strong><br><span class="muted">プランと顧客情報を確認</span></div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><span class="flow-num">2</span><div><strong>ライセンス発行</strong><br><span class="muted">このサーバーでキーを作成</span></div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><span class="flow-num">3</span><div><strong>WordPress 準備</strong><br><span class="muted">顧客サイトを用意</span></div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><span class="flow-num">4</span><div><strong>導入・ライセンス設定</strong><br><span class="muted">プラグイン設置＋キー入力</span></div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><span class="flow-num">5</span><div><strong>動作確認</strong><br><span class="muted">認証OK・機能開放を確認</span></div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><span class="flow-num">6</span><div><strong>運用・更新配信</strong><br><span class="muted">自動アップデートで保守</span></div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><span class="flow-num">7</span><div><strong>解約・失効</strong><br><span class="muted">ステータス変更で無効化</span></div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="step-badge">STEP 1</span> 契約・準備</h2>
+  <ul class="checklist">
+    <li>提供プラン（フリー / ベーシック / プロ）を決める。</li>
+    <li>顧客の運用ドメイン（例 <code>example-koumuten.com</code>）を確認する。ライセンスはこのドメインに紐づく。</li>
+    <li>請求・連絡先（会社名・担当者・電話番号）を控えておく。ライセンス発行時に登録できる。</li>
+    <li>有効期限の方針を決める。フリーは未指定でも自動的に 30 日後が入る。</li>
+  </ul>
+  <p class="muted">プランごとの機能差（AI 利用可否など）はプランで管理されるため、後からプラン変更するだけで開放・制限を切り替えられます。</p>
+</div>
+
+<div class="card">
+  <h2><span class="step-badge">STEP 2</span> ライセンスを発行する</h2>
+  <ol class="steps">
+    <li><a href="/admin/ui/licenses">ライセンス</a> 画面を開く。</li>
+    <li>「新規発行」からフォームを開く。</li>
+    <li>ドメイン・プラン・有効期限・顧客情報を入力する。ライセンスキーは空欄なら <code>NPM-XXXX-XXXX-XXXX-XXXX</code> 形式で自動生成される。</li>
+    <li>保存すると一覧に追加される。発行したライセンスキーを控えて顧客に渡す。</li>
+  </ol>
+  <p class="muted">ドメイン相違やステータス無効のライセンスは認証で弾かれます。顧客の本番ドメインと一致しているか必ず確認してください。</p>
+</div>
+
+<div class="card">
+  <h2><span class="step-badge">STEP 3</span> 顧客の WordPress を準備する</h2>
+  <ul class="checklist">
+    <li>顧客サイトが WordPress で動いていることを確認する（未導入なら WordPress をセットアップ）。</li>
+    <li>管理者権限のアカウントで <code>/wp-admin</code> にログインできる状態にする。</li>
+    <li>常時 HTTPS でアクセスできること（ライセンス認証と更新配信は HTTPS 通信）。</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2><span class="step-badge">STEP 4</span> 日報マンを導入してライセンスを設定する</h2>
+  <ol class="steps">
+    <li>日報マンのプラグイン ZIP を、WordPress 管理画面の「プラグイン → 新規追加 → プラグインのアップロード」から設置して有効化する。</li>
+    <li>日報マンの設定画面でライセンスキーを入力する。プラグインはこのサーバーの認証エンドポイントへ問い合わせ、ドメイン・ステータス・有効期限を検証する。</li>
+    <li>認証に成功すると、プランに応じた機能（AI 下書き等）が開放される。</li>
+  </ol>
+  <p class="muted">
+    最新のプラグイン ZIP は <a href="/admin/ui/settings">サーバー設定</a> の「プラグイン配布」でアップロード・確認できます。
+    配布中のバージョンをここで管理します。
+  </p>
+</div>
+
+<div class="card">
+  <h2><span class="step-badge">STEP 5</span> 動作確認</h2>
+  <ul class="checklist">
+    <li>日報マン設定画面でライセンスが「有効」と表示されるか確認する。</li>
+    <li>プランに応じた機能（例：ベーシック / プロなら AI 機能）が使えるか確認する。</li>
+    <li>日報の作成・一覧表示など基本操作がひと通り動くか確認する。</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2><span class="step-badge">STEP 6</span> 運用・更新配信</h2>
+  <p class="muted">
+    プラグインは定期的にこのサーバーの更新エンドポイントへ問い合わせ、
+    配布中のバージョンが手元より新しければ WordPress 標準の更新フローで自動的にアップデートします。
+    運営側の作業は「新バージョンをプラグイン配布にアップロードするだけ」です。
+  </p>
+  <ol class="steps">
+    <li>新バージョンを用意したら <a href="/admin/ui/settings">サーバー設定 → プラグイン配布</a> から ZIP をアップロードする。</li>
+    <li>顧客サイトは次回の更新チェックで新バージョンを検知し、自動更新する。</li>
+    <li>プラン変更・有効期限延長は <a href="/admin/ui/licenses">ライセンス</a> 画面の編集から行う。次回認証時に反映される。</li>
+  </ol>
+</div>
+
+<div class="card">
+  <h2><span class="step-badge">STEP 7</span> 解約・失効</h2>
+  <ul class="checklist">
+    <li>解約時は <a href="/admin/ui/licenses">ライセンス</a> 一覧から対象を編集し、ステータスを無効（失効）にする。</li>
+    <li>有効期限切れでも自動的に認証が通らなくなる。</li>
+    <li>失効後は認証が通らず、プラン限定機能が使えなくなる。プラグイン自体は残るため、再契約時はステータスを有効に戻すだけで復帰できる。</li>
+  </ul>
+</div>
+
+<style>
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin-top: 12px; }
+  .flow-step { display: flex; align-items: center; gap: 10px; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; flex: 1 1 160px; min-width: 150px; }
+  .flow-num { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex: 0 0 26px; border-radius: 999px; background: #1f2937; color: #fff; font-weight: 700; font-size: .9rem; }
+  .flow-arrow { display: flex; align-items: center; color: #94a3b8; font-weight: 700; }
+  @media (max-width: 720px) { .flow-arrow { transform: rotate(90deg); width: 100%; justify-content: center; } .flow-step { flex-basis: 100%; } }
+  .step-badge { display: inline-block; background: #1f2937; color: #fff; font-size: .78rem; font-weight: 700; letter-spacing: .04em; padding: 2px 8px; border-radius: 6px; margin-right: 8px; vertical-align: middle; }
+  .checklist { list-style: none; padding-left: 0; margin: 8px 0; }
+  .checklist li { position: relative; padding-left: 26px; margin: 8px 0; line-height: 1.6; }
+  .checklist li::before { content: "✓"; position: absolute; left: 0; top: 0; color: #16a34a; font-weight: 700; }
+  ol.steps { padding-left: 1.3em; margin: 8px 0; }
+  ol.steps li { margin: 8px 0; line-height: 1.6; }
+</style>
+{% endblock %}
+
+{% block help_title %}提供の流れページについて{% endblock %}
+{% block help_body %}
+<p>運営が新規顧客に日報マンを提供するまでの手順を、契約から解約まで 1 画面にまとめたガイドです。</p>
+<p>各ステップ内のリンク（ライセンス発行・プラグイン配布など）から、実際の操作画面へ移動できます。</p>
+{% endblock %}

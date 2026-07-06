@@ -709,6 +709,13 @@ def ui_root(_: str = Depends(require_admin)):
     return RedirectResponse("/admin/ui/licenses", status_code=status.HTTP_303_SEE_OTHER)
 
 
+@app.get("/admin/ui/guide", response_class=HTMLResponse, include_in_schema=False)
+def ui_guide(request: Request, msg: Optional[str] = None, _: str = Depends(require_admin)):
+    # 運営が新規顧客に日報マンを提供するまでの流れをまとめた静的ガイド。
+    # データ依存が無いためテンプレートをそのまま返すだけ。
+    return templates.TemplateResponse(request, "guide.html", {**_flash_ctx(msg)})
+
+
 @app.get("/admin/ui/licenses", response_class=HTMLResponse, include_in_schema=False)
 def ui_list(
     request: Request,
