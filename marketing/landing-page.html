@@ -77,7 +77,7 @@
   .drwp-lp-security .item p { color: #064e3b; font-size: .92rem; margin: 0; }
 
   /* ---- Pricing ---- */
-  .drwp-lp-pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 800px; margin: 0 auto; }
+  .drwp-lp-pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; max-width: 1120px; margin: 0 auto; }
   .drwp-lp-pricing .plan { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 28px; position: relative; }
   .drwp-lp-pricing .plan.pro { border: 2px solid #8b5cf6; box-shadow: 0 8px 24px rgba(139,92,246,.15); }
   .drwp-lp-pricing .plan.pro::before { content: "おすすめ"; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #8b5cf6; color: #fff; padding: 4px 16px; border-radius: 999px; font-size: .82rem; font-weight: 700; }
@@ -329,16 +329,27 @@
        ================================================================= -->
   <section class="drwp-lp-section">
     <h2>料金プラン</h2>
-    <p class="sub">小さく始めて、必要なときに Pro へ</p>
+    <p class="sub">まずは無料体験から。必要な機能に合わせて選べる 4 プラン</p>
     <div class="drwp-lp-pricing">
       <div class="plan">
-        <h3>Basic</h3>
-        <div class="price">¥ お問い合わせ<small> / 月</small></div>
-        <p style="color:#6b7280;font-size:.9rem;margin:0;">小規模工務店・個人事業向け</p>
+        <h3>フリー</h3>
+        <div class="price">¥0<small> / 30日間</small></div>
+        <p style="color:#6b7280;font-size:.9rem;margin:0;">まずは全機能をおためし</p>
+        <ul>
+          <li>全機能を 30 日間おためし</li>
+          <li>日報・ブログ記事化・AI まで</li>
+          <li>クレジットカード不要</li>
+          <li>期間終了後は自動で停止</li>
+        </ul>
+        <a href="#" class="cta">無料で試す</a>
+      </div>
+      <div class="plan">
+        <h3>ベーシック</h3>
+        <div class="price">¥7,700<small> / 月（税込）</small></div>
+        <p style="color:#6b7280;font-size:.9rem;margin:0;">まずは日報を続けたい方向け</p>
         <ul>
           <li>日報入力 (PC / スマホ)</li>
           <li>レビューワークフロー</li>
-          <li>3 つの記事テンプレート</li>
           <li>顧客 / 案件マスタ</li>
           <li>予定カレンダー</li>
           <li>CSV エクスポート</li>
@@ -346,18 +357,29 @@
         </ul>
         <a href="#" class="cta">お問い合わせ</a>
       </div>
+      <div class="plan">
+        <h3>ライト</h3>
+        <div class="price">¥11,000<small> / 月（税込）</small></div>
+        <p style="color:#6b7280;font-size:.9rem;margin:0;">日報を施工事例として発信したい方向け</p>
+        <ul>
+          <li>ベーシックのすべての機能</li>
+          <li>📝 ブログ記事化（WordPress 投稿）</li>
+          <li>3 つの記事テンプレート</li>
+          <li>🔐 個人情報の自動検知 + マスク</li>
+        </ul>
+        <a href="#" class="cta">お問い合わせ</a>
+      </div>
       <div class="plan pro">
-        <h3>Pro</h3>
-        <div class="price">¥ お問い合わせ<small> / 月</small></div>
+        <h3>プロ</h3>
+        <div class="price">¥19,800<small> / 月（税込）</small></div>
         <p style="color:#6b7280;font-size:.9rem;margin:0;">AI で運用を加速したい事業者向け</p>
         <ul>
-          <li>Basic のすべての機能</li>
+          <li>ライトのすべての機能</li>
           <li>✨ AI 公開記事下書き生成</li>
           <li>🧭 AI 次回訪問ブリーフィング</li>
           <li>📈 AI 案件サマリ (月次/四半期)</li>
           <li>⚠️ AI 対応必須アラート</li>
           <li>🔍 AI 振り返りアドバイス</li>
-          <li>🔐 個人情報の自動検知 + マスク</li>
         </ul>
         <a href="#" class="cta">お問い合わせ</a>
       </div>
