@@ -4,6 +4,14 @@
  */
 class Test_DRWP_Post_Converter extends WP_UnitTestCase {
 
+    public function set_up() {
+        parent::set_up();
+        // 記事化(convert)はプラン依存になったため、各テストが status を
+        // active にするだけで記事化できるよう、convert を含む pro を既定に
+        // しておく。status を切り替えるテスト側の意図はそのまま活きる。
+        update_option(DRWP_License::OPT_PLAN, 'pro');
+    }
+
     public function test_normalize_tags_splits_on_comma_zenkaku_and_newline() {
         $this->assertSame(
             ['tag1', 'tag2', 'tag3'],
