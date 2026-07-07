@@ -10,16 +10,16 @@ $license_state_url = admin_url('admin.php?page=drwp_license');
   <h1><?php esc_html_e('AI設定', 'drwp-daily-reports'); ?></h1>
 
   <div class="drwp-plan-locked">
-    <div class="drwp-plan-locked-badge"><?php esc_html_e('Basic / Pro プランで利用可能', 'drwp-daily-reports'); ?></div>
+    <div class="drwp-plan-locked-badge"><?php esc_html_e('Pro プランで利用可能', 'drwp-daily-reports'); ?></div>
     <h2 class="drwp-plan-locked-title">
-      <?php esc_html_e('AI 機能は Basic / Pro プランで利用可能です', 'drwp-daily-reports'); ?>
+      <?php esc_html_e('AI 機能は Pro プランで利用可能です', 'drwp-daily-reports'); ?>
     </h2>
     <p class="drwp-plan-locked-lead">
       <?php esc_html_e('現在のプラン:', 'drwp-daily-reports'); ?>
       <code><?php echo esc_html($plan_label !== '' ? $plan_label : 'free'); ?></code>
     </p>
     <p class="drwp-plan-locked-body">
-      <?php esc_html_e('AI モデルとの接続設定、案件ブリーフィングの生成といった機能は Basic / Pro プランでお使いいただけます (free プランでは利用不可)。プランを変更すると既存の設定値はそのまま使える状態で復帰します。', 'drwp-daily-reports'); ?>
+      <?php esc_html_e('AI モデルとの接続設定、案件ブリーフィングの生成といった機能は Pro プランでお使いいただけます (フリー体験中も利用可。ベーシック・ライトでは利用不可)。プランを変更すると既存の設定値はそのまま使える状態で復帰します。', 'drwp-daily-reports'); ?>
     </p>
     <p>
       <a class="button button-primary" href="<?php echo esc_url($license_state_url); ?>">

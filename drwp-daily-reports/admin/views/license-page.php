@@ -112,10 +112,13 @@
             $plan_slug = strtolower(trim((string) $license['plan']));
             if ($plan_slug === 'pro') {
                 echo '<span class="drwp-plan-pill is-pro">Pro</span>';
-                echo ' <span class="description">' . esc_html__('AI 機能を含むすべての機能が利用できます。', 'drwp-daily-reports') . '</span>';
+                echo ' <span class="description">' . esc_html__('日報 + ブログ記事作成 + AI 補助（すべての機能）が利用できます。', 'drwp-daily-reports') . '</span>';
+            } elseif ($plan_slug === 'light') {
+                echo '<span class="drwp-plan-pill is-light">Light</span>';
+                echo ' <span class="description">' . esc_html__('日報 + ブログ記事作成が利用できます（AI 補助は不可）。', 'drwp-daily-reports') . '</span>';
             } elseif ($plan_slug === 'basic') {
                 echo '<span class="drwp-plan-pill is-basic">Basic</span>';
-                echo ' <span class="description">' . esc_html__('AI 以外の機能が利用できます。', 'drwp-daily-reports') . '</span>';
+                echo ' <span class="description">' . esc_html__('日報の作成のみ利用できます（ブログ記事作成・AI 補助は不可）。', 'drwp-daily-reports') . '</span>';
             } elseif ($plan_slug === 'free') {
                 echo '<span class="drwp-plan-pill is-free">Free</span>';
                 echo ' <span class="description">' . esc_html__('30 日間の体験プランです。期限切れ後は機能が停止します。', 'drwp-daily-reports') . '</span>';
@@ -164,6 +167,7 @@
 <style>
 .drwp-plan-pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.8em;font-weight:700;color:#fff;letter-spacing:.04em}
 .drwp-plan-pill.is-pro{background:linear-gradient(135deg,#6366f1,#8b5cf6)}
+.drwp-plan-pill.is-light{background:#0891b2}
 .drwp-plan-pill.is-basic{background:#475569}
 .drwp-plan-pill.is-free{background:#16a34a}
 </style>

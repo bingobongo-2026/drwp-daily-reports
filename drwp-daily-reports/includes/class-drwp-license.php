@@ -74,7 +74,9 @@ class DRWP_License {
     }
 
     public static function can_convert() {
-        return self::status() === 'active';
+        // 記事化(ブログ記事作成)は「有効(active)」かつプランが
+        // convert 機能を含むこと。ベーシックは日報のみなので不可。
+        return self::status() === 'active' && self::plan_allows('convert');
     }
 
     /**
@@ -90,26 +92,30 @@ class DRWP_License {
      * a state that allows writes AND the resolved plan grants the
      * requested feature.
      *
-     * Plans (extend the matrix as we add tiers):
-     *   - `free`  : 30-day trial — same feature set as basic, just
-     *               distinguished for billing / expiry handling
-     *   - `basic` : everything except AI
-     *   - `pro`   : everything including AI
+     * Features:
+     *   - `convert` : 日報のブログ記事化 (公開)
+     *   - `ai`      : AI 補助 (下書き生成・要約 等)
      *
-     * Unknown / empty plan = treated as basic (most restrictive
-     * thing that still lets the site keep working post-downgrade).
+     * Plans (日報の作成そのものはプランに関係なく can_write で開放):
+     *   - `free`  : 30 日体験 — フル機能 (convert + ai)
+     *   - `basic` : 日報のみ (convert / ai 不可)
+     *   - `light` : 日報 + ブログ記事作成 (convert)
+     *   - `pro`   : 日報 + ブログ記事作成 + AI 補助 (convert + ai)
+     *
+     * Unknown / empty plan = treated as basic (日報のみ — 最も制限的で、
+     * ダウングレード後もサイトが動き続ける状態)。
      * No license at all = nothing is allowed (matches can_write).
      */
     public static function plan_allows($feature) {
         if (!self::can_write()) return false;
-        // AI は basic / pro どちらも可能 (free は不可)。
-        // managed モード (運営契約) では月次回数がプラン依存:
-        // free=0 / basic=100 / pro=500 (ライセンスサーバ側で制御)。
-        // own モード (自前 API キー) では回数制限なし。
+        // 日報作成は全プラン共通 (can_write)。以下はプラン限定機能。
+        // managed モード (運営契約) の AI 月次回数はライセンスサーバ側で
+        // 制御し、own モード (自前 API キー) では回数制限なし。
         $matrix = [
-            'free'  => [],
-            'basic' => ['ai'],
-            'pro'   => ['ai'],
+            'free'  => ['convert', 'ai'],
+            'basic' => [],
+            'light' => ['convert'],
+            'pro'   => ['convert', 'ai'],
         ];
         $plan = self::plan();
         if (!isset($matrix[$plan])) $plan = 'basic';

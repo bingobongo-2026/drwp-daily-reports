@@ -34,6 +34,7 @@ templates = Jinja2Templates(
 _PLAN_LABELS = {
     "free": "フリー",
     "basic": "ベーシック",
+    "light": "ライト",
     "pro": "プロ",
 }
 
@@ -362,7 +363,7 @@ FREE_PLAN_TRIAL_DAYS = int(os.environ.get("DRWP_FREE_PLAN_DAYS", "30"))
 
 def _default_expires_for_plan(plan: str) -> Optional[str]:
     """プランごとの有効期限デフォルト。`free` だけ 30 日後 (= 体験期間)。
-    `basic` / `pro` は無期限 (None)。"""
+    `basic` / `light` / `pro` は無期限 (None)。"""
     if (plan or "").strip().lower() == "free":
         from datetime import timedelta
         dt = datetime.now(timezone.utc) + timedelta(days=FREE_PLAN_TRIAL_DAYS)

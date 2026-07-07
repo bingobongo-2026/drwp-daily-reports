@@ -6,7 +6,7 @@
 <ul>
   <li><strong>ライセンスキー</strong> — 任意の文字列。重複不可。{% if license %}編集時は変更できません。{% else %}空欄のまま作成すると <code>NPM-XXXX-XXXX-XXXX-XXXX</code> 形式で自動生成されます。「自動生成」ボタンでブラウザ側からも入力できます。{% endif %}</li>
   <li><strong>ドメイン</strong> — プラグインが動く WordPress サイトのホスト名。<code>https://</code> や末尾の <code>/</code> は付けません。</li>
-  <li><strong>プラン</strong> — <code>free</code>（フリー / 30 日体験）/ <code>basic</code>（ベーシック）/ <code>pro</code>（プロ）から選択。プロのみ AI 機能が利用できます。</li>
+  <li><strong>プラン</strong> — <code>free</code>（フリー / 30 日体験・フル機能）/ <code>basic</code>（ベーシック / 日報のみ）/ <code>light</code>（ライト / 日報＋ブログ記事作成）/ <code>pro</code>（プロ / 日報＋ブログ記事作成＋AI補助）から選択。AI 補助はプロのみ（体験中のフリーも可）、ブログ記事作成はライト以上です。</li>
   <li><strong>状態</strong> — 「有効」はライセンス利用可、「停止」はブロック（プラグイン側は HTTP 402 で書込不可）。</li>
   <li><strong>有効期限</strong> — 空欄は無期限。フリープラン選択時に空欄なら、自動で「今から 30 日後」が入ります。ISO 8601 形式。</li>
 </ul>
@@ -44,7 +44,7 @@
       <label for="plan">プラン</label>
       <select id="plan" name="plan" onchange="onPlanChange()">
         {# slug は英小文字、表示は plan_label フィルタで日本語化 #}
-        {% for p in ['free', 'basic', 'pro'] %}
+        {% for p in ['free', 'basic', 'light', 'pro'] %}
           <option value="{{ p }}" {% if license and license.plan == p %}selected{% endif %}>{{ p|plan_label }}</option>
         {% endfor %}
       </select>

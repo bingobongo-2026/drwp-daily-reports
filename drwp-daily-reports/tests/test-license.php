@@ -77,30 +77,52 @@ class Test_DRWP_License extends WP_UnitTestCase {
 
     public function test_status_active_passes_through() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_PLAN, 'pro');
         $this->assertSame('active', DRWP_License::status());
         $this->assertTrue(DRWP_License::can_write());
+        // 記事化はプラン依存 — pro は convert を含むので可。
         $this->assertTrue(DRWP_License::can_convert());
     }
 
-    public function test_plan_allows_pro_unlocks_ai() {
+    public function test_can_convert_blocked_on_basic_plan() {
+        // ベーシックは日報のみ — active でも記事化は不可。
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_PLAN, 'basic');
+        $this->assertTrue(DRWP_License::can_write());
+        $this->assertFalse(DRWP_License::can_convert());
+    }
+
+    public function test_plan_allows_pro_unlocks_ai_and_convert() {
         update_option(DRWP_License::OPT_STATUS, 'active');
         update_option(DRWP_License::OPT_PLAN, 'pro');
         $this->assertSame('pro', DRWP_License::plan());
         $this->assertTrue(DRWP_License::plan_allows('ai'));
+        $this->assertTrue(DRWP_License::plan_allows('convert'));
     }
 
-    public function test_plan_allows_basic_unlocks_ai() {
+    public function test_plan_allows_light_unlocks_convert_only() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_PLAN, 'light');
+        $this->assertSame('light', DRWP_License::plan());
+        // ライトは日報 + ブログ記事作成 (convert)。AI は不可。
+        $this->assertTrue(DRWP_License::plan_allows('convert'));
+        $this->assertFalse(DRWP_License::plan_allows('ai'));
+    }
+
+    public function test_plan_allows_basic_blocks_ai_and_convert() {
         update_option(DRWP_License::OPT_STATUS, 'active');
         update_option(DRWP_License::OPT_PLAN, 'basic');
-        // basic でも AI 可 (free のみ不可)。managed モードは月次上限、
-        // own モードは無制限、という差はプラグイン/サーバ側で制御する。
-        $this->assertTrue(DRWP_License::plan_allows('ai'));
+        // ベーシックは日報のみ (convert / ai どちらも不可)。
+        $this->assertFalse(DRWP_License::plan_allows('ai'));
+        $this->assertFalse(DRWP_License::plan_allows('convert'));
     }
 
-    public function test_plan_allows_free_blocks_ai() {
+    public function test_plan_allows_free_unlocks_full_features() {
         update_option(DRWP_License::OPT_STATUS, 'active');
         update_option(DRWP_License::OPT_PLAN, 'free');
-        $this->assertFalse(DRWP_License::plan_allows('ai'));
+        // フリーは 30 日体験 = フル機能 (convert + ai)。
+        $this->assertTrue(DRWP_License::plan_allows('ai'));
+        $this->assertTrue(DRWP_License::plan_allows('convert'));
     }
 
     public function test_plan_allows_normalises_case_and_whitespace() {
@@ -113,15 +135,17 @@ class Test_DRWP_License extends WP_UnitTestCase {
     public function test_plan_allows_unknown_plan_falls_back_to_basic() {
         update_option(DRWP_License::OPT_STATUS, 'active');
         update_option(DRWP_License::OPT_PLAN, 'enterprise');
-        // 不明プランは basic 扱い。basic は AI 可なので ai は許可される。
-        $this->assertTrue(DRWP_License::plan_allows('ai'));
+        // 不明プランは basic 扱い = 日報のみ。ai も convert も不可。
+        $this->assertFalse(DRWP_License::plan_allows('ai'));
+        $this->assertFalse(DRWP_License::plan_allows('convert'));
     }
 
     public function test_plan_allows_blocks_everything_when_license_inactive() {
         update_option(DRWP_License::OPT_STATUS, 'inactive');
         update_option(DRWP_License::OPT_PLAN, 'pro');
-        // ライセンス自体が無効 = AI を含め何も許可しない。
+        // ライセンス自体が無効 = AI・記事化を含め何も許可しない。
         $this->assertFalse(DRWP_License::plan_allows('ai'));
+        $this->assertFalse(DRWP_License::plan_allows('convert'));
     }
 
     public function test_grace_window_lets_writes_through_after_recent_active_check() {

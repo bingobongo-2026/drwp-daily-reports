@@ -164,7 +164,7 @@
     <summary><strong><?php esc_html_e('運営契約 API を選んだ場合', 'drwp-daily-reports'); ?></strong></summary>
     <ol>
       <li><?php esc_html_e('特別な作業は不要です。「AI 機能を有効にする」+ モードを「運営契約の API を使う」にして保存。', 'drwp-daily-reports'); ?></li>
-      <li><?php esc_html_e('プランごとの月間上限は: free=0回, basic=100回, pro=500回 (運営側で調整される可能性があります)。', 'drwp-daily-reports'); ?></li>
+      <li><?php esc_html_e('AI を使えるのはプロプラン（と体験中のフリー）のみです。ベーシック・ライトは AI 非対応です。プロの月間上限は 500 回など、運営側で設定・調整されます。', 'drwp-daily-reports'); ?></li>
       <li><?php esc_html_e('使用量は月初 (UTC) にリセットされます。', 'drwp-daily-reports'); ?></li>
     </ol>
   </details>
