@@ -6,6 +6,8 @@ __pycache__/
 license-server/signing.key
 license-server/signing.key.previous.json
 license-server/data.sqlite3
+license-server/plugin/
+license-server/theme/
 drwp-daily-reports/vendor/
 drwp-daily-reports/composer.lock
 drwp-daily-reports/.phpunit.cache/
