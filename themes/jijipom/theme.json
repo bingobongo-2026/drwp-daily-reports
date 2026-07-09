@@ -1,0 +1,67 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/theme.json",
+	"version": 2,
+	"settings": {
+		"appearanceTools": true,
+		"layout": {
+			"contentSize": "720px",
+			"wideSize": "1080px"
+		},
+		"color": {
+			"defaultPalette": false,
+			"palette": [
+				{ "slug": "text", "color": "#1a1a1a", "name": "本文" },
+				{ "slug": "muted", "color": "#5c5c5c", "name": "サブ" },
+				{ "slug": "background", "color": "#ffffff", "name": "背景" },
+				{ "slug": "subtle", "color": "#f6f6f4", "name": "薄い背景" },
+				{ "slug": "border", "color": "#e5e5e2", "name": "ボーダー" },
+				{ "slug": "accent", "color": "#2b5cff", "name": "アクセント" }
+			],
+			"custom": true,
+			"customGradient": false
+		},
+		"typography": {
+			"fluid": true,
+			"fontFamilies": [
+				{
+					"slug": "body",
+					"name": "本文",
+					"fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', Meiryo, sans-serif"
+				},
+				{
+					"slug": "mono",
+					"name": "等幅",
+					"fontFamily": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+				}
+			],
+			"fontSizes": [
+				{ "slug": "small", "size": "0.875rem", "name": "小" },
+				{ "slug": "medium", "size": "1.0625rem", "name": "標準" },
+				{ "slug": "large", "size": "1.25rem", "name": "大" },
+				{ "slug": "x-large", "size": "1.75rem", "name": "特大" }
+			]
+		},
+		"spacing": {
+			"units": [ "px", "em", "rem", "%", "vw" ]
+		}
+	},
+	"styles": {
+		"color": {
+			"text": "var(--wp--preset--color--text)",
+			"background": "var(--wp--preset--color--background)"
+		},
+		"typography": {
+			"fontFamily": "var(--wp--preset--font-family--body)",
+			"fontSize": "1.0625rem",
+			"lineHeight": "1.8"
+		},
+		"elements": {
+			"link": {
+				"color": { "text": "var(--wp--preset--color--accent)" }
+			},
+			"h1": { "typography": { "lineHeight": "1.35", "fontWeight": "700" } },
+			"h2": { "typography": { "lineHeight": "1.35", "fontWeight": "700" } },
+			"h3": { "typography": { "lineHeight": "1.35", "fontWeight": "700" } }
+		}
+	}
+}
