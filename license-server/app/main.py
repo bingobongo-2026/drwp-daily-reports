@@ -125,6 +125,8 @@ _FLASH = {
     "totp_not_pending": ("セットアップ中の状態ではありません。最初からやり直してください。", "err"),
     "plugin_uploaded": ("プラグイン zip をアップロードしました。各サイトは次回の更新チェックで検知します。", "ok"),
     "plugin_invalid": ("zip からバージョンを読み取れませんでした。drwp-daily-reports.php を含む zip か確認してください。", "err"),
+    "theme_uploaded": ("テーマ zip をアップロードしました。各サイトは次回の更新チェックで検知します。", "ok"),
+    "theme_invalid": ("zip からバージョンを読み取れませんでした。style.css を含むテーマ zip か確認してください。", "err"),
 }
 
 
@@ -496,6 +498,11 @@ _PLUGIN_META_KEY = "plugin_release"
 _PLUGIN_ZIP_NAME = "drwp-daily-reports.zip"
 _PLUGIN_MAIN_FILE = "drwp-daily-reports.php"
 
+# テーマ配布も同じ枠組み。テーマは style.css のヘッダから版数を読む点と、
+# 更新 transient のキーがテーマのフォルダ名 (slug) になる点だけが異なる。
+_THEME_META_KEY = "theme_release"
+_THEME_ZIP_NAME = "theme.zip"
+
 
 def _verify_license_or_403(license_key: str, domain: str) -> dict:
     """プラグイン配布用のライセンス検証。/api/check と同じ判定だが、
@@ -570,6 +577,151 @@ def _extract_plugin_header(zip_bytes: bytes) -> dict:
         "requires_php": _field("Requires PHP"),
         "tested":       _field("Tested up to"),
     }
+
+
+def _theme_dir() -> str:
+    d = os.path.join(os.path.dirname(os.path.abspath(db._db_path())), "theme")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _theme_zip_path() -> str:
+    return os.path.join(_theme_dir(), _THEME_ZIP_NAME)
+
+
+def _get_theme_meta() -> Optional[dict]:
+    raw = db.get_setting(_THEME_META_KEY)
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+
+
+def _set_theme_meta(meta: dict) -> None:
+    db.set_setting(_THEME_META_KEY, json.dumps(meta, ensure_ascii=False))
+
+
+def _extract_theme_header(zip_bytes: bytes) -> dict:
+    """アップロードされたテーマ zip の style.css からヘッダを抜き出す。
+    slug (= 更新 transient のキーになるテーマフォルダ名) は style.css を
+    含む先頭ディレクトリ名から決める。"""
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(zip_bytes))
+    except zipfile.BadZipFile:
+        return {}
+    target = None
+    for name in zf.namelist():
+        # `<slug>/style.css` (テーマフォルダ直下) を最優先。
+        if name.endswith("/style.css") and name.count("/") == 1:
+            target = name
+            break
+        if name == "style.css":
+            target = name
+            break
+    if target is None:
+        return {}
+    slug = target.split("/")[0] if "/" in target else ""
+    try:
+        head = zf.read(target).decode("utf-8", "ignore")[:8192]
+    except Exception:
+        return {}
+
+    def _field(label: str) -> str:
+        m = re.search(r"^[ \t/*#@]*" + re.escape(label) + r"\s*:\s*(.+)$",
+                      head, re.MULTILINE | re.IGNORECASE)
+        return m.group(1).strip() if m else ""
+
+    return {
+        "name":         _field("Theme Name"),
+        "slug":         slug,
+        "version":      _field("Version"),
+        "requires":     _field("Requires at least"),
+        "requires_php": _field("Requires PHP"),
+        "tested":       _field("Tested up to"),
+    }
+
+
+@app.post("/admin/ui/theme/upload", include_in_schema=False)
+def ui_theme_upload(
+    file: UploadFile = File(...),
+    changelog: str = Form(""),
+    homepage: str = Form(""),
+    _: str = Depends(require_admin),
+):
+    """管理 UI からテーマ zip をアップロード。style.css ヘッダから版数と
+    slug を自動抽出し、data/theme/ に保存 + メタを更新する。"""
+    raw = file.file.read()
+    header = _extract_theme_header(raw)
+    if not header.get("version") or not header.get("slug"):
+        return RedirectResponse(
+            "/admin/ui/settings?msg=theme_invalid",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    dest = _theme_zip_path()
+    tmp = dest + ".upload-tmp"
+    with open(tmp, "wb") as f:
+        f.write(raw)
+    os.replace(tmp, dest)
+
+    meta = {
+        "name":         header.get("name", ""),
+        "slug":         header["slug"],
+        "version":      header["version"],
+        "requires":     header.get("requires", ""),
+        "requires_php": header.get("requires_php", ""),
+        "tested":       header.get("tested", ""),
+        "changelog":    changelog.strip(),
+        "homepage":     homepage.strip(),
+        "size":         len(raw),
+        "uploaded_at":  _now_iso(),
+    }
+    _set_theme_meta(meta)
+    return RedirectResponse(
+        "/admin/ui/settings?msg=theme_uploaded",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.get("/api/theme/update")
+def theme_update(license_key: str = "", domain: str = "", current: str = ""):
+    """各サイトのテーマ更新チェッカーがポーリングする。ライセンス検証後、
+    最新版メタ + ライセンスキー付きダウンロード URL を返す。未配布なら
+    version 空 (テーマ側は更新なしと解釈)。"""
+    _verify_license_or_403(license_key, domain)
+    meta = _get_theme_meta()
+    if not meta or not os.path.exists(_theme_zip_path()):
+        return {"version": "", "package": ""}
+    from urllib.parse import urlencode
+    qs = urlencode({"license_key": license_key, "domain": domain})
+    return {
+        "version":      meta.get("version", ""),
+        "slug":         meta.get("slug", ""),
+        "package":      f"/api/theme/download?{qs}",
+        "requires":     meta.get("requires", ""),
+        "requires_php": meta.get("requires_php", ""),
+        "tested":       meta.get("tested", ""),
+        "homepage":     meta.get("homepage", ""),
+        "changelog":    meta.get("changelog", ""),
+    }
+
+
+@app.get("/api/theme/download")
+def theme_download(license_key: str = "", domain: str = ""):
+    """ライセンス検証してからテーマ zip を配信。"""
+    _verify_license_or_403(license_key, domain)
+    path = _theme_zip_path()
+    if not os.path.exists(path):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No theme package uploaded")
+    meta = _get_theme_meta() or {}
+    slug = meta.get("slug", "theme")
+    version = meta.get("version", "latest")
+    return FileResponse(
+        path,
+        media_type="application/zip",
+        filename=f"{slug}.{version}.zip",
+    )
 
 
 @app.post("/admin/ui/plugin/upload", include_in_schema=False)
@@ -924,6 +1076,7 @@ def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(re
             "totp_recovery_remaining": totp.remaining_recovery_count(),
             "totp_pending_active": bool(db.get_setting(totp.K_SECRET_PENDING)),
             "plugin_meta": _get_plugin_meta(),
+            "theme_meta": _get_theme_meta(),
             **_flash_ctx(msg),
         },
     )

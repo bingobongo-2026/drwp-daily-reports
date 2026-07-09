@@ -1088,3 +1088,100 @@ def test_plugin_download_rejects_domain_mismatch(tmp_path, monkeypatch):
            files={"file": ("p.zip", _make_plugin_zip("1.60.0"), "application/zip")})
     r = c.get("/api/plugin/download?license_key=PLUG-KEY&domain=evil.test")
     assert r.status_code == 403
+
+
+# --- テーマ配布 -----------------------------------------------------------
+
+def _make_theme_zip(version: str, slug: str = "jijipom") -> bytes:
+    buf = _io.BytesIO()
+    style = (
+        "/*\n"
+        "Theme Name: jijipom\n"
+        f"Version: {version}\n"
+        "Requires at least: 6.0\n"
+        "Requires PHP: 7.4\n"
+        "Tested up to: 6.5\n"
+        "*/\n"
+    )
+    with _zipfile.ZipFile(buf, "w") as z:
+        z.writestr(f"{slug}/style.css", style)
+        z.writestr(f"{slug}/index.php", "<?php\n")
+    return buf.getvalue()
+
+
+def test_theme_upload_extracts_version_and_slug(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    r = c.post("/admin/ui/theme/upload", auth=("admin", "test-token"),
+               files={"file": ("t.zip", _make_theme_zip("1.2.0"), "application/zip")},
+               data={"changelog": "- test", "homepage": "https://example.test/"},
+               follow_redirects=False)
+    assert r.status_code == 303
+    assert "theme_uploaded" in r.headers["location"]
+    meta = main._get_theme_meta()
+    assert meta["version"] == "1.2.0"
+    assert meta["slug"] == "jijipom"
+    assert meta["name"] == "jijipom"
+    assert meta["requires_php"] == "7.4"
+
+
+def test_theme_upload_rejects_zip_without_style(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    buf = _io.BytesIO()
+    with _zipfile.ZipFile(buf, "w") as z:
+        z.writestr("jijipom/index.php", "<?php\n")
+    r = c.post("/admin/ui/theme/upload", auth=("admin", "test-token"),
+               files={"file": ("x.zip", buf.getvalue(), "application/zip")},
+               follow_redirects=False)
+    assert r.status_code == 303
+    assert "theme_invalid" in r.headers["location"]
+
+
+def test_theme_update_returns_version_and_package(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_active(c, "PLUG-KEY", "example.test")
+    c.post("/admin/ui/theme/upload", auth=("admin", "test-token"),
+           files={"file": ("t.zip", _make_theme_zip("2.0.0"), "application/zip")})
+    r = c.get("/api/theme/update?license_key=PLUG-KEY&domain=example.test")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["version"] == "2.0.0"
+    assert body["slug"] == "jijipom"
+    assert "download" in body["package"]
+    assert "PLUG-KEY" in body["package"]
+
+
+def test_theme_update_requires_valid_license(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    c.post("/admin/ui/theme/upload", auth=("admin", "test-token"),
+           files={"file": ("t.zip", _make_theme_zip("2.0.0"), "application/zip")})
+    r = c.get("/api/theme/update?license_key=NOPE&domain=example.test")
+    assert r.status_code == 403
+
+
+def test_theme_update_empty_when_nothing_uploaded(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_active(c, "PLUG-KEY", "example.test")
+    r = c.get("/api/theme/update?license_key=PLUG-KEY&domain=example.test")
+    assert r.status_code == 200
+    assert r.json()["version"] == ""
+
+
+def test_theme_download_serves_zip(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_active(c, "PLUG-KEY", "example.test")
+    c.post("/admin/ui/theme/upload", auth=("admin", "test-token"),
+           files={"file": ("t.zip", _make_theme_zip("2.0.0"), "application/zip")})
+    r = c.get("/api/theme/download?license_key=PLUG-KEY&domain=example.test")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/zip"
+    zf = _zipfile.ZipFile(_io.BytesIO(r.content))
+    assert "jijipom/style.css" in zf.namelist()
+
+
+def test_theme_download_rejects_domain_mismatch(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_active(c, "PLUG-KEY", "ok.test")
+    c.post("/admin/ui/theme/upload", auth=("admin", "test-token"),
+           files={"file": ("t.zip", _make_theme_zip("2.0.0"), "application/zip")})
+    r = c.get("/api/theme/download?license_key=PLUG-KEY&domain=evil.test")
+    assert r.status_code == 403
