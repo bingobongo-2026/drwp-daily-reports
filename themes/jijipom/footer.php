@@ -47,6 +47,21 @@
 
 		<div class="footer-bottom">
 			<p>&copy; <?php echo esc_html( date_i18n( 'Y' ) ); ?> <?php bloginfo( 'name' ); ?></p>
+
+			<?php
+			$jijipom_social = function_exists( 'jijipom_social_links' ) ? jijipom_social_links() : array();
+			if ( $jijipom_social ) :
+				?>
+				<ul class="footer-social" aria-label="<?php esc_attr_e( 'ソーシャルメディア', 'jijipom' ); ?>">
+					<?php foreach ( $jijipom_social as $jijipom_sns ) : ?>
+						<li>
+							<a href="<?php echo esc_url( $jijipom_sns['url'] ); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php echo esc_attr( $jijipom_sns['label'] ); ?>">
+								<?php echo jijipom_social_icon_svg( $jijipom_sns['slug'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- 固定のインラインSVG ?>
+							</a>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			<?php endif; ?>
 		</div>
 	</div><!-- .container -->
 </footer><!-- #colophon -->

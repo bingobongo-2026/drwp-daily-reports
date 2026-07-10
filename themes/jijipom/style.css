@@ -4,7 +4,7 @@ Theme URI: https://example.com/jijipom
 Author: jijipom
 Author URI: https://example.com
 Description: どんなジャンルのサイトにも馴染む、シンプルで軽量・SEOに強いベーステーマ。セマンティックなHTML5マークアップ、構造化データ(JSON-LD)、OGP、パンくずリストを標準搭載。カスタマイズの叩き台としてお使いください。
-Version: 1.3.0
+Version: 1.4.0
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
@@ -466,8 +466,36 @@ input[type="submit"]:hover { background: var(--color-accent-hover); color: #fff;
 .footer-navigation ul { display: flex; gap: 1.2rem; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
 .footer-navigation a { color: var(--color-text-muted); text-decoration: none; }
 .footer-navigation a:hover { color: var(--color-accent); }
-.footer-bottom { margin-top: 1.8rem; padding-top: 1.2rem; border-top: 1px solid var(--color-border); }
+.footer-bottom {
+  margin-top: 1.8rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.8rem 1.5rem;
+}
 .footer-bottom p { margin: 0; }
+
+/* フッターのソーシャルアイコン (右下) */
+.footer-social {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  margin-left: auto;
+}
+.footer-social li { margin: 0; }
+.footer-social a {
+  display: inline-flex;
+  color: var(--color-text-muted);
+  transition: color var(--transition);
+}
+.footer-social a:hover { color: var(--color-accent); }
+.footer-social svg { width: 22px; height: 22px; fill: currentColor; display: block; }
 
 /* =========================================================
    Accessibility helpers
