@@ -9,6 +9,30 @@
  */
 
 /**
+ * YouTube の URL または生の動画IDから、11文字の動画IDを取り出す。
+ * 視聴URL / 共有URL(youtu.be) / 埋め込み / shorts / 生ID に対応。
+ * 取り出せなければ空文字。
+ *
+ * @param string $input URL もしくは動画ID
+ * @return string 動画ID(11文字) または ''
+ */
+function jijipom_youtube_id( $input ) {
+	$input = trim( (string) $input );
+	if ( '' === $input ) {
+		return '';
+	}
+	// すでに動画IDそのもの。
+	if ( preg_match( '/^[A-Za-z0-9_-]{11}$/', $input ) ) {
+		return $input;
+	}
+	// 各種URL形式から抽出。
+	if ( preg_match( '~(?:youtu\.be/|youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/|v/|live/))([A-Za-z0-9_-]{11})~', $input, $m ) ) {
+		return $m[1];
+	}
+	return '';
+}
+
+/**
  * 設定+コントロールをまとめて登録する小さなヘルパー
  */
 function jijipom_fp_add( $wp_customize, $id, $args ) {
@@ -110,13 +134,14 @@ function jijipom_frontpage_customize_register( $wp_customize ) {
 
 	// ===== ① ヒーロー =====
 	$wp_customize->add_section( 'jijipom_fp_hero', array( 'title' => __( '① メインビジュアル', 'jijipom' ), 'panel' => 'jijipom_front_panel' ) );
-	jijipom_fp_add( $wp_customize, 'jijipom_hero_type',       array( 'type' => 'select', 'section' => 'jijipom_fp_hero', 'label' => __( '背景の種類', 'jijipom' ), 'default' => 'image', 'desc' => __( '「動画」にすると下の背景動画が使われます（画像より優先）。', 'jijipom' ), 'choices' => array( 'image' => __( '画像', 'jijipom' ), 'video' => __( '動画', 'jijipom' ) ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_hero_type',       array( 'type' => 'select', 'section' => 'jijipom_fp_hero', 'label' => __( '背景の種類', 'jijipom' ), 'default' => 'image', 'desc' => __( '選んだ種類の背景が使われます。「動画(MP4)」は下の背景動画、「YouTube」は下のYouTube欄を使います。', 'jijipom' ), 'choices' => array( 'image' => __( '画像', 'jijipom' ), 'video' => __( '動画 (MP4)', 'jijipom' ), 'youtube' => __( 'YouTube', 'jijipom' ) ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_image',      array( 'type' => 'image',    'section' => 'jijipom_fp_hero', 'label' => __( '背景画像1', 'jijipom' ), 'desc' => __( '最大3枚まで設定できます。2枚以上でスライドショーになります。', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_image_2',    array( 'type' => 'image',    'section' => 'jijipom_fp_hero', 'label' => __( '背景画像2', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_image_3',    array( 'type' => 'image',    'section' => 'jijipom_fp_hero', 'label' => __( '背景画像3', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_interval',   array( 'type' => 'number',   'section' => 'jijipom_fp_hero', 'label' => __( '切り替え間隔(秒)', 'jijipom' ), 'default' => 5, 'desc' => __( '画像が2枚以上のときに使われます。', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_video',      array( 'type' => 'video',    'section' => 'jijipom_fp_hero', 'label' => __( '背景動画 (MP4)', 'jijipom' ), 'desc' => __( 'MP4 形式を推奨。音声なし・自動再生・ループで背景に流れます。', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_video_poster', array( 'type' => 'image',  'section' => 'jijipom_fp_hero', 'label' => __( '動画のポスター画像', 'jijipom' ), 'desc' => __( '動画の読み込み前や自動再生できない端末で表示される画像です（任意）。', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_hero_youtube',    array( 'section' => 'jijipom_fp_hero', 'label' => __( 'YouTube の URL または動画ID', 'jijipom' ), 'desc' => __( '「背景の種類」を YouTube にしたときに使います。視聴URL・共有URL・動画IDのいずれでもOK。無音・自動再生・ループの背景として流れます。', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_title',      array( 'type' => 'textarea', 'section' => 'jijipom_fp_hero', 'label' => __( 'キャッチコピー', 'jijipom' ), 'default' => __( 'キャッチコピー', 'jijipom' ), 'desc' => __( '改行で複数行にできます。', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_subtitle',   array( 'type' => 'textarea', 'section' => 'jijipom_fp_hero', 'label' => __( 'サブテキスト', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_align',      array( 'type' => 'select', 'section' => 'jijipom_fp_hero', 'label' => __( '文字・ボタンの配置', 'jijipom' ), 'default' => 'center', 'desc' => __( 'キャッチコピー・サブテキスト・ボタンの位置をまとめて切り替えます。', 'jijipom' ), 'choices' => array( 'left' => __( '左寄せ', 'jijipom' ), 'center' => __( '中央', 'jijipom' ), 'right' => __( '右寄せ', 'jijipom' ) ) ) );

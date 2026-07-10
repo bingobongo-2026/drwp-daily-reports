@@ -4,7 +4,7 @@ Theme URI: https://example.com/jijipom
 Author: jijipom
 Author URI: https://example.com
 Description: どんなジャンルのサイトにも馴染む、シンプルで軽量・SEOに強いベーステーマ。セマンティックなHTML5マークアップ、構造化データ(JSON-LD)、OGP、パンくずリストを標準搭載。カスタマイズの叩き台としてお使いください。
-Version: 1.5.0
+Version: 1.6.0
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
@@ -572,8 +572,28 @@ input[type="submit"]:hover { background: var(--color-accent-hover); color: #fff;
   height: 100%;
   object-fit: cover;
 }
+/* YouTube 背景: 16:9 の iframe をコンテナいっぱいにカバー表示 (操作不可) */
+.front-hero__yt {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.front-hero__yt iframe {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 177.78vh;   /* 16:9 (高さ基準の幅) */
+  height: 56.25vw;   /* 16:9 (幅基準の高さ) */
+  min-width: 100%;
+  min-height: 100%;
+  transform: translate(-50%, -50%);
+  border: 0;
+}
 .front-hero.has-image::before,
-.front-hero.has-video::before {
+.front-hero.has-video::before,
+.front-hero.has-youtube::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -601,7 +621,9 @@ input[type="submit"]:hover { background: var(--color-accent-hover); color: #fff;
 .front-hero.has-image .front-hero__title,
 .front-hero.has-image .front-hero__subtitle,
 .front-hero.has-video .front-hero__title,
-.front-hero.has-video .front-hero__subtitle { color: #fff; }
+.front-hero.has-video .front-hero__subtitle,
+.front-hero.has-youtube .front-hero__title,
+.front-hero.has-youtube .front-hero__subtitle { color: #fff; }
 .front-hero__button { margin-top: 0.5rem; }
 
 /* ヒーローの配置 (中央が既定) */
