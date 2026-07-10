@@ -32,6 +32,7 @@ function jijipom_fp_add( $wp_customize, $id, $args ) {
 			break;
 		case 'url':
 		case 'image':
+		case 'video':
 			$sanitize = 'esc_url_raw';
 			break;
 		case 'number':
@@ -69,6 +70,12 @@ function jijipom_fp_add( $wp_customize, $id, $args ) {
 		$wp_customize->add_control(
 			new WP_Customize_Image_Control( $wp_customize, $id, $control_args )
 		);
+	} elseif ( 'video' === $args['type'] ) {
+		// Upload コントロールは URL を保存する。動画に限定して選ばせる。
+		$control_args['mime_type'] = 'video';
+		$wp_customize->add_control(
+			new WP_Customize_Upload_Control( $wp_customize, $id, $control_args )
+		);
 	} elseif ( 'color' === $args['type'] ) {
 		$wp_customize->add_control(
 			new WP_Customize_Color_Control( $wp_customize, $id, $control_args )
@@ -103,10 +110,13 @@ function jijipom_frontpage_customize_register( $wp_customize ) {
 
 	// ===== ① ヒーロー =====
 	$wp_customize->add_section( 'jijipom_fp_hero', array( 'title' => __( '① メインビジュアル', 'jijipom' ), 'panel' => 'jijipom_front_panel' ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_hero_type',       array( 'type' => 'select', 'section' => 'jijipom_fp_hero', 'label' => __( '背景の種類', 'jijipom' ), 'default' => 'image', 'desc' => __( '「動画」にすると下の背景動画が使われます（画像より優先）。', 'jijipom' ), 'choices' => array( 'image' => __( '画像', 'jijipom' ), 'video' => __( '動画', 'jijipom' ) ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_image',      array( 'type' => 'image',    'section' => 'jijipom_fp_hero', 'label' => __( '背景画像1', 'jijipom' ), 'desc' => __( '最大3枚まで設定できます。2枚以上でスライドショーになります。', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_image_2',    array( 'type' => 'image',    'section' => 'jijipom_fp_hero', 'label' => __( '背景画像2', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_image_3',    array( 'type' => 'image',    'section' => 'jijipom_fp_hero', 'label' => __( '背景画像3', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_interval',   array( 'type' => 'number',   'section' => 'jijipom_fp_hero', 'label' => __( '切り替え間隔(秒)', 'jijipom' ), 'default' => 5, 'desc' => __( '画像が2枚以上のときに使われます。', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_hero_video',      array( 'type' => 'video',    'section' => 'jijipom_fp_hero', 'label' => __( '背景動画 (MP4)', 'jijipom' ), 'desc' => __( 'MP4 形式を推奨。音声なし・自動再生・ループで背景に流れます。', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_hero_video_poster', array( 'type' => 'image',  'section' => 'jijipom_fp_hero', 'label' => __( '動画のポスター画像', 'jijipom' ), 'desc' => __( '動画の読み込み前や自動再生できない端末で表示される画像です（任意）。', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_title',      array( 'type' => 'textarea', 'section' => 'jijipom_fp_hero', 'label' => __( 'キャッチコピー', 'jijipom' ), 'default' => __( 'キャッチコピー', 'jijipom' ), 'desc' => __( '改行で複数行にできます。', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_subtitle',   array( 'type' => 'textarea', 'section' => 'jijipom_fp_hero', 'label' => __( 'サブテキスト', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_align',      array( 'type' => 'select', 'section' => 'jijipom_fp_hero', 'label' => __( '文字・ボタンの配置', 'jijipom' ), 'default' => 'center', 'desc' => __( 'キャッチコピー・サブテキスト・ボタンの位置をまとめて切り替えます。', 'jijipom' ), 'choices' => array( 'left' => __( '左寄せ', 'jijipom' ), 'center' => __( '中央', 'jijipom' ), 'right' => __( '右寄せ', 'jijipom' ) ) ) );
