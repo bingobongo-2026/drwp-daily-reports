@@ -13,11 +13,12 @@
  */
 function jijipom_fp_add( $wp_customize, $id, $args ) {
 	$defaults = array(
-		'type'      => 'text',      // text | textarea | checkbox | number | url | image
+		'type'      => 'text',      // text | textarea | checkbox | number | url | image | color | select
 		'default'   => '',
 		'label'     => '',
 		'section'   => '',
 		'desc'      => '',
+		'choices'   => array(),     // select 用
 	);
 	$args = array_merge( $defaults, $args );
 
@@ -35,6 +36,15 @@ function jijipom_fp_add( $wp_customize, $id, $args ) {
 			break;
 		case 'number':
 			$sanitize = 'absint';
+			break;
+		case 'color':
+			$sanitize = 'sanitize_hex_color';
+			break;
+		case 'select':
+			$choices  = $args['choices'];
+			$sanitize = function ( $value ) use ( $choices ) {
+				return array_key_exists( (string) $value, $choices ) ? (string) $value : '';
+			};
 			break;
 		default:
 			$sanitize = 'sanitize_text_field';
@@ -59,11 +69,18 @@ function jijipom_fp_add( $wp_customize, $id, $args ) {
 		$wp_customize->add_control(
 			new WP_Customize_Image_Control( $wp_customize, $id, $control_args )
 		);
+	} elseif ( 'color' === $args['type'] ) {
+		$wp_customize->add_control(
+			new WP_Customize_Color_Control( $wp_customize, $id, $control_args )
+		);
 	} else {
 		$control_args['type']       = $args['type'];
 		$control_args['settings']   = $id;
 		if ( 'number' === $args['type'] ) {
 			$control_args['input_attrs'] = array( 'min' => 1, 'max' => 12, 'step' => 1 );
+		}
+		if ( 'select' === $args['type'] ) {
+			$control_args['choices'] = $args['choices'];
 		}
 		$wp_customize->add_control( $id, $control_args );
 	}
@@ -92,8 +109,11 @@ function jijipom_frontpage_customize_register( $wp_customize ) {
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_interval',   array( 'type' => 'number',   'section' => 'jijipom_fp_hero', 'label' => __( '切り替え間隔(秒)', 'jijipom' ), 'default' => 5, 'desc' => __( '画像が2枚以上のときに使われます。', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_title',      array( 'type' => 'textarea', 'section' => 'jijipom_fp_hero', 'label' => __( 'キャッチコピー', 'jijipom' ), 'default' => __( 'キャッチコピー', 'jijipom' ), 'desc' => __( '改行で複数行にできます。', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_subtitle',   array( 'type' => 'textarea', 'section' => 'jijipom_fp_hero', 'label' => __( 'サブテキスト', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_hero_align',      array( 'type' => 'select', 'section' => 'jijipom_fp_hero', 'label' => __( '文字・ボタンの配置', 'jijipom' ), 'default' => 'center', 'desc' => __( 'キャッチコピー・サブテキスト・ボタンの位置をまとめて切り替えます。', 'jijipom' ), 'choices' => array( 'left' => __( '左寄せ', 'jijipom' ), 'center' => __( '中央', 'jijipom' ), 'right' => __( '右寄せ', 'jijipom' ) ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_button_text',array( 'section' => 'jijipom_fp_hero', 'label' => __( 'ボタンの文言', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_hero_button_url', array( 'type' => 'url', 'section' => 'jijipom_fp_hero', 'label' => __( 'ボタンのリンク先URL', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_hero_button_bg',  array( 'type' => 'color', 'section' => 'jijipom_fp_hero', 'label' => __( 'ボタンの背景色', 'jijipom' ), 'desc' => __( '未設定のときはテーマ標準色になります。', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_hero_button_color', array( 'type' => 'color', 'section' => 'jijipom_fp_hero', 'label' => __( 'ボタンの文字色', 'jijipom' ) ) );
 
 	// ===== ② サービス =====
 	$wp_customize->add_section( 'jijipom_fp_service', array( 'title' => __( '② サービス', 'jijipom' ), 'panel' => 'jijipom_front_panel' ) );

@@ -25,6 +25,24 @@ $jijipom_hero_subtitle = get_theme_mod( 'jijipom_hero_subtitle', '' );
 $jijipom_hero_btn_text = get_theme_mod( 'jijipom_hero_button_text', '' );
 $jijipom_hero_btn_url  = get_theme_mod( 'jijipom_hero_button_url', '' );
 
+// 文字・ボタンの配置 (left / center / right)。中央が既定。
+$jijipom_hero_align = get_theme_mod( 'jijipom_hero_align', 'center' );
+if ( ! in_array( $jijipom_hero_align, array( 'left', 'center', 'right' ), true ) ) {
+	$jijipom_hero_align = 'center';
+}
+$jijipom_inner_class = 'front-inner front-hero__inner is-align-' . $jijipom_hero_align;
+
+// ボタンの色 (未設定ならテーマ標準色のまま)。
+$jijipom_hero_btn_bg    = get_theme_mod( 'jijipom_hero_button_bg', '' );
+$jijipom_hero_btn_color = get_theme_mod( 'jijipom_hero_button_color', '' );
+$jijipom_btn_style      = '';
+if ( $jijipom_hero_btn_bg ) {
+	$jijipom_btn_style .= 'background-color:' . $jijipom_hero_btn_bg . ';border-color:' . $jijipom_hero_btn_bg . ';';
+}
+if ( $jijipom_hero_btn_color ) {
+	$jijipom_btn_style .= 'color:' . $jijipom_hero_btn_color . ';';
+}
+
 $jijipom_has_image  = ! empty( $jijipom_hero_images );
 $jijipom_hero_class = 'front-hero' . ( $jijipom_has_image ? ' has-image' : '' );
 ?>
@@ -37,7 +55,7 @@ $jijipom_hero_class = 'front-hero' . ( $jijipom_has_image ? ' has-image' : '' );
 		</div>
 	<?php endif; ?>
 
-	<div class="front-inner front-hero__inner">
+	<div class="<?php echo esc_attr( $jijipom_inner_class ); ?>">
 		<?php if ( $jijipom_hero_title ) : ?>
 			<h2 class="front-hero__title"><?php echo nl2br( esc_html( $jijipom_hero_title ) ); ?></h2>
 		<?php endif; ?>
@@ -47,7 +65,7 @@ $jijipom_hero_class = 'front-hero' . ( $jijipom_has_image ? ' has-image' : '' );
 		<?php endif; ?>
 
 		<?php if ( $jijipom_hero_btn_text && $jijipom_hero_btn_url ) : ?>
-			<a class="button front-hero__button" href="<?php echo esc_url( $jijipom_hero_btn_url ); ?>"><?php echo esc_html( $jijipom_hero_btn_text ); ?></a>
+			<a class="button front-hero__button" href="<?php echo esc_url( $jijipom_hero_btn_url ); ?>"<?php echo $jijipom_btn_style ? ' style="' . esc_attr( $jijipom_btn_style ) . '"' : ''; ?>><?php echo esc_html( $jijipom_hero_btn_text ); ?></a>
 		<?php endif; ?>
 	</div>
 </section>
