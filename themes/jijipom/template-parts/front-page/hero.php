@@ -43,11 +43,24 @@ if ( $jijipom_hero_btn_color ) {
 	$jijipom_btn_style .= 'color:' . $jijipom_hero_btn_color . ';';
 }
 
-$jijipom_has_image  = ! empty( $jijipom_hero_images );
-$jijipom_hero_class = 'front-hero' . ( $jijipom_has_image ? ' has-image' : '' );
+// 背景の種類 (image / video)。動画が選ばれていて動画URLがあれば動画優先。
+$jijipom_hero_type   = get_theme_mod( 'jijipom_hero_type', 'image' );
+$jijipom_hero_video  = get_theme_mod( 'jijipom_hero_video', '' );
+$jijipom_hero_poster = get_theme_mod( 'jijipom_hero_video_poster', '' );
+$jijipom_use_video   = ( 'video' === $jijipom_hero_type && $jijipom_hero_video );
+
+$jijipom_has_image = ! $jijipom_use_video && ! empty( $jijipom_hero_images );
+// 背景メディアがあるとき (画像 or 動画) は暗いオーバーレイ + 白文字にする。
+$jijipom_hero_class = 'front-hero'
+	. ( $jijipom_has_image ? ' has-image' : '' )
+	. ( $jijipom_use_video ? ' has-video' : '' );
 ?>
-<section class="<?php echo esc_attr( $jijipom_hero_class ); ?>"<?php if ( count( $jijipom_hero_images ) > 1 ) : ?> data-hero-interval="<?php echo esc_attr( $jijipom_hero_interval * 1000 ); ?>"<?php endif; ?>>
-	<?php if ( $jijipom_has_image ) : ?>
+<section class="<?php echo esc_attr( $jijipom_hero_class ); ?>"<?php if ( ! $jijipom_use_video && count( $jijipom_hero_images ) > 1 ) : ?> data-hero-interval="<?php echo esc_attr( $jijipom_hero_interval * 1000 ); ?>"<?php endif; ?>>
+	<?php if ( $jijipom_use_video ) : ?>
+		<video class="front-hero__video" autoplay muted loop playsinline<?php echo $jijipom_hero_poster ? ' poster="' . esc_url( $jijipom_hero_poster ) . '"' : ''; ?> aria-hidden="true">
+			<source src="<?php echo esc_url( $jijipom_hero_video ); ?>" type="video/mp4">
+		</video>
+	<?php elseif ( $jijipom_has_image ) : ?>
 		<div class="front-hero__slides" aria-hidden="true">
 			<?php foreach ( $jijipom_hero_images as $jijipom_i => $jijipom_img ) : ?>
 				<div class="front-hero__slide<?php echo 0 === $jijipom_i ? ' is-active' : ''; ?>" style="background-image:url(<?php echo esc_url( $jijipom_img ); ?>)"></div>
