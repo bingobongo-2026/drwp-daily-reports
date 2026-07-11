@@ -22,15 +22,20 @@ if (!defined('ABSPATH')) exit;
  */
 class DRWP_Updater {
 
-    /** 取得したリリース情報のキャッシュ (12h)。 */
+    /** 取得したリリース情報のキャッシュ (1h)。 */
     const TRANSIENT = 'drwp_updater_release';
-    const CACHE_TTL = 12 * HOUR_IN_SECONDS;
+    const CACHE_TTL = HOUR_IN_SECONDS;
 
     public static function init() {
         add_filter('pre_set_site_transient_update_plugins', [__CLASS__, 'inject_update']);
         add_filter('plugins_api', [__CLASS__, 'plugins_api'], 20, 3);
         add_filter('auto_update_plugin', [__CLASS__, 'enable_auto_update'], 10, 2);
         add_action('upgrader_process_complete', [__CLASS__, 'clear_cache'], 10, 2);
+        // 「ダッシュボード → 更新」を開いた / 「更新を確認」を押したときは、
+        // 自前のリリースキャッシュを捨ててから WP のチェックに入るよう
+        // にする。これをしないと最大 CACHE_TTL の間、新バージョンを
+        // アップしても手動チェックで気づけない。
+        add_action('load-update-core.php', [__CLASS__, 'clear_cache']);
     }
 
     /** `drwp-daily-reports/drwp-daily-reports.php` を返す。 */

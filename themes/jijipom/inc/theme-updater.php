@@ -19,15 +19,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Jijipom_Updater {
 
-	/** リリース情報のキャッシュ (12h)。 */
+	/** リリース情報のキャッシュ (1h)。 */
 	const TRANSIENT = 'jijipom_updater_release';
-	const CACHE_TTL = 12 * HOUR_IN_SECONDS;
+	const CACHE_TTL = HOUR_IN_SECONDS;
 
 	public static function init() {
 		add_filter( 'pre_set_site_transient_update_themes', array( __CLASS__, 'inject_update' ) );
 		add_filter( 'themes_api', array( __CLASS__, 'themes_api' ), 20, 3 );
 		add_filter( 'auto_update_theme', array( __CLASS__, 'enable_auto_update' ), 10, 2 );
 		add_action( 'upgrader_process_complete', array( __CLASS__, 'clear_cache' ), 10, 2 );
+		// 「ダッシュボード → 更新」を開いた / 「更新を確認」を押したときは、
+		// 自前のリリースキャッシュを捨ててから WP のチェックに入る。これを
+		// しないと最大 CACHE_TTL の間、手動チェックでも新バージョンに
+		// 気づけない。
+		add_action( 'load-update-core.php', array( __CLASS__, 'clear_cache' ) );
 	}
 
 	/** テーマのディレクトリ名 (= 更新 transient のキー)。 */
