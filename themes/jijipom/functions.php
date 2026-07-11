@@ -6,7 +6,7 @@
  */
 
 if ( ! defined( 'JIJIPOM_VERSION' ) ) {
-	define( 'JIJIPOM_VERSION', '1.6.0' );
+	define( 'JIJIPOM_VERSION', '1.7.0' );
 }
 
 /**
@@ -91,6 +91,19 @@ function jijipom_scripts() {
 			JIJIPOM_VERSION,
 			true
 		);
+
+		// YouTube 背景を選んでいるときだけ、IFrame API 制御スクリプトを読む。
+		if ( 'youtube' === get_theme_mod( 'jijipom_hero_type', 'image' )
+			&& function_exists( 'jijipom_youtube_id' )
+			&& jijipom_youtube_id( get_theme_mod( 'jijipom_hero_youtube', '' ) ) ) {
+			wp_enqueue_script(
+				'jijipom-hero-youtube',
+				get_template_directory_uri() . '/assets/js/hero-youtube.js',
+				array(),
+				JIJIPOM_VERSION,
+				true
+			);
+		}
 	}
 
 	if ( is_singular() && comments_open() && get_option( 'thread_comments' ) ) {

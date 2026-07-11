@@ -80,12 +80,16 @@ $jijipom_hero_class = 'front-hero'
 				'disablekb'      => 1,
 				'fs'             => 0,
 				'iv_load_policy' => 3,
+				// IFrame API から制御 (無音自動再生 + 終了画面を出さない
+				// シームレスループ) するため。
+				'enablejsapi'    => 1,
+				'origin'         => home_url(),
 			),
 			'https://www.youtube-nocookie.com/embed/' . rawurlencode( $jijipom_yt_id )
 		);
 		?>
 		<div class="front-hero__yt" aria-hidden="true">
-			<iframe src="<?php echo esc_url( $jijipom_yt_src ); ?>" title="<?php esc_attr_e( '背景動画', 'jijipom' ); ?>" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen tabindex="-1"></iframe>
+			<iframe id="jijipom-hero-yt" src="<?php echo esc_url( $jijipom_yt_src ); ?>" title="<?php esc_attr_e( '背景動画', 'jijipom' ); ?>" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen tabindex="-1"></iframe>
 		</div>
 	<?php elseif ( $jijipom_has_image ) : ?>
 		<div class="front-hero__slides" aria-hidden="true">
