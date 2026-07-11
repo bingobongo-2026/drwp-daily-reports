@@ -40,7 +40,7 @@
         overlay.innerHTML = ''
           + '<div class="drwp-mosaic-dialog" role="dialog" aria-modal="true" aria-label="モザイク編集">'
           +     '<div class="drwp-mosaic-head">'
-          +       '<h3 class="drwp-mosaic-title">画像のモザイク編集</h3>'
+          +       '<h3 class="drwp-mosaic-title">画像のぼかし編集</h3>'
           +       '<button type="button" class="drwp-mosaic-close" data-act="cancel" aria-label="閉じる">×</button>'
           +     '</div>'
           +     '<div class="drwp-mosaic-body">'
@@ -55,8 +55,8 @@
           +       '</p>'
           +       '<div class="drwp-mosaic-controls">'
           +         '<label class="drwp-mosaic-strength">'
-          +           '<span>粒度</span>'
-          +           '<input type="range" min="6" max="40" value="14" data-role="strength" />'
+          +           '<span>ぼかしの強さ</span>'
+          +           '<input type="range" min="4" max="60" value="14" data-role="strength" />'
           +           '<span class="drwp-mosaic-strength-val" data-role="strength-val">14</span>'
           +         '</label>'
           +         '<button type="button" class="drwp-mosaic-btn" data-act="undo">↶ 1つ取り消し</button>'
@@ -158,9 +158,10 @@
             base.style.width   = dispW + 'px';
             base.style.height  = dispH + 'px';
 
-            // 既定の粒度は長辺の 1.5% くらい (扱いやすい値)
-            var auto = Math.max(6, Math.round(Math.max(image.naturalWidth, image.naturalHeight) * 0.015));
-            blockSize = Math.min(40, auto);
+            // 既定のぼかし強さは長辺の 1.5% くらい (扱いやすい値)。
+            // スライダー範囲 (4〜60) に収める。
+            var auto = Math.max(4, Math.round(Math.max(image.naturalWidth, image.naturalHeight) * 0.015));
+            blockSize = Math.min(60, auto);
             strengthEl.value = String(blockSize);
             strengthVal.textContent = String(blockSize);
         }
@@ -229,9 +230,12 @@
             }
         }
 
-        // ----- ピクセレート処理 -----
+        // ----- ぼかし処理 -----
         function pixelateRegion(ctx, rect, block) {
-            // 1) 領域を抜き出して block 倍縮小 → 拡大、で「ブロック平均色」を得る
+            // 領域を block 倍に縮小 → 元サイズに拡大する。縮小/拡大とも
+            // 平滑化を有効にすることで、四角いモザイクではなく「なめらかな
+            // ぼかし」になる (バイリニア補間による blur)。ctx.filter='blur()'
+            // は古い iOS Safari で未対応なため、全ブラウザで動くこの方式を使う。
             var sx = Math.max(0, Math.floor(rect.x));
             var sy = Math.max(0, Math.floor(rect.y));
             var sw = Math.min(image.naturalWidth  - sx, Math.ceil(rect.w));
@@ -243,11 +247,12 @@
             var off = document.createElement('canvas');
             off.width = tw; off.height = th;
             var offCtx = off.getContext('2d');
-            offCtx.imageSmoothingEnabled = false;
+            offCtx.imageSmoothingEnabled = true;
+            offCtx.imageSmoothingQuality = 'high';
             offCtx.drawImage(ctx.canvas, sx, sy, sw, sh, 0, 0, tw, th);
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(off, 0, 0, tw, th, sx, sy, sw, sh);
             ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(off, 0, 0, tw, th, sx, sy, sw, sh);
         }
 
         function applyAll() {

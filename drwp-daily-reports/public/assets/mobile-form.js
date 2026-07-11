@@ -86,6 +86,7 @@
             thumb.appendChild(img);
             var del = document.createElement('button');
             del.type = 'button';
+            del.className = 'photo-remove';
             del.textContent = '×';
             del.setAttribute('aria-label', i18n.remove_photo || '削除');
             del.onclick = function () {
