@@ -4,7 +4,7 @@ Theme URI: https://example.com/jijipom
 Author: jijipom
 Author URI: https://example.com
 Description: どんなジャンルのサイトにも馴染む、シンプルで軽量・SEOに強いベーステーマ。セマンティックなHTML5マークアップ、構造化データ(JSON-LD)、OGP、パンくずリストを標準搭載。カスタマイズの叩き台としてお使いください。
-Version: 1.6.0
+Version: 1.7.0
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
@@ -588,7 +588,9 @@ input[type="submit"]:hover { background: var(--color-accent-hover); color: #fff;
   height: 56.25vw;   /* 16:9 (幅基準の高さ) */
   min-width: 100%;
   min-height: 100%;
-  transform: translate(-50%, -50%);
+  /* 拡大して中央をトリミングし、上のタイトル帯・下のロゴ/関連動画などの
+     YouTube チャームを表示領域の外に追い出す。 */
+  transform: translate(-50%, -50%) scale(1.35);
   border: 0;
 }
 .front-hero.has-image::before,
