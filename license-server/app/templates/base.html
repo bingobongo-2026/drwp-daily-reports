@@ -65,6 +65,7 @@
   </style>
 </head>
 <body>
+  {% block site_header %}
   <header>
     <strong>日報マン ライセンスサーバー</strong>
     <nav>
@@ -75,6 +76,7 @@
       <button type="button" class="help-button" aria-label="このページのヘルプを開く" title="このページのヘルプ (?)" onclick="document.getElementById('help-dialog').showModal()">?</button>
     </nav>
   </header>
+  {% endblock %}
   <main>
     {% if flash %}<div class="flash {{ flash_class or 'ok' }}">{{ flash }}</div>{% endif %}
     {% block content %}{% endblock %}
