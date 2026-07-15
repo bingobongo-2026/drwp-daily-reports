@@ -1185,3 +1185,94 @@ def test_theme_download_rejects_domain_mismatch(tmp_path, monkeypatch):
            files={"file": ("t.zip", _make_theme_zip("2.0.0"), "application/zip")})
     r = c.get("/api/theme/download?license_key=PLUG-KEY&domain=evil.test")
     assert r.status_code == 403
+
+
+# --- 運営契約 AI (managed AI) --------------------------------------------
+
+def _seed_active_plan(client, key, domain, plan):
+    r = client.post("/admin/licenses", auth=("admin", "test-token"), json={
+        "license_key": key, "domain": domain, "plan": plan,
+        "status": "active", "expires_at": "2099-12-31T23:59:59+00:00",
+    })
+    assert r.status_code in (200, 201), r.text
+
+
+def test_ai_quota_reflects_plan_limit(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_active_plan(c, "PRO-A", "pro.test", "pro")
+    r = c.get("/api/ai/quota?license_key=PRO-A&domain=pro.test")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["limit"] == 500  # 既定のプロ上限
+    assert body["used"] == 0
+
+
+def test_ai_chat_blocked_on_non_ai_plan(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_active_plan(c, "BAS-A", "bas.test", "basic")
+    r = c.post("/api/ai/chat", json={
+        "license_key": "BAS-A", "domain": "bas.test", "messages": [],
+    })
+    assert r.status_code == 403
+
+
+def test_ai_chat_503_when_unconfigured(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_active_plan(c, "PRO-B", "prob.test", "pro")
+    r = c.post("/api/ai/chat", json={
+        "license_key": "PRO-B", "domain": "prob.test",
+        "messages": [{"role": "user", "content": "hi"}],
+    })
+    assert r.status_code == 503
+
+
+def test_ai_chat_429_when_over_quota(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _seed_active_plan(c, "PRO-C", "proc.test", "pro")
+    # 設定を有効化 + プロ上限を 1 に絞る
+    r = c.post("/admin/ui/ai/save", auth=("admin", "test-token"), data={
+        "enabled": "on", "provider": "anthropic", "api_key": "sk-x",
+        "model": "claude-x", "limit_free": "0", "limit_pro": "1",
+    }, follow_redirects=False)
+    assert r.status_code == 303
+    # 使用量を上限まで埋める
+    from app import db as _db
+    period = main._ai_period()
+    _db.ai_usage_increment("PRO-C", period, 1)
+    r = c.post("/api/ai/chat", json={
+        "license_key": "PRO-C", "domain": "proc.test",
+        "messages": [{"role": "user", "content": "hi"}],
+    })
+    assert r.status_code == 429
+
+
+def test_ai_save_does_not_leak_key_and_persists(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    c.post("/admin/ui/ai/save", auth=("admin", "test-token"), data={
+        "enabled": "on", "provider": "openai", "api_key": "sk-secret",
+        "base_url": "https://api.example.test/v1", "model": "gpt-x",
+        "limit_free": "5", "limit_pro": "50",
+    })
+    cfg = main._get_ai_config()
+    assert cfg["api_key"] == "sk-secret"
+    assert cfg["provider"] == "openai"
+    assert cfg["limit_pro"] == 50
+    # 設定画面に生キーが出ないこと
+    r = c.get("/admin/ui/settings", auth=("admin", "test-token"))
+    assert "sk-secret" not in r.text
+
+
+def test_ai_save_keeps_existing_key_on_placeholder(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    c.post("/admin/ui/ai/save", auth=("admin", "test-token"), data={
+        "enabled": "on", "provider": "anthropic", "api_key": "sk-keep",
+        "model": "claude-x", "limit_free": "5", "limit_pro": "50",
+    })
+    # キー欄を空で再保存 → 既存キーを維持する
+    c.post("/admin/ui/ai/save", auth=("admin", "test-token"), data={
+        "enabled": "on", "provider": "anthropic", "api_key": "",
+        "model": "claude-y", "limit_free": "5", "limit_pro": "50",
+    })
+    cfg = main._get_ai_config()
+    assert cfg["api_key"] == "sk-keep"
+    assert cfg["model"] == "claude-y"

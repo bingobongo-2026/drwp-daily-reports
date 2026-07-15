@@ -39,6 +39,7 @@
   <button type="button" class="settings-tab" data-tab="backup" role="tab">バックアップ</button>
   <button type="button" class="settings-tab" data-tab="plugin" role="tab">プラグイン配布</button>
   <button type="button" class="settings-tab" data-tab="theme" role="tab">テーマ配布</button>
+  <button type="button" class="settings-tab" data-tab="ai" role="tab">運営契約AI</button>
 </nav>
 
 <div class="card settings-panel" id="panel-auth" role="tabpanel">
@@ -316,6 +317,58 @@
 
     <div style="margin-top:8px;">
       <button type="submit" class="btn">アップロードして配布</button>
+    </div>
+  </form>
+</div>
+
+<div class="card settings-panel" id="panel-ai" role="tabpanel" hidden>
+  <h2>運営契約 AI</h2>
+  <p class="muted">
+    プラグインの「AI設定」で <strong>運営契約の API を使う</strong> を選んだサイトは、
+    ここに設定した API キーを使って AI 機能を利用します（<code>POST /api/ai/chat</code> 経由）。
+    プロバイダのキーは運営（あなた）が 1 契約分だけ設定し、プラン別の月次回数上限で管理します。
+    <br />※AI が使えるのは <strong>フリー（体験）</strong> と <strong>プロ</strong> プランのみです。ベーシック・ライトは対象外（上限0）。
+  </p>
+
+  <form method="post" action="/admin/ui/ai/save">
+    <label>
+      <input type="checkbox" name="enabled" value="on" {% if ai_config and ai_config.enabled %}checked{% endif %} />
+      運営契約 AI を有効にする
+    </label>
+
+    <label for="ai-provider">プロバイダ</label>
+    <select id="ai-provider" name="provider" style="max-width:320px;">
+      <option value="anthropic" {% if ai_config and ai_config.provider == 'anthropic' %}selected{% endif %}>Anthropic (Claude)</option>
+      <option value="openai" {% if ai_config and ai_config.provider == 'openai' %}selected{% endif %}>OpenAI 互換</option>
+    </select>
+
+    <label for="ai-key">API キー</label>
+    <input type="password" id="ai-key" name="api_key" autocomplete="off" style="max-width:560px;"
+      placeholder="{% if ai_config and ai_config.has_api_key %}●●●●●●（設定済み／変更するときだけ入力）{% else %}sk-... / 未設定{% endif %}" />
+
+    <label for="ai-base">ベース URL（OpenAI 互換のときのみ）</label>
+    <input type="text" id="ai-base" name="base_url" style="max-width:560px;"
+      value="{{ ai_config.base_url if ai_config else '' }}" placeholder="https://api.openai.com/v1" />
+
+    <label for="ai-model">モデル名</label>
+    <input type="text" id="ai-model" name="model" style="max-width:560px;"
+      value="{{ ai_config.model if ai_config else '' }}" placeholder="例: claude-3-5-sonnet-20241022 / gpt-4o-mini" />
+
+    <div class="row" style="gap:24px;margin-top:8px;">
+      <span>
+        <label for="ai-limit-free" style="display:block;">フリー(体験)の月次上限</label>
+        <input type="number" id="ai-limit-free" name="limit_free" min="0" step="1" style="max-width:140px;"
+          value="{{ ai_config.limit_free if ai_config else 50 }}" />
+      </span>
+      <span>
+        <label for="ai-limit-pro" style="display:block;">プロの月次上限</label>
+        <input type="number" id="ai-limit-pro" name="limit_pro" min="0" step="1" style="max-width:140px;"
+          value="{{ ai_config.limit_pro if ai_config else 500 }}" />
+      </span>
+    </div>
+
+    <div style="margin-top:12px;">
+      <button type="submit" class="btn">保存</button>
     </div>
   </form>
 </div>

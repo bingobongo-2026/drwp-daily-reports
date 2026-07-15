@@ -127,6 +127,7 @@ _FLASH = {
     "plugin_invalid": ("zip からバージョンを読み取れませんでした。drwp-daily-reports.php を含む zip か確認してください。", "err"),
     "theme_uploaded": ("テーマ zip をアップロードしました。各サイトは次回の更新チェックで検知します。", "ok"),
     "theme_invalid": ("zip からバージョンを読み取れませんでした。style.css を含むテーマ zip か確認してください。", "err"),
+    "ai_saved": ("運営契約 AI の設定を保存しました。", "ok"),
 }
 
 
@@ -724,6 +725,206 @@ def theme_download(license_key: str = "", domain: str = ""):
     )
 
 
+# =========================================================================
+# 運営契約 AI (managed AI)
+# =========================================================================
+# プラグインの「運営契約の API を使う」モードの受け口。運営が 1 社分の
+# プロバイダ API キーをここに設定し、各サイトは POST /api/ai/chat 経由で
+# 呼び出す。ライセンス検証 + プラン別の月次回数上限をサーバー側で enforce
+# する。設定 (キー等) は settings テーブルに JSON 1 行で保持する。
+
+_AI_CONFIG_KEY = "ai_managed"
+_AI_DEFAULTS = {
+    "enabled": False,
+    "provider": "anthropic",     # anthropic | openai
+    "api_key": "",
+    "base_url": "",              # openai 互換のときのみ使用
+    "model": "",
+    "limit_free": 50,            # フリー(体験)の月次上限
+    "limit_pro": 500,            # プロの月次上限
+}
+
+
+def _get_ai_config() -> dict:
+    cfg = dict(_AI_DEFAULTS)
+    raw = db.get_setting(_AI_CONFIG_KEY)
+    if raw:
+        try:
+            cfg.update(json.loads(raw))
+        except (ValueError, TypeError):
+            pass
+    return cfg
+
+
+def _set_ai_config(cfg: dict) -> None:
+    db.set_setting(_AI_CONFIG_KEY, json.dumps(cfg, ensure_ascii=False))
+
+
+def _ai_settings_ctx() -> dict:
+    """設定画面用。API キーそのものは返さず、設定済みかどうかだけ渡す。"""
+    cfg = _get_ai_config()
+    return {
+        "enabled": bool(cfg.get("enabled")),
+        "provider": cfg.get("provider", "anthropic"),
+        "has_api_key": bool(cfg.get("api_key")),
+        "base_url": cfg.get("base_url", ""),
+        "model": cfg.get("model", ""),
+        "limit_free": int(cfg.get("limit_free", 0) or 0),
+        "limit_pro": int(cfg.get("limit_pro", 0) or 0),
+    }
+
+
+def _ai_period() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m")
+
+
+def _ai_limit_for_plan(plan: str, cfg: dict) -> int:
+    """プラン別の月次上限。AI 対応は フリー(体験)/プロ のみ (プラグインの
+    plan_allows('ai') と一致)。ベーシック・ライト・不明は 0。"""
+    p = (plan or "").strip().lower()
+    if p == "pro":
+        return max(0, int(cfg.get("limit_pro", 0) or 0))
+    if p == "free":
+        return max(0, int(cfg.get("limit_free", 0) or 0))
+    return 0
+
+
+def _ai_provider_call(cfg: dict, messages: list, max_tokens: int) -> str:
+    """設定済みプロバイダを呼び出して本文テキストを返す。失敗時は例外。"""
+    import urllib.request
+    import urllib.error
+
+    provider = (cfg.get("provider") or "anthropic").lower()
+    api_key = cfg.get("api_key") or ""
+    model = cfg.get("model") or ""
+    msgs = [
+        {"role": str(m.get("role", "user")), "content": str(m.get("content", ""))}
+        for m in (messages or [])
+    ]
+
+    if provider == "anthropic":
+        # Anthropic は system を top-level param に分離する必要がある。
+        system = "\n\n".join(m["content"] for m in msgs if m["role"] == "system")
+        conv = [
+            {"role": ("assistant" if m["role"] == "assistant" else "user"), "content": m["content"]}
+            for m in msgs if m["role"] in ("user", "assistant")
+        ]
+        payload = {
+            "model": model or "claude-3-5-sonnet-20241022",
+            "max_tokens": max_tokens or 1024,
+            "messages": conv or [{"role": "user", "content": ""}],
+        }
+        if system:
+            payload["system"] = system
+        req = urllib.request.Request(
+            "https://api.anthropic.com/v1/messages",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "content-type": "application/json",
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        parts = data.get("content") or []
+        return "".join(p.get("text", "") for p in parts if p.get("type") == "text")
+
+    # openai 互換
+    base = (cfg.get("base_url") or "https://api.openai.com/v1").rstrip("/")
+    payload = {"model": model or "gpt-4o-mini", "messages": msgs}
+    if max_tokens:
+        payload["max_tokens"] = max_tokens
+    req = urllib.request.Request(
+        base + "/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"content-type": "application/json", "authorization": "Bearer " + api_key},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    choices = data.get("choices") or []
+    if choices:
+        return str(choices[0].get("message", {}).get("content", "") or "")
+    return ""
+
+
+class AIChatIn(BaseModel):
+    license_key: str = ""
+    domain: str = ""
+    messages: list = []
+    max_tokens: Optional[int] = None
+
+
+@app.get("/api/ai/quota")
+def ai_quota(license_key: str = "", domain: str = ""):
+    """当月の利用回数・上限・モデル名を返す (プラグインの接続テスト用)。"""
+    lic = _verify_license_or_403(license_key, domain)
+    cfg = _get_ai_config()
+    limit = _ai_limit_for_plan(lic["plan"], cfg)
+    period = _ai_period()
+    used = db.ai_usage_get(license_key, period)
+    return {"used": used, "limit": limit, "period": period, "model": cfg.get("model", "")}
+
+
+@app.post("/api/ai/chat")
+def ai_chat(payload: AIChatIn):
+    """運営契約 AI の中継。ライセンス検証 → プラン上限チェック →
+    プロバイダ呼び出し → 回数加算。"""
+    lic = _verify_license_or_403(payload.license_key, payload.domain)
+    cfg = _get_ai_config()
+    limit = _ai_limit_for_plan(lic["plan"], cfg)
+    if limit <= 0:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="AI is not available on this plan")
+    if not cfg.get("enabled") or not cfg.get("api_key"):
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Managed AI is not configured on the server",
+        )
+    period = _ai_period()
+    used = db.ai_usage_get(payload.license_key, period)
+    if used >= limit:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail="Monthly AI quota reached")
+    try:
+        text = _ai_provider_call(cfg, payload.messages, payload.max_tokens or 0)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 - プロバイダ側のあらゆる失敗を 502 に集約
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=f"AI provider error: {exc}")
+    new_used = db.ai_usage_increment(payload.license_key, period)
+    return {"text": text, "usage": {"used": new_used, "limit": limit, "period": period}}
+
+
+@app.post("/admin/ui/ai/save", include_in_schema=False)
+def ui_ai_save(
+    enabled: str = Form(""),
+    provider: str = Form("anthropic"),
+    api_key: str = Form(""),
+    base_url: str = Form(""),
+    model: str = Form(""),
+    limit_free: int = Form(50),
+    limit_pro: int = Form(500),
+    _: str = Depends(require_admin),
+):
+    cur = _get_ai_config()
+    # api_key 欄がプレースホルダ (●) のみ、または空なら既存値を維持。
+    key = api_key.strip()
+    if key == "" or set(key) <= {"●", "•", "*"}:
+        key = cur.get("api_key", "")
+    cfg = {
+        "enabled": enabled in ("on", "1", "true"),
+        "provider": provider if provider in ("anthropic", "openai") else "anthropic",
+        "api_key": key,
+        "base_url": base_url.strip(),
+        "model": model.strip(),
+        "limit_free": max(0, int(limit_free)),
+        "limit_pro": max(0, int(limit_pro)),
+    }
+    _set_ai_config(cfg)
+    return RedirectResponse("/admin/ui/settings?msg=ai_saved", status_code=status.HTTP_303_SEE_OTHER)
+
+
 @app.post("/admin/ui/plugin/upload", include_in_schema=False)
 def ui_plugin_upload(
     file: UploadFile = File(...),
@@ -1077,6 +1278,7 @@ def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(re
             "totp_pending_active": bool(db.get_setting(totp.K_SECRET_PENDING)),
             "plugin_meta": _get_plugin_meta(),
             "theme_meta": _get_theme_meta(),
+            "ai_config": _ai_settings_ctx(),
             **_flash_ctx(msg),
         },
     )

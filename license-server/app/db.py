@@ -75,6 +75,19 @@ def init_db() -> None:
         )
         c.execute("CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_audit_event ON audit_log(event)")
+        # 運営契約 AI の月次利用回数カウンタ。period は 'YYYY-MM' (UTC)。
+        # ライセンス × 月ごとに 1 行。上限判定はアプリ側 (プラン依存)。
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ai_usage (
+                license_key TEXT NOT NULL,
+                period      TEXT NOT NULL,
+                used        INTEGER NOT NULL DEFAULT 0,
+                updated_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (license_key, period)
+            )
+            """
+        )
         # Migration for existing DBs: add columns if missing.
         _migrate_add_columns(c)
         # Migration for existing DBs: rename the legacy `standard`
@@ -100,6 +113,33 @@ def set_setting(key: str, value: str) -> None:
             "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
             (key, value),
         )
+
+
+def ai_usage_get(license_key: str, period: str) -> int:
+    """指定ライセンス・期間 (YYYY-MM) の当月利用回数。無ければ 0。"""
+    with connection() as c:
+        row = c.execute(
+            "SELECT used FROM ai_usage WHERE license_key = ? AND period = ?",
+            (license_key, period),
+        ).fetchone()
+        return int(row["used"]) if row else 0
+
+
+def ai_usage_increment(license_key: str, period: str, by: int = 1) -> int:
+    """利用回数を by だけ増やし、増加後の値を返す (UPSERT)。"""
+    with connection() as c:
+        c.execute(
+            "INSERT INTO ai_usage (license_key, period, used, updated_at) "
+            "VALUES (?, ?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(license_key, period) DO UPDATE SET "
+            "used = used + excluded.used, updated_at = CURRENT_TIMESTAMP",
+            (license_key, period, by),
+        )
+        row = c.execute(
+            "SELECT used FROM ai_usage WHERE license_key = ? AND period = ?",
+            (license_key, period),
+        ).fetchone()
+        return int(row["used"]) if row else by
 
 
 def delete_setting(key: str) -> None:
