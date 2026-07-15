@@ -9,6 +9,10 @@ class Test_DRWP_AI extends WP_UnitTestCase {
     // 「Cannot access private property」エラーになる。
     public $fake_response = '';
 
+    // 直近に AI バックエンドへ渡された messages を記録して、プロンプト
+    // 内容 (市区町村・イニシャル化ルール等) を検証できるようにする。
+    public $last_messages = [];
+
     public function set_up() {
         parent::set_up();
         update_option(DRWP_AI::OPT_ENABLED, 'yes');
@@ -22,7 +26,7 @@ class Test_DRWP_AI extends WP_UnitTestCase {
             return new class($self) implements DRWP_AI_Backend {
                 private $t;
                 public function __construct($t) { $this->t = $t; }
-                public function chat(array $messages, array $opts = []) { return $this->t->fake_response; }
+                public function chat(array $messages, array $opts = []) { $this->t->last_messages = $messages; return $this->t->fake_response; }
                 public function test_connection() { return ['models' => ['fake']]; }
             };
         });
@@ -59,6 +63,24 @@ class Test_DRWP_AI extends WP_UnitTestCase {
         $this->assertSame('本日の作業です。', $out['public_intro']);
         $this->assertStringContainsString('補修しました', $out['public_body']);
         $this->assertStringContainsString('塗装', $out['public_next_plan']);
+    }
+
+    public function test_draft_public_post_prompt_carries_city_and_initialization_rule() {
+        global $wpdb;
+        $pid = $this->make_project('斎藤邸');
+        // 案件に市区町村をセット (make_project は name/status のみ入れる)。
+        $wpdb->update($wpdb->prefix . 'drwp_projects', ['city' => '静岡市'], ['id' => $pid]);
+        $rid = $this->make_report($pid, '2026-06-25', ['work_description' => 'クロス張替え']);
+        $this->fake_response = "===TITLE===\nx\n===BODY===\ny";
+        DRWP_AI::draft_public_post($rid);
+
+        $system = (string) ($this->last_messages[0]['content'] ?? '');
+        $user   = (string) ($this->last_messages[1]['content'] ?? '');
+        // プロンプトにイニシャル化ルールと市区町村ルールが含まれること。
+        $this->assertStringContainsString('イニシャル化', $system);
+        $this->assertStringContainsString('市区町村', $system);
+        // ユーザーメッセージに案件の市区町村が渡ること。
+        $this->assertStringContainsString('静岡市', $user);
     }
 
     public function test_draft_public_post_without_delimiters_falls_back_to_body() {
