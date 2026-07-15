@@ -4,7 +4,7 @@ Theme URI: https://example.com/jijipom
 Author: jijipom
 Author URI: https://example.com
 Description: どんなジャンルのサイトにも馴染む、シンプルで軽量・SEOに強いベーステーマ。セマンティックなHTML5マークアップ、構造化データ(JSON-LD)、OGP、パンくずリストを標準搭載。カスタマイズの叩き台としてお使いください。
-Version: 1.7.1
+Version: 1.7.2
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
@@ -333,6 +333,69 @@ th { background: var(--color-bg-subtle); }
   color: var(--color-text-muted);
 }
 .entry-footer a { color: var(--color-text-muted); }
+
+/* =========================================================
+   前後の記事ナビ (the_post_navigation)
+   ========================================================= */
+.post-navigation {
+  max-width: var(--content-width);
+  margin: 2.5rem auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
+.post-navigation .nav-links {
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+}
+.post-navigation .nav-previous,
+.post-navigation .nav-next {
+  flex: 1 1 0;
+  min-width: 0;               /* 長いタイトルで潰れないように */
+}
+/* 「次の記事」だけのときも右側に寄せる */
+.post-navigation .nav-next { margin-left: auto; }
+.post-navigation .nav-links a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  height: 100%;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: border-color var(--transition), background var(--transition);
+}
+.post-navigation .nav-links a:hover {
+  border-color: var(--color-accent);
+  background: var(--color-bg-subtle);
+}
+.post-navigation .nav-next a {
+  align-items: flex-end;
+  text-align: right;
+}
+.post-navigation .nav-subtitle {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.post-navigation .nav-previous .nav-subtitle::before { content: "← "; }
+.post-navigation .nav-next .nav-subtitle::after { content: " →"; }
+.post-navigation .nav-title {
+  font-size: var(--fs-base);
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--color-text);
+}
+@media (max-width: 600px) {
+  .post-navigation .nav-links { flex-direction: column; }
+  .post-navigation .nav-next { margin-left: 0; }
+  .post-navigation .nav-next a { align-items: flex-start; text-align: left; }
+  .post-navigation .nav-next .nav-subtitle::after { content: ""; }
+  .post-navigation .nav-next .nav-subtitle::before { content: "→ "; }
+}
 
 /* Archive list spacing */
 .post-list article {
