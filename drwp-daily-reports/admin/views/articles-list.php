@@ -901,6 +901,9 @@
           introEl.value = d.public_intro || '';
           setEditorContent(d.public_body || '');
           nextEl.value = d.public_next_plan || '';
+          // AI が提案したタグをセット (提案があるときだけ上書き)。
+          var tagsEl = document.getElementById('drwp-conv-tags');
+          if (tagsEl && d.public_tags) { tagsEl.value = d.public_tags; }
           // 重複チェックも再走させる (タイトルが変わるので)。
           runDuplicateCheck();
           // AI で本文も差し替わるので個人情報スキャンも回す。

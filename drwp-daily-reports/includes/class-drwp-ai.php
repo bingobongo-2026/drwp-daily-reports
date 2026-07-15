@@ -232,11 +232,17 @@ class DRWP_AI {
             . "  「浜松市 T様邸外構リニューアル現場の現地調査を行いました（6月13日）」\n"
             . "30〜50文字程度を目安に、検索や記事一覧で内容が一目で伝わる形にしてください。\n"
             . "「ご報告」「お知らせ」「日々の作業」のような中身がぼやけるタイトルは避けてください。\n\n"
-            . "出力は必ず次の形式（4ブロック）だけにし、各見出し行はそのまま使ってください:\n"
+            . "【タグの付け方】\n"
+            . "本文の内容から、記事の分類に役立つタグを 3〜6 個ほど選び、カンマ区切りで\n"
+            . "出力してください（例: クロス張替え, 内装, リフォーム）。工事の種類・部位・\n"
+            . "建物種別・エリア(市区町村)などの一般名詞を使い、個人名は含めないでください。\n"
+            . "適切なものが無ければ空行のままにします。\n\n"
+            . "出力は必ず次の形式（5ブロック）だけにし、各見出し行はそのまま使ってください:\n"
             . "===TITLE===\n（上のルールに従ったタイトル）\n"
             . "===INTRO===\n（2〜3文の導入文）\n"
             . "===BODY===\n（本文。読みやすく段落分け）\n"
-            . "===NEXT===\n（今後の予定。無ければ空行）";
+            . "===NEXT===\n（今後の予定。無ければ空行）\n"
+            . "===TAGS===\n（カンマ区切りのタグ。無ければ空行）";
         $user = "【作業日報の内容】\n" . implode("\n", $src);
 
         $result = self::backend()->chat([
@@ -255,23 +261,32 @@ class DRWP_AI {
      * (so the operator at least gets something usable).
      */
     private static function parse_delimited_draft($text) {
-        $out = ['public_title' => '', 'public_intro' => '', 'public_body' => '', 'public_next_plan' => ''];
+        $out = ['public_title' => '', 'public_intro' => '', 'public_body' => '', 'public_next_plan' => '', 'public_tags' => ''];
         $map = [
             'TITLE' => 'public_title',
             'INTRO' => 'public_intro',
             'BODY'  => 'public_body',
             'NEXT'  => 'public_next_plan',
+            'TAGS'  => 'public_tags',
         ];
-        if (!preg_match('/===\s*(TITLE|INTRO|BODY|NEXT)\s*===/u', $text)) {
+        if (!preg_match('/===\s*(TITLE|INTRO|BODY|NEXT|TAGS)\s*===/u', $text)) {
             $out['public_body'] = trim($text);
             return $out;
         }
-        $parts = preg_split('/===\s*(TITLE|INTRO|BODY|NEXT)\s*===/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $parts = preg_split('/===\s*(TITLE|INTRO|BODY|NEXT|TAGS)\s*===/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
         // $parts: [pre, KEY, content, KEY, content, ...]
         for ($i = 1; $i < count($parts); $i += 2) {
             $key = strtoupper(trim($parts[$i]));
             $val = trim($parts[$i + 1] ?? '');
             if (isset($map[$key])) $out[$map[$key]] = $val;
+        }
+        // タグは全角/改行区切りも許容し、カンマ区切りに正規化して重複除去。
+        if ($out['public_tags'] !== '') {
+            $tags = preg_split('/[,、\r\n]+/u', $out['public_tags']);
+            $tags = array_values(array_unique(array_filter(array_map('trim', $tags), function ($t) {
+                return $t !== '';
+            })));
+            $out['public_tags'] = implode(', ', $tags);
         }
         return $out;
     }
