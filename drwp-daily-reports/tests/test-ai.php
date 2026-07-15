@@ -83,6 +83,15 @@ class Test_DRWP_AI extends WP_UnitTestCase {
         $this->assertStringContainsString('静岡市', $user);
     }
 
+    public function test_draft_public_post_parses_and_normalizes_tags() {
+        $pid = $this->make_project();
+        $rid = $this->make_report($pid, '2026-06-05', ['work_description' => 'x']);
+        // 全角読点・半角カンマ・重複が混在した TAGS を返す。
+        $this->fake_response = "===TITLE===\nT\n===BODY===\nB\n===TAGS===\nクロス張替え、内装, 内装,リフォーム";
+        $out = DRWP_AI::draft_public_post($rid);
+        $this->assertSame('クロス張替え, 内装, リフォーム', $out['public_tags']);
+    }
+
     public function test_draft_public_post_without_delimiters_falls_back_to_body() {
         $pid = $this->make_project();
         $rid = $this->make_report($pid, '2026-06-02', ['work_description' => 'x']);
