@@ -1021,7 +1021,7 @@
 .drwp-archive-page-meta th,
 .drwp-archive-page-meta td {
     border: 1px solid #1f2937;
-    padding: 6px 10px; font-size: 1em;
+    padding: 6px 10px; font-size: .92em;
     vertical-align: middle;
 }
 .drwp-archive-page-meta th {
@@ -1056,6 +1056,7 @@
     border: 1px solid #1f2937;
     padding: 12px 14px; vertical-align: top;
     min-height: 60px;
+    font-size: .92em;   /* メタ表と同じ大きさに揃える */
 }
 .drwp-archive-page-text {
     white-space: pre-wrap; line-height: 1.6; color: #1f2937;
@@ -1101,7 +1102,7 @@
 
     .drwp-archive-page-meta {
         table-layout: auto;
-        font-size: 1em;
+        font-size: .85em;
     }
     .drwp-archive-page-meta th,
     .drwp-archive-page-meta td {
@@ -1115,7 +1116,7 @@
     .drwp-archive-meta-col-head,
     .drwp-archive-meta-col-val { width: auto; }
 
-    .drwp-archive-page-section-body { padding: 10px 12px; }
+    .drwp-archive-page-section-body { padding: 10px 12px; font-size: .85em; }
     .drwp-archive-page-section-head { font-size: .9em; padding: 4px; }
     .drwp-archive-page-photos {
         grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
@@ -1141,14 +1142,16 @@
         background: #f1f5f9;
         text-align: left;
         padding: 4px 8px;
-        font-size: 1em;
+        font-size: .78em;
     }
     .drwp-archive-page-meta td {
         padding: 6px 8px;
         border-top: 0;
-        font-size: 1em;
+        font-size: .88em;
     }
     /* 連続するセルの上下ボーダー重複は border-top:0 で解消する。 */
+    /* 本文セクションもメタ値 (td) と同じ大きさに揃える。 */
+    .drwp-archive-page-section-body { font-size: .88em; }
 }
 
 /* === インライン編集モード ====================================
