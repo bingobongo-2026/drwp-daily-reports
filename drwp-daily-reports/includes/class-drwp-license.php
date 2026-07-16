@@ -88,6 +88,38 @@ class DRWP_License {
     }
 
     /**
+     * プランの日本語表示名。未知/空は slug をそのまま返す。
+     */
+    public static function plan_label($plan = null) {
+        $plan = $plan === null ? self::plan() : strtolower(trim((string) $plan));
+        $labels = [
+            'free'  => __('フリー', 'drwp-daily-reports'),
+            'basic' => __('ベーシック', 'drwp-daily-reports'),
+            'light' => __('ライト', 'drwp-daily-reports'),
+            'pro'   => __('プロ', 'drwp-daily-reports'),
+        ];
+        if (isset($labels[$plan])) return $labels[$plan];
+        return $plan !== '' ? $plan : __('不明', 'drwp-daily-reports');
+    }
+
+    /**
+     * 記事化(convert)がブロックされた理由に応じたメッセージ。
+     * ライセンスは有効だがプランに記事化が含まれない場合と、ライセンス
+     * 自体が無効な場合を区別する。前者で「ライセンスが有効ではない」と
+     * 出すとベーシック契約者が「ライセンス切れ？」と誤解するため。
+     */
+    public static function convert_blocked_message() {
+        if (self::can_write() && !self::plan_allows('convert')) {
+            return sprintf(
+                /* translators: %s: 現在のプラン名 */
+                __('ご利用のプラン（%s）では記事化はご利用いただけません。ライト以上のプランで解放されます。', 'drwp-daily-reports'),
+                self::plan_label()
+            );
+        }
+        return __('ライセンスが有効ではないため記事化できません。「日報マン → ライセンス」を確認してください。', 'drwp-daily-reports');
+    }
+
+    /**
      * Plan-based feature gate. Returns true iff the license is in
      * a state that allows writes AND the resolved plan grants the
      * requested feature.

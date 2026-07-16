@@ -311,7 +311,7 @@ class DRWP_Post_Converter {
         $table = $wpdb->prefix . 'drwp_reports';
         $report = $wpdb->get_row($wpdb->prepare("SELECT $table.* FROM $table WHERE id = %d", $report_id));
         if (!$report) return new WP_Error('drwp_missing', '指定された日報が見つかりませんでした。');
-        if (!DRWP_License::can_convert()) return new WP_Error('drwp_license', 'ライセンスが有効ではないため記事化できません。「日報マン → ライセンス」を確認してください。');
+        if (!DRWP_License::can_convert()) return new WP_Error('drwp_license', DRWP_License::convert_blocked_message());
 
         $is_update = !empty($report->linked_post_id) && $update_existing;
 
