@@ -294,7 +294,7 @@ class Test_DRWP_REST extends WP_UnitTestCase {
     }
 
     public function test_author_can_edit_own_returned_report_and_status_flips_to_pending() {
-        // 差戻し中の日報を投稿者が再編集すると、自動でレビュー待ち
+        // 差戻し中の日報を投稿者が再編集すると、自動で日報承認待ち
         // (pending) に戻る = 再提出フローの担保。
         $this->make_subscriber_with_edit();
         $this->activate_license();
@@ -350,7 +350,7 @@ class Test_DRWP_REST extends WP_UnitTestCase {
 
     public function test_reviewer_editing_returned_report_keeps_needs_revision_status() {
         // レビュアーが差戻し中の日報を直接 PATCH した場合は状態を
-        // 維持する (運用上の小修正で再レビュー待ちに戻したくないため)。
+        // 維持する (運用上の小修正で再日報承認待ちに戻したくないため)。
         $this->make_subscriber_with_edit();
         $this->activate_license();
         $created = $this->call('POST', '/drwp/v1/reports', [

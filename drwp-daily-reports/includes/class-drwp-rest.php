@@ -365,7 +365,7 @@ class DRWP_REST {
         if ($report && !in_array((string) $report->review_status, ['pending', 'needs_revision'], true)) {
             return new WP_Error(
                 'drwp_forbidden',
-                __('レビュー待ち または 差戻し の日報のみ編集できます。', 'drwp-daily-reports'),
+                __('日報承認待ち または 差戻し の日報のみ編集できます。', 'drwp-daily-reports'),
                 ['status' => 403]
             );
         }
@@ -764,7 +764,7 @@ class DRWP_REST {
 
         $data = self::sanitize_writable($input);
         // 投稿者本人が差戻し中の日報を再編集した場合は、自動で再び
-        // レビュー待ちに戻す (= 再提出)。レビュアーが編集した場合は
+        // 日報承認待ちに戻す (= 再提出)。レビュアーが編集した場合は
         // 状態を維持するので、運用上の小修正 → 即承認のフローを
         // 邪魔しない。
         if ($report->review_status === 'needs_revision'

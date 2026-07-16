@@ -99,7 +99,7 @@ class DRWP_Report_Form {
                 'need_work'           => __('作業内容を入力してください。', 'drwp-daily-reports'),
                 'uploading'           => __('写真をアップロード中…', 'drwp-daily-reports'),
                 'sending'             => __('送信中…', 'drwp-daily-reports'),
-                'sent'                => __('送信しました。レビュー待ちに入っています。', 'drwp-daily-reports'),
+                'sent'                => __('送信しました。日報承認待ちに入っています。', 'drwp-daily-reports'),
                 'send_failed'         => __('送信に失敗しました。', 'drwp-daily-reports'),
                 'remove_photo'        => __('削除', 'drwp-daily-reports'),
                 'caption_placeholder' => __('説明文（任意）', 'drwp-daily-reports'),
@@ -225,7 +225,7 @@ class DRWP_Report_Form {
                 </button>
 
                 <p class="drwp-mform-help">
-                    <?php esc_html_e('送信した日報は「レビュー待ち」として保存されます。事務所側で内容を確認のうえ、必要に応じて公開されます。', 'drwp-daily-reports'); ?>
+                    <?php esc_html_e('送信した日報は「日報承認待ち」として保存されます。事務所側で内容を確認のうえ、必要に応じて公開されます。', 'drwp-daily-reports'); ?>
                 </p>
 
                 <div class="drwp-mform-status" data-role="status" aria-live="polite"></div>

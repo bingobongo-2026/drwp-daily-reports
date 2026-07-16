@@ -266,7 +266,7 @@ class DRWP_Post_Converter {
             <p style="color:#50575e;">
                 <?php
                   printf(
-                      /* translators: %s: post status label (下書き / 保留中 / 予約) */
+                      /* translators: %s: post status label (下書き / 投稿の公開承認待ち / 予約) */
                       esc_html__('状態: %s', 'drwp-daily-reports'),
                       esc_html(DRWP_Labels::post_status((string) ($report->post_status ?: 'draft')))
                   );

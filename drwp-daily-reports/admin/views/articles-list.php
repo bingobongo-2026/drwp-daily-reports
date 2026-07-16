@@ -260,7 +260,7 @@
                 <option value="pending"><?php echo esc_html(DRWP_Labels::post_status('pending')); ?></option>
                 <option value="future"><?php echo esc_html(DRWP_Labels::post_status('future')); ?></option>
               </select>
-              <p class="description"><?php esc_html_e('下書き = 非公開のまま保存、レビュー待ち = WordPress 編集者の確認後に公開、予約投稿 = 下の予約日時に自動公開。', 'drwp-daily-reports'); ?></p>
+              <p class="description"><?php esc_html_e('下書き = 非公開のまま保存、投稿の公開承認待ち = WordPress 編集者の確認後に公開、予約投稿 = 下の予約日時に自動公開。', 'drwp-daily-reports'); ?></p>
             </td>
           </tr>
           <tr>

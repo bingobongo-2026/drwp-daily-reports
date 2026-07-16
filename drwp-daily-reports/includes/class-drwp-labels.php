@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) exit;
  * `publish`, etc.) because those make stable SQL keys, switch
  * targets, and integration points. End-user UI in this Japanese
  * deployment needs Japanese labels though — instead of scattering
- * `__('レビュー待ち', ...)` lookups across every view, every
+ * `__('日報承認待ち', ...)` lookups across every view, every
  * mapping lives here. Views call DRWP_Labels::review_status($row)
  * and never embed the English literal in output.
  *
@@ -23,7 +23,7 @@ class DRWP_Labels {
     /** Daily-report review_status column. */
     public static function review_status($value) {
         $map = [
-            'pending'            => __('レビュー待ち', 'drwp-daily-reports'),
+            'pending'            => __('日報承認待ち', 'drwp-daily-reports'),
             'approved'           => __('承認済み', 'drwp-daily-reports'),
             'needs_revision'     => __('差戻し', 'drwp-daily-reports'),
             'edit_requested'     => __('編集依頼中', 'drwp-daily-reports'),
@@ -35,7 +35,7 @@ class DRWP_Labels {
     public static function post_status($value) {
         $map = [
             'draft'   => __('下書き', 'drwp-daily-reports'),
-            'pending' => __('保留中', 'drwp-daily-reports'),
+            'pending' => __('投稿の公開承認待ち', 'drwp-daily-reports'),
             'future'  => __('予約', 'drwp-daily-reports'),
             'publish' => __('公開', 'drwp-daily-reports'),
         ];

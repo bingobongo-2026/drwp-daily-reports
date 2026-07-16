@@ -60,7 +60,7 @@ case 'report': ?>
       <h3><?php esc_html_e('保存ボタン', 'drwp-daily-reports'); ?></h3>
       <ul>
         <li><strong><?php esc_html_e('下書き保存', 'drwp-daily-reports'); ?></strong> — <?php esc_html_e('自分しか見えません。後で続き書きできます。', 'drwp-daily-reports'); ?></li>
-        <li><strong><?php esc_html_e('レビュー依頼', 'drwp-daily-reports'); ?></strong> — <?php esc_html_e('「pending（レビュー待ち）」状態にしてレビュアーに通知します。', 'drwp-daily-reports'); ?></li>
+        <li><strong><?php esc_html_e('レビュー依頼', 'drwp-daily-reports'); ?></strong> — <?php esc_html_e('「pending（日報承認待ち）」状態にしてレビュアーに通知します。', 'drwp-daily-reports'); ?></li>
       </ul>
 
       <div class="warn">
@@ -74,11 +74,11 @@ case 'review': ?>
     <div class="card">
       <h2><?php esc_html_e('レビューフロー', 'drwp-daily-reports'); ?> <span class="pill reviewer"><?php esc_html_e('レビュアー', 'drwp-daily-reports'); ?></span></h2>
 
-      <p><?php esc_html_e('日報は「下書き → レビュー待ち → 承認済み or 差戻し」の流れで状態が遷移します。レビュアーはダッシュボードの「レビュー待ち」カウンタからワンクリックで対象一覧を開けます。', 'drwp-daily-reports'); ?></p>
+      <p><?php esc_html_e('日報は「下書き → 日報承認待ち → 承認済み or 差戻し」の流れで状態が遷移します。レビュアーはダッシュボードの「日報承認待ち」カウンタからワンクリックで対象一覧を開けます。', 'drwp-daily-reports'); ?></p>
 
       <h3><?php esc_html_e('状態の意味', 'drwp-daily-reports'); ?></h3>
       <ul>
-        <li><strong>pending</strong> — <?php esc_html_e('レビュー待ち。レビュアーの対応待ち。', 'drwp-daily-reports'); ?></li>
+        <li><strong>pending</strong> — <?php esc_html_e('日報承認待ち。レビュアーの対応待ち。', 'drwp-daily-reports'); ?></li>
         <li><strong>approved</strong> — <?php esc_html_e('承認済み。公開記事化の対象になります。', 'drwp-daily-reports'); ?></li>
         <li><strong>needs_revision</strong> — <?php esc_html_e('差戻し。投稿者が修正してもう一度レビュー依頼を出します。', 'drwp-daily-reports'); ?></li>
         <li><strong>edit_requested</strong> — <?php esc_html_e('承認後に投稿者が再編集を希望してロックを開けてもらった状態。', 'drwp-daily-reports'); ?></li>

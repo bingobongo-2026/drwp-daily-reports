@@ -469,7 +469,7 @@ class DRWP_Report_Archive {
 
             html += '</article>';
 
-            // pending (レビュー待ち) と needs_revision (差戻し) は
+            // pending (日報承認待ち) と needs_revision (差戻し) は
             // 投稿者がまだ自力で修正できる状態なので、両方で「編集
             // する」ボタンを出す。投稿者本人 (= user_id 一致) または
             // 事務所 (edit_others_posts) のみ。他社員には出さない
@@ -1695,7 +1695,7 @@ class DRWP_Report_Archive {
      */
     private static function render_status_legend() {
         $items = [
-            'pending'        => __('レビュー待ち', 'drwp-daily-reports'),
+            'pending'        => __('日報承認待ち', 'drwp-daily-reports'),
             'approved'       => __('承認済み', 'drwp-daily-reports'),
             'needs_revision' => __('差戻し', 'drwp-daily-reports'),
             'edit_requested' => __('編集依頼中', 'drwp-daily-reports'),
@@ -1952,7 +1952,7 @@ class DRWP_Report_Archive {
                   if ($r->review_status === 'needs_revision') $cell_has_returned = true;
               }
 
-              // 表示順 (ユーザー指定): 予定 → レビュー待ち → 編集依頼中
+              // 表示順 (ユーザー指定): 予定 → 日報承認待ち → 編集依頼中
               // → 差戻し → 承認済み。1 つの配列にまとめてキーで並べ替え。
               $priority_map = [
                   'plan'           => 0,
@@ -2094,7 +2094,7 @@ class DRWP_Report_Archive {
 
         $author_name = DRWP_User::display_name((int) $report->user_id) ?: '-';
         $back_url = esc_url(remove_query_arg('drwp_id'));
-        // 「自分の日報」かつ「まだ承認前 (レビュー待ち or 差戻し)」
+        // 「自分の日報」かつ「まだ承認前 (日報承認待ち or 差戻し)」
         // のときだけフロント編集 CTA を表示する。差戻し中も再編集
         // できるようにすることで「差し戻し → 修正 → 再提出」のループ
         // が成立する。
@@ -2135,9 +2135,9 @@ class DRWP_Report_Archive {
                 <?php if ($is_own_editable): ?>
                     <p class="drwp-archive-edit-cta">
                         <?php if ($report->review_status === 'needs_revision'): ?>
-                            <?php esc_html_e('この日報は差戻し中です。修正して再提出すると、再度レビュー待ちに戻ります。', 'drwp-daily-reports'); ?>
+                            <?php esc_html_e('この日報は差戻し中です。修正して再提出すると、再度承認待ちに戻ります。', 'drwp-daily-reports'); ?>
                         <?php else: ?>
-                            <?php esc_html_e('この日報はあなたのレビュー待ち日報です。', 'drwp-daily-reports'); ?>
+                            <?php esc_html_e('この日報はあなたの承認待ちの日報です。', 'drwp-daily-reports'); ?>
                         <?php endif; ?>
                         <a class="drwp-archive-edit-link" href="<?php echo esc_url(add_query_arg('drwp_edit', '1')); ?>">
                             <?php esc_html_e('フロントから編集する', 'drwp-daily-reports'); ?>
@@ -2231,7 +2231,7 @@ class DRWP_Report_Archive {
             // direct URL hit still needs to be rejected.
             $back = esc_url(remove_query_arg('drwp_edit'));
             return self::wrap('<p class="drwp-archive-message">'
-                . esc_html__('この日報はフロントから編集できません(自分の レビュー待ち または 差戻し の日報のみ編集可能です)。', 'drwp-daily-reports')
+                . esc_html__('この日報はフロントから編集できません(自分の 日報承認待ち または 差戻し の日報のみ編集可能です)。', 'drwp-daily-reports')
                 . '</p><p class="drwp-archive-back"><a href="' . $back . '">&laquo; '
                 . esc_html__('一覧に戻る', 'drwp-daily-reports')
                 . '</a></p>');
@@ -2420,9 +2420,9 @@ class DRWP_Report_Archive {
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $report_date)) {
             $update['report_date'] = $report_date;
         }
-        // 差戻しからの再編集は自動的に「レビュー待ち」に戻して
+        // 差戻しからの再編集は自動的に「日報承認待ち」に戻して
         // 再提出扱いにする。投稿者が別途「再提出」ボタンを押す手間
-        // を省く (修正したら自然に再レビュー待ちのキューへ)。
+        // を省く (修正したら自然に再日報承認待ちのキューへ)。
         $was_returned = ($report->review_status === 'needs_revision');
         if ($was_returned) {
             $update['review_status'] = 'pending';
