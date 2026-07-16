@@ -6,7 +6,7 @@
  */
 
 if ( ! defined( 'JIJIPOM_VERSION' ) ) {
-	define( 'JIJIPOM_VERSION', '1.7.2' );
+	define( 'JIJIPOM_VERSION', '1.8.0' );
 }
 
 /**

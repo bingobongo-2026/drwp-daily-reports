@@ -11,6 +11,9 @@ if ( $jijipom_blog_count < 1 ) {
 	$jijipom_blog_count = 4;
 }
 
+// アイキャッチが無い記事用の代替画像 (カスタマイザーで設定)。
+$jijipom_blog_fallback = get_theme_mod( 'jijipom_blog_fallback_image', '' );
+
 $jijipom_blog_query = new WP_Query(
 	array(
 		'post_type'           => 'post',
@@ -38,6 +41,8 @@ if ( $jijipom_blog_query->have_posts() ) :
 							<?php
 							if ( has_post_thumbnail() ) {
 								the_post_thumbnail( 'medium_large', array( 'loading' => 'lazy' ) );
+							} elseif ( $jijipom_blog_fallback ) {
+								echo '<img src="' . esc_url( $jijipom_blog_fallback ) . '" alt="" loading="lazy" />';
 							} else {
 								echo '<span class="front-placeholder"></span>';
 							}
