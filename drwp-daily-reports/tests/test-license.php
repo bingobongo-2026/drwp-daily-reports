@@ -148,6 +148,29 @@ class Test_DRWP_License extends WP_UnitTestCase {
         $this->assertFalse(DRWP_License::plan_allows('convert'));
     }
 
+    public function test_plan_label_maps_slugs_to_japanese() {
+        $this->assertSame('ベーシック', DRWP_License::plan_label('basic'));
+        $this->assertSame('ライト', DRWP_License::plan_label('light'));
+        $this->assertSame('プロ', DRWP_License::plan_label('pro'));
+    }
+
+    public function test_convert_blocked_message_is_plan_specific_on_basic() {
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_PLAN, 'basic');
+        $msg = DRWP_License::convert_blocked_message();
+        // プラン起因であることが分かる文言。ライセンス無効の文言は出さない。
+        $this->assertStringContainsString('ベーシック', $msg);
+        $this->assertStringContainsString('記事化', $msg);
+        $this->assertStringNotContainsString('ライセンスが有効ではない', $msg);
+    }
+
+    public function test_convert_blocked_message_is_license_message_when_inactive() {
+        update_option(DRWP_License::OPT_STATUS, 'inactive');
+        update_option(DRWP_License::OPT_PLAN, 'pro');
+        $msg = DRWP_License::convert_blocked_message();
+        $this->assertStringContainsString('ライセンスが有効ではない', $msg);
+    }
+
     public function test_grace_window_lets_writes_through_after_recent_active_check() {
         update_option(DRWP_License::OPT_STATUS, 'inactive');
         update_option(DRWP_License::OPT_LAST_VALID_AT, time() - 2 * DAY_IN_SECONDS);
