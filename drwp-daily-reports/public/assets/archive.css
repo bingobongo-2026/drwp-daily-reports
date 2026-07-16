@@ -1021,7 +1021,7 @@
 .drwp-archive-page-meta th,
 .drwp-archive-page-meta td {
     border: 1px solid #1f2937;
-    padding: 6px 10px; font-size: .92em;
+    padding: 6px 10px; font-size: 1em;
     vertical-align: middle;
 }
 .drwp-archive-page-meta th {
@@ -1101,7 +1101,7 @@
 
     .drwp-archive-page-meta {
         table-layout: auto;
-        font-size: .85em;
+        font-size: 1em;
     }
     .drwp-archive-page-meta th,
     .drwp-archive-page-meta td {
@@ -1141,12 +1141,12 @@
         background: #f1f5f9;
         text-align: left;
         padding: 4px 8px;
-        font-size: .78em;
+        font-size: 1em;
     }
     .drwp-archive-page-meta td {
         padding: 6px 8px;
         border-top: 0;
-        font-size: .88em;
+        font-size: 1em;
     }
     /* 連続するセルの上下ボーダー重複は border-top:0 で解消する。 */
 }
