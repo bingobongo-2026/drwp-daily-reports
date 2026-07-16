@@ -31,10 +31,10 @@
         </td>
       </tr>
       <tr>
-        <th><?php esc_html_e('レビュー待ち通知', 'drwp-daily-reports'); ?></th>
+        <th><?php esc_html_e('日報承認待ち通知', 'drwp-daily-reports'); ?></th>
         <td>
           <label><input type="checkbox" name="on_pending" value="1" <?php checked($settings['on_pending']); ?> />
-            <?php esc_html_e('日報が「レビュー待ち」で保存されたら、承認権限を持つユーザーに通知', 'drwp-daily-reports'); ?>
+            <?php esc_html_e('日報が「日報承認待ち」で保存されたら、承認権限を持つユーザーに通知', 'drwp-daily-reports'); ?>
           </label>
         </td>
       </tr>

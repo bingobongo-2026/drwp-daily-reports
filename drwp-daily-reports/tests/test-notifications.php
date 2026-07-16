@@ -94,7 +94,7 @@ class Test_DRWP_Notifications extends WP_UnitTestCase {
 
         $this->assertCount(1, self::$sent);
         $this->assertContains($this->email_of($rev), self::$sent[0]['to']);
-        $this->assertStringContainsString('レビュー待ち', self::$sent[0]['subject']);
+        $this->assertStringContainsString('承認待ち', self::$sent[0]['subject']);
     }
 
     public function test_pending_submission_skipped_for_non_pending_state() {

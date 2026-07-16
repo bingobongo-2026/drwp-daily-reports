@@ -91,17 +91,17 @@ class DRWP_Notifications {
         $title = $report->public_title ?: ('#' . (int) $report_id);
         $subject = sprintf(
             /* translators: 1: site name 2: report title */
-            __('[%1$s] 新しい日報がレビュー待ちです: %2$s', 'drwp-daily-reports'),
+            __('[%1$s] 新しい日報が承認待ちです: %2$s', 'drwp-daily-reports'),
             get_bloginfo('name'),
             $title
         );
-        $body  = __('レビュー待ちの日報が登録されました。', 'drwp-daily-reports') . "\n\n";
+        $body  = __('承認待ちの日報が登録されました。', 'drwp-daily-reports') . "\n\n";
         $body .= __('タイトル', 'drwp-daily-reports') . ": $title\n";
         $body .= __('日付', 'drwp-daily-reports') . ": " . ($report->report_date ?: '-') . "\n";
         $body .= __('編集', 'drwp-daily-reports') . ": " . self::report_url($report_id) . "\n";
 
         if (wp_mail($to, $subject, $body, self::headers())) {
-            DRWP_Audit::log('notification_sent', 'レビュー待ち通知', $report_id, ['recipients' => count($to)]);
+            DRWP_Audit::log('notification_sent', '日報承認待ち通知', $report_id, ['recipients' => count($to)]);
         }
     }
 

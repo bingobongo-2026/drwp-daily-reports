@@ -55,7 +55,7 @@ class DRWP_Dashboard {
               <strong style="font-size:1.4em;"><?php echo (int) $today_count; ?></strong>
             </li>
             <li style="background:#fef3c7;padding:10px;border-radius:6px;">
-              <div style="color:#78350f;font-size:.85em;"><?php esc_html_e('レビュー待ち', 'drwp-daily-reports'); ?></div>
+              <div style="color:#78350f;font-size:.85em;"><?php esc_html_e('日報承認待ち', 'drwp-daily-reports'); ?></div>
               <a href="<?php echo esc_url(add_query_arg('review_status', 'pending', $list_url)); ?>" style="text-decoration:none;color:inherit;">
                 <strong style="font-size:1.4em;"><?php echo (int) $counts['pending']; ?></strong>
               </a>

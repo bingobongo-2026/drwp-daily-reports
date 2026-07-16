@@ -487,7 +487,7 @@ class DRWP_Seed {
               <li><?php esc_html_e('案件グループ 3 件 (進行中 / 完工済み / 計画中)', 'drwp-daily-reports'); ?></li>
               <li><?php esc_html_e('顧客 25 件 — 姓名・住所がバラけたサンプル、各顧客グループに均等に配分', 'drwp-daily-reports'); ?></li>
               <li><?php esc_html_e('案件 50 件 — 各顧客に 1〜3 件、進行中 60% / 完工済み 30% / 計画中 10% で分布', 'drwp-daily-reports'); ?></li>
-              <li><?php esc_html_e('日報 約 250 件 — 案件の進捗に応じた工程順、レビュー状態 (承認 / レビュー待ち / 差戻し) が散らばる', 'drwp-daily-reports'); ?></li>
+              <li><?php esc_html_e('日報 約 250 件 — 案件の進捗に応じた工程順、レビュー状態 (承認 / 日報承認待ち / 差戻し) が散らばる', 'drwp-daily-reports'); ?></li>
               <li><?php esc_html_e('予定 30 件 — 進行中案件の未来 1〜14 日に分散', 'drwp-daily-reports'); ?></li>
             </ul>
             <p class="description">
