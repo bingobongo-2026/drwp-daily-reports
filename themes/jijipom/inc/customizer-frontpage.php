@@ -164,6 +164,7 @@ function jijipom_frontpage_customize_register( $wp_customize ) {
 	jijipom_fp_add( $wp_customize, 'jijipom_blog_enable',  array( 'type' => 'checkbox', 'default' => true, 'section' => 'jijipom_fp_blog', 'label' => __( 'このセクションを表示する', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_blog_heading', array( 'section' => 'jijipom_fp_blog', 'label' => __( '見出し', 'jijipom' ), 'default' => __( 'ブログ', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_blog_count',   array( 'type' => 'number', 'default' => 4, 'section' => 'jijipom_fp_blog', 'label' => __( '表示する記事数', 'jijipom' ), 'desc' => __( '最新の投稿を自動で表示します。', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_blog_fallback_image', array( 'type' => 'image', 'section' => 'jijipom_fp_blog', 'label' => __( '代替画像（アイキャッチ無しの記事用）', 'jijipom' ), 'desc' => __( 'アイキャッチ画像が設定されていない記事のサムネイルに使われます。未設定ならグレーのプレースホルダーになります。', 'jijipom' ) ) );
 
 	// ===== ④ 会社紹介 =====
 	$wp_customize->add_section( 'jijipom_fp_about', array( 'title' => __( '④ 会社紹介', 'jijipom' ), 'panel' => 'jijipom_front_panel' ) );
