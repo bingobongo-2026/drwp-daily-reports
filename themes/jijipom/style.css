@@ -4,7 +4,7 @@ Theme URI: https://example.com/jijipom
 Author: jijipom
 Author URI: https://example.com
 Description: どんなジャンルのサイトにも馴染む、シンプルで軽量・SEOに強いベーステーマ。セマンティックなHTML5マークアップ、構造化データ(JSON-LD)、OGP、パンくずリストを標準搭載。カスタマイズの叩き台としてお使いください。
-Version: 1.8.0
+Version: 1.9.0
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
@@ -729,6 +729,7 @@ input[type="submit"]:hover { background: var(--color-accent-hover); color: #fff;
 }
 .blog-card { display: flex; flex-direction: column; }
 .blog-card__thumb {
+  position: relative;
   display: block;
   aspect-ratio: 4 / 3;
   border-radius: var(--radius);
@@ -736,6 +737,16 @@ input[type="submit"]:hover { background: var(--color-accent-hover); color: #fff;
   background: var(--color-bg-subtle);
 }
 .blog-card__thumb img { width: 100%; height: 100%; object-fit: cover; }
+/* 代替画像に色をかぶせて薄く見せる。色・濃さはカスタマイザーが
+   .front-blog に CSS 変数として供給する（未設定なら透明で不可視）。 */
+.blog-card__thumb.is-fallback::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--blog-fallback-overlay-color, transparent);
+  opacity: var(--blog-fallback-overlay-opacity, 0);
+}
 .blog-card__thumb .front-placeholder { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; }
 .blog-card__date { font-size: var(--fs-sm); color: var(--color-text-muted); margin: 0.7rem 0 0.2rem; }
 .blog-card__title { font-size: var(--fs-base); margin: 0; line-height: 1.5; }

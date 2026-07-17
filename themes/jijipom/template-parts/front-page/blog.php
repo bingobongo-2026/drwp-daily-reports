@@ -36,8 +36,9 @@ if ( $jijipom_blog_query->have_posts() ) :
 				while ( $jijipom_blog_query->have_posts() ) :
 					$jijipom_blog_query->the_post();
 					?>
+					<?php $jijipom_is_fallback = ( ! has_post_thumbnail() && $jijipom_blog_fallback ); ?>
 					<article class="blog-card">
-						<a class="blog-card__thumb" href="<?php the_permalink(); ?>" tabindex="-1" aria-hidden="true">
+						<a class="blog-card__thumb<?php echo $jijipom_is_fallback ? ' is-fallback' : ''; ?>" href="<?php the_permalink(); ?>" tabindex="-1" aria-hidden="true">
 							<?php
 							if ( has_post_thumbnail() ) {
 								the_post_thumbnail( 'medium_large', array( 'loading' => 'lazy' ) );
