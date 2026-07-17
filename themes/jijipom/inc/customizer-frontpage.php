@@ -165,6 +165,36 @@ function jijipom_frontpage_customize_register( $wp_customize ) {
 	jijipom_fp_add( $wp_customize, 'jijipom_blog_heading', array( 'section' => 'jijipom_fp_blog', 'label' => __( '見出し', 'jijipom' ), 'default' => __( 'ブログ', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_blog_count',   array( 'type' => 'number', 'default' => 4, 'section' => 'jijipom_fp_blog', 'label' => __( '表示する記事数', 'jijipom' ), 'desc' => __( '最新の投稿を自動で表示します。', 'jijipom' ) ) );
 	jijipom_fp_add( $wp_customize, 'jijipom_blog_fallback_image', array( 'type' => 'image', 'section' => 'jijipom_fp_blog', 'label' => __( '代替画像（アイキャッチ無しの記事用）', 'jijipom' ), 'desc' => __( 'アイキャッチ画像が設定されていない記事のサムネイルに使われます。未設定ならグレーのプレースホルダーになります。', 'jijipom' ) ) );
+	// 代替画像に色をかぶせて薄く見せる (色 + 濃さ)。
+	$wp_customize->add_setting(
+		'jijipom_blog_fallback_overlay_color',
+		array( 'default' => '', 'sanitize_callback' => 'sanitize_hex_color', 'transport' => 'refresh' )
+	);
+	$wp_customize->add_control(
+		new WP_Customize_Color_Control(
+			$wp_customize,
+			'jijipom_blog_fallback_overlay_color',
+			array(
+				'label'       => __( '代替画像にかぶせる色', 'jijipom' ),
+				'description' => __( '代替画像の上に重ねる色。下の「濃さ」と合わせて薄く見せられます。空欄ならオーバーレイなし。', 'jijipom' ),
+				'section'     => 'jijipom_fp_blog',
+			)
+		)
+	);
+	$wp_customize->add_setting(
+		'jijipom_blog_fallback_overlay_opacity',
+		array( 'default' => 0, 'sanitize_callback' => 'absint', 'transport' => 'refresh' )
+	);
+	$wp_customize->add_control(
+		'jijipom_blog_fallback_overlay_opacity',
+		array(
+			'label'       => __( 'かぶせる色の濃さ（％）', 'jijipom' ),
+			'description' => __( '0 でオーバーレイなし。40〜70 くらいにすると薄く見えます。', 'jijipom' ),
+			'section'     => 'jijipom_fp_blog',
+			'type'        => 'number',
+			'input_attrs' => array( 'min' => 0, 'max' => 100, 'step' => 5 ),
+		)
+	);
 
 	// ===== ④ 会社紹介 =====
 	$wp_customize->add_section( 'jijipom_fp_about', array( 'title' => __( '④ 会社紹介', 'jijipom' ), 'panel' => 'jijipom_front_panel' ) );
@@ -189,3 +219,26 @@ function jijipom_frontpage_customize_register( $wp_customize ) {
 	jijipom_fp_add( $wp_customize, 'jijipom_footer_tel',     array( 'section' => 'jijipom_footer_info', 'label' => __( '電話番号', 'jijipom' ) ) );
 }
 add_action( 'customize_register', 'jijipom_frontpage_customize_register' );
+
+/**
+ * ブログの代替画像オーバーレイ (色 + 濃さ) を CSS 変数として出力する。
+ * トップページでのみ、色と濃さ(>0)が設定されているときだけ出す。
+ * 実際の重ね描画は style.css の .blog-card__thumb.is-fallback::after が
+ * この変数を使って行う。
+ */
+function jijipom_blog_overlay_css() {
+	if ( ! is_front_page() ) {
+		return;
+	}
+	$color   = get_theme_mod( 'jijipom_blog_fallback_overlay_color', '' );
+	$opacity = (int) get_theme_mod( 'jijipom_blog_fallback_overlay_opacity', 0 );
+	if ( '' === $color || $opacity <= 0 ) {
+		return;
+	}
+	$opacity = max( 0, min( 100, $opacity ) ) / 100;
+	echo "\n<style id=\"jijipom-blog-overlay\">.front-blog{"
+		. '--blog-fallback-overlay-color:' . esc_attr( $color ) . ';'
+		. '--blog-fallback-overlay-opacity:' . esc_attr( (string) $opacity ) . ';'
+		. "}</style>\n";
+}
+add_action( 'wp_head', 'jijipom_blog_overlay_css', 100 );
