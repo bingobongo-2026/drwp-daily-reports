@@ -192,11 +192,17 @@ class DRWP_CLI {
      * : User ID to attribute reports / plans to. Defaults to the
      *   first administrator.
      *
+     * [--industry=<slug>]
+     * : Which industry preset to seed. One of: koumuten (工務店, default),
+     *   salon (美容院), setsubi (設備工事会社).
+     *
      * ## EXAMPLES
      *
      *     wp drwp seed
      *     wp drwp seed --reset
      *     wp drwp seed --user=2
+     *     wp drwp seed --industry=salon
+     *     wp drwp seed --industry=setsubi
      */
     public static function seed($args, $assoc) {
         if (!empty($assoc['reset'])) {
@@ -204,10 +210,16 @@ class DRWP_CLI {
             WP_CLI::success(sprintf('deleted %d rows', (int) ($r['deleted'] ?? 0)));
             return;
         }
-        $user_id = (int) ($assoc['user'] ?? 0);
-        $summary = DRWP_Seed::run($user_id);
+        $user_id  = (int) ($assoc['user'] ?? 0);
+        $industry = isset($assoc['industry']) ? sanitize_key($assoc['industry']) : 'koumuten';
+        if (!array_key_exists($industry, DRWP_Seed::industry_options())) {
+            WP_CLI::error(sprintf('unknown industry "%s" (expected: koumuten, salon, setsubi)', $industry));
+            return;
+        }
+        $summary = DRWP_Seed::run($user_id, $industry);
         WP_CLI::success(sprintf(
-            'seeded: customers=%d projects=%d customer_groups=%d project_groups=%d reports=%d plans=%d',
+            'seeded (%s): customers=%d projects=%d customer_groups=%d project_groups=%d reports=%d plans=%d',
+            $industry,
             $summary['customers'], $summary['projects'],
             $summary['customer_groups'], $summary['project_groups'],
             $summary['reports'], $summary['plans']
