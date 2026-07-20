@@ -20,6 +20,19 @@ class DRWP_Project {
     }
 
     /**
+     * 絞り込みドロップダウン用の案件一覧。「完了」の案件を除外する。
+     * 完了案件は日報の集計・記録としては残るが、フィルタ候補には
+     * 出さないことで一覧が煩雑にならないようにする。
+     */
+    public static function all_for_filter() {
+        global $wpdb;
+        return $wpdb->get_results(
+            'SELECT * FROM ' . self::table()
+            . " WHERE status <> 'completed' ORDER BY name ASC, id DESC"
+        );
+    }
+
+    /**
      * 指定ユーザが直近で日報を書いた案件 ID を新しい順で返す。
      * 「最近使った」案件をフォームの案件ドロップダウン上部にピン留め
      * するために使う。日報 0 件のユーザには空配列を返す。
@@ -162,7 +175,7 @@ class DRWP_Project {
             wp_safe_redirect(admin_url('admin.php?page=drwp_projects&error=missing_name'));
             exit;
         }
-        $allowed_status = ['active', 'inactive'];
+        $allowed_status = ['active', 'inactive', 'completed'];
         if (!in_array($status, $allowed_status, true)) $status = 'active';
 
         $prefecture = sanitize_text_field(wp_unslash($_POST['prefecture'] ?? ''));

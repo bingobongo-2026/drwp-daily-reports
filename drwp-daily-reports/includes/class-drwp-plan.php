@@ -177,8 +177,11 @@ class DRWP_Plan {
         $paged = $pager['paged'];
         $pages = $pager['pages'];
 
-        $projects      = DRWP_Project::all();
-        $can_view_all  = self::can_view_all();
+        // 一覧の案件名表示には全案件が要る (完了案件の予定名も出すため)。
+        // 絞り込み・予定編集の候補は「完了」を除いた $projects_filter を使う。
+        $projects        = DRWP_Project::all();
+        $projects_filter = DRWP_Project::all_for_filter();
+        $can_view_all    = self::can_view_all();
         $workers       = $can_view_all ? self::worker_options() : [];
         $current_user  = wp_get_current_user();
         $statuses      = self::status_labels();
