@@ -5,6 +5,7 @@ class DRWP_AI_Admin {
     public static function init() {
         add_action('admin_post_drwp_save_ai_settings', [__CLASS__, 'save']);
         add_action('admin_post_drwp_ai_test', [__CLASS__, 'test']);
+        add_action('admin_post_drwp_save_ai_prompts', [__CLASS__, 'save_prompts']);
     }
 
     public static function render_page() {
@@ -38,6 +39,9 @@ class DRWP_AI_Admin {
         }
         $test = get_transient('drwp_ai_test_result');
         if ($test) delete_transient('drwp_ai_test_result');
+        // プロンプト編集セクション用: 各機能の定義と現在値。
+        $prompt_defaults = DRWP_AI::prompt_defaults();
+        $prompts_open = (isset($_GET['section']) && $_GET['section'] === 'prompts');
         include DRWP_PATH . 'admin/views/ai-settings-page.php';
     }
 
@@ -98,6 +102,50 @@ class DRWP_AI_Admin {
             set_transient('drwp_ai_test_result', ['ok' => $result], 60);
         }
         wp_safe_redirect(admin_url('admin.php?page=drwp_ai'));
+        exit;
+    }
+
+    /**
+     * AI 機能ごとのシステムプロンプトの上書きを保存する。
+     * - 「すべて初期設定に戻す」(reset_all) はオプションごと削除。
+     * - 通常保存は、既定文と同じ / 空の項目は保存しない(= 既定に戻る)。
+     *   これで system_prompt() のフォールバックがそのまま効く。
+     */
+    public static function save_prompts() {
+        if (!current_user_can('manage_options')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
+        if (!DRWP_License::plan_allows('ai')) {
+            wp_die(
+                esc_html__('AI 機能は現在のプランでは利用できません。', 'drwp-daily-reports'),
+                '', ['response' => 403, 'back_link' => true]
+            );
+        }
+        check_admin_referer('drwp_save_ai_prompts');
+
+        $redirect = admin_url('admin.php?page=drwp_ai&saved=1&section=prompts');
+
+        if (!empty($_POST['reset_all'])) {
+            delete_option(DRWP_AI::OPT_PROMPTS);
+            wp_safe_redirect($redirect);
+            exit;
+        }
+
+        $defaults = DRWP_AI::prompt_defaults();
+        $in = (isset($_POST['prompts']) && is_array($_POST['prompts']))
+            ? wp_unslash($_POST['prompts']) : [];
+        $store = [];
+        foreach ($defaults as $key => $meta) {
+            $val = isset($in[$key]) ? sanitize_textarea_field((string) $in[$key]) : '';
+            // 空 or 既定文そのままなら保存しない(= 既定にフォールバック)。
+            if ($val !== '' && trim($val) !== trim((string) $meta['default'])) {
+                $store[$key] = $val;
+            }
+        }
+        if ($store) {
+            update_option(DRWP_AI::OPT_PROMPTS, $store);
+        } else {
+            delete_option(DRWP_AI::OPT_PROMPTS);
+        }
+        wp_safe_redirect($redirect);
         exit;
     }
 }
