@@ -34,6 +34,7 @@ class Test_DRWP_AI extends WP_UnitTestCase {
 
     public function tear_down() {
         delete_option(DRWP_AI::OPT_ENABLED);
+        delete_option(DRWP_AI::OPT_PROMPTS);
         parent::tear_down();
     }
 
@@ -157,6 +158,44 @@ class Test_DRWP_AI extends WP_UnitTestCase {
         $out = DRWP_AI::advise_on_reports([$r1, $r2]);
         $this->assertIsString($out);
         $this->assertStringContainsString('成功例', $out);
+    }
+
+    public function test_system_prompt_returns_default_when_not_overridden() {
+        delete_option(DRWP_AI::OPT_PROMPTS);
+        $defaults = DRWP_AI::prompt_defaults();
+        foreach ($defaults as $key => $meta) {
+            $this->assertSame($meta['default'], DRWP_AI::system_prompt($key), "default mismatch for {$key}");
+        }
+        // 未知キーは空文字。
+        $this->assertSame('', DRWP_AI::system_prompt('does_not_exist'));
+    }
+
+    public function test_system_prompt_returns_override_when_set() {
+        update_option(DRWP_AI::OPT_PROMPTS, ['briefing' => 'カスタム指示文です']);
+        $this->assertSame('カスタム指示文です', DRWP_AI::system_prompt('briefing'));
+        // 上書きしていない他キーは既定のまま。
+        $d = DRWP_AI::prompt_defaults();
+        $this->assertSame($d['summary']['default'], DRWP_AI::system_prompt('summary'));
+    }
+
+    public function test_system_prompt_blank_override_falls_back_to_default() {
+        // 空文字(や空白のみ)の上書きは既定にフォールバックする。
+        update_option(DRWP_AI::OPT_PROMPTS, ['alerts' => '   ']);
+        $d = DRWP_AI::prompt_defaults();
+        $this->assertSame($d['alerts']['default'], DRWP_AI::system_prompt('alerts'));
+    }
+
+    public function test_overridden_prompt_is_used_by_feature() {
+        // 上書きしたプロンプトが実際にバックエンドへ渡る system に反映される。
+        update_option(DRWP_AI::OPT_PROMPTS, ['draft' => 'これは差し替えたシステムプロンプト。===TITLE===\n===BODY===']);
+        $pid = $this->make_project();
+        $rid = $this->make_report($pid, '2026-06-06', ['work_description' => '塗装']);
+        $this->fake_response = "===TITLE===\nT\n===BODY===\nB";
+        DRWP_AI::draft_public_post($rid);
+        $system = (string) ($this->last_messages[0]['content'] ?? '');
+        $this->assertStringContainsString('差し替えたシステムプロンプト', $system);
+        // 既定文にしか無い文言は入っていない。
+        $this->assertStringNotContainsString('広報担当ライター', $system);
     }
 
     public function test_advise_on_reports_caps_at_ADVISE_MAX() {

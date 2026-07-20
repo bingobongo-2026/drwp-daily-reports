@@ -184,6 +184,62 @@
       <li>モデル例: <code>claude-haiku-4-5-20251001</code>（軽量・低コスト）, <code>claude-sonnet-4-6</code></li>
     </ol>
   </details>
+
+  <hr>
+
+  <h2><?php esc_html_e('AI プロンプトの編集（上級者向け）', 'drwp-daily-reports'); ?></h2>
+  <p class="description" style="max-width:760px;">
+    <?php esc_html_e('各 AI 機能が使う「システムプロンプト（AI への指示文）」を編集できます。文体や着眼点を自社向けに調整したいときに使います。通常は初期設定のままで問題ありません。日報の内容（案件名・作業内容など）は指示文とは別に自動で AI に渡されます。', 'drwp-daily-reports'); ?>
+  </p>
+  <p>
+    <button type="button" class="button" id="drwp-ai-prompts-toggle" aria-expanded="<?php echo !empty($prompts_open) ? 'true' : 'false'; ?>" aria-controls="drwp-ai-prompts-editor">
+      <?php esc_html_e('プロンプトを編集する', 'drwp-daily-reports'); ?>
+    </button>
+  </p>
+
+  <div id="drwp-ai-prompts-editor"<?php echo !empty($prompts_open) ? '' : ' hidden'; ?>>
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+      <?php wp_nonce_field('drwp_save_ai_prompts'); ?>
+      <input type="hidden" name="action" value="drwp_save_ai_prompts" />
+
+      <?php foreach ($prompt_defaults as $pkey => $pmeta):
+        $current = DRWP_AI::system_prompt($pkey);
+        $is_custom = ($current !== $pmeta['default']);
+        $field_id = 'drwp-ai-prompt-' . $pkey;
+      ?>
+      <div class="drwp-ai-prompt-item" style="margin:0 0 26px;max-width:820px;">
+        <h3 style="margin-bottom:2px;">
+          <label for="<?php echo esc_attr($field_id); ?>"><?php echo esc_html($pmeta['label']); ?></label>
+          <?php if ($is_custom): ?>
+            <span class="drwp-ai-prompt-badge" style="font-size:11px;font-weight:600;color:#b45309;background:#fef3c7;border-radius:10px;padding:1px 9px;margin-left:8px;vertical-align:middle;">
+              <?php esc_html_e('カスタム', 'drwp-daily-reports'); ?>
+            </span>
+          <?php endif; ?>
+        </h3>
+        <p class="description" style="margin:.2em 0 .5em;"><?php echo esc_html($pmeta['desc']); ?></p>
+        <textarea id="<?php echo esc_attr($field_id); ?>" name="prompts[<?php echo esc_attr($pkey); ?>]"
+                  rows="8" class="large-text code" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.6;"
+                  data-default="<?php echo esc_attr($pmeta['default']); ?>"><?php echo esc_textarea($current); ?></textarea>
+        <p style="margin:.4em 0 0;">
+          <button type="button" class="button-link drwp-ai-prompt-reset" data-target="<?php echo esc_attr($field_id); ?>">
+            <?php esc_html_e('この項目を初期設定に戻す', 'drwp-daily-reports'); ?>
+          </button>
+        </p>
+      </div>
+      <?php endforeach; ?>
+
+      <p>
+        <?php submit_button(__('プロンプトを保存', 'drwp-daily-reports'), 'primary', 'submit', false); ?>
+        <button type="submit" name="reset_all" value="1" class="button" style="margin-left:8px;"
+                onclick="return confirm('<?php echo esc_js(__('すべてのプロンプトを初期設定に戻します。この操作は取り消せません。よろしいですか？', 'drwp-daily-reports')); ?>');">
+          <?php esc_html_e('すべて初期設定に戻して保存', 'drwp-daily-reports'); ?>
+        </button>
+      </p>
+      <p class="description">
+        <?php esc_html_e('「この項目を初期設定に戻す」は編集欄を既定文に書き戻すだけです。反映するには「プロンプトを保存」を押してください。', 'drwp-daily-reports'); ?>
+      </p>
+    </form>
+  </div>
 </div>
 
 <script>
@@ -227,5 +283,23 @@
   });
   applyMode();
   applyProvider();
+
+  // ---- プロンプト編集セクション: 開閉トグル + 個別リセット ----
+  var promptsToggle = document.getElementById('drwp-ai-prompts-toggle');
+  var promptsEditor = document.getElementById('drwp-ai-prompts-editor');
+  if (promptsToggle && promptsEditor) {
+    promptsToggle.addEventListener('click', function () {
+      var open = promptsEditor.hasAttribute('hidden');
+      if (open) { promptsEditor.removeAttribute('hidden'); }
+      else { promptsEditor.setAttribute('hidden', ''); }
+      promptsToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  }
+  document.querySelectorAll('.drwp-ai-prompt-reset').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var ta = document.getElementById(btn.getAttribute('data-target'));
+      if (ta) { ta.value = ta.getAttribute('data-default') || ''; ta.focus(); }
+    });
+  });
 })();
 </script>
