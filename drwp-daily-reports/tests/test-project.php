@@ -42,4 +42,20 @@ class Test_DRWP_Project extends WP_UnitTestCase {
         $this->assertCount(1, $rows);
         $this->assertSame('On', $rows[0]->name);
     }
+
+    public function test_all_for_filter_excludes_completed_but_keeps_inactive() {
+        global $wpdb;
+        $wpdb->insert(DRWP_Project::table(), ['name' => 'Act',  'status' => 'active']);
+        $wpdb->insert(DRWP_Project::table(), ['name' => 'Inact', 'status' => 'inactive']);
+        $wpdb->insert(DRWP_Project::table(), ['name' => 'Done', 'status' => 'completed']);
+        $names = array_map(function ($r) { return $r->name; }, DRWP_Project::all_for_filter());
+        // 完了だけ除外。稼働中・休止中は残す。
+        $this->assertContains('Act', $names);
+        $this->assertContains('Inact', $names);
+        $this->assertNotContains('Done', $names);
+    }
+
+    public function test_completed_is_a_labeled_project_status() {
+        $this->assertSame('完了', DRWP_Labels::project_status('completed'));
+    }
 }

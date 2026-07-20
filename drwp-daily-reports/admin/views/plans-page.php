@@ -54,7 +54,7 @@ $is_retired = DRWP_User::is_retired();
                class="drwp-search-input" />
         <select name="project_id">
           <option value="0"><?php esc_html_e('案件すべて', 'drwp-daily-reports'); ?></option>
-          <?php foreach ($projects as $p): ?>
+          <?php foreach (($projects_filter ?? $projects) as $p): ?>
             <option value="<?php echo (int) $p->id; ?>" <?php selected((int) $filters['project_id'], (int) $p->id); ?>>
               <?php echo esc_html($p->name); ?>
             </option>
@@ -200,7 +200,7 @@ $is_retired = DRWP_User::is_retired();
             <td>
               <select id="drwp-plan-project" name="project_id">
                 <option value=""><?php esc_html_e('（未設定）', 'drwp-daily-reports'); ?></option>
-                <?php foreach ($projects as $p): ?>
+                <?php foreach (($projects_filter ?? $projects) as $p): ?>
                   <option value="<?php echo (int) $p->id; ?>"><?php echo esc_html($p->name); ?></option>
                 <?php endforeach; ?>
               </select>

@@ -619,7 +619,8 @@ class DRWP_Admin {
         }
         natcasesort($reporters);
 
-        $projects = DRWP_Project::all();
+        // 絞り込み・編集の案件候補は「完了」を除く。
+        $projects = DRWP_Project::all_for_filter();
         $customer_groups = DRWP_Customer_Group::all(true);
         $project_groups  = DRWP_Project_Group::all(true);
 
@@ -693,7 +694,8 @@ class DRWP_Admin {
         $query_args[] = $offset;
         $reports = $wpdb->get_results($wpdb->prepare($sql, $query_args));
 
-        $projects = DRWP_Project::all();
+        // 絞り込みの案件候補は「完了」を除く。
+        $projects = DRWP_Project::all_for_filter();
 
         include DRWP_PATH . 'admin/views/articles-list.php';
     }

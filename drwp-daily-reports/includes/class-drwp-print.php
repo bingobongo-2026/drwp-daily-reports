@@ -111,7 +111,7 @@ class DRWP_Print {
             }
         }
 
-        $projects = DRWP_Project::all();
+        $projects = DRWP_Project::all_for_filter();
         $customer_groups = DRWP_Customer_Group::all(true);
         $project_groups  = DRWP_Project_Group::all(true);
         include DRWP_PATH . 'admin/views/print-page.php';

@@ -45,9 +45,10 @@ class DRWP_Labels {
     /** drwp_projects.status column. */
     public static function project_status($value) {
         $map = [
-            'active'   => __('稼働中', 'drwp-daily-reports'),
-            'inactive' => __('休止中', 'drwp-daily-reports'),
-            'archived' => __('アーカイブ', 'drwp-daily-reports'),
+            'active'    => __('稼働中', 'drwp-daily-reports'),
+            'inactive'  => __('休止中', 'drwp-daily-reports'),
+            'completed' => __('完了', 'drwp-daily-reports'),
+            'archived'  => __('アーカイブ', 'drwp-daily-reports'),
         ];
         return $map[(string) $value] ?? (string) $value;
     }

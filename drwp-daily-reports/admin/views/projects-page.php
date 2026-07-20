@@ -300,6 +300,7 @@
               <select name="status" id="drwp-pm-status">
                 <option value="active"><?php echo esc_html(DRWP_Labels::project_status('active')); ?></option>
                 <option value="inactive"><?php echo esc_html(DRWP_Labels::project_status('inactive')); ?></option>
+                <option value="completed"><?php echo esc_html(DRWP_Labels::project_status('completed')); ?></option>
               </select>
             </td>
           </tr>

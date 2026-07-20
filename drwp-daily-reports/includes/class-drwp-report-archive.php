@@ -1316,7 +1316,8 @@ class DRWP_Report_Archive {
         if ($opts['user_id']) {
             $projects = self::projects_for_user((int) $opts['user_id'], $project);
         } else {
-            $projects = DRWP_Project::all();
+            // レビュー用の絞り込み候補は「完了」を除く。
+            $projects = DRWP_Project::all_for_filter();
         }
 
         // ---- ダッシュボード用の集計 -----------------------------
