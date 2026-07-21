@@ -3,7 +3,7 @@
  * Plugin Name: 日報マン
  * Plugin URI: https://nippoman.example.com/
  * Description: 現場日報のレビュー・写真添付・公開記事化を一体化したライセンス制プラグイン。ライセンスサーバと連動して書込・記事化を有効化します。
- * Version: 1.68.0
+ * Version: 1.69.0
  * Author: 日報マン
  * Author URI: https://nippoman.example.com/
  * Text Domain: drwp-daily-reports
@@ -27,7 +27,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('DRWP_VERSION', '1.68.0');
+define('DRWP_VERSION', '1.69.0');
 define('DRWP_PATH', plugin_dir_path(__FILE__));
 define('DRWP_URL', plugin_dir_url(__FILE__));
 
@@ -70,6 +70,7 @@ require_once DRWP_PATH . 'includes/class-drwp-ai.php';
 require_once DRWP_PATH . 'includes/class-drwp-ai-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-help.php';
 require_once DRWP_PATH . 'includes/class-drwp-seed.php';
+require_once DRWP_PATH . 'includes/class-drwp-ads.php';
 require_once DRWP_PATH . 'includes/class-drwp-updater.php';
 
 if (defined('WP_CLI') && WP_CLI) {
@@ -107,6 +108,7 @@ add_action('plugins_loaded', function () {
     DRWP_AI_Admin::init();
     DRWP_Help::init();
     DRWP_Seed::init();
+    DRWP_Ads::init();
     DRWP_Updater::init();
 
     add_action(DRWP_License::CRON_HOOK, ['DRWP_License', 'check_now']);

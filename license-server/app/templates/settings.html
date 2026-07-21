@@ -40,6 +40,7 @@
   <button type="button" class="settings-tab" data-tab="plugin" role="tab">プラグイン配布</button>
   <button type="button" class="settings-tab" data-tab="theme" role="tab">テーマ配布</button>
   <button type="button" class="settings-tab" data-tab="ai" role="tab">運営契約AI</button>
+  <button type="button" class="settings-tab" data-tab="adsense" role="tab">広告(AdSense)</button>
 </nav>
 
 <div class="card settings-panel" id="panel-auth" role="tabpanel">
@@ -366,6 +367,46 @@
           value="{{ ai_config.limit_pro if ai_config else 500 }}" />
       </span>
     </div>
+
+    <div style="margin-top:12px;">
+      <button type="submit" class="btn">保存</button>
+    </div>
+  </form>
+</div>
+
+<div class="card settings-panel" id="panel-adsense" role="tabpanel" hidden>
+  <h2>フリープラン向け AdSense</h2>
+  <p class="muted">
+    <strong>フリープラン</strong>で稼働しているサイトの公開記事に、運営（あなた）の
+    Google AdSense アカウントで広告を表示します。ここに設定した内容は署名付きの
+    ライセンス確認応答（<code>/api/check</code>）でフリープランの各サイトへ配信され、
+    プラグインが公開記事ページに広告を挿入します。フリー以外のプラン（ベーシック／
+    ライト／プロ）には配信されません。
+    <br />※広告は日報から生成された<strong>公開記事ページのみ</strong>に表示されます。
+  </p>
+
+  <form method="post" action="/admin/ui/adsense/save">
+    <label>
+      <input type="checkbox" name="enabled" value="on" {% if adsense_config and adsense_config.enabled %}checked{% endif %} />
+      フリープランでの AdSense 表示を有効にする
+    </label>
+
+    <label for="ad-pub">パブリッシャー ID（publisher ID）</label>
+    <input type="text" id="ad-pub" name="publisher_id" style="max-width:360px;"
+      value="{{ adsense_config.publisher_id if adsense_config else '' }}" placeholder="ca-pub-0000000000000000" />
+    <p class="muted" style="margin-top:2px;">AdSense 管理画面の「アカウント情報」にある <code>ca-pub-～</code> の値。これだけで自動広告が有効になります（自動広告は AdSense 側でオンにしてください）。</p>
+
+    <label for="ad-slot">広告ユニット ID（スロット／任意）</label>
+    <input type="text" id="ad-slot" name="ad_slot" style="max-width:260px;"
+      value="{{ adsense_config.ad_slot if adsense_config else '' }}" placeholder="例: 1234567890" />
+    <p class="muted" style="margin-top:2px;">指定すると、記事内に固定の広告枠（ディスプレイ広告ユニット）も表示します。空なら自動広告のみ。</p>
+
+    <label for="ad-place">固定広告枠の位置</label>
+    <select id="ad-place" name="placement" style="max-width:220px;">
+      <option value="after" {% if adsense_config and adsense_config.placement == 'after' %}selected{% endif %}>記事の下</option>
+      <option value="before" {% if adsense_config and adsense_config.placement == 'before' %}selected{% endif %}>記事の上</option>
+      <option value="both" {% if adsense_config and adsense_config.placement == 'both' %}selected{% endif %}>記事の上下</option>
+    </select>
 
     <div style="margin-top:12px;">
       <button type="submit" class="btn">保存</button>

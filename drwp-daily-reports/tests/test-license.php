@@ -19,6 +19,7 @@ class Test_DRWP_License extends WP_UnitTestCase {
             DRWP_License::OPT_SIGNATURE_VALID,
             DRWP_License::OPT_LAST_MESSAGE,
             DRWP_License::OPT_ADMIN_TOKEN,
+            DRWP_License::OPT_ADSENSE,
         ] as $opt) {
             delete_option($opt);
         }
@@ -479,6 +480,105 @@ class Test_DRWP_License extends WP_UnitTestCase {
         $this->assertSame('drwp_license_signature_invalid', $r->get_error_code());
         $this->assertSame('invalid', get_option(DRWP_License::OPT_SIGNATURE_VALID));
         $this->assertSame('inactive', get_option(DRWP_License::OPT_STATUS));
+    }
+
+    // --- AdSense (フリープラン向け) ------------------------------
+
+    public function test_sanitize_adsense_accepts_valid_and_normalises() {
+        $out = DRWP_License::sanitize_adsense([
+            'enabled'      => true,
+            'publisher_id' => 'ca-pub-1234567890123456',
+            'ad_slot'      => '12-34 56',   // 数字以外は除去される
+            'placement'    => 'both',
+        ]);
+        $this->assertIsArray($out);
+        $this->assertTrue($out['enabled']);
+        $this->assertSame('ca-pub-1234567890123456', $out['publisher_id']);
+        $this->assertSame('123456', $out['ad_slot']);
+        $this->assertSame('both', $out['placement']);
+    }
+
+    public function test_sanitize_adsense_rejects_bad_input() {
+        // 無効フラグ
+        $this->assertNull(DRWP_License::sanitize_adsense(['enabled' => false, 'publisher_id' => 'ca-pub-1']));
+        // 不正な publisher id
+        $this->assertNull(DRWP_License::sanitize_adsense(['enabled' => true, 'publisher_id' => 'pub-1234']));
+        $this->assertNull(DRWP_License::sanitize_adsense(['enabled' => true, 'publisher_id' => 'ca-pub-<script>']));
+        // 配列でない
+        $this->assertNull(DRWP_License::sanitize_adsense(null));
+        // 不明な placement は after に丸める
+        $out = DRWP_License::sanitize_adsense(['enabled' => true, 'publisher_id' => 'ca-pub-9', 'placement' => 'sidebar']);
+        $this->assertSame('after', $out['placement']);
+    }
+
+    public function test_adsense_config_only_returns_for_free_plan() {
+        update_option(DRWP_License::OPT_ADSENSE, [
+            'enabled' => true, 'publisher_id' => 'ca-pub-1', 'ad_slot' => '5', 'placement' => 'after',
+        ]);
+        update_option(DRWP_License::OPT_PLAN, 'pro');
+        $this->assertNull(DRWP_License::adsense_config());  // 非フリーは出さない
+        update_option(DRWP_License::OPT_PLAN, 'free');
+        $cfg = DRWP_License::adsense_config();
+        $this->assertIsArray($cfg);
+        $this->assertSame('ca-pub-1', $cfg['publisher_id']);
+    }
+
+    public function test_check_now_stores_adsense_for_free_plan() {
+        $keys = $this->seed_signing_keypair();
+        update_option(DRWP_License::OPT_API_URL, 'https://srv.test');
+        update_option(DRWP_License::OPT_KEY, 'LIC-FREE');
+        $now_iso = gmdate('Y-m-d\TH:i:s\Z');
+        add_filter('pre_http_request', function ($pre, $args, $url) use ($keys, $now_iso) {
+            if (strpos($url, '/api/check') === false) return $pre;
+            return $this->signed_check_response([
+                'license_key'    => 'LIC-FREE',
+                'allowed_domain' => 'example.org',
+                'status'         => 'active',
+                'plan'           => 'free',
+                'expires_at'     => '2099-12-31T23:59:59+00:00',
+                'issued_at'      => $now_iso,
+                'adsense'        => [
+                    'enabled'      => true,
+                    'publisher_id' => 'ca-pub-2222333344445555',
+                    'ad_slot'      => '9988776655',
+                    'placement'    => 'after',
+                ],
+            ], $keys['sk']);
+        }, 10, 3);
+
+        $r = DRWP_License::check_now();
+        $this->assertSame('active', $r);
+        $cfg = DRWP_License::adsense_config();
+        $this->assertIsArray($cfg);
+        $this->assertSame('ca-pub-2222333344445555', $cfg['publisher_id']);
+        $this->assertSame('9988776655', $cfg['ad_slot']);
+    }
+
+    public function test_check_now_clears_adsense_when_disabled_by_server() {
+        // 既にキャッシュがある状態で、サーバが adsense:{enabled:false} を返したら消える。
+        update_option(DRWP_License::OPT_ADSENSE, [
+            'enabled' => true, 'publisher_id' => 'ca-pub-1', 'ad_slot' => '1', 'placement' => 'after',
+        ]);
+        $keys = $this->seed_signing_keypair();
+        update_option(DRWP_License::OPT_API_URL, 'https://srv.test');
+        update_option(DRWP_License::OPT_KEY, 'LIC-FREE2');
+        $now_iso = gmdate('Y-m-d\TH:i:s\Z');
+        add_filter('pre_http_request', function ($pre, $args, $url) use ($keys, $now_iso) {
+            if (strpos($url, '/api/check') === false) return $pre;
+            return $this->signed_check_response([
+                'license_key'    => 'LIC-FREE2',
+                'allowed_domain' => 'example.org',
+                'status'         => 'active',
+                'plan'           => 'free',
+                'expires_at'     => '2099-12-31T23:59:59+00:00',
+                'issued_at'      => $now_iso,
+                'adsense'        => ['enabled' => false],
+            ], $keys['sk']);
+        }, 10, 3);
+
+        DRWP_License::check_now();
+        $this->assertFalse(get_option(DRWP_License::OPT_ADSENSE, false));
+        $this->assertNull(DRWP_License::adsense_config());
     }
 
     /**

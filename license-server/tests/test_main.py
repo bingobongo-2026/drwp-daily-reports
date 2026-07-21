@@ -1276,3 +1276,85 @@ def test_ai_save_keeps_existing_key_on_placeholder(tmp_path, monkeypatch):
     cfg = main._get_ai_config()
     assert cfg["api_key"] == "sk-keep"
     assert cfg["model"] == "claude-y"
+
+
+# --- AdSense (フリープラン向け) -------------------------------------------
+
+def _add_license(c, key, plan, status="active"):
+    c.post(
+        "/admin/licenses",
+        auth=("admin", "test-token"),
+        json={
+            "license_key": key,
+            "domain": "example.test",
+            "plan": plan,
+            "status": status,
+            "expires_at": "2099-12-31T23:59:59+00:00",
+        },
+    )
+
+
+def test_adsense_save_persists_and_normalises(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    c.post("/admin/ui/adsense/save", auth=("admin", "test-token"), data={
+        "enabled": "on", "publisher_id": "ca-pub-1234567890123456",
+        "ad_slot": "12-34 567", "placement": "both",
+    })
+    cfg = main._get_adsense_config()
+    assert cfg["enabled"] is True
+    assert cfg["publisher_id"] == "ca-pub-1234567890123456"
+    assert cfg["ad_slot"] == "1234567"      # 数字以外は除去
+    assert cfg["placement"] == "both"
+
+
+def test_check_free_plan_includes_signed_adsense(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _add_license(c, "FREE-KEY", "free")
+    c.post("/admin/ui/adsense/save", auth=("admin", "test-token"), data={
+        "enabled": "on", "publisher_id": "ca-pub-2222333344445555",
+        "ad_slot": "9988776655", "placement": "after",
+    })
+    r = c.post("/api/check", json={"license_key": "FREE-KEY", "domain": "example.test"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["plan"] == "free"
+    assert body["adsense"]["enabled"] is True
+    assert body["adsense"]["publisher_id"] == "ca-pub-2222333344445555"
+
+    # 署名は adsense を含めて有効。
+    from app import signing
+    sig = body.pop("signature")
+    assert signing.verify(body, sig) is True
+
+
+def test_check_non_free_plan_omits_adsense(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _add_license(c, "PRO-KEY", "pro")
+    c.post("/admin/ui/adsense/save", auth=("admin", "test-token"), data={
+        "enabled": "on", "publisher_id": "ca-pub-2222333344445555",
+        "ad_slot": "", "placement": "after",
+    })
+    r = c.post("/api/check", json={"license_key": "PRO-KEY", "domain": "example.test"})
+    body = r.json()
+    assert body["plan"] == "pro"
+    assert "adsense" not in body
+
+
+def test_check_free_plan_disabled_adsense_sends_enabled_false(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _add_license(c, "FREE-OFF", "free")
+    # 保存せず (= 既定 disabled) の状態でも、フリーには adsense キーが付く。
+    r = c.post("/api/check", json={"license_key": "FREE-OFF", "domain": "example.test"})
+    body = r.json()
+    assert body["adsense"] == {"enabled": False}
+
+
+def test_check_free_plan_invalid_publisher_id_disables(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    _add_license(c, "FREE-BAD", "free")
+    c.post("/admin/ui/adsense/save", auth=("admin", "test-token"), data={
+        "enabled": "on", "publisher_id": "not-a-pub-id", "placement": "after",
+    })
+    r = c.post("/api/check", json={"license_key": "FREE-BAD", "domain": "example.test"})
+    body = r.json()
+    assert body["adsense"] == {"enabled": False}
