@@ -14,6 +14,9 @@ class DRWP_License {
     const OPT_PREVIOUS_KEYS   = 'drwp_license_previous_keys';
     const OPT_SIGNATURE_VALID = 'drwp_license_signature_valid';
     const OPT_ADMIN_TOKEN     = 'drwp_license_admin_token';
+    // フリープラン向け AdSense 設定 (運営者アカウント)。署名付き
+    // /api/check 応答からのみ書き込む。フリー以外・無効時は削除される。
+    const OPT_ADSENSE         = 'drwp_adsense_config';
 
     const GRACE_DAYS = 7;
     const CRON_HOOK = 'drwp_license_check';
@@ -426,6 +429,54 @@ class DRWP_License {
         } else {
             delete_option(self::OPT_LAST_VALID_AT);
         }
+        // フリープラン向け AdSense 設定。署名検証済みの応答からのみ反映。
+        // サーバはフリー以外には adsense を含めない → その場合は削除。
+        self::store_adsense(isset($payload['adsense']) ? $payload['adsense'] : null);
         return $status;
+    }
+
+    /**
+     * 署名検証済みの /api/check 応答に含まれる adsense 設定を保存する。
+     * enabled が真かつ publisher_id が妥当なときだけ保存し、それ以外
+     * (未同梱・無効・不正 ID) はオプションを削除する。
+     */
+    private static function store_adsense($raw) {
+        $clean = self::sanitize_adsense($raw);
+        if ($clean === null) {
+            delete_option(self::OPT_ADSENSE);
+            return;
+        }
+        update_option(self::OPT_ADSENSE, $clean);
+    }
+
+    /**
+     * adsense 設定を正規化。妥当なら連想配列、無効なら null。
+     * publisher_id は `ca-pub-<digits>`、ad_slot は数字のみ、
+     * placement は after/before/both のいずれか。
+     */
+    public static function sanitize_adsense($raw) {
+        if (!is_array($raw) || empty($raw['enabled'])) return null;
+        $pub = isset($raw['publisher_id']) ? trim((string) $raw['publisher_id']) : '';
+        if (!preg_match('/^ca-pub-\d{1,20}$/', $pub)) return null;
+        $slot = isset($raw['ad_slot']) ? preg_replace('/\D/', '', (string) $raw['ad_slot']) : '';
+        $placement = isset($raw['placement']) ? (string) $raw['placement'] : 'after';
+        if (!in_array($placement, ['after', 'before', 'both'], true)) $placement = 'after';
+        return [
+            'enabled'      => true,
+            'publisher_id' => $pub,
+            'ad_slot'      => (string) $slot,
+            'placement'    => $placement,
+        ];
+    }
+
+    /**
+     * キャッシュ済みの AdSense 設定 (フリープランのみ有効)。
+     * 表示条件を満たさなければ null。
+     */
+    public static function adsense_config() {
+        if (self::plan() !== 'free') return null;
+        $cfg = get_option(self::OPT_ADSENSE, null);
+        $clean = self::sanitize_adsense($cfg);
+        return $clean;
     }
 }

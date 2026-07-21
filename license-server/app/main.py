@@ -128,6 +128,7 @@ _FLASH = {
     "theme_uploaded": ("テーマ zip をアップロードしました。各サイトは次回の更新チェックで検知します。", "ok"),
     "theme_invalid": ("zip からバージョンを読み取れませんでした。style.css を含むテーマ zip か確認してください。", "err"),
     "ai_saved": ("運営契約 AI の設定を保存しました。", "ok"),
+    "adsense_saved": ("フリープラン向け AdSense の設定を保存しました。", "ok"),
 }
 
 
@@ -456,7 +457,7 @@ def check_license(payload: CheckRequest):
             expires_at=lic["expires_at"] or "",
             allowed_domain=lic["domain"],
         )
-        return _sign_response(base)
+        return _sign_response(_attach_adsense(base, lic))
 
     if lic["expires_at"] and lic["expires_at"] < now:
         base.update(
@@ -465,7 +466,7 @@ def check_license(payload: CheckRequest):
             expires_at=lic["expires_at"],
             allowed_domain=lic["domain"],
         )
-        return _sign_response(base)
+        return _sign_response(_attach_adsense(base, lic))
 
     if lic["domain"] and lic["domain"] != payload.domain:
         base.update(
@@ -474,7 +475,7 @@ def check_license(payload: CheckRequest):
             expires_at=lic["expires_at"] or "",
             allowed_domain=lic["domain"],
         )
-        return _sign_response(base)
+        return _sign_response(_attach_adsense(base, lic))
 
     base.update(
         status="active",
@@ -482,7 +483,7 @@ def check_license(payload: CheckRequest):
         expires_at=lic["expires_at"] or "",
         allowed_domain=lic["domain"],
     )
-    return _sign_response(base)
+    return _sign_response(_attach_adsense(base, lic))
 
 
 # =========================================================================
@@ -925,6 +926,100 @@ def ui_ai_save(
     return RedirectResponse("/admin/ui/settings?msg=ai_saved", status_code=status.HTTP_303_SEE_OTHER)
 
 
+# =========================================================================
+# フリープラン向け AdSense (運営者アカウントで広告表示)
+# =========================================================================
+# 運営 (あなた) が自分の AdSense アカウントの publisher ID 等をここに 1 か所
+# だけ設定すると、フリープランで稼働している各サイトの公開記事にその広告が
+# 表示される。設定は署名付き /api/check 応答に埋め込んで配信するので、
+# 各サイトが個別にコードを貼る必要がない。フリー以外のプランには配信しない。
+_ADSENSE_CONFIG_KEY = "adsense"
+_ADSENSE_DEFAULTS = {
+    "enabled": False,
+    "publisher_id": "",   # ca-pub-XXXXXXXXXXXXXXXX
+    "ad_slot": "",        # 手動ユニットの広告枠 ID (数字のみ / 任意)
+    "placement": "after", # after | before | both (手動ユニットの位置)
+}
+_ADSENSE_PLACEMENTS = ("after", "before", "both")
+
+
+def _valid_publisher_id(pub: str) -> bool:
+    return bool(re.fullmatch(r"ca-pub-\d{1,20}", (pub or "").strip()))
+
+
+def _get_adsense_config() -> dict:
+    cfg = dict(_ADSENSE_DEFAULTS)
+    raw = db.get_setting(_ADSENSE_CONFIG_KEY)
+    if raw:
+        try:
+            cfg.update(json.loads(raw))
+        except (ValueError, TypeError):
+            pass
+    return cfg
+
+
+def _set_adsense_config(cfg: dict) -> None:
+    db.set_setting(_ADSENSE_CONFIG_KEY, json.dumps(cfg, ensure_ascii=False))
+
+
+def _adsense_settings_ctx() -> dict:
+    cfg = _get_adsense_config()
+    return {
+        "enabled": bool(cfg.get("enabled")),
+        "publisher_id": cfg.get("publisher_id", ""),
+        "ad_slot": cfg.get("ad_slot", ""),
+        "placement": cfg.get("placement", "after"),
+    }
+
+
+def _adsense_payload() -> dict:
+    """フリープランの /api/check 応答に埋め込む広告設定。無効・不正 ID の
+    ときは {"enabled": False} を返し、各サイト側でキャッシュを消させる
+    (= 運営が無効化したら各サイトの広告も止まる)。"""
+    cfg = _get_adsense_config()
+    if not cfg.get("enabled") or not _valid_publisher_id(cfg.get("publisher_id", "")):
+        return {"enabled": False}
+    placement = cfg.get("placement", "after")
+    if placement not in _ADSENSE_PLACEMENTS:
+        placement = "after"
+    slot = str(cfg.get("ad_slot", "")).strip()
+    if not re.fullmatch(r"\d{0,20}", slot):
+        slot = ""
+    return {
+        "enabled": True,
+        "publisher_id": cfg["publisher_id"].strip(),
+        "ad_slot": slot,
+        "placement": placement,
+    }
+
+
+def _attach_adsense(base: dict, lic: Optional[dict]) -> dict:
+    """フリープランのライセンスにだけ広告設定を同梱する。"""
+    if lic and (lic.get("plan") or "").strip().lower() == "free":
+        base["adsense"] = _adsense_payload()
+    return base
+
+
+@app.post("/admin/ui/adsense/save", include_in_schema=False)
+def ui_adsense_save(
+    enabled: str = Form(""),
+    publisher_id: str = Form(""),
+    ad_slot: str = Form(""),
+    placement: str = Form("after"),
+    _: str = Depends(require_admin),
+):
+    pub = publisher_id.strip()
+    slot = "".join(ch for ch in ad_slot if ch.isdigit())
+    cfg = {
+        "enabled": enabled in ("on", "1", "true"),
+        "publisher_id": pub,
+        "ad_slot": slot,
+        "placement": placement if placement in _ADSENSE_PLACEMENTS else "after",
+    }
+    _set_adsense_config(cfg)
+    return RedirectResponse("/admin/ui/settings?msg=adsense_saved", status_code=status.HTTP_303_SEE_OTHER)
+
+
 @app.post("/admin/ui/plugin/upload", include_in_schema=False)
 def ui_plugin_upload(
     file: UploadFile = File(...),
@@ -1279,6 +1374,7 @@ def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(re
             "plugin_meta": _get_plugin_meta(),
             "theme_meta": _get_theme_meta(),
             "ai_config": _ai_settings_ctx(),
+            "adsense_config": _adsense_settings_ctx(),
             **_flash_ctx(msg),
         },
     )

@@ -44,6 +44,7 @@ $options = [
     'drwp_license_previous_keys',
     'drwp_license_signature_valid',
     'drwp_license_admin_token',
+    'drwp_adsense_config',
     // Output settings
     'drwp_output_post_type',
     'drwp_output_auto_thumbnail',
