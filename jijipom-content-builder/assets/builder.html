@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jijipom コンテンツ入力＆ライブプレビュー</title>
+<style>
+  :root {
+    --accent:#2b5cff; --accent-2:#1e46cc;
+    --ink:#1a1a1a; --muted:#5c5c5c; --bg:#ffffff; --subtle:#f6f6f4; --border:#e5e5e2;
+    --ph-a:#eceae4; --ph-b:#e0ddd6;
+    --app-bg:#e9ebf1; --app-panel:#ffffff; --app-ink:#1a1a1a; --app-muted:#5c5c5c; --app-border:#d7dae2;
+    --radius:8px; --r-sm:6px;
+    --font: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  }
+  :root[data-theme="dark"] {
+    --ink:#e9e9e6; --muted:#a3a3a0; --bg:#16161a; --subtle:#1f1f24; --border:#33333a;
+    --accent:#6b8cff; --accent-2:#8aa4ff; --ph-a:#24242b; --ph-b:#2c2c34;
+    --app-bg:#0e0f13; --app-panel:#17181d; --app-ink:#e9e9e6; --app-muted:#a3a3a0; --app-border:#2b2c33;
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--app-bg); color:var(--app-ink); font-family:var(--font); line-height:1.7; }
+  .app { max-width:1240px; margin:0 auto; padding:18px clamp(12px,3vw,26px) 60px; }
+
+  .bar { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:4px 2px 14px; }
+  .bar h1 { margin:0; font-size:clamp(1.05rem,.9rem+.6vw,1.35rem); }
+  .bar .lede { margin:2px 0 0; font-size:13px; color:var(--app-muted); }
+  .bar .spacer { flex:1; }
+  .btn-a { font-family:inherit; font-size:13px; cursor:pointer; border:1px solid var(--app-border);
+    background:var(--app-panel); color:var(--app-ink); padding:8px 14px; border-radius:999px; }
+  .btn-a.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .tab { font-family:inherit; font-size:13.5px; cursor:pointer; border:1px solid var(--app-border);
+    background:var(--app-panel); color:var(--app-ink); padding:8px 15px; border-radius:999px; transition:.15s; }
+  .tab:hover { border-color:var(--accent); }
+  .tab.is-active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .tab .n { font-weight:800; margin-right:5px; }
+
+  .switch { display:none; gap:6px; margin-bottom:12px; }
+  .switch button { flex:1; font-family:inherit; font-size:13.5px; padding:9px; border:1px solid var(--app-border);
+    background:var(--app-panel); color:var(--app-ink); border-radius:999px; cursor:pointer; }
+  .switch button.on { background:var(--app-ink); color:var(--app-panel); border-color:var(--app-ink); }
+
+  .work { display:grid; grid-template-columns:390px 1fr; gap:20px; align-items:start; }
+
+  /* editor */
+  .editor { background:var(--app-panel); border:1px solid var(--app-border); border-radius:12px; padding:16px 16px 20px; }
+  .editor[hidden] { display:none; }
+  .grp { font-size:12px; font-weight:800; letter-spacing:.04em; color:var(--accent); text-transform:uppercase;
+    margin:18px 0 8px; padding-bottom:5px; border-bottom:1px solid var(--app-border); }
+  .grp:first-child { margin-top:2px; }
+  .fld { display:grid; gap:4px; margin-bottom:11px; }
+  .fld > span { font-size:12.5px; font-weight:600; color:var(--app-ink); }
+  .fld input, .fld textarea { width:100%; font:inherit; font-size:13.5px; color:var(--app-ink);
+    background:var(--bg); border:1px solid var(--app-border); border-radius:var(--r-sm); padding:8px 10px; resize:vertical; }
+  .fld textarea { min-height:52px; }
+  .fld input:focus, .fld textarea:focus, .murl:focus { outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent); }
+  .cols2 { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+
+  /* button show/hide */
+  .chk { display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--app-muted); margin:-4px 0 12px; cursor:pointer; user-select:none; }
+  .chk input { accent-color:var(--accent); width:15px; height:15px; }
+
+  /* media control */
+  .media { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin:-2px 0 12px;
+    padding:8px 9px; background:var(--app-bg); border:1px solid var(--app-border); border-radius:8px; }
+  .media .cap { font-size:11px; font-weight:800; color:var(--app-muted); letter-spacing:.03em; width:100%; }
+  .seg { display:inline-flex; border:1px solid var(--app-border); border-radius:999px; overflow:hidden; }
+  .seg button { font:inherit; font-size:11.5px; padding:5px 11px; border:none; background:var(--app-panel); color:var(--app-ink); cursor:pointer; }
+  .seg button.on { background:var(--accent); color:#fff; }
+  .filebtn { font-size:12px; cursor:pointer; border:1px solid var(--app-border); background:var(--app-panel);
+    color:var(--app-ink); padding:6px 11px; border-radius:6px; white-space:nowrap; }
+  .filebtn[hidden] { display:none; }
+  .murl { flex:1; min-width:120px; font:inherit; font-size:12.5px; padding:6px 9px; border:1px solid var(--app-border);
+    border-radius:6px; background:var(--bg); color:var(--app-ink); }
+  .mclear { border:none; background:transparent; color:var(--app-muted); font-size:17px; cursor:pointer; line-height:1; padding:2px 6px; }
+  .mclear:hover { color:var(--accent); }
+
+  /* preview */
+  .previewWrap { position:sticky; top:14px; }
+  .browser { background:var(--app-panel); border:1px solid var(--app-border); border-radius:12px; overflow:hidden;
+    box-shadow:0 12px 34px rgba(20,28,60,.14); }
+  .browser-bar { display:flex; align-items:center; gap:8px; padding:10px 13px; border-bottom:1px solid var(--app-border);
+    background:color-mix(in srgb, var(--app-panel) 88%, var(--app-bg)); }
+  .dots { display:flex; gap:6px; } .dots i { width:11px; height:11px; border-radius:50%; background:var(--app-border); }
+  .dots i:nth-child(1){background:#ff5f57;} .dots i:nth-child(2){background:#febc2e;} .dots i:nth-child(3){background:#28c840;}
+  .urlbar { flex:1; font-size:12px; color:var(--app-muted); background:var(--app-bg); border:1px solid var(--app-border);
+    border-radius:999px; padding:5px 12px; font-variant-numeric:tabular-nums; }
+  .tpl-badge { font-size:11px; color:var(--app-muted); white-space:nowrap; }
+  .viewport { max-height:80vh; overflow:auto; background:var(--bg); color:var(--ink); }
+  .preview { display:none; } .preview.is-shown { display:block; }
+  .hintline { margin:10px 4px 0; font-size:12px; color:var(--app-muted); }
+
+  /* ===== jijipom theme-faithful ===== */
+  .jjp { font-family:var(--font); color:var(--ink); }
+  .jjp .inner { max-width:1000px; margin-inline:auto; padding-inline:clamp(18px,4vw,40px); }
+  .jjp .site-header { display:flex; align-items:center; gap:14px; padding:15px clamp(18px,4vw,40px); border-bottom:1px solid var(--border); }
+  .jjp .logo { font-weight:800; font-size:1.1rem; }
+  .jjp .nav { display:flex; gap:15px; margin-left:auto; font-size:13px; color:var(--muted); }
+  .jjp .cta-btn { background:var(--accent); color:#fff; padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:600; }
+  .jjp .sec { padding-block:clamp(2rem,5vw,3.4rem); }
+  .jjp .sec--muted { background:var(--subtle); }
+  .jjp .sec__h { text-align:center; font-size:clamp(1.3rem,1.05rem+1vw,1.75rem); margin:0 0 1.3rem; }
+  .jjp .btn { display:inline-block; background:var(--accent); color:#fff; padding:10px 20px; border-radius:var(--radius); font-weight:600; font-size:.92rem; }
+  .jjp .btn--ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  .jjp .ph { position:relative; background:linear-gradient(135deg,var(--ph-a),var(--ph-b)); border-radius:var(--radius); background-size:cover; background-position:center; }
+  .jjp .ph::after { content:attr(data-ph); position:absolute; inset:0; display:grid; place-items:center; color:var(--muted); font-size:12px; letter-spacing:.03em; }
+  .jjp .ph.has-media::after { display:none; }
+  .jjp .ph.has-media > iframe { position:absolute; inset:0; width:100%; height:100%; border:0; border-radius:inherit; }
+
+  .jjp .hero { position:relative; overflow:hidden; min-height:300px; display:grid; align-items:center; color:#fff;
+    background:linear-gradient(120deg,#3a4a7a,#7d8bb5); }
+  .jjp .hero__media { position:absolute; inset:0; z-index:0; background-size:cover; background-position:center; pointer-events:none; }
+  .jjp .hero__media video, .jjp .hero__media iframe { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border:0; }
+  .jjp .hero::before { content:""; position:absolute; inset:0; z-index:1; background:linear-gradient(180deg,rgba(10,16,40,.35),rgba(10,16,40,.55)); }
+  .jjp .hero__in { position:relative; z-index:2; text-align:center; padding:42px 20px; margin-inline:auto; max-width:56ch; }
+  .jjp .hero h2 { font-size:clamp(1.6rem,1.1rem+2.2vw,2.6rem); margin:0 0 .5rem; text-wrap:balance; text-shadow:0 2px 12px rgba(0,0,0,.35); }
+  .jjp .hero p { font-size:1.05rem; margin:0 0 1.3rem; opacity:.96; }
+  .jjp .hero .btn { box-shadow:0 6px 20px rgba(0,0,0,.28); }
+
+  .jjp .lead { text-align:center; color:var(--muted); font-size:1.05rem; max-width:62ch; margin:.7rem auto 0; }
+  .jjp .page-head { text-align:center; padding:clamp(2rem,5vw,3.2rem) 0 0; }
+  .jjp .page-head h1 { font-size:clamp(1.55rem,1.2rem+1.6vw,2.3rem); margin:0; }
+
+  .jjp .cards { display:flex; flex-wrap:wrap; justify-content:center; gap:clamp(1rem,2.5vw,1.5rem); margin-top:1.3rem; }
+  .jjp .card { flex:1 1 300px; max-width:460px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .jjp .card .ph { border-radius:0; aspect-ratio:16/9; }
+  .jjp .card__b { padding:1rem 1.15rem 1.25rem; }
+  .jjp .card__b h3 { margin:0 0 .35rem; font-size:1.08rem; }
+  .jjp .card__b p { margin:0; color:var(--muted); font-size:.92rem; }
+
+  .jjp .split { display:grid; grid-template-columns:1fr 1fr; gap:clamp(1.2rem,3vw,2.2rem); align-items:center; }
+  .jjp .split .ph { aspect-ratio:4/3; }
+  .jjp .split p { margin:.2rem 0 1rem; }
+
+  .jjp .abouts { display:flex; flex-wrap:wrap; justify-content:center; gap:clamp(1rem,2.5vw,1.5rem); margin-top:1.3rem; }
+  .jjp .abouts > div { flex:1 1 200px; max-width:300px; }
+  .jjp .abouts .ph { aspect-ratio:1/1; margin-bottom:.6rem; }
+  .jjp .abouts h4 { margin:0 0 .25rem; } .jjp .abouts p { margin:0; color:var(--muted); font-size:.9rem; }
+
+  .jjp .blog { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(1rem,2.5vw,1.4rem); margin-top:1.3rem; }
+  .jjp .blog .ph { aspect-ratio:16/10; margin-bottom:.5rem; }
+  .jjp .blog time { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .jjp .blog h4 { margin:.2rem 0 0; font-size:.98rem; line-height:1.5; }
+
+  .jjp table.overview { width:100%; border-collapse:collapse; margin-top:1.2rem; background:var(--bg); font-size:.95rem; }
+  .jjp table.overview th, .jjp table.overview td { text-align:left; padding:.75rem 1rem; border:1px solid var(--border); vertical-align:top; }
+  .jjp table.overview th { width:30%; background:var(--subtle); font-weight:700; white-space:nowrap; }
+  .jjp .greet__name { text-align:right; font-weight:700; margin-top:.9rem; }
+  .jjp dl.access { margin:1.1rem 0 0; } .jjp dl.access dt { font-weight:700; } .jjp dl.access dd { margin:0 0 .6rem; color:var(--muted); }
+  .jjp .map { aspect-ratio:16/6; margin-top:1.1rem; overflow:hidden; }
+
+  .jjp .cc { display:flex; flex-wrap:wrap; justify-content:center; gap:clamp(.8rem,2.5vw,1.4rem); }
+  .jjp .cc__i { flex:1 1 220px; max-width:340px; text-align:center; padding:1.2rem 1.1rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); }
+  .jjp .cc__i .lb { font-size:12px; color:var(--muted); display:block; }
+  .jjp .cc__i .big { font-size:1.3rem; font-weight:700; color:var(--accent); }
+  .jjp .cc__i .v { font-weight:600; }
+  .jjp .form { max-width:60ch; margin:1.3rem auto 0; display:grid; gap:11px; }
+  .jjp .form .row { display:grid; gap:5px; } .jjp .form label { font-size:13px; font-weight:600; }
+  .jjp .form .fake { border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg); padding:9px 11px; color:var(--muted); font-size:13px; }
+  .jjp .form .fake.ta { min-height:66px; }
+
+  .jjp .article { max-width:70ch; margin-inline:auto; padding-block:clamp(2rem,5vw,3.2rem); }
+  .jjp .article h1 { font-size:clamp(1.5rem,1.2rem+1.4vw,2rem); margin:0; }
+  .jjp .article .meta { color:var(--muted); font-size:13px; margin:.4rem 0 1.3rem; }
+  .jjp .article h2 { font-size:1.12rem; margin:1.6rem 0 .35rem; }
+  .jjp .article p { margin:0 0 .85rem; }
+  .jjp .article .op { text-align:right; font-weight:600; margin-top:1.5rem; }
+
+  .jjp .footer { background:#141822; color:#c9cdd8; padding:24px clamp(18px,4vw,40px); font-size:12.5px; }
+  .jjp .footer .fnav { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:8px; color:#e7e9f0; }
+  .jjp .footer .soc { display:flex; gap:8px; margin-top:8px; } .jjp .footer .soc i { width:24px; height:24px; border-radius:50%; background:#2b3245; }
+
+  /* placeholder (empty text field) rendering */
+  .pl { white-space:pre-line; }
+  .pl.is-ph { color:var(--muted); opacity:.65; }
+  .hero .pl.is-ph { color:rgba(255,255,255,.72); }
+  .is-hidden { display:none !important; }
+
+  @media (max-width:980px) {
+    .work { grid-template-columns:1fr; }
+    .previewWrap { position:static; }
+    .switch { display:flex; }
+    body.show-preview .editor-col { display:none; }
+    body.show-editor .previewWrap { display:none; }
+    .jjp .split, .jjp .blog { grid-template-columns:1fr; }
+    .jjp .nav { display:none; }
+  }
+  @media (prefers-reduced-motion:reduce){ * { transition:none !important; } }
+
+  @media print {
+    body { background:#fff; }
+    .bar, .tabs, .switch, .editor-col, .browser-bar, .hintline { display:none !important; }
+    .work { display:block; } .browser { border:none; box-shadow:none; border-radius:0; }
+    .viewport { max-height:none; overflow:visible; }
+    .previewWrap { position:static; }
+  }
+</style>
+</head>
+<body class="show-editor">
+<div class="app">
+
+  <div class="bar">
+    <div>
+      <h1>コンテンツ入力＆ライブプレビュー</h1>
+      <p class="lede">左に入力すると、右のプレビューにすぐ反映されます（jijipom テーマ）。テキストは自動保存されます。</p>
+    </div>
+    <span class="spacer"></span>
+    <button class="btn-a primary" onclick="exportZip()">⬇ ZIPをエクスポート</button>
+    <button class="btn-a" onclick="copyAll()">📋 内容をコピー</button>
+    <button class="btn-a" onclick="window.print()">🖨 印刷 / PDF</button>
+    <button class="btn-a" onclick="resetAll()">リセット</button>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab is-active" data-page="top"><span class="n">①</span>トップ</button>
+    <button class="tab" data-page="service"><span class="n">②</span>サービス</button>
+    <button class="tab" data-page="company"><span class="n">③</span>会社概要</button>
+    <button class="tab" data-page="contact"><span class="n">④</span>お問い合わせ</button>
+    <button class="tab" data-page="privacy"><span class="n">⑤</span>プライバシー</button>
+  </nav>
+
+  <div class="switch">
+    <button data-view="editor" class="on">✎ 入力</button>
+    <button data-view="preview">👁 プレビュー</button>
+  </div>
+
+  <div class="work">
+
+    <!-- ============================ EDITORS ============================ -->
+    <div class="editor-col">
+
+      <!-- ① TOP -->
+      <div class="editor" data-page="top">
+        <div class="grp">メインビジュアル</div>
+        <div class="media" data-target="tp-hero" data-mode="hero">
+          <span class="cap">背景（画像 / 動画 / YouTube）</span>
+          <span class="seg">
+            <button type="button" data-htype="image" class="on">画像</button>
+            <button type="button" data-htype="video">動画</button>
+            <button type="button" data-htype="youtube">YouTube</button>
+          </span>
+          <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
+          <input class="murl" type="text" placeholder="または画像URL">
+          <button type="button" class="mclear" title="クリア">×</button>
+        </div>
+        <label class="fld"><span>キャッチコピー</span><textarea data-bind="tp-hero-h" data-sample="地域とともに、&#10;100年住み継ぐ家を。"></textarea></label>
+        <label class="fld"><span>サブテキスト</span><input data-bind="tp-hero-sub" data-sample="新築・リフォーム・外構工事｜創業35年の安心施工"></label>
+        <label class="fld"><span>ボタンの文言</span><input data-bind="tp-hero-btn" data-sample="無料相談はこちら"></label>
+        <label class="fld"><span>ボタンのリンク先URL</span><input data-bind="tp-hero-btn-url" placeholder="例: /contact/"></label>
+        <label class="chk"><input type="checkbox" data-btn="tp-hero-btn" checked> ボタンを表示する</label>
+
+        <div class="grp">サービスセクション</div>
+        <label class="chk"><input type="checkbox" data-vis="tp-sec-service" checked> サービスセクションを表示する</label>
+        <div class="media" data-target="tp-svc-img" data-mode="image">
+          <span class="cap">画像</span>
+          <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
+          <input class="murl" type="text" placeholder="または画像URL">
+          <button type="button" class="mclear" title="クリア">×</button>
+        </div>
+        <label class="fld"><span>説明文</span><textarea data-bind="tp-svc-text" data-sample="新築からリフォーム、外構まで。住まいのことならワンストップでお任せください。"></textarea></label>
+        <label class="fld"><span>ボタンの文言</span><input data-bind="tp-svc-btn" data-sample="サービスを見る"></label>
+        <label class="fld"><span>ボタンのリンク先URL</span><input data-bind="tp-svc-btn-url" placeholder="例: /service/"></label>
+        <label class="chk"><input type="checkbox" data-btn="tp-svc-btn" checked> ボタンを表示する</label>
+
+        <div class="grp">お知らせ（ブログ）</div>
+        <label class="fld"><span>見出し</span><input data-bind="tp-blog-h" data-sample="お知らせ"></label>
+        <p class="hintline" style="margin:0">記事とアイキャッチは投稿から自動表示されます。</p>
+
+        <div class="grp">会社紹介</div>
+        <label class="fld"><span>見出し</span><input data-bind="tp-about-h" data-sample="会社紹介"></label>
+        <div class="media" data-target="tp-ab1-img" data-mode="image">
+          <span class="cap">ブロック1 画像</span>
+          <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
+          <input class="murl" type="text" placeholder="または画像URL"><button type="button" class="mclear">×</button>
+        </div>
+        <div class="cols2">
+          <label class="fld"><span>ブロック1 タイトル</span><input data-bind="tp-ab1-t" data-sample="自社大工の施工"></label>
+          <label class="fld"><span>ブロック1 説明</span><input data-bind="tp-ab1-x" data-sample="一棟一棟丁寧に。"></label>
+        </div>
+        <label class="chk"><input type="checkbox" data-vis="tp-about1" checked> ブロック1を表示する</label>
+        <div class="media" data-target="tp-ab2-img" data-mode="image">
+          <span class="cap">ブロック2 画像</span>
+          <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
+          <input class="murl" type="text" placeholder="または画像URL"><button type="button" class="mclear">×</button>
+        </div>
+        <div class="cols2">
+          <label class="fld"><span>ブロック2 タイトル</span><input data-bind="tp-ab2-t" data-sample="地域密着35年"></label>
+          <label class="fld"><span>ブロック2 説明</span><input data-bind="tp-ab2-x" data-sample="3,000棟の実績。"></label>
+        </div>
+        <label class="chk"><input type="checkbox" data-vis="tp-about2" checked> ブロック2を表示する</label>
+        <div class="media" data-target="tp-ab3-img" data-mode="image">
+          <span class="cap">ブロック3 画像</span>
+          <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
+          <input class="murl" type="text" placeholder="または画像URL"><button type="button" class="mclear">×</button>
+        </div>
+        <div class="cols2">
+          <label class="fld"><span>ブロック3 タイトル</span><input data-bind="tp-ab3-t" data-sample="安心のアフター"></label>
+          <label class="fld"><span>ブロック3 説明</span><input data-bind="tp-ab3-x" data-sample="定期点検で長く安心。"></label>
+        </div>
+        <label class="chk"><input type="checkbox" data-vis="tp-about3" checked> ブロック3を表示する</label>
+      </div>
+
+      <!-- ② SERVICE -->
+      <div class="editor" data-page="service" hidden>
+        <div class="grp">ページ上部</div>
+        <label class="fld"><span>ページタイトル</span><input data-bind="sv-title" data-sample="サービス"></label>
+        <p class="hintline" style="margin:-4px 0 11px">実サイトでは固定ページ名がそのまま見出しになります。</p>
+        <label class="fld"><span>リード文</span><textarea data-bind="sv-lead" data-sample="住まいに関するお困りごとを、設計から施工・アフターまでワンストップで。"></textarea></label>
+        <label class="fld"><span>サービス一覧の見出し</span><input data-bind="sv-items-h" data-sample="提供サービス"></label>
+
+        <div class="grp">サービス項目</div>
+        <div class="media" data-target="sv-i1-img" data-mode="image"><span class="cap">項目1 写真</span>
+          <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
+          <input class="murl" type="text" placeholder="または画像URL"><button type="button" class="mclear">×</button></div>
+        <div class="cols2">
+          <label class="fld"><span>項目1 タイトル</span><input data-bind="sv-i1-t" data-sample="新築工事"></label>
+          <label class="fld"><span>項目1 説明</span><input data-bind="sv-i1-x" data-sample="自由設計の木造住宅。"></label>
+        </div>
+        <label class="chk"><input type="checkbox" data-vis="sv-card1" checked> 項目1を表示する</label>
+        <div class="media" data-target="sv-i2-img" data-mode="image"><span class="cap">項目2 写真</span>
+          <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
+          <input class="murl" type="text" placeholder="または画像URL"><button type="button" class="mclear">×</button></div>
+        <div class="cols2">
+          <label class="fld"><span>項目2 タイトル</span><input data-bind="sv-i2-t" data-sample="リフォーム"></label>
+          <label class="fld"><span>項目2 説明</span><input data-bind="sv-i2-x" data-sample="水回り・内装・断熱改修まで。"></label>
+        </div>
+        <label class="chk"><input type="checkbox" data-vis="sv-card2" checked> 項目2を表示する</label>
+        <div class="media" data-target="sv-i3-img" data-mode="image"><span class="cap">項目3 写真</span>
+          <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
+          <input class="murl" type="text" placeholder="または画像URL"><button type="button" class="mclear">×</button></div>
+        <div class="cols2">
+          <label class="fld"><span>項目3 タイトル</span><input data-bind="sv-i3-t" data-sample="外構工事"></label>
+          <label class="fld"><span>項目3 説明</span><input data-bind="sv-i3-x" data-sample="駐車場・フェンス・デッキ。"></label>
+        </div>
+        <label class="chk"><input type="checkbox" data-vis="sv-card3" checked> 項目3を表示する</label>
+        <div class="media" data-target="sv-i4-img" data-mode="image"><span class="cap">項目4 写真</span>
+          <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
+          <input class="murl" type="text" placeholder="または画像URL"><button type="button" class="mclear">×</button></div>
+        <div class="cols2">
+          <label class="fld"><span>項目4 タイトル</span><input data-bind="sv-i4-t" data-sample="メンテナンス"></label>
+          <label class="fld"><span>項目4 説明</span><input data-bind="sv-i4-x" data-sample="定期点検・修繕。"></label>
+        </div>
+        <label class="chk"><input type="checkbox" data-vis="sv-card4" checked> 項目4を表示する</label>
+
+        <div class="grp">強み・特徴</div>
+        <label class="fld"><span>見出し</span><input data-bind="sv-feat-h" data-sample="私たちの強み"></label>
+        <label class="fld"><span>本文</span><textarea data-bind="sv-feat-x" data-sample="自社大工による一貫施工で、品質とコストの両立を実現します。"></textarea></label>
+
+        <div class="grp">CTA（お問い合わせ誘導）</div>
+        <label class="fld"><span>見出し</span><input data-bind="sv-cta-h" data-sample="まずはお気軽にご相談ください"></label>
+        <label class="fld"><span>ボタンの文言</span><input data-bind="sv-cta-btn" data-sample="お問い合わせはこちら"></label>
+        <label class="fld"><span>ボタンのリンク先URL</span><input data-bind="sv-cta-url" placeholder="例: /contact/"></label>
+        <label class="chk"><input type="checkbox" data-btn="sv-cta-btn" checked> ボタンを表示する</label>
+      </div>
+
+      <!-- ③ COMPANY -->
+      <div class="editor" data-page="company" hidden>
+        <div class="grp">ページ上部</div>
+        <label class="fld"><span>ページタイトル</span><input data-bind="co-title" data-sample="会社概要"></label>
+        <p class="hintline" style="margin:-4px 0 11px">実サイトでは固定ページ名がそのまま見出しになります。</p>
+        <label class="fld"><span>リード文</span><textarea data-bind="co-lead" data-sample="地域の暮らしを支えて35年。私たちの想いをご紹介します。"></textarea></label>
+
+        <div class="grp">ごあいさつ</div>
+        <div class="media" data-target="co-greet-img" data-mode="image"><span class="cap">代表者の写真</span>
+          <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
+          <input class="murl" type="text" placeholder="または画像URL"><button type="button" class="mclear">×</button></div>
+        <label class="fld"><span>本文</span><textarea data-bind="co-greet" data-sample="お客様の暮らしに長く寄り添う家づくりを大切にしてきました。"></textarea></label>
+        <label class="fld"><span>役職・氏名</span><input data-bind="co-greet-name" data-sample="代表取締役　山田 太郎"></label>
+
+        <div class="grp">会社概要（表）</div>
+        <div class="cols2">
+          <label class="fld"><span>会社名</span><input data-bind="co-r1" data-sample="株式会社 山田工務店"></label>
+          <label class="fld"><span>代表者</span><input data-bind="co-r2" data-sample="代表取締役 山田 太郎"></label>
+          <label class="fld"><span>所在地</span><input data-bind="co-r3" data-sample="○○県△△市中央1-2-3"></label>
+          <label class="fld"><span>電話番号</span><input data-bind="co-r4" data-sample="000-000-0000"></label>
+          <label class="fld"><span>設立</span><input data-bind="co-r5" data-sample="1991年4月"></label>
+          <label class="fld"><span>資本金</span><input data-bind="co-r6" data-sample="1,000万円"></label>
+          <label class="fld"><span>事業内容</span><input data-bind="co-r7" data-sample="木造住宅の新築・リフォーム"></label>
+          <label class="fld"><span>許認可番号</span><input data-bind="co-r8" data-sample="○○県知事許可 第00000号"></label>
+        </div>
+
+        <div class="grp">アクセス</div>
+        <label class="fld"><span>住所</span><input data-bind="co-ac-addr" data-sample="○○県△△市中央1-2-3"></label>
+        <div class="cols2">
+          <label class="fld"><span>営業時間</span><input data-bind="co-ac-hours" data-sample="9:00〜18:00"></label>
+          <label class="fld"><span>定休日</span><input data-bind="co-ac-holiday" data-sample="日曜・祝日"></label>
+        </div>
+        <div class="media" data-target="co-map" data-mode="embed"><span class="cap">地図（Googleマップ埋め込みURL）</span>
+          <input class="murl" type="text" placeholder="https://www.google.com/maps/embed?..."><button type="button" class="mclear">×</button></div>
+      </div>
+
+      <!-- ④ CONTACT -->
+      <div class="editor" data-page="contact" hidden>
+        <div class="grp">ページ上部</div>
+        <label class="fld"><span>ページタイトル</span><input data-bind="ct-title" data-sample="お問い合わせ"></label>
+        <p class="hintline" style="margin:-4px 0 11px">実サイトでは固定ページ名がそのまま見出しになります。</p>
+        <label class="fld"><span>リード文</span><textarea data-bind="ct-lead" data-sample="お見積り・ご相談はお電話またはフォームから。お気軽にどうぞ。"></textarea></label>
+
+        <div class="grp">連絡先</div>
+        <label class="fld"><span>電話番号</span><input data-bind="ct-tel" data-sample="000-000-0000"></label>
+        <label class="fld"><span>電話の補足（受付時間など）</span><input data-bind="ct-tel-note" data-sample="平日 9:00〜18:00"></label>
+        <label class="fld"><span>メールアドレス</span><input data-bind="ct-email" data-sample="info@example.com"></label>
+        <div class="cols2">
+          <label class="fld"><span>営業時間</span><input data-bind="ct-hours" data-sample="9:00〜18:00"></label>
+          <label class="fld"><span>定休日</span><input data-bind="ct-holiday" data-sample="日曜・祝日"></label>
+        </div>
+        <label class="chk"><input type="checkbox" data-vis="ct-card-tel" checked> 「お電話」カードを表示する</label>
+        <label class="chk"><input type="checkbox" data-vis="ct-card-email" checked> 「メール」カードを表示する</label>
+        <label class="chk"><input type="checkbox" data-vis="ct-card-recv" checked> 「受付」カードを表示する</label>
+        <label class="fld"><span>対応エリア・補足</span><input data-bind="ct-area" data-sample="対応エリア：△△市および近隣市町村"></label>
+        <div class="grp">地図</div>
+        <div class="media" data-target="ct-map" data-mode="embed"><span class="cap">Googleマップ埋め込みURL</span>
+          <input class="murl" type="text" placeholder="https://www.google.com/maps/embed?..."><button type="button" class="mclear">×</button></div>
+      </div>
+
+      <!-- ⑤ PRIVACY -->
+      <div class="editor" data-page="privacy" hidden>
+        <div class="grp">見出し情報</div>
+        <label class="fld"><span>制定日・改定日</span><input data-bind="pv-date" data-sample="制定 2026年4月1日"></label>
+        <label class="fld"><span>事業者名</span><input data-bind="pv-op" data-sample="株式会社 山田工務店"></label>
+        <div class="grp">本文</div>
+        <label class="fld"><span>前文</span><textarea data-bind="pv-intro" data-sample="当社は、お客様の個人情報を適切に取り扱うため、以下のとおりプライバシーポリシーを定めます。"></textarea></label>
+        <label class="fld"><span>各条項の本文</span><textarea data-bind="pv-body" style="min-height:150px" data-sample="1. 取得する情報&#10;お問い合わせの際に、お名前・ご連絡先・ご相談内容をお預かりします。&#10;&#10;2. 利用目的&#10;お問い合わせ対応、お見積り・工事のご案内のために利用します。&#10;&#10;3. 第三者提供&#10;法令に基づく場合を除き、ご本人の同意なく第三者へ提供しません。"></textarea></label>
+      </div>
+
+    </div>
+
+    <!-- ============================ PREVIEW ============================ -->
+    <div class="previewWrap">
+      <div class="browser">
+        <div class="browser-bar">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <span class="urlbar" id="urlbar">yamada-koumuten.example.com/</span>
+          <span class="tpl-badge" id="tplBadge">front-page.php</span>
+        </div>
+        <div class="viewport" id="viewport">
+
+          <!-- TOP -->
+          <div class="preview is-shown jjp" id="page-top">
+            <div class="site-header"><span class="logo">山田工務店</span>
+              <span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span></div>
+            <div class="hero" id="tp-hero"><div class="hero__media" id="tp-hero-media"></div><div class="hero__in">
+              <h2 class="pl" id="tp-hero-h"></h2>
+              <p class="pl" id="tp-hero-sub"></p>
+              <span class="btn pl" id="tp-hero-btn"></span>
+            </div></div>
+            <section class="sec" id="tp-sec-service"><div class="inner"><h2 class="sec__h">サービス</h2>
+              <div class="split"><div class="ph" id="tp-svc-img" data-ph="サービス画像"></div>
+                <div><p class="pl" id="tp-svc-text"></p><span class="btn btn--ghost pl" id="tp-svc-btn"></span></div></div>
+            </div></section>
+            <section class="sec sec--muted"><div class="inner">
+              <h2 class="sec__h pl" id="tp-blog-h"></h2>
+              <div class="blog">
+                <article><div class="ph" data-ph="アイキャッチ"></div><time>2026.06.18</time><h4>△△市 S様邸 上棟しました</h4></article>
+                <article><div class="ph" data-ph="アイキャッチ"></div><time>2026.06.05</time><h4>キッチンリフォーム事例を追加</h4></article>
+                <article><div class="ph" data-ph="アイキャッチ"></div><time>2026.05.22</time><h4>夏の完成見学会のお知らせ</h4></article>
+              </div>
+            </div></section>
+            <section class="sec"><div class="inner"><h2 class="sec__h pl" id="tp-about-h"></h2>
+              <div class="abouts">
+                <div id="tp-about1"><div class="ph" id="tp-ab1-img" data-ph="画像"></div><h4 class="pl" id="tp-ab1-t"></h4><p class="pl" id="tp-ab1-x"></p></div>
+                <div id="tp-about2"><div class="ph" id="tp-ab2-img" data-ph="画像"></div><h4 class="pl" id="tp-ab2-t"></h4><p class="pl" id="tp-ab2-x"></p></div>
+                <div id="tp-about3"><div class="ph" id="tp-ab3-img" data-ph="画像"></div><h4 class="pl" id="tp-ab3-t"></h4><p class="pl" id="tp-ab3-x"></p></div>
+              </div>
+            </div></section>
+            <div class="footer"><div class="fnav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span><span>プライバシーポリシー</span></div>
+              <div>〒000-0000 ○○県△△市中央1-2-3 ／ TEL 000-000-0000</div><div class="soc"><i></i><i></i><i></i></div></div>
+          </div>
+
+          <!-- SERVICE -->
+          <div class="preview jjp" id="page-service">
+            <div class="site-header"><span class="logo">山田工務店</span>
+              <span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span></div>
+            <header class="page-head"><div class="inner"><h1 class="pl" id="sv-title"></h1><p class="lead pl" id="sv-lead"></p></div></header>
+            <section class="sec sec--muted"><div class="inner"><h2 class="sec__h pl" id="sv-items-h"></h2>
+              <div class="cards">
+                <article class="card" id="sv-card1"><div class="ph" id="sv-i1-img" data-ph="写真"></div><div class="card__b"><h3 class="pl" id="sv-i1-t"></h3><p class="pl" id="sv-i1-x"></p></div></article>
+                <article class="card" id="sv-card2"><div class="ph" id="sv-i2-img" data-ph="写真"></div><div class="card__b"><h3 class="pl" id="sv-i2-t"></h3><p class="pl" id="sv-i2-x"></p></div></article>
+                <article class="card" id="sv-card3"><div class="ph" id="sv-i3-img" data-ph="写真"></div><div class="card__b"><h3 class="pl" id="sv-i3-t"></h3><p class="pl" id="sv-i3-x"></p></div></article>
+                <article class="card" id="sv-card4"><div class="ph" id="sv-i4-img" data-ph="写真"></div><div class="card__b"><h3 class="pl" id="sv-i4-t"></h3><p class="pl" id="sv-i4-x"></p></div></article>
+              </div>
+            </div></section>
+            <section class="sec"><div class="inner"><h2 class="sec__h pl" id="sv-feat-h"></h2>
+              <p class="lead pl" id="sv-feat-x" style="max-width:66ch"></p></div></section>
+            <section class="sec sec--muted"><div class="inner" style="text-align:center">
+              <h2 class="sec__h pl" id="sv-cta-h" style="margin-bottom:.4rem"></h2>
+              <p class="lead" style="margin:0 auto 1.3rem">現地調査・お見積りは無料です。</p>
+              <span class="btn pl" id="sv-cta-btn"></span></div></section>
+          </div>
+
+          <!-- COMPANY -->
+          <div class="preview jjp" id="page-company">
+            <div class="site-header"><span class="logo">山田工務店</span>
+              <span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span></div>
+            <header class="page-head"><div class="inner"><h1 class="pl" id="co-title"></h1><p class="lead pl" id="co-lead"></p></div></header>
+            <section class="sec"><div class="inner"><h2 class="sec__h">ごあいさつ</h2>
+              <div class="split"><div class="ph" id="co-greet-img" data-ph="代表者の写真"></div>
+                <div><p class="pl" id="co-greet"></p><p class="greet__name pl" id="co-greet-name"></p></div></div></div></section>
+            <section class="sec sec--muted"><div class="inner"><h2 class="sec__h">会社概要</h2>
+              <table class="overview"><tbody>
+                <tr><th>会社名</th><td class="pl" id="co-r1"></td></tr>
+                <tr><th>代表者</th><td class="pl" id="co-r2"></td></tr>
+                <tr><th>所在地</th><td class="pl" id="co-r3"></td></tr>
+                <tr><th>電話番号</th><td class="pl" id="co-r4"></td></tr>
+                <tr><th>設立</th><td class="pl" id="co-r5"></td></tr>
+                <tr><th>資本金</th><td class="pl" id="co-r6"></td></tr>
+                <tr><th>事業内容</th><td class="pl" id="co-r7"></td></tr>
+                <tr><th>許認可番号</th><td class="pl" id="co-r8"></td></tr>
+              </tbody></table></div></section>
+            <section class="sec"><div class="inner"><h2 class="sec__h">アクセス</h2>
+              <dl class="access"><dt>住所</dt><dd class="pl" id="co-ac-addr"></dd>
+                <dt>営業時間</dt><dd class="pl" id="co-ac-hours"></dd>
+                <dt>定休日</dt><dd class="pl" id="co-ac-holiday"></dd></dl>
+              <div class="ph map" id="co-map" data-ph="Googleマップ（埋め込み）"></div></div></section>
+          </div>
+
+          <!-- CONTACT -->
+          <div class="preview jjp" id="page-contact">
+            <div class="site-header"><span class="logo">山田工務店</span>
+              <span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span></div>
+            <header class="page-head"><div class="inner"><h1 class="pl" id="ct-title"></h1><p class="lead pl" id="ct-lead"></p></div></header>
+            <section class="sec"><div class="inner"><div class="cc">
+              <div class="cc__i" id="ct-card-tel"><span class="lb">お電話</span><span class="big pl" id="ct-tel"></span><span class="lb pl" id="ct-tel-note"></span></div>
+              <div class="cc__i" id="ct-card-email"><span class="lb">メール</span><span class="v pl" id="ct-email"></span></div>
+              <div class="cc__i" id="ct-card-recv"><span class="lb">受付</span><span class="v pl" id="ct-hours"></span><span class="lb">定休日: <span class="pl" id="ct-holiday" style="display:inline"></span></span></div>
+            </div><p class="lead pl" id="ct-area" style="margin-top:1.3rem"></p></div></section>
+            <section class="sec sec--muted"><div class="inner"><h2 class="sec__h">お問い合わせフォーム</h2>
+              <div class="form">
+                <div class="row"><label>お名前</label><div class="fake">山田 花子</div></div>
+                <div class="row"><label>メールアドレス</label><div class="fake">hanako@example.com</div></div>
+                <div class="row"><label>ご相談内容</label><div class="fake ta">リフォームの見積りをお願いします…</div></div>
+                <span class="btn" style="justify-self:start">送信する</span>
+              </div></div></section>
+            <section class="sec"><div class="inner"><div class="ph map" id="ct-map" data-ph="Googleマップ（埋め込み）"></div></div></section>
+          </div>
+
+          <!-- PRIVACY -->
+          <div class="preview jjp" id="page-privacy">
+            <div class="site-header"><span class="logo">山田工務店</span>
+              <span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span></div>
+            <article class="article">
+              <h1>プライバシーポリシー</h1>
+              <p class="meta pl" id="pv-date"></p>
+              <p class="pl" id="pv-intro"></p>
+              <div class="pl" id="pv-body" style="white-space:pre-line"></div>
+              <p class="op pl" id="pv-op"></p>
+            </article>
+            <div class="footer"><div>〒000-0000 ○○県△△市中央1-2-3 ／ TEL 000-000-0000</div></div>
+          </div>
+
+        </div>
+      </div>
+      <p class="hintline">空欄はサンプル文が<span style="opacity:.6">薄く</span>表示されます。画像・動画はファイル選択（この画面用・保存されません）またはURL（保存されます）でセットできます。</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  var STORE = 'jijipom_live_v2';
+  var meta = {
+    top:     { url:'yamada-koumuten.example.com/',        tpl:'front-page.php' },
+    service: { url:'yamada-koumuten.example.com/service/', tpl:'テンプレート「サービス」' },
+    company: { url:'yamada-koumuten.example.com/company/', tpl:'テンプレート「会社概要」' },
+    contact: { url:'yamada-koumuten.example.com/contact/', tpl:'テンプレート「お問い合わせ」' },
+    privacy: { url:'yamada-koumuten.example.com/privacy/', tpl:'テンプレート「プライバシーポリシー」' }
+  };
+  var fields = Array.prototype.slice.call(document.querySelectorAll('[data-bind]'));
+  var btnToggles = Array.prototype.slice.call(document.querySelectorAll('[data-btn]'));
+  var visToggles = Array.prototype.slice.call(document.querySelectorAll('[data-vis]'));
+  var mediaCtrls = Array.prototype.slice.call(document.querySelectorAll('.media'));
+
+  // ---- persistence: { f:{bind:val}, b:{id:0}, m:{target:{type,src}} } (URL media only) ----
+  function loadSaved() { try { return JSON.parse(localStorage.getItem(STORE) || '{}') || {}; } catch (e) { return {}; } }
+  var state = loadSaved();
+  state.f = state.f || {}; state.b = state.b || {}; state.m = state.m || {};
+  function persist() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
+
+  function escAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ---- text fields ----
+  function applyField(f) {
+    var target = document.getElementById(f.dataset.bind);
+    if (!target) return;
+    var v = f.value.replace(/\s+$/, '');
+    if (v.trim() !== '') { target.textContent = v; target.classList.remove('is-ph'); }
+    else { target.textContent = (f.dataset.sample || ''); target.classList.add('is-ph'); }
+  }
+  fields.forEach(function (f) {
+    if (state.f[f.dataset.bind] != null) f.value = state.f[f.dataset.bind];
+    applyField(f);
+    f.addEventListener('input', function () {
+      if (f.value.trim() !== '') state.f[f.dataset.bind] = f.value; else delete state.f[f.dataset.bind];
+      applyField(f); persist();
+    });
+  });
+
+  // ---- button show / hide ----
+  function applyBtn(id, show) { var el = document.getElementById(id); if (el) el.classList.toggle('is-hidden', !show); }
+  function wireVisToggle(c, key) {
+    var id = c.dataset[key];
+    if (state.b[id] === 0) c.checked = false;
+    applyBtn(id, c.checked);
+    c.addEventListener('change', function () {
+      if (c.checked) delete state.b[id]; else state.b[id] = 0;
+      applyBtn(id, c.checked); persist();
+    });
+  }
+  btnToggles.forEach(function (c) { wireVisToggle(c, 'btn'); });
+  visToggles.forEach(function (c) { wireVisToggle(c, 'vis'); });
+
+  // ---- media (image / hero / embed) ----
+  function ytId(input) {
+    input = String(input || '').trim();
+    if (/^[A-Za-z0-9_-]{11}$/.test(input)) return input;
+    var m = input.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|v\/|live\/))([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : '';
+  }
+  function renderImage(target, src) {
+    var el = document.getElementById(target); if (!el) return;
+    if (src) { el.style.backgroundImage = 'url("' + src + '")'; el.classList.add('has-media'); }
+    else { el.style.backgroundImage = ''; el.classList.remove('has-media'); }
+  }
+  function renderEmbed(target, url) {
+    var el = document.getElementById(target); if (!el) return;
+    if (url) { el.innerHTML = '<iframe src="' + escAttr(url) + '" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>'; el.classList.add('has-media'); }
+    else { el.innerHTML = ''; el.classList.remove('has-media'); }
+  }
+  function renderHero(type, src) {
+    var m = document.getElementById('tp-hero-media'); if (!m) return;
+    m.innerHTML = ''; m.style.backgroundImage = '';
+    if (!src) return;
+    if (type === 'video') {
+      m.innerHTML = '<video autoplay muted loop playsinline src="' + escAttr(src) + '"></video>';
+    } else if (type === 'youtube') {
+      var id = ytId(src);
+      if (id) m.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + id +
+        '?autoplay=1&mute=1&loop=1&playlist=' + id + '&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1" allow="autoplay" frameborder="0"></iframe>';
+    } else {
+      m.style.backgroundImage = 'url("' + src + '")';
+    }
+  }
+
+  mediaCtrls.forEach(function (ctrl) {
+    var target = ctrl.dataset.target, mode = ctrl.dataset.mode;
+    var urlInput = ctrl.querySelector('.murl');
+    var fileInput = ctrl.querySelector('input[type="file"]');
+    var fileBtn = ctrl.querySelector('.filebtn');
+    var clearBtn = ctrl.querySelector('.mclear');
+    var heroType = 'image';
+
+    function renderBy(src, isUrl) {
+      if (mode === 'hero') renderHero(heroType, src);
+      else if (mode === 'embed') renderEmbed(target, src);
+      else renderImage(target, src);
+      // persist only URL-based media (not object URLs / files)
+      if (isUrl && src) state.m[target] = (mode === 'hero') ? { type: heroType, src: src } : { src: src };
+      else if (isUrl && !src) delete state.m[target];
+      if (isUrl) persist();
+    }
+
+    // hero type segmented control
+    if (mode === 'hero') {
+      var segBtns = ctrl.querySelectorAll('.seg button');
+      segBtns.forEach(function (b) {
+        b.addEventListener('click', function () {
+          segBtns.forEach(function (x) { x.classList.toggle('on', x === b); });
+          heroType = b.dataset.htype;
+          if (fileInput) fileInput.setAttribute('accept', heroType === 'video' ? 'video/*' : 'image/*');
+          if (fileBtn) fileBtn.hidden = (heroType === 'youtube');
+          urlInput.placeholder = heroType === 'image' ? 'または画像URL' : (heroType === 'video' ? 'または動画URL(mp4)' : 'YouTube URL または動画ID');
+          // switching type clears current media
+          urlInput.value = ''; if (fileInput) fileInput.value = '';
+          delete state.m[target]; persist();
+          renderHero(heroType, '');
+        });
+      });
+    }
+
+    if (urlInput) urlInput.addEventListener('input', function () { renderBy(urlInput.value.trim(), true); });
+    if (fileInput) fileInput.addEventListener('change', function () {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      var obj = URL.createObjectURL(file);
+      urlInput.value = '';                 // file takes over; not persisted
+      delete state.m[target]; persist();
+      renderBy(obj, false);
+    });
+    if (clearBtn) clearBtn.addEventListener('click', function () {
+      urlInput.value = ''; if (fileInput) fileInput.value = '';
+      delete state.m[target]; persist();
+      renderBy('', false);
+    });
+
+    // restore saved URL media
+    var saved = state.m[target];
+    if (saved && saved.src) {
+      if (mode === 'hero' && saved.type) {
+        heroType = saved.type;
+        var segBtns2 = ctrl.querySelectorAll('.seg button');
+        segBtns2.forEach(function (x) { x.classList.toggle('on', x.dataset.htype === heroType); });
+        if (fileInput) { fileInput.setAttribute('accept', heroType === 'video' ? 'video/*' : 'image/*'); }
+        if (fileBtn) fileBtn.hidden = (heroType === 'youtube');
+      }
+      urlInput.value = saved.src;
+      renderBy(saved.src, true);
+    }
+  });
+
+  // ---- tabs ----
+  var tabs = document.querySelectorAll('.tab');
+  var previews = document.querySelectorAll('.preview');
+  var editors = document.querySelectorAll('.editor');
+  var urlbar = document.getElementById('urlbar'), badge = document.getElementById('tplBadge');
+  var viewport = document.getElementById('viewport');
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      var key = t.dataset.page;
+      tabs.forEach(function (x) { x.classList.toggle('is-active', x === t); });
+      previews.forEach(function (p) { p.classList.toggle('is-shown', p.id === 'page-' + key); });
+      editors.forEach(function (e) { e.hidden = (e.dataset.page !== key); });
+      if (meta[key]) { urlbar.textContent = meta[key].url; badge.textContent = meta[key].tpl; }
+      viewport.scrollTop = 0;
+    });
+  });
+
+  // ---- mobile view switch ----
+  document.querySelectorAll('.switch button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.switch button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      document.body.className = (b.dataset.view === 'preview') ? 'show-preview' : 'show-editor';
+    });
+  });
+
+  // ---- actions ----
+  function resetAll() {
+    if (!confirm('入力内容・画像設定をすべて消去してサンプルに戻します。よろしいですか？')) return;
+    state = { f: {}, b: {}, m: {} }; persist();
+    location.reload();
+  }
+  function copyAll() {
+    var byPage = { top:'① トップ', service:'② サービス', company:'③ 会社概要', contact:'④ お問い合わせ', privacy:'⑤ プライバシー' };
+    var out = [];
+    editors.forEach(function (ed) {
+      out.push('■ ' + (byPage[ed.dataset.page] || ed.dataset.page));
+      ed.querySelectorAll('.fld').forEach(function (fld) {
+        var lb = fld.querySelector('span'); var input = fld.querySelector('[data-bind]');
+        if (!input) return;
+        var v = input.value.trim();
+        if (v) out.push('・' + (lb ? lb.textContent.trim() : '') + ': ' + v);
+      });
+      ed.querySelectorAll('[data-btn],[data-vis]').forEach(function (c) {
+        if (!c.checked) { var lbl = (c.parentElement ? c.parentElement.textContent : '').trim(); out.push('・' + lbl + ' → 非表示'); }
+      });
+      out.push('');
+    });
+    var text = out.join('\n').trim() || '(未入力)';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { alert('入力内容をコピーしました。'); }, function () { fb(text); });
+    } else { fb(text); }
+    function fb(t) { var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); alert('入力内容をコピーしました。'); } catch (e) { prompt('コピーしてください:', t); } document.body.removeChild(ta); }
+  }
+  // ================= エクスポート (jijipom テーマ設定 → ZIP) =================
+  function fv(id) { var el = document.querySelector('[data-bind="' + id + '"]'); return el ? el.value.trim() : ''; }
+  function isOn(attr, id) { var el = document.querySelector('[' + attr + '="' + id + '"]'); return el ? el.checked : true; }
+  function media(target) { var mm = state.m[target]; return (mm && mm.src) ? mm : null; }
+
+  function buildDoc() {
+    var tm = {};
+    function set(k, v) { tm[k] = v; }
+
+    // ---- メインビジュアル ----
+    var heroM = media('tp-hero');
+    set('jijipom_hero_type', heroM && heroM.type ? heroM.type : 'image');
+    set('jijipom_hero_image', heroM && (!heroM.type || heroM.type === 'image') ? heroM.src : '');
+    set('jijipom_hero_video', heroM && heroM.type === 'video' ? heroM.src : '');
+    set('jijipom_hero_youtube', heroM && heroM.type === 'youtube' ? heroM.src : '');
+    set('jijipom_hero_title', fv('tp-hero-h'));
+    set('jijipom_hero_subtitle', fv('tp-hero-sub'));
+    var heroBtn = isOn('data-btn', 'tp-hero-btn');
+    set('jijipom_hero_button_text', heroBtn ? fv('tp-hero-btn') : '');
+    set('jijipom_hero_button_url', heroBtn ? fv('tp-hero-btn-url') : '');
+
+    // ---- トップ: サービスセクション ----
+    set('jijipom_service_enable', isOn('data-vis', 'tp-sec-service'));
+    set('jijipom_service_text', fv('tp-svc-text'));
+    var svcBtn = isOn('data-btn', 'tp-svc-btn');
+    set('jijipom_service_button_text', svcBtn ? fv('tp-svc-btn') : '');
+    set('jijipom_service_button_url', svcBtn ? fv('tp-svc-btn-url') : '');
+    var svcImg = media('tp-svc-img'); set('jijipom_service_image', svcImg ? svcImg.src : '');
+
+    set('jijipom_blog_heading', fv('tp-blog-h'));
+
+    // ---- トップ: 会社紹介 ----
+    set('jijipom_about_heading', fv('tp-about-h'));
+    [1, 2, 3].forEach(function (n) {
+      var vis = isOn('data-vis', 'tp-about' + n);
+      var im = vis ? media('tp-ab' + n + '-img') : null;
+      set('jijipom_about_' + n + '_title', vis ? fv('tp-ab' + n + '-t') : '');
+      set('jijipom_about_' + n + '_text', vis ? fv('tp-ab' + n + '-x') : '');
+      set('jijipom_about_' + n + '_image', im ? im.src : '');
+    });
+
+    // ---- サービスページ ----
+    set('jijipom_svc_lead', fv('sv-lead'));
+    set('jijipom_svc_items_heading', fv('sv-items-h'));
+    [1, 2, 3, 4].forEach(function (n) {
+      var vis = isOn('data-vis', 'sv-card' + n);
+      var im = vis ? media('sv-i' + n + '-img') : null;
+      set('jijipom_svc_item' + n + '_title', vis ? fv('sv-i' + n + '-t') : '');
+      set('jijipom_svc_item' + n + '_text', vis ? fv('sv-i' + n + '-x') : '');
+      set('jijipom_svc_item' + n + '_image', im ? im.src : '');
+    });
+    set('jijipom_svc_feature_heading', fv('sv-feat-h'));
+    set('jijipom_svc_feature_text', fv('sv-feat-x'));
+    set('jijipom_svc_cta_heading', fv('sv-cta-h'));
+    var ctaBtn = isOn('data-btn', 'sv-cta-btn');
+    set('jijipom_svc_cta_button_text', ctaBtn ? fv('sv-cta-btn') : '');
+    set('jijipom_svc_cta_button_url', ctaBtn ? fv('sv-cta-url') : '');
+
+    // ---- 会社概要ページ ----
+    set('jijipom_company_lead', fv('co-lead'));
+    set('jijipom_company_greeting_text', fv('co-greet'));
+    set('jijipom_company_greeting_name', fv('co-greet-name'));
+    var gi = media('co-greet-img'); set('jijipom_company_greeting_image', gi ? gi.src : '');
+    var rowLabels = ['会社名', '代表者', '所在地', '電話番号', '設立', '資本金', '事業内容', '許認可番号'];
+    for (var r = 1; r <= 8; r++) {
+      set('jijipom_company_row' + r + '_label', rowLabels[r - 1]);
+      set('jijipom_company_row' + r + '_value', fv('co-r' + r));
+    }
+    set('jijipom_company_access_address', fv('co-ac-addr'));
+    set('jijipom_company_access_hours', fv('co-ac-hours'));
+    set('jijipom_company_access_holiday', fv('co-ac-holiday'));
+    var cm = media('co-map'); set('jijipom_company_map_url', cm ? cm.src : '');
+
+    // ---- お問い合わせページ ----
+    set('jijipom_contact_lead', fv('ct-lead'));
+    var telOn = isOn('data-vis', 'ct-card-tel');
+    set('jijipom_contact_tel', telOn ? fv('ct-tel') : '');
+    set('jijipom_contact_tel_note', telOn ? fv('ct-tel-note') : '');
+    var emailOn = isOn('data-vis', 'ct-card-email');
+    set('jijipom_contact_email', emailOn ? fv('ct-email') : '');
+    var recvOn = isOn('data-vis', 'ct-card-recv');
+    set('jijipom_contact_hours', recvOn ? fv('ct-hours') : '');
+    set('jijipom_contact_holiday', recvOn ? fv('ct-holiday') : '');
+    set('jijipom_contact_area', fv('ct-area'));
+    var tm2 = media('ct-map'); set('jijipom_contact_map_url', tm2 ? tm2.src : '');
+
+    // ---- プライバシーポリシー ----
+    set('jijipom_privacy_intro', fv('pv-intro'));
+    set('jijipom_privacy_operator', fv('pv-op'));
+    set('jijipom_privacy_established', fv('pv-date'));
+
+    var pages = {
+      home:    { title: 'ホーム' },
+      service: { title: fv('sv-title') || 'サービス' },
+      company: { title: fv('co-title') || '会社概要' },
+      contact: { title: fv('ct-title') || 'お問い合わせ' },
+      privacy: { title: 'プライバシーポリシー', content: fv('pv-body') }
+    };
+    return { schema: 'jijipom-content', version: 1, generated_by: 'jijipom-content-builder', theme_mods: tm, pages: pages };
+  }
+
+  // ---- 最小 ZIP 書き出し (無圧縮 store・1ファイル) ----
+  var crcTable = (function () { var t = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } return t; })();
+  function crc32(u8) { var c = 0xFFFFFFFF; for (var i = 0; i < u8.length; i++) c = crcTable[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function makeZip(name, content) {
+    var enc = new TextEncoder();
+    var fileData = enc.encode(content), nameBytes = enc.encode(name);
+    var crc = crc32(fileData), fnLen = nameBytes.length, dataLen = fileData.length;
+    var lh = new Uint8Array(30 + fnLen), dv = new DataView(lh.buffer);
+    dv.setUint32(0, 0x04034b50, true); dv.setUint16(4, 20, true); dv.setUint16(6, 0, true); dv.setUint16(8, 0, true);
+    dv.setUint16(10, 0, true); dv.setUint16(12, 0, true); dv.setUint32(14, crc, true);
+    dv.setUint32(18, dataLen, true); dv.setUint32(22, dataLen, true); dv.setUint16(26, fnLen, true); dv.setUint16(28, 0, true);
+    lh.set(nameBytes, 30);
+    var cd = new Uint8Array(46 + fnLen), cdv = new DataView(cd.buffer);
+    cdv.setUint32(0, 0x02014b50, true); cdv.setUint16(4, 20, true); cdv.setUint16(6, 20, true); cdv.setUint16(8, 0, true);
+    cdv.setUint16(10, 0, true); cdv.setUint16(12, 0, true); cdv.setUint16(14, 0, true); cdv.setUint32(16, crc, true);
+    cdv.setUint32(20, dataLen, true); cdv.setUint32(24, dataLen, true); cdv.setUint16(28, fnLen, true);
+    cdv.setUint16(30, 0, true); cdv.setUint16(32, 0, true); cdv.setUint16(34, 0, true); cdv.setUint16(36, 0, true);
+    cdv.setUint32(38, 0, true); cdv.setUint32(42, 0, true); cd.set(nameBytes, 46);
+    var eocd = new Uint8Array(22), edv = new DataView(eocd.buffer);
+    edv.setUint32(0, 0x06054b50, true); edv.setUint16(4, 0, true); edv.setUint16(6, 0, true);
+    edv.setUint16(8, 1, true); edv.setUint16(10, 1, true); edv.setUint32(12, cd.length, true);
+    edv.setUint32(16, lh.length + dataLen, true); edv.setUint16(20, 0, true);
+    return new Blob([lh, fileData, cd, eocd], { type: 'application/zip' });
+  }
+  function downloadBlob(blob, filename) {
+    var a = document.createElement('a'), url = URL.createObjectURL(blob);
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 120);
+  }
+  function exportZip() {
+    var json = JSON.stringify(buildDoc(), null, 2);
+    downloadBlob(makeZip('jijipom-content.json', json), 'jijipom-content.zip');
+  }
+
+  window.resetAll = resetAll; window.copyAll = copyAll; window.exportZip = exportZip;
+</script>
+</body>
+</html>
