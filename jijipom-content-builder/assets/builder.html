@@ -89,7 +89,7 @@
   .urlbar { flex:1; font-size:12px; color:var(--app-muted); background:var(--app-bg); border:1px solid var(--app-border);
     border-radius:999px; padding:5px 12px; font-variant-numeric:tabular-nums; }
   .tpl-badge { font-size:11px; color:var(--app-muted); white-space:nowrap; }
-  .viewport { max-height:80vh; overflow:auto; background:var(--bg); color:var(--ink); }
+  .viewport { background:var(--bg); color:var(--ink); }
   .preview { display:none; } .preview.is-shown { display:block; }
   .hintline { margin:10px 4px 0; font-size:12px; color:var(--app-muted); }
 
@@ -900,6 +900,22 @@
   }
 
   window.resetAll = resetAll; window.copyAll = copyAll; window.exportZip = exportZip;
+
+  // 親フレーム(管理画面 / ショートコード)へ中身の高さを通知し、iframe を
+  // 自動リサイズさせる。これで iframe 自体のスクロールバーが出ない。
+  function jcbPostHeight() {
+    try {
+      if (window.parent && window.parent !== window) {
+        var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+        window.parent.postMessage({ jijipomBuilderHeight: h }, '*');
+      }
+    } catch (e) {}
+  }
+  window.addEventListener('load', jcbPostHeight);
+  window.addEventListener('resize', jcbPostHeight);
+  if (window.ResizeObserver) { new ResizeObserver(jcbPostHeight).observe(document.body); }
+  document.addEventListener('click', function () { setTimeout(jcbPostHeight, 60); });
+  document.addEventListener('input', function () { setTimeout(jcbPostHeight, 60); });
 </script>
 </body>
 </html>
