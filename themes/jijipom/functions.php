@@ -6,7 +6,7 @@
  */
 
 if ( ! defined( 'JIJIPOM_VERSION' ) ) {
-	define( 'JIJIPOM_VERSION', '1.10.0' );
+	define( 'JIJIPOM_VERSION', '1.11.0' );
 }
 
 /**
@@ -187,6 +187,7 @@ require get_template_directory() . '/inc/customizer-fonts.php';
 require get_template_directory() . '/inc/customizer-colors.php';
 require get_template_directory() . '/inc/customizer-social.php';
 require get_template_directory() . '/inc/customizer-pages.php';
+require get_template_directory() . '/inc/importer.php';
 
 // 自動アップデート (日報マンのライセンスサーバから配信)
 require get_template_directory() . '/inc/theme-updater.php';
