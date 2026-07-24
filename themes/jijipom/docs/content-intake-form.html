@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jijipom サイト コンテンツ入力シート</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #5c5c5c; --line: #d9d9d5; --bg: #ffffff;
+    --subtle: #f6f6f4; --accent: #2b5cff; --radius: 8px;
+    --maxw: 900px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; color: var(--ink); background: #ececea;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+    line-height: 1.7; font-size: 15px;
+  }
+  .sheet { max-width: var(--maxw); margin: 24px auto; background: var(--bg); padding: clamp(20px, 4vw, 48px); border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+
+  header.doc { border-bottom: 3px solid var(--ink); padding-bottom: 16px; margin-bottom: 8px; }
+  .doc h1 { margin: 0 0 4px; font-size: clamp(1.4rem, 1rem + 1.8vw, 2rem); }
+  .doc p.sub { margin: 0; color: var(--muted); }
+
+  .meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 18px 0 8px; }
+  .meta label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  .meta input { width: 100%; border: none; border-bottom: 1px solid var(--line); padding: 6px 2px; font: inherit; background: transparent; }
+
+  .intro { background: var(--subtle); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin: 16px 0 26px; font-size: 14px; }
+  .intro strong { color: var(--accent); }
+  .intro ul { margin: 8px 0 0; padding-left: 20px; }
+
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 22px; }
+  .toolbar button {
+    font: inherit; font-size: 14px; cursor: pointer; border: 1px solid var(--line);
+    background: var(--bg); color: var(--ink); padding: 8px 16px; border-radius: 999px;
+  }
+  .toolbar button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  section.page { margin: 0 0 34px; break-inside: avoid; }
+  .page-head { display: flex; align-items: baseline; gap: 10px; border-left: 5px solid var(--accent); padding: 6px 0 6px 12px; background: linear-gradient(90deg, var(--subtle), transparent); }
+  .page-head .num { font-weight: 800; color: var(--accent); font-size: 1.1rem; }
+  .page-head h2 { margin: 0; font-size: 1.2rem; }
+  .page-head .tpl { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+  .region { padding: 14px 2px 6px; border-bottom: 1px dashed var(--line); }
+  .region:last-child { border-bottom: none; }
+  .region .label { font-weight: 700; }
+  .region .hint { color: var(--muted); font-size: 13px; margin: 2px 0 8px; }
+  .region textarea, .region input.line {
+    width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px;
+    font: inherit; font-size: 14px; background: #fcfcfb; resize: vertical;
+  }
+  .region textarea { min-height: 62px; }
+  .region.short textarea { min-height: 40px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; }
+  .subnote { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+
+  footer.doc { margin-top: 30px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+
+  @media (max-width: 640px) {
+    .meta, .grid2 { grid-template-columns: 1fr; }
+  }
+  @media print {
+    body { background: #fff; font-size: 11.5pt; }
+    .sheet { box-shadow: none; margin: 0; max-width: none; border-radius: 0; padding: 0; }
+    .toolbar { display: none; }
+    .region textarea, .region input.line { background: #fff; }
+    section.page { break-inside: avoid; }
+    .page-head { background: none; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header class="doc">
+    <h1>サイト コンテンツ入力シート</h1>
+    <p class="sub">jijipom テーマ ／ 各ページ・各領域に入れたい内容をご記入ください</p>
+  </header>
+
+  <div class="meta">
+    <div><label>会社名 / 屋号</label><input type="text"></div>
+    <div><label>ご記入者</label><input type="text"></div>
+    <div><label>記入日</label><input type="text" placeholder="2026 / ○ / ○"></div>
+  </div>
+
+  <div class="intro">
+    このシートは、ホームページに載せる文章・写真の内容を整理するためのものです。<strong>空欄は空欄のままでOK</strong>（その領域は自動的に非表示になります）。写真は「あり / なし」や枚数だけでも構いません。画面上で入力して
+    <strong>「印刷 / PDF保存」</strong>、または <strong>「入力内容をコピー」</strong>でテキストとして書き出せます。
+    <ul>
+      <li>各ページのタイトル（例:「サービス」「会社概要」）は WordPress の固定ページ名がそのまま見出しになります。</li>
+      <li>長い本文（サービスの詳細説明・プライバシーの各条項など）は本文欄にまとめて書いていただければ、こちらでページに反映します。</li>
+    </ul>
+  </div>
+
+  <div class="toolbar">
+    <button type="button" class="primary" onclick="window.print()">🖨 印刷 / PDF保存</button>
+    <button type="button" onclick="copyAll()">📋 入力内容をコピー</button>
+    <button type="button" onclick="if(confirm('入力内容をすべて消去します。よろしいですか？')){document.querySelectorAll('textarea,input').forEach(function(e){if(e.type!=='button')e.value='';});}">消去</button>
+  </div>
+
+  <!-- ============ ① トップページ ============ -->
+  <section class="page">
+    <div class="page-head"><span class="num">①</span><h2>トップページ</h2><span class="tpl">front-page.php</span></div>
+
+    <div class="region"><div class="label">メインビジュアル：キャッチコピー</div>
+      <div class="hint">一番上に大きく出る一言。改行可。例：「地域に根ざした、確かな家づくり」</div>
+      <textarea></textarea></div>
+    <div class="region"><div class="label">メインビジュアル：サブテキスト</div>
+      <div class="hint">キャッチコピーの下の補足。例：「創業30年。リフォームから新築まで。」</div>
+      <textarea class="short-x"></textarea></div>
+    <div class="region"><div class="label">メインビジュアル：背景（画像 / 動画 / YouTube）と素材</div>
+      <div class="hint">種類（画像／MP4動画／YouTube）と、画像なら枚数（最大3枚でスライド）。素材の有無も。</div>
+      <textarea class="short"></textarea></div>
+    <div class="region short"><div class="grid2">
+      <div><div class="label">ボタンの文言</div><input class="line" type="text" placeholder="例: お問い合わせ"></div>
+      <div><div class="label">ボタンのリンク先</div><input class="line" type="text" placeholder="例: お問い合わせページ"></div>
+    </div></div>
+
+    <div class="region"><div class="label">サービスセクション：見出し / 説明文 / 画像</div>
+      <div class="hint">トップに載せるサービス紹介。見出し（既定「サービス」）と説明文、使う画像の有無。</div>
+      <textarea></textarea></div>
+    <div class="region short"><div class="label">サービスセクション：ボタン文言 / リンク先</div>
+      <input class="line" type="text" placeholder="例: サービスを見る → サービスページ"></div>
+
+    <div class="region short"><div class="label">ブログセクション：見出し / 表示件数</div>
+      <div class="hint">最新記事を自動表示。見出し（既定「ブログ」）と件数（例：4件）。</div>
+      <input class="line" type="text" placeholder="例: お知らせ / 3件"></div>
+
+    <div class="region"><div class="label">会社紹介セクション：見出し ＋ ブロック1〜3（画像・タイトル・説明文）</div>
+      <div class="hint">3つまでの紹介ブロック。各ブロックのタイトルと説明、画像の有無を書いてください。</div>
+      <textarea></textarea></div>
+  </section>
+
+  <!-- ============ ② サービス ============ -->
+  <section class="page">
+    <div class="page-head"><span class="num">②</span><h2>サービス</h2><span class="tpl">テンプレート「サービス」</span></div>
+
+    <div class="region short"><div class="label">リード文（タイトル下の導入）</div>
+      <div class="hint">ページ上部の説明。例：「住まいに関するお困りごとを、ワンストップで。」</div>
+      <textarea class="short"></textarea></div>
+
+    <div class="region short"><div class="label">サービス一覧の見出し</div>
+      <input class="line" type="text" placeholder="既定: 提供サービス"></div>
+
+    <div class="region"><div class="label">サービス項目（最大4件）</div>
+      <div class="hint">1件ずつ「タイトル／説明／画像の有無」を。例：「新築工事 — 自由設計の木造住宅…（画像あり）」</div>
+      <textarea></textarea></div>
+
+    <div class="region"><div class="label">強み・特徴：見出し ＋ 本文</div>
+      <div class="hint">既定見出し「私たちの強み」。自社の強み・こだわりを文章で。</div>
+      <textarea></textarea></div>
+
+    <div class="region short"><div class="grid2">
+      <div><div class="label">CTA 見出し / 説明</div><input class="line" type="text" placeholder="例: まずはご相談ください"></div>
+      <div><div class="label">CTA ボタン文言 / リンク先</div><input class="line" type="text" placeholder="例: お問い合わせはこちら → 問い合わせページ"></div>
+    </div></div>
+
+    <div class="region"><div class="label">本文（補足・自由記述）</div>
+      <div class="hint">上記の枠に収まらない詳細や、料金・流れなどがあれば。ページ本文として掲載します。</div>
+      <textarea></textarea></div>
+  </section>
+
+  <!-- ============ ③ 会社概要 ============ -->
+  <section class="page">
+    <div class="page-head"><span class="num">③</span><h2>会社概要</h2><span class="tpl">テンプレート「会社概要」</span></div>
+
+    <div class="region short"><div class="label">リード文（タイトル下の導入）</div>
+      <textarea class="short"></textarea></div>
+
+    <div class="region"><div class="label">ごあいさつ：本文 ／ 役職・氏名 ／ 写真の有無</div>
+      <div class="hint">代表挨拶など。例：本文…、「代表取締役 山田 太郎」、顔写真あり。</div>
+      <textarea></textarea></div>
+
+    <div class="region"><div class="label">会社概要（表）</div>
+      <div class="hint">下記の項目に分かる範囲でご記入ください（不要な行は空欄でOK）。</div>
+      <div class="grid2">
+        <div><div class="label">会社名</div><input class="line" type="text"></div>
+        <div><div class="label">代表者</div><input class="line" type="text"></div>
+        <div><div class="label">所在地</div><input class="line" type="text"></div>
+        <div><div class="label">電話番号</div><input class="line" type="text"></div>
+        <div><div class="label">設立</div><input class="line" type="text"></div>
+        <div><div class="label">資本金</div><input class="line" type="text"></div>
+        <div><div class="label">事業内容</div><input class="line" type="text"></div>
+        <div><div class="label">許認可番号</div><input class="line" type="text" placeholder="建設業許可 等"></div>
+      </div>
+      <p class="subnote">その他に載せたい項目があれば本文欄へ。</p>
+    </div>
+
+    <div class="region"><div class="label">アクセス：住所 / 営業時間 / 定休日 / 地図</div>
+      <div class="hint">地図はGoogleマップの「地図を埋め込む」URLがあれば貼ってください（無ければ住所だけでOK）。</div>
+      <textarea></textarea></div>
+  </section>
+
+  <!-- ============ ④ お問い合わせ ============ -->
+  <section class="page">
+    <div class="page-head"><span class="num">④</span><h2>お問い合わせ</h2><span class="tpl">テンプレート「お問い合わせ」</span></div>
+
+    <div class="region short"><div class="label">リード文（タイトル下の導入）</div>
+      <textarea class="short"></textarea></div>
+
+    <div class="region short"><div class="grid2">
+      <div><div class="label">電話番号 / 受付の補足</div><input class="line" type="text" placeholder="例: 000-000-0000 / 平日9-18時"></div>
+      <div><div class="label">メールアドレス</div><input class="line" type="text"></div>
+      <div><div class="label">営業時間</div><input class="line" type="text"></div>
+      <div><div class="label">定休日</div><input class="line" type="text"></div>
+    </div></div>
+
+    <div class="region short"><div class="label">対応エリア・補足</div>
+      <textarea class="short"></textarea></div>
+
+    <div class="region short"><div class="label">問い合わせフォーム</div>
+      <div class="hint">フォームは必要ですか？（項目例：お名前・電話・メール・ご相談内容 など）。地図の掲載有無も。</div>
+      <textarea class="short"></textarea></div>
+  </section>
+
+  <!-- ============ ⑤ プライバシーポリシー ============ -->
+  <section class="page">
+    <div class="page-head"><span class="num">⑤</span><h2>プライバシーポリシー</h2><span class="tpl">テンプレート「プライバシーポリシー」</span></div>
+
+    <div class="region short"><div class="grid2">
+      <div><div class="label">事業者名</div><input class="line" type="text"></div>
+      <div><div class="label">制定日・改定日</div><input class="line" type="text" placeholder="例: 制定 2026年4月1日"></div>
+    </div></div>
+
+    <div class="region short"><div class="label">前文</div>
+      <div class="hint">冒頭の一文。空欄なら一般的な文面をこちらで用意します。</div>
+      <textarea class="short"></textarea></div>
+
+    <div class="region"><div class="label">各条項の本文</div>
+      <div class="hint">下記の項目について、自社の運用に合わせてご記入ください（一般的な雛形からの調整でOK）。取得する情報／利用目的／第三者提供／開示・訂正・削除／Cookie・アクセス解析／免責／改定／お問い合わせ窓口。</div>
+      <textarea style="min-height:120px;"></textarea></div>
+  </section>
+
+  <!-- ============ 全ページ共通 ============ -->
+  <section class="page">
+    <div class="page-head"><span class="num">＋</span><h2>全ページ共通</h2><span class="tpl">ヘッダー / フッター / 見た目</span></div>
+
+    <div class="region short"><div class="grid2">
+      <div><div class="label">サイトのタイトル</div><input class="line" type="text"></div>
+      <div><div class="label">キャッチフレーズ（説明文）</div><input class="line" type="text"></div>
+      <div><div class="label">ヘッダーのボタン（文言 / リンク先）</div><input class="line" type="text" placeholder="例: お問い合わせ → 問い合わせページ"></div>
+      <div><div class="label">ロゴ画像</div><input class="line" type="text" placeholder="あり / なし"></div>
+    </div></div>
+
+    <div class="region short"><div class="label">フッター：住所 / 電話番号</div>
+      <textarea class="short"></textarea></div>
+
+    <div class="region short"><div class="label">SNS（表示したいものにURL）</div>
+      <div class="hint">X（Twitter）／ Instagram ／ Facebook ／ Threads ／ TikTok ／ YouTube</div>
+      <textarea class="short"></textarea></div>
+
+    <div class="region short"><div class="label">色・フォントのご希望</div>
+      <div class="hint">メインカラーやイメージ（例：緑系で落ち着いた感じ／明朝体 など）。おまかせでもOK。</div>
+      <textarea class="short"></textarea></div>
+  </section>
+
+  <footer class="doc">
+    jijipom コンテンツ入力シート — 記入後は「印刷 / PDF保存」または「入力内容をコピー」で共有してください。
+  </footer>
+
+</div>
+
+<script>
+  function copyAll() {
+    var out = [];
+    document.querySelectorAll('section.page').forEach(function (sec) {
+      var head = sec.querySelector('.page-head h2');
+      out.push('■ ' + (head ? head.textContent.trim() : ''));
+      sec.querySelectorAll('.region').forEach(function (reg) {
+        // ラベルと入力を対応づけて出力
+        reg.querySelectorAll('textarea, input.line').forEach(function (field) {
+          var label = '';
+          var holder = field.closest('div');
+          var lb = holder ? holder.querySelector('.label') : null;
+          if (!lb) { var r = field.closest('.region'); lb = r ? r.querySelector('.label') : null; }
+          label = lb ? lb.textContent.trim() : '';
+          var val = (field.value || '').trim();
+          if (val) out.push('・' + label + ': ' + val);
+        });
+      });
+      out.push('');
+    });
+    var text = out.join('\n');
+    navigator.clipboard && navigator.clipboard.writeText
+      ? navigator.clipboard.writeText(text).then(function () { alert('入力内容をコピーしました。'); },
+          function () { fallbackCopy(text); })
+      : fallbackCopy(text);
+  }
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); alert('入力内容をコピーしました。'); }
+    catch (e) { prompt('以下をコピーしてください:', text); }
+    document.body.removeChild(ta);
+  }
+</script>
+</body>
+</html>
