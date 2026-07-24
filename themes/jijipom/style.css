@@ -4,7 +4,7 @@ Theme URI: https://example.com/jijipom
 Author: jijipom
 Author URI: https://example.com
 Description: どんなジャンルのサイトにも馴染む、シンプルで軽量・SEOに強いベーステーマ。セマンティックなHTML5マークアップ、構造化データ(JSON-LD)、OGP、パンくずリストを標準搭載。カスタマイズの叩き台としてお使いください。
-Version: 1.9.0
+Version: 1.10.0
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
@@ -787,3 +787,141 @@ input[type="submit"]:hover { background: var(--color-accent-hover); color: #fff;
     var(--color-border) 24px
   );
 }
+
+/* =========================================================
+   固定ページテンプレート (サービス / 会社概要 / お問い合わせ /
+   プライバシーポリシー)
+   ========================================================= */
+.page-template .site-main > .container { max-width: none; padding: 0; }
+
+/* ページ見出し + リード */
+.page-template__header {
+  padding-block: clamp(2.5rem, 6vw, 4rem) 0;
+  text-align: center;
+}
+.page-template__title {
+  margin: 0;
+  font-size: var(--fs-h1);
+  line-height: var(--lh-heading);
+}
+.page-template__lead {
+  margin: 1rem auto 0;
+  max-width: var(--content-width);
+  color: var(--color-text-muted);
+  font-size: var(--fs-lg);
+}
+
+/* --- サービス --- */
+.svc-items__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: clamp(1.25rem, 3vw, 2rem);
+  margin-top: 2rem;
+}
+.svc-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.svc-card__media { aspect-ratio: 16 / 9; background: var(--color-bg-subtle); }
+.svc-card__media img { width: 100%; height: 100%; object-fit: cover; }
+.svc-card__body { padding: 1.25rem 1.4rem 1.5rem; }
+.svc-card__title { margin: 0 0 .5rem; font-size: var(--fs-h4); }
+.svc-card__text { margin: 0; color: var(--color-text-muted); }
+.svc-feature__text { margin: 1rem 0 0; max-width: var(--content-width); }
+.svc-cta__inner { text-align: center; }
+.svc-cta__heading { margin: 0 0 .5rem; font-size: var(--fs-h2); }
+.svc-cta__text { margin: 0 auto 1.5rem; max-width: var(--content-width); color: var(--color-text-muted); }
+
+@media (max-width: 640px) {
+  .svc-items__grid { grid-template-columns: 1fr; }
+}
+
+/* --- 会社概要 --- */
+.company-greeting__grid.has-image {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: clamp(1.5rem, 4vw, 2.5rem);
+  align-items: start;
+  margin-top: 1.5rem;
+}
+.company-greeting__media img { width: 100%; border-radius: var(--radius); }
+.company-greeting__name { margin-top: 1rem; font-weight: 700; text-align: right; }
+.company-overview__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.5rem;
+  background: var(--color-bg);
+}
+.company-overview__table th,
+.company-overview__table td {
+  text-align: left;
+  padding: .9rem 1.1rem;
+  border: 1px solid var(--color-border);
+  vertical-align: top;
+}
+.company-overview__table th {
+  width: 30%;
+  background: var(--color-bg-subtle);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.company-access__info { margin: 1.25rem 0 0; }
+.company-access__info dt { font-weight: 700; }
+.company-access__info dd { margin: 0 0 .75rem; color: var(--color-text-muted); }
+.company-access__map { margin-top: 1.5rem; border-radius: var(--radius); overflow: hidden; }
+.company-access__map iframe { display: block; }
+
+@media (max-width: 640px) {
+  .company-greeting__grid.has-image { grid-template-columns: 1fr; }
+  .company-overview__table th { width: 38%; }
+}
+
+/* --- お問い合わせ --- */
+.contact-info__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(1rem, 3vw, 1.75rem);
+}
+.contact-card {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  padding: 1.4rem 1.5rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.contact-card__label { font-size: var(--fs-sm); color: var(--color-text-muted); }
+.contact-card__tel { font-size: 1.4rem; font-weight: 700; text-decoration: none; }
+.contact-card__email { font-weight: 600; text-decoration: none; word-break: break-all; }
+.contact-card__value { font-weight: 600; }
+.contact-card__note { font-size: var(--fs-sm); color: var(--color-text-muted); }
+.contact-info__area {
+  margin: 1.5rem auto 0;
+  max-width: var(--content-width);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.contact-form__body { max-width: var(--content-width); margin-inline: auto; }
+.contact-map__frame { border-radius: var(--radius); overflow: hidden; }
+.contact-map__frame iframe { display: block; }
+
+@media (max-width: 720px) {
+  .contact-info__grid { grid-template-columns: 1fr; }
+}
+
+/* --- プライバシーポリシー --- */
+.privacy-article {
+  max-width: var(--content-width);
+  padding-block: clamp(2.5rem, 6vw, 4rem);
+}
+.privacy-article .page-template__header { text-align: left; padding: 0; }
+.privacy-article__meta { margin: .5rem 0 0; color: var(--color-text-muted); font-size: var(--fs-sm); }
+.privacy-article__intro { margin: 1.5rem 0; }
+.privacy-article__body h2 { font-size: var(--fs-h3); margin-top: 2rem; }
+.privacy-article__operator { margin-top: 2rem; text-align: right; font-weight: 600; }
