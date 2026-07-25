@@ -4,7 +4,7 @@ Theme URI: https://example.com/jijipom
 Author: jijipom
 Author URI: https://example.com
 Description: どんなジャンルのサイトにも馴染む、シンプルで軽量・SEOに強いベーステーマ。セマンティックなHTML5マークアップ、構造化データ(JSON-LD)、OGP、パンくずリストを標準搭載。カスタマイズの叩き台としてお使いください。
-Version: 1.16.1
+Version: 1.17.0
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
@@ -891,6 +891,18 @@ input[type="submit"]:hover { background: var(--color-accent-hover); color: #fff;
   display: flex;
   flex-direction: column;
 }
+/* リンク付きサービスカード(カード全体がリンク) */
+.svc-card--link {
+  text-decoration: none;
+  color: inherit;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+.svc-card--link:hover {
+  transform: translateY(-3px);
+  border-color: var(--color-accent);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
+}
+.svc-card--link:hover .svc-card__title { color: var(--color-accent); }
 .svc-card__media { aspect-ratio: 16 / 9; background: var(--color-bg-subtle); }
 .svc-card__media img { width: 100%; height: 100%; object-fit: cover; }
 .svc-card__body { padding: 1.25rem 1.4rem 1.5rem; }

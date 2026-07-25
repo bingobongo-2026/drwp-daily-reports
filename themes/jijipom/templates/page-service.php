@@ -27,11 +27,13 @@ for ( $i = 1; $i <= 4; $i++ ) {
 	$title = get_theme_mod( "jijipom_svc_item{$i}_title", '' );
 	$text  = get_theme_mod( "jijipom_svc_item{$i}_text", '' );
 	$image = get_theme_mod( "jijipom_svc_item{$i}_image", '' );
+	$url   = get_theme_mod( "jijipom_svc_item{$i}_url", '' );
 	if ( '' !== $title || '' !== $text || '' !== $image ) {
 		$jijipom_items[] = array(
 			'title' => $title,
 			'text'  => $text,
 			'image' => $image,
+			'url'   => $url,
 		);
 	}
 }
@@ -57,8 +59,16 @@ for ( $i = 1; $i <= 4; $i++ ) {
 						<h2 class="front-section__heading"><?php echo esc_html( $jijipom_items_heading ); ?></h2>
 					<?php endif; ?>
 					<div class="svc-items__grid">
-						<?php foreach ( $jijipom_items as $item ) : ?>
-							<article class="svc-card">
+						<?php
+						foreach ( $jijipom_items as $item ) :
+							$jijipom_has_link = ! empty( $item['url'] );
+							// リンクありのカードは <a>、無しは <article> で出力する。
+							if ( $jijipom_has_link ) {
+								printf( '<a class="svc-card svc-card--link" href="%s">', esc_url( $item['url'] ) );
+							} else {
+								echo '<article class="svc-card">';
+							}
+							?>
 								<?php if ( $item['image'] ) : ?>
 									<div class="svc-card__media">
 										<img src="<?php echo esc_url( $item['image'] ); ?>" alt="<?php echo esc_attr( $item['title'] ); ?>" loading="lazy">
@@ -72,7 +82,7 @@ for ( $i = 1; $i <= 4; $i++ ) {
 										<p class="svc-card__text"><?php echo nl2br( esc_html( $item['text'] ) ); ?></p>
 									<?php endif; ?>
 								</div>
-							</article>
+							<?php echo $jijipom_has_link ? '</a>' : '</article>'; ?>
 						<?php endforeach; ?>
 					</div>
 				</div>

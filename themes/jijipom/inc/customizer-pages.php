@@ -46,6 +46,7 @@ function jijipom_pages_customize_register( $wp_customize ) {
 		jijipom_fp_add( $wp_customize, "jijipom_svc_item{$i}_title", array( 'section' => 'jijipom_page_service', 'label' => $svc_label . ' : ' . __( 'タイトル', 'jijipom' ) ) );
 		jijipom_fp_add( $wp_customize, "jijipom_svc_item{$i}_text",  array( 'type' => 'textarea', 'section' => 'jijipom_page_service', 'label' => $svc_label . ' : ' . __( '説明文', 'jijipom' ) ) );
 		jijipom_fp_add( $wp_customize, "jijipom_svc_item{$i}_image", array( 'type' => 'image', 'section' => 'jijipom_page_service', 'label' => $svc_label . ' : ' . __( '画像', 'jijipom' ) ) );
+		jijipom_fp_add( $wp_customize, "jijipom_svc_item{$i}_url",   array( 'type' => 'url', 'section' => 'jijipom_page_service', 'label' => $svc_label . ' : ' . __( 'リンク先URL', 'jijipom' ), 'desc' => __( '入力するとカード全体がこのURLへのリンクになります。', 'jijipom' ) ) );
 	}
 
 	jijipom_fp_add( $wp_customize, 'jijipom_svc_feature_heading', array( 'section' => 'jijipom_page_service', 'label' => __( '強み・特徴の見出し', 'jijipom' ), 'default' => __( '私たちの強み', 'jijipom' ) ) );
