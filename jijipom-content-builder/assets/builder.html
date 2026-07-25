@@ -72,6 +72,18 @@
   .sns-row { display:flex; gap:8px; }
   .sns-row input:not([type="number"]) { flex:1; min-width:0; }
   .sns-row input[type="number"] { width:58px; flex:none; text-align:center; }
+  .fld select { width:100%; font:inherit; font-size:13.5px; color:var(--app-ink);
+    background:var(--bg); border:1px solid var(--app-border); border-radius:var(--r-sm); padding:8px 10px; }
+  /* 色指定(未指定=テーマ標準の配色) */
+  .colorrow { display:flex; align-items:center; gap:8px; }
+  .colorrow input[type="color"] { width:46px; height:32px; flex:none; padding:2px; cursor:pointer;
+    background:var(--bg); border:1px solid var(--app-border); border-radius:var(--r-sm); }
+  /* 未指定(テーマ標準)のときは見本の色を薄くして、指定済みと区別する */
+  .colorrow input[type="color"].is-default { opacity:.4; }
+  .colorrow .cstate { flex:1; min-width:0; font-size:12px; color:var(--app-muted); }
+  .colorrow .cclear { flex:none; font:inherit; font-size:11.5px; padding:5px 9px; cursor:pointer;
+    background:var(--bg); border:1px solid var(--app-border); border-radius:var(--r-sm); color:var(--app-muted); }
+  .colorrow .cclear:hover { border-color:var(--accent); color:var(--accent); }
 
   /* button show/hide */
   .chk { display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--app-muted); margin:-4px 0 12px; cursor:pointer; user-select:none; }
@@ -137,7 +149,13 @@
   .jjp .logo img { max-height:34px; width:auto; display:block; }
   .jjp .site-actions { margin-left:auto; display:flex; align-items:center; gap:14px; }
   .jjp .nav { display:flex; gap:15px; font-size:13px; color:var(--muted); }
-  .jjp .cta-btn { background:var(--accent); color:#fff; padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:600; white-space:nowrap; }
+  .jjp .hdr-btns { display:inline-flex; align-items:center; gap:8px; }
+  .jjp .cta-btn, .jjp .sub-btn { display:inline-flex; align-items:center; gap:5px; padding:7px 14px;
+    border:1px solid transparent; border-radius:999px; font-size:12.5px; font-weight:600; white-space:nowrap; }
+  .jjp .cta-btn { background:var(--accent); color:#fff; }
+  /* サブボタンの既定は控えめな枠線スタイル(jijipom の .header-sub と揃える) */
+  .jjp .sub-btn { background:transparent; border-color:var(--accent); color:var(--accent); }
+  .jjp .cta-btn svg, .jjp .sub-btn svg { width:1.05em; height:1.05em; fill:currentColor; flex:none; }
   /* ハンバーガー(スマホ時のみ表示。実テーマの menu-toggle と同じ見た目) */
   .jjp .hamburger { display:none; width:38px; height:32px; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:6px; flex:none; }
   .jjp .hamburger i { position:relative; display:block; width:18px; height:2px; background:var(--ink); border-radius:2px; }
@@ -337,6 +355,40 @@
             <option value="yugothic">游ゴシック</option><option value="yumincho">游明朝</option><option value="maru">丸ゴシック</option>
             <option value="meiryo">メイリオ</option><option value="system">システム標準</option><option value="mono">等幅 (モノスペース)</option>
           </select></label>
+
+        <div class="grp">ヘッダーボタン : メイン（右端）</div>
+        <p class="hintline" style="margin:-2px 0 10px">ヘッダー右側のボタン。<b>文言とリンク先URLの両方</b>を入れると実サイトに表示されます。色は「テーマ標準」のままだとテーマの配色に従います。</p>
+        <label class="fld"><span>文言</span><input data-bind="hdr-cta-text" data-hdr placeholder="例: 無料相談"></label>
+        <label class="fld"><span>リンク先URL</span><input data-bind="hdr-cta-url" data-hdr placeholder="例: /contact/"></label>
+        <label class="fld"><span>アイコン</span>
+          <select data-bind="hdr-cta-icon" data-hdr>
+            <option value="">なし</option><option value="mail">メール</option><option value="phone">電話</option>
+            <option value="chat">吹き出し (相談)</option><option value="calendar">カレンダー (予約)</option>
+            <option value="document">書類 (資料請求)</option><option value="download">ダウンロード</option>
+            <option value="pin">地図ピン</option><option value="person">人 (担当者)</option>
+            <option value="arrow">右矢印</option><option value="external">外部リンク</option>
+          </select></label>
+        <div class="fld"><span>背景色</span>
+          <div class="colorrow"><input type="color" data-color="hdr-cta-bg" value="#2b5cff"><span class="cstate"></span><button type="button" class="cclear">テーマ標準に戻す</button></div></div>
+        <div class="fld"><span>文字色</span>
+          <div class="colorrow"><input type="color" data-color="hdr-cta-color" value="#ffffff"><span class="cstate"></span><button type="button" class="cclear">テーマ標準に戻す</button></div></div>
+
+        <div class="grp">ヘッダーボタン : サブ（メインの左隣）</div>
+        <p class="hintline" style="margin:-2px 0 10px">メインボタンの左隣にもう1つ並べたいときに入力します。空欄なら表示されません。</p>
+        <label class="fld"><span>文言</span><input data-bind="hdr-sub-text" data-hdr placeholder="例: 資料請求"></label>
+        <label class="fld"><span>リンク先URL</span><input data-bind="hdr-sub-url" data-hdr placeholder="例: /document/"></label>
+        <label class="fld"><span>アイコン</span>
+          <select data-bind="hdr-sub-icon" data-hdr>
+            <option value="">なし</option><option value="mail">メール</option><option value="phone">電話</option>
+            <option value="chat">吹き出し (相談)</option><option value="calendar">カレンダー (予約)</option>
+            <option value="document">書類 (資料請求)</option><option value="download">ダウンロード</option>
+            <option value="pin">地図ピン</option><option value="person">人 (担当者)</option>
+            <option value="arrow">右矢印</option><option value="external">外部リンク</option>
+          </select></label>
+        <div class="fld"><span>背景色</span>
+          <div class="colorrow"><input type="color" data-color="hdr-sub-bg" value="#ffffff"><span class="cstate"></span><button type="button" class="cclear">テーマ標準に戻す</button></div></div>
+        <div class="fld"><span>文字色</span>
+          <div class="colorrow"><input type="color" data-color="hdr-sub-color" value="#2b5cff"><span class="cstate"></span><button type="button" class="cclear">テーマ標準に戻す</button></div></div>
 
         <div class="grp">ソーシャルメディア</div>
         <p class="hintline" style="margin:-2px 0 10px">URLを入れたSNSだけフッターにアイコン表示されます（右の数字＝表示順・小さいほど左）。</p>
@@ -571,7 +623,7 @@
           <!-- TOP -->
           <div class="preview is-shown jjp" id="page-top">
             <div class="site-header"><div class="site-header__in"><span class="logo">山田工務店</span>
-              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span><span class="hamburger" aria-hidden="true"><i></i></span></span></div></div>
+              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="hdr-btns"></span><span class="hamburger" aria-hidden="true"><i></i></span></span></div></div>
             <div class="hero" id="tp-hero"><div class="hero__media" id="tp-hero-media"></div><div class="hero__in">
               <h2 class="pl" id="tp-hero-h"></h2>
               <p class="pl" id="tp-hero-sub"></p>
@@ -612,7 +664,7 @@
           <!-- SERVICE -->
           <div class="preview jjp" id="page-service">
             <div class="site-header"><div class="site-header__in"><span class="logo">山田工務店</span>
-              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span><span class="hamburger" aria-hidden="true"><i></i></span></span></div></div>
+              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="hdr-btns"></span><span class="hamburger" aria-hidden="true"><i></i></span></span></div></div>
             <header class="page-head"><div class="inner"><h1 class="pl" id="sv-title"></h1><p class="lead pl" id="sv-lead"></p></div></header>
             <section class="sec sec--muted"><div class="inner"><h2 class="sec__h pl" id="sv-items-h"></h2>
               <div class="cards">
@@ -642,7 +694,7 @@
           <!-- COMPANY -->
           <div class="preview jjp" id="page-company">
             <div class="site-header"><div class="site-header__in"><span class="logo">山田工務店</span>
-              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span><span class="hamburger" aria-hidden="true"><i></i></span></span></div></div>
+              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="hdr-btns"></span><span class="hamburger" aria-hidden="true"><i></i></span></span></div></div>
             <header class="page-head"><div class="inner"><h1 class="pl" id="co-title"></h1><p class="lead pl" id="co-lead"></p></div></header>
             <section class="sec"><div class="inner"><h2 class="sec__h">ごあいさつ</h2>
               <div class="split"><div class="ph" id="co-greet-img" data-ph="代表者の写真"></div>
@@ -677,7 +729,7 @@
           <!-- CONTACT -->
           <div class="preview jjp" id="page-contact">
             <div class="site-header"><div class="site-header__in"><span class="logo">山田工務店</span>
-              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span><span class="hamburger" aria-hidden="true"><i></i></span></span></div></div>
+              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="hdr-btns"></span><span class="hamburger" aria-hidden="true"><i></i></span></span></div></div>
             <header class="page-head"><div class="inner"><h1 class="pl" id="ct-title"></h1><p class="lead pl" id="ct-lead"></p></div></header>
             <section class="sec"><div class="inner"><div class="cc">
               <div class="cc__i" id="ct-card-tel"><span class="lb">お電話</span><span class="big pl" id="ct-tel"></span><span class="lb pl" id="ct-tel-note"></span></div>
@@ -706,7 +758,7 @@
           <!-- PRIVACY -->
           <div class="preview jjp" id="page-privacy">
             <div class="site-header"><div class="site-header__in"><span class="logo">山田工務店</span>
-              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span><span class="hamburger" aria-hidden="true"><i></i></span></span></div></div>
+              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="hdr-btns"></span><span class="hamburger" aria-hidden="true"><i></i></span></span></div></div>
             <article class="article">
               <h1>プライバシーポリシー</h1>
               <p class="meta pl" id="pv-date"></p>
@@ -1020,6 +1072,72 @@
   });
   applySocial();
 
+  // ---- ヘッダーボタン (メインCTA + 左隣のサブボタン) ----
+  // アイコンは jijipom の jijipom_button_icon_svg() と同じスラッグ・同じパス。
+  var BTN_ICONS = {
+    mail: 'M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z',
+    phone: 'M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z',
+    chat: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z',
+    calendar: 'M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z',
+    document: 'M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z',
+    download: 'M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z',
+    pin: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z',
+    person: 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
+    arrow: 'M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z',
+    external: 'M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z'
+  };
+  // 左から順に描画する。sample はプレビューだけの仮表示(未入力時)。
+  var HDR_BTNS = [
+    { key: 'sub', cls: 'sub-btn', sample: '' },
+    { key: 'cta', cls: 'cta-btn', sample: '無料相談' }
+  ];
+  /** 色は明示指定されたときだけ値を返す(未指定 = テーマ標準)。 */
+  function colorVal(key) {
+    var v = state.f[key];
+    return (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) ? v : '';
+  }
+  function btnIconSvg(slug) {
+    var d = BTN_ICONS[slug];
+    return d ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg>' : '';
+  }
+  function applyHeaderButtons() {
+    var html = HDR_BTNS.map(function (b) {
+      var text = fv('hdr-' + b.key + '-text') || b.sample;
+      if (!text) return '';
+      var st = '', bg = colorVal('hdr-' + b.key + '-bg'), fg = colorVal('hdr-' + b.key + '-color');
+      if (bg) st += 'background:' + bg + ';border-color:' + bg + ';';
+      if (fg) st += 'color:' + fg + ';';
+      return '<span class="' + b.cls + '"' + (st ? ' style="' + escAttr(st) + '"' : '') + '>'
+        + btnIconSvg(fv('hdr-' + b.key + '-icon')) + '<span>' + escAttr(text) + '</span></span>';
+    }).join('');
+    document.querySelectorAll('.jjp .hdr-btns').forEach(function (el) { el.innerHTML = html; });
+  }
+  document.querySelectorAll('[data-hdr]').forEach(function (el) {
+    el.addEventListener('input', applyHeaderButtons);
+    el.addEventListener('change', applyHeaderButtons);
+  });
+  // 色ピッカー: 選ぶと state に保存、「テーマ標準に戻す」で未指定へ。
+  document.querySelectorAll('[data-color]').forEach(function (inp) {
+    var key = inp.dataset.color;
+    var row = inp.parentNode;
+    var lab = row.querySelector('.cstate');
+    var clr = row.querySelector('.cclear');
+    function sync() {
+      var v = colorVal(key);
+      if (v) inp.value = v;
+      inp.classList.toggle('is-default', !v);
+      if (lab) lab.textContent = v ? v.toUpperCase() : 'テーマ標準';
+    }
+    inp.addEventListener('input', function () {
+      state.f[key] = inp.value; sync(); applyHeaderButtons(); persist();
+    });
+    if (clr) clr.addEventListener('click', function () {
+      delete state.f[key]; sync(); applyHeaderButtons(); persist();
+    });
+    sync();
+  });
+  applyHeaderButtons();
+
   // ---- サービス項目のリンク: URLが入っているカードにリンク目印(is-link)を付ける ----
   function applyLinks() {
     document.querySelectorAll('[data-link]').forEach(function (inp) {
@@ -1141,6 +1259,16 @@
     ['base', 'heading', 'body', 'form'].forEach(function (role) {
       var sel = document.querySelector('[data-font="' + role + '"]');
       set('jijipom_font_' + role, sel ? sel.value : '');
+    });
+
+    // ---- ヘッダーボタン (メイン=cta / サブ=sub) ----
+    // 色は未指定なら空文字で送り、jijipom 側でテーマ標準の配色になる。
+    HDR_BTNS.forEach(function (b) {
+      set('jijipom_header_' + b.key + '_text', fv('hdr-' + b.key + '-text'));
+      set('jijipom_header_' + b.key + '_url', fv('hdr-' + b.key + '-url'));
+      set('jijipom_header_' + b.key + '_icon', fv('hdr-' + b.key + '-icon'));
+      set('jijipom_header_' + b.key + '_bg', colorVal('hdr-' + b.key + '-bg'));
+      set('jijipom_header_' + b.key + '_color', colorVal('hdr-' + b.key + '-color'));
     });
 
     // ---- ソーシャルメディア (URL + 表示順) ----

@@ -213,6 +213,14 @@ class Jijipom_Importer {
 			'jijipom_privacy_operator'    => 'text',
 			'jijipom_privacy_established'  => 'text',
 		);
+		// ヘッダーボタン(メイン=cta / サブ=sub)
+		foreach ( array( 'cta', 'sub' ) as $slot ) {
+			$s[ "jijipom_header_{$slot}_text" ]  = 'text';
+			$s[ "jijipom_header_{$slot}_url" ]   = 'url';
+			$s[ "jijipom_header_{$slot}_icon" ]  = 'icon';
+			$s[ "jijipom_header_{$slot}_bg" ]    = 'color';
+			$s[ "jijipom_header_{$slot}_color" ] = 'color';
+		}
 		for ( $n = 1; $n <= 3; $n++ ) {
 			$s[ "jijipom_about_{$n}_title" ] = 'text';
 			$s[ "jijipom_about_{$n}_text" ]  = 'textarea';
@@ -253,6 +261,13 @@ class Jijipom_Importer {
 			case 'order':
 				$n = (int) $value;
 				return ( $n >= 1 && $n <= 6 ) ? $n : 6;
+			case 'icon':
+				$v = sanitize_text_field( (string) $value );
+				return array_key_exists( $v, jijipom_button_icon_choices() ) ? $v : '';
+			case 'color':
+				// 未指定(空)ならテーマ標準。不正な値も空に倒す。
+				$v = sanitize_hex_color( (string) $value );
+				return $v ? $v : '';
 			case 'text':
 			default:
 				return sanitize_text_field( (string) $value );

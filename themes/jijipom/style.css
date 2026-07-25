@@ -4,7 +4,7 @@ Theme URI: https://example.com/jijipom
 Author: jijipom
 Author URI: https://example.com
 Description: どんなジャンルのサイトにも馴染む、シンプルで軽量・SEOに強いベーステーマ。セマンティックなHTML5マークアップ、構造化データ(JSON-LD)、OGP、パンくずリストを標準搭載。カスタマイズの叩き台としてお使いください。
-Version: 1.17.0
+Version: 1.18.0
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
@@ -201,20 +201,31 @@ th { background: var(--color-bg-subtle); }
 
 .site-header__actions { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
 
-/* Header CTA button */
-.header-cta {
-  display: inline-block;
-  background: var(--color-accent);
-  color: #fff;
+/* Header buttons (メインCTA + 左隣のサブボタン) */
+.header-cta,
+.header-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
   padding: 0.55em 1.2em;
+  border: 1px solid transparent;
   border-radius: 999px;
   font-size: var(--fs-sm);
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
-  transition: background var(--transition);
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
 }
+.header-cta { background: var(--color-accent); color: #fff; }
 .header-cta:hover { background: var(--color-accent-hover); color: #fff; }
+/* サブボタンは既定では控えめな枠線スタイル(色を指定すると上書きされる) */
+.header-sub { background: transparent; border-color: var(--color-accent); color: var(--color-accent); }
+.header-sub:hover { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+/* インラインstyleで色指定されたボタンは、ホバーでも指定色を保つ */
+.header-cta[style]:hover,
+.header-sub[style]:hover { filter: brightness(0.92); }
+.header-cta .btn-icon,
+.header-sub .btn-icon { width: 1.05em; height: 1.05em; fill: currentColor; flex: none; }
 
 /* Navigation */
 .main-navigation ul { display: flex; gap: 1.4rem; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
@@ -313,7 +324,13 @@ th { background: var(--color-bg-subtle); }
   .site-header .container { min-height: 56px; flex-wrap: nowrap; gap: 0.75rem; }
   .site-header__actions { gap: 0.6rem; }
   .menu-toggle { display: inline-flex; order: 2; }
+  /* サブ→メインの順で並べ、幅が足りないときは文言を省略記号で詰める */
+  .site-header__actions { min-width: 0; }
+  .header-sub { order: 1; padding: 0.45em 0.85em; }
   .header-cta { order: 1; padding: 0.45em 0.95em; }
+  .header-sub, .header-cta { min-width: 0; }
+  .header-sub .btn-label,
+  .header-cta .btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .main-navigation { order: 3; }
   .main-navigation ul {
     position: absolute;
