@@ -73,7 +73,7 @@ function jijipom_entry_taxonomies() {
  * body_class にサイドバー有無のクラスを追加
  */
 function jijipom_body_classes( $classes ) {
-	if ( is_active_sidebar( 'sidebar-1' ) && ! is_page_template( 'templates/full-width.php' ) && ! is_404() ) {
+	if ( is_active_sidebar( 'sidebar-1' ) && ! is_page_template( array( 'templates/full-width.php', 'templates/page-front.php' ) ) && ! is_404() ) {
 		$classes[] = 'has-sidebar';
 	} else {
 		$classes[] = 'no-sidebar';
@@ -83,7 +83,9 @@ function jijipom_body_classes( $classes ) {
 		$classes[] = 'is-list-view';
 	}
 
-	if ( is_front_page() ) {
+	// トップページ(自動の front-page.php) と「トップページ」テンプレートは
+	// 全幅表示にするため jijipom-front を付ける。
+	if ( is_front_page() || is_page_template( 'templates/page-front.php' ) ) {
 		$classes[] = 'jijipom-front';
 	}
 
