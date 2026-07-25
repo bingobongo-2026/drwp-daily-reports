@@ -77,13 +77,11 @@
 			<?php endif; ?>
 
 			<?php
-			// ヘッダーCTAボタン(文言とURLの両方が設定されている場合のみ表示)
-			$jijipom_cta_text = get_theme_mod( 'jijipom_header_cta_text', '' );
-			$jijipom_cta_url  = get_theme_mod( 'jijipom_header_cta_url', '' );
-			if ( $jijipom_cta_text && $jijipom_cta_url ) :
-				?>
-				<a class="header-cta" href="<?php echo esc_url( $jijipom_cta_url ); ?>"><?php echo esc_html( $jijipom_cta_text ); ?></a>
-			<?php endif; ?>
+			// ヘッダーボタン(文言とURLの両方が設定されている場合のみ表示)。
+			// サブボタンはメインCTAの左側に並ぶ。
+			jijipom_header_button( 'sub', 'header-sub' );
+			jijipom_header_button( 'cta', 'header-cta' );
+			?>
 		</div><!-- .site-header__actions -->
 	</div><!-- .container -->
 </header><!-- #masthead -->

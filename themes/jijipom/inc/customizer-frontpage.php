@@ -208,10 +208,24 @@ function jijipom_frontpage_customize_register( $wp_customize ) {
 		jijipom_fp_add( $wp_customize, "jijipom_about_{$i}_text",  array( 'type' => 'textarea', 'section' => 'jijipom_fp_about', 'label' => $block_label . ' : ' . __( '説明文', 'jijipom' ) ) );
 	}
 
-	// ===== ⑤ ヘッダーCTAボタン(全ページ共通) =====
-	$wp_customize->add_section( 'jijipom_header_cta', array( 'title' => __( 'ヘッダーCTAボタン', 'jijipom' ), 'panel' => 'jijipom_front_panel', 'description' => __( 'ヘッダー右側の「お問い合わせ」等のボタン。文言とURL両方を入力すると表示されます。', 'jijipom' ) ) );
-	jijipom_fp_add( $wp_customize, 'jijipom_header_cta_text', array( 'section' => 'jijipom_header_cta', 'label' => __( 'ボタンの文言', 'jijipom' ) ) );
-	jijipom_fp_add( $wp_customize, 'jijipom_header_cta_url',  array( 'type' => 'url', 'section' => 'jijipom_header_cta', 'label' => __( 'リンク先URL', 'jijipom' ) ) );
+	// ===== ⑤ ヘッダーボタン(全ページ共通) =====
+	$wp_customize->add_section( 'jijipom_header_cta', array( 'title' => __( 'ヘッダーボタン', 'jijipom' ), 'panel' => 'jijipom_front_panel', 'description' => __( 'ヘッダー右側のボタン。文言とURL両方を入力すると表示されます。サブボタンはメインボタンの左隣に並びます。色は未指定ならテーマ標準の配色になります。', 'jijipom' ) ) );
+
+	$jijipom_icon_choices = jijipom_button_icon_choices();
+
+	// メインボタン(右端)
+	jijipom_fp_add( $wp_customize, 'jijipom_header_cta_text',  array( 'section' => 'jijipom_header_cta', 'label' => __( 'メインボタン : 文言', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_header_cta_url',   array( 'type' => 'url', 'section' => 'jijipom_header_cta', 'label' => __( 'メインボタン : リンク先URL', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_header_cta_icon',  array( 'type' => 'select', 'choices' => $jijipom_icon_choices, 'section' => 'jijipom_header_cta', 'label' => __( 'メインボタン : アイコン', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_header_cta_bg',    array( 'type' => 'color', 'section' => 'jijipom_header_cta', 'label' => __( 'メインボタン : 背景色', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_header_cta_color', array( 'type' => 'color', 'section' => 'jijipom_header_cta', 'label' => __( 'メインボタン : 文字色', 'jijipom' ) ) );
+
+	// サブボタン(メインの左隣)
+	jijipom_fp_add( $wp_customize, 'jijipom_header_sub_text',  array( 'section' => 'jijipom_header_cta', 'label' => __( 'サブボタン : 文言', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_header_sub_url',   array( 'type' => 'url', 'section' => 'jijipom_header_cta', 'label' => __( 'サブボタン : リンク先URL', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_header_sub_icon',  array( 'type' => 'select', 'choices' => $jijipom_icon_choices, 'section' => 'jijipom_header_cta', 'label' => __( 'サブボタン : アイコン', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_header_sub_bg',    array( 'type' => 'color', 'section' => 'jijipom_header_cta', 'label' => __( 'サブボタン : 背景色', 'jijipom' ) ) );
+	jijipom_fp_add( $wp_customize, 'jijipom_header_sub_color', array( 'type' => 'color', 'section' => 'jijipom_header_cta', 'label' => __( 'サブボタン : 文字色', 'jijipom' ) ) );
 
 	// ===== ⑥ フッター情報 =====
 	$wp_customize->add_section( 'jijipom_footer_info', array( 'title' => __( 'フッター情報', 'jijipom' ), 'panel' => 'jijipom_front_panel' ) );
