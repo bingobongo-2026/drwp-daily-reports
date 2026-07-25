@@ -107,10 +107,18 @@
   .hintline { margin:10px 4px 0; font-size:12px; color:var(--app-muted); }
 
   /* ===== jijipom theme-faithful ===== */
-  .jjp { font-family:var(--font); color:var(--ink); }
+  .jjp { font-family:var(--pv-base, var(--font)); color:var(--ink); }
+  /* フォント設定(jijipom相当): 見出し/本文/フォーム部品に反映。未設定は継承 */
+  .jjp h1, .jjp h2, .jjp h3, .jjp h4,
+  .jjp .sec__h, .jjp .hero h2, .jjp .page-head h1, .jjp .card__b h3, .jjp .article h1, .jjp .article h2 {
+    font-family: var(--pv-heading, inherit);
+  }
+  .jjp .entry-content, .jjp .privacy-article__body { font-family: var(--pv-body, inherit); }
+  .jjp .form .fake, .jjp .form label { font-family: var(--pv-form, inherit); }
   .jjp .inner { max-width:1000px; margin-inline:auto; padding-inline:clamp(18px,4vw,40px); }
   .jjp .site-header { display:flex; align-items:center; gap:14px; padding:15px clamp(18px,4vw,40px); border-bottom:1px solid var(--border); }
-  .jjp .logo { font-weight:800; font-size:1.1rem; }
+  .jjp .logo { font-weight:800; font-size:1.1rem; display:inline-flex; align-items:center; }
+  .jjp .logo img { max-height:34px; width:auto; display:block; }
   .jjp .nav { display:flex; gap:15px; margin-left:auto; font-size:13px; color:var(--muted); }
   .jjp .cta-btn { background:var(--accent); color:#fff; padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:600; }
   .jjp .sec { padding-block:clamp(2rem,5vw,3.4rem); }
@@ -245,6 +253,41 @@
 
       <!-- ① TOP -->
       <div class="editor" data-page="top">
+        <div class="grp">サイト基本（全ページ共通）</div>
+        <label class="fld"><span>サイトタイトル</span><input data-bind="site-title" data-sample="山田工務店"></label>
+        <div class="media" data-target="site-logo" data-mode="logo">
+          <span class="cap">サイトタイトル画像（ロゴ）</span>
+          <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
+          <input class="murl" type="text" placeholder="または画像URL"><button type="button" class="mclear">×</button>
+        </div>
+        <p class="hintline" style="margin:-4px 0 12px">推奨サイズ: 横 240 × 縦 60px 程度（背景透過のPNG推奨・可変）。設定するとタイトル文字の代わりにロゴ画像が表示されます。</p>
+
+        <div class="grp">フォント（jijipom テーマ設定）</div>
+        <label class="fld"><span>全体のフォント</span>
+          <select data-bind="font-base" data-font="base">
+            <option value="">標準 (指定なし)</option><option value="gothic">ゴシック体</option><option value="mincho">明朝体</option>
+            <option value="yugothic">游ゴシック</option><option value="yumincho">游明朝</option><option value="maru">丸ゴシック</option>
+            <option value="meiryo">メイリオ</option><option value="system">システム標準</option><option value="mono">等幅 (モノスペース)</option>
+          </select></label>
+        <label class="fld"><span>見出しのフォント (h1〜h6)</span>
+          <select data-bind="font-heading" data-font="heading">
+            <option value="">標準 (指定なし)</option><option value="gothic">ゴシック体</option><option value="mincho">明朝体</option>
+            <option value="yugothic">游ゴシック</option><option value="yumincho">游明朝</option><option value="maru">丸ゴシック</option>
+            <option value="meiryo">メイリオ</option><option value="system">システム標準</option><option value="mono">等幅 (モノスペース)</option>
+          </select></label>
+        <label class="fld"><span>本文のフォント (記事・固定ページ)</span>
+          <select data-bind="font-body" data-font="body">
+            <option value="">標準 (指定なし)</option><option value="gothic">ゴシック体</option><option value="mincho">明朝体</option>
+            <option value="yugothic">游ゴシック</option><option value="yumincho">游明朝</option><option value="maru">丸ゴシック</option>
+            <option value="meiryo">メイリオ</option><option value="system">システム標準</option><option value="mono">等幅 (モノスペース)</option>
+          </select></label>
+        <label class="fld"><span>フォーム部品のフォント (入力欄・ボタン等)</span>
+          <select data-bind="font-form" data-font="form">
+            <option value="">標準 (指定なし)</option><option value="gothic">ゴシック体</option><option value="mincho">明朝体</option>
+            <option value="yugothic">游ゴシック</option><option value="yumincho">游明朝</option><option value="maru">丸ゴシック</option>
+            <option value="meiryo">メイリオ</option><option value="system">システム標準</option><option value="mono">等幅 (モノスペース)</option>
+          </select></label>
+
         <div class="grp">メインビジュアル</div>
         <div class="media" data-target="tp-hero" data-mode="hero">
           <span class="cap">背景（画像 / 動画 / YouTube）</span>
@@ -444,7 +487,7 @@
       <div class="browser">
         <div class="browser-bar">
           <span class="dots"><i></i><i></i><i></i></span>
-          <span class="urlbar" id="urlbar">yamada-koumuten.example.com/</span>
+          <span class="urlbar" id="urlbar">example.com/</span>
           <span class="devsel" role="group" aria-label="表示切替">
             <button type="button" data-dev="pc" class="on" title="PC表示">🖥 PC</button>
             <button type="button" data-dev="mobile" title="スマホ表示">📱 スマホ</button>
@@ -579,11 +622,11 @@
 <script>
   var STORE = 'jijipom_live_v2';
   var meta = {
-    top:     { url:'yamada-koumuten.example.com/',        tpl:'front-page.php' },
-    service: { url:'yamada-koumuten.example.com/service/', tpl:'テンプレート「サービス」' },
-    company: { url:'yamada-koumuten.example.com/company/', tpl:'テンプレート「会社概要」' },
-    contact: { url:'yamada-koumuten.example.com/contact/', tpl:'テンプレート「お問い合わせ」' },
-    privacy: { url:'yamada-koumuten.example.com/privacy/', tpl:'テンプレート「プライバシーポリシー」' }
+    top:     { url:'example.com/',        tpl:'front-page.php' },
+    service: { url:'example.com/service/', tpl:'テンプレート「サービス」' },
+    company: { url:'example.com/company/', tpl:'テンプレート「会社概要」' },
+    contact: { url:'example.com/contact/', tpl:'テンプレート「お問い合わせ」' },
+    privacy: { url:'example.com/privacy/', tpl:'テンプレート「プライバシーポリシー」' }
   };
   var fields = Array.prototype.slice.call(document.querySelectorAll('[data-bind]'));
   var btnToggles = Array.prototype.slice.call(document.querySelectorAll('[data-btn]'));
@@ -646,6 +689,17 @@
     if (url) { el.innerHTML = '<iframe src="' + escAttr(url) + '" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>'; el.classList.add('has-media'); }
     else { el.innerHTML = ''; el.classList.remove('has-media'); }
   }
+  function currentSiteTitle() {
+    var el = document.querySelector('[data-bind="site-title"]');
+    if (!el) return '';
+    return el.value.trim() || (el.dataset.sample || '');
+  }
+  function renderLogo(src) {
+    document.querySelectorAll('.jjp .logo').forEach(function (el) {
+      if (src) { el.innerHTML = '<img src="' + escAttr(src) + '" alt="' + escAttr(currentSiteTitle()) + '">'; }
+      else { el.textContent = currentSiteTitle(); }
+    });
+  }
   function renderHero(type, src) {
     var m = document.getElementById('tp-hero-media'); if (!m) return;
     m.innerHTML = ''; m.style.backgroundImage = '';
@@ -672,6 +726,7 @@
     function renderBy(src, isUrl) {
       if (mode === 'hero') renderHero(heroType, src);
       else if (mode === 'embed') renderEmbed(target, src);
+      else if (mode === 'logo') renderLogo(src);
       else renderImage(target, src);
       // persist only URL-based media (not object URLs / files)
       if (isUrl && src) state.m[target] = (mode === 'hero') ? { type: heroType, src: src } : { src: src };
@@ -779,6 +834,40 @@
   });
   window.addEventListener('resize', fitDevice);
   applyDevMode();
+
+  // ---- サイトタイトル (全ページのロゴ文字) ----
+  var siteTitleInput = document.querySelector('[data-bind="site-title"]');
+  function applySiteTitle() {
+    var v = currentSiteTitle();
+    document.querySelectorAll('.jjp .logo').forEach(function (el) {
+      var img = el.querySelector('img');
+      if (img) { img.alt = v; } else { el.textContent = v; }
+    });
+  }
+  if (siteTitleInput) { siteTitleInput.addEventListener('input', applySiteTitle); applySiteTitle(); }
+
+  // ---- フォント設定 (jijipom 相当) ----
+  var FONT_STACKS = {
+    '': '',
+    gothic: '"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic",Meiryo,sans-serif',
+    mincho: '"Hiragino Mincho ProN","Yu Mincho","YuMincho","MS PMincho",serif',
+    yugothic: '"Yu Gothic","YuGothic","Hiragino Kaku Gothic ProN",sans-serif',
+    yumincho: '"Yu Mincho","YuMincho","Hiragino Mincho ProN",serif',
+    maru: '"Hiragino Maru Gothic ProN","Kosugi Maru","M PLUS Rounded 1c",sans-serif',
+    meiryo: 'Meiryo,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif',
+    system: 'system-ui,-apple-system,"Segoe UI","Hiragino Sans",sans-serif',
+    mono: 'ui-monospace,SFMono-Regular,Menlo,Consolas,"Noto Sans Mono",monospace'
+  };
+  function applyFonts() {
+    ['base', 'heading', 'body', 'form'].forEach(function (role) {
+      var sel = document.querySelector('[data-font="' + role + '"]');
+      var stack = sel ? (FONT_STACKS[sel.value] || '') : '';
+      if (stack) device.style.setProperty('--pv-' + role, stack);
+      else device.style.removeProperty('--pv-' + role);
+    });
+  }
+  document.querySelectorAll('[data-font]').forEach(function (sel) { sel.addEventListener('change', applyFonts); });
+  applyFonts();
 
   // ---- mobile view switch ----
   document.querySelectorAll('.switch button').forEach(function (b) {
@@ -909,6 +998,15 @@
     set('jijipom_privacy_operator', fv('pv-op'));
     set('jijipom_privacy_established', fv('pv-date'));
 
+    // ---- フォント設定 (キーで保存: gothic/mincho/... または 標準='') ----
+    ['base', 'heading', 'body', 'form'].forEach(function (role) {
+      var sel = document.querySelector('[data-font="' + role + '"]');
+      set('jijipom_font_' + role, sel ? sel.value : '');
+    });
+
+    var logo = media('site-logo');
+    var site = { title: fv('site-title'), logo_url: logo ? logo.src : '' };
+
     var pages = {
       home:    { title: 'ホーム' },
       service: { title: fv('sv-title') || 'サービス' },
@@ -916,7 +1014,7 @@
       contact: { title: fv('ct-title') || 'お問い合わせ' },
       privacy: { title: 'プライバシーポリシー', content: fv('pv-body') }
     };
-    return { schema: 'jijipom-content', version: 1, generated_by: 'jijipom-content-builder', theme_mods: tm, pages: pages };
+    return { schema: 'jijipom-content', version: 1, generated_by: 'jijipom-content-builder', theme_mods: tm, site: site, pages: pages };
   }
 
   // ---- 最小 ZIP 書き出し (無圧縮 store・1ファイル) ----

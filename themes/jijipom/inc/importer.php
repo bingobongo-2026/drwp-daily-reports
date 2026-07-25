@@ -131,6 +131,7 @@ class Jijipom_Importer {
 		}
 
 		$mods = self::apply_theme_mods( isset( $doc['theme_mods'] ) && is_array( $doc['theme_mods'] ) ? $doc['theme_mods'] : array() );
+		$mods += self::apply_site( isset( $doc['site'] ) && is_array( $doc['site'] ) ? $doc['site'] : array() );
 
 		$pages = 0;
 		if ( ! empty( $_POST['create_pages'] ) ) {
@@ -180,6 +181,10 @@ class Jijipom_Importer {
 			'jijipom_service_button_url'  => 'url',
 			'jijipom_service_image'       => 'url',
 			'jijipom_blog_heading'        => 'text',
+			'jijipom_font_base'           => 'font',
+			'jijipom_font_form'           => 'font',
+			'jijipom_font_heading'        => 'font',
+			'jijipom_font_body'           => 'font',
 			'jijipom_about_heading'       => 'text',
 			'jijipom_svc_lead'            => 'textarea',
 			'jijipom_svc_items_heading'   => 'text',
@@ -236,6 +241,10 @@ class Jijipom_Importer {
 			case 'select_hero':
 				$v = sanitize_text_field( (string) $value );
 				return in_array( $v, array( 'image', 'video', 'youtube' ), true ) ? $v : 'image';
+			case 'font':
+				$v = sanitize_text_field( (string) $value );
+				$allowed = array( '', 'gothic', 'mincho', 'yugothic', 'yumincho', 'maru', 'meiryo', 'system', 'mono' );
+				return in_array( $v, $allowed, true ) ? $v : '';
 			case 'text':
 			default:
 				return sanitize_text_field( (string) $value );
@@ -254,6 +263,43 @@ class Jijipom_Importer {
 			$count++;
 		}
 		return $count;
+	}
+
+	/**
+	 * サイト基本情報を適用する。サイトタイトル(blogname) とロゴ画像
+	 * (custom_logo)。適用した件数を返す。
+	 */
+	private static function apply_site( array $site ) {
+		$n = 0;
+		if ( ! empty( $site['title'] ) ) {
+			update_option( 'blogname', sanitize_text_field( (string) $site['title'] ) );
+			$n++;
+		}
+		if ( ! empty( $site['logo_url'] ) ) {
+			$id = self::sideload_logo( esc_url_raw( (string) $site['logo_url'] ) );
+			if ( $id ) {
+				set_theme_mod( 'custom_logo', $id );
+				$n++;
+			}
+		}
+		return $n;
+	}
+
+	/** ロゴ画像 URL をメディアライブラリに取り込み、添付 ID を返す(失敗0)。 */
+	private static function sideload_logo( $url ) {
+		if ( '' === $url ) {
+			return 0;
+		}
+		if ( ! function_exists( 'media_sideload_image' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/media.php';
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+			require_once ABSPATH . 'wp-admin/includes/image.php';
+		}
+		$id = media_sideload_image( $url, 0, null, 'id' );
+		if ( is_wp_error( $id ) || ! $id ) {
+			return 0;
+		}
+		return (int) $id;
 	}
 
 	/** 固定ページの作成/更新 + トップページ設定。作成/更新した件数を返す。 */
