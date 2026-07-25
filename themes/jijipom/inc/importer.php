@@ -312,6 +312,7 @@ class Jijipom_Importer {
 	/** 固定ページの作成/更新 + トップページ設定。作成/更新した件数を返す。 */
 	private static function apply_pages( array $pages, $set_front ) {
 		$templates = array(
+			'home'    => 'templates/page-front.php',
 			'service' => 'templates/page-service.php',
 			'company' => 'templates/page-company.php',
 			'contact' => 'templates/page-contact.php',
