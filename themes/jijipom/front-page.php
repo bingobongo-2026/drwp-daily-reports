@@ -27,6 +27,9 @@ get_header();
 	if ( get_theme_mod( 'jijipom_about_enable', true ) ) {
 		get_template_part( 'template-parts/front-page/about' );
 	}
+
+	// 固定ページに書いた本文があれば、各セクションの下に表示。
+	get_template_part( 'template-parts/front-page/page-content' );
 	?>
 </div><!-- .front-page -->
 
