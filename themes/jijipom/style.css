@@ -4,7 +4,7 @@ Theme URI: https://example.com/jijipom
 Author: jijipom
 Author URI: https://example.com
 Description: どんなジャンルのサイトにも馴染む、シンプルで軽量・SEOに強いベーステーマ。セマンティックなHTML5マークアップ、構造化データ(JSON-LD)、OGP、パンくずリストを標準搭載。カスタマイズの叩き台としてお使いください。
-Version: 1.11.0
+Version: 1.12.0
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
@@ -228,7 +228,46 @@ th { background: var(--color-bg-subtle); }
 }
 .main-navigation a:hover,
 .main-navigation .current-menu-item > a { border-bottom-color: var(--color-accent); }
-.main-navigation .sub-menu { display: none; }
+
+/* サブメニュー(子・孫) — PCはホバーでドロップダウン/フライアウト */
+.main-navigation li { position: relative; }
+.main-navigation .menu-item-has-children > a::after {
+  content: "";
+  display: inline-block;
+  width: 0.38em;
+  height: 0.38em;
+  margin-left: 0.4em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-1px);
+  opacity: 0.6;
+}
+.main-navigation .sub-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 60;
+  flex-direction: column;
+  gap: 0;
+  min-width: 200px;
+  margin: 0;
+  padding: 6px 0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.10);
+}
+.main-navigation .sub-menu .sub-menu { top: -7px; left: 100%; } /* 孫はさらに右へ */
+.main-navigation li:hover > .sub-menu,
+.main-navigation li:focus-within > .sub-menu { display: flex; }
+.main-navigation .sub-menu a { display: block; padding: 8px 16px; white-space: nowrap; border-bottom: 0; }
+.main-navigation .sub-menu a:hover { background: var(--color-bg-subtle); border-bottom-color: transparent; }
+.main-navigation .sub-menu .menu-item-has-children > a::after {
+  float: right;
+  margin-top: 0.4em;
+  transform: rotate(-45deg);
+}
 
 /* Mobile nav toggle (ハンバーガーアイコン) */
 .menu-toggle {
@@ -298,6 +337,25 @@ th { background: var(--color-bg-subtle); }
   }
   .main-navigation li { margin: 0; }
   .main-navigation a { display: block; padding: 0.7em 0; border-bottom: 0; }
+
+  /* サブメニュー(子・孫): モバイルではインデントして常に展開表示 */
+  .main-navigation .sub-menu {
+    position: static;
+    display: block;
+    z-index: auto;
+    min-width: 0;
+    margin: 0 0 0 0.25em;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-left: 2px solid var(--color-border);
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .main-navigation .sub-menu a { padding: 0.55em 0 0.55em 0.9em; white-space: normal; }
+  .main-navigation .sub-menu .sub-menu a { padding-left: 1.8em; } /* 孫はさらにインデント */
+  /* 常に展開しているので、開閉を示す矢印はモバイルでは消す */
+  .main-navigation .menu-item-has-children > a::after { display: none; }
 }
 
 /* =========================================================
