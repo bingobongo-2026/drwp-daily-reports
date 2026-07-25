@@ -6,7 +6,7 @@
  */
 
 if ( ! defined( 'JIJIPOM_VERSION' ) ) {
-	define( 'JIJIPOM_VERSION', '1.16.0' );
+	define( 'JIJIPOM_VERSION', '1.16.1' );
 }
 
 /**
@@ -82,9 +82,8 @@ function jijipom_scripts() {
 		true
 	);
 
-	// トップページのメインビジュアル用スライドショー。自動の front-page.php と
-	// 「トップページ」テンプレートの両方で読み込む。
-	if ( is_front_page() || is_page_template( 'templates/page-front.php' ) ) {
+	// トップページのメインビジュアル用スライドショー
+	if ( is_front_page() ) {
 		wp_enqueue_script(
 			'jijipom-hero-slider',
 			get_template_directory_uri() . '/assets/js/hero-slider.js',

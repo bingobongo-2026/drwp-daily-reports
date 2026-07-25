@@ -227,7 +227,7 @@ add_action( 'customize_register', 'jijipom_frontpage_customize_register' );
  * この変数を使って行う。
  */
 function jijipom_blog_overlay_css() {
-	if ( ! is_front_page() && ! is_page_template( 'templates/page-front.php' ) ) {
+	if ( ! is_front_page() ) {
 		return;
 	}
 	$color   = get_theme_mod( 'jijipom_blog_fallback_overlay_color', '' );
