@@ -12,18 +12,21 @@
 ## 現在のバージョン(すべて main にマージ済み)
 - 日報マン プラグイン(`drwp-daily-reports`): **1.69.0**
 - テーマ jijipom: **1.17.0**
-- プラグイン jijipom-content-builder: **1.8.0**
+- プラグイン jijipom-content-builder: **1.8.1**
 - license-server: 稼働中
 
 ## 作業ブランチと運用ルール
-- 開発ブランチ: `claude/admiring-feynman-fbFTE`
+- 開発ブランチ名は**セッションごとに指定されるもの**を使う(固定ではない)。
+  過去に使ったブランチ: `claude/admiring-feynman-fbFTE`(〜#260) →
+  `claude/drwp-daily-reports-handoff-65lyes`(#261〜)。
+  ※前回のPRがマージ済みなら、同じブランチ名でも必ず main から作り直す(古い履歴に積まない)。
 - 各機能ごとに次を1サイクルで回す:
-  1. `git fetch origin main && git checkout -B claude/admiring-feynman-fbFTE origin/main`(毎回 main から作り直す)
+  1. `git fetch origin main && git checkout -B <branch> origin/main`(毎回 main から作り直す)
   2. 編集 → **バージョンを上げる** → `php -l`(PHP) / JS 構文チェック
   3. commit → `git push -u origin <branch> --force-with-lease`
   4. PR 作成 → **CI 6項目**(PHP lint 7.4/8.1/8.4・PHPUnit 7.4/8.2・License server pytest)グリーン
   5. squash マージ → main 同期 → **配布ZIPを作成して納品**
-- 配布ZIP名は「**名前+バージョン+.zip**」(例: `jijipom1.17.0.zip`, `jijipom-content-builder1.8.0.zip`, 日報は `drwpdailyreports1.69.0.zip`)。ZIPには tests/bin/composer/phpunit 等の開発ファイルは含めない。
+- 配布ZIP名は「**名前+バージョン+.zip**」(例: `jijipom1.17.0.zip`, `jijipom-content-builder1.8.1.zip`, 日報は `drwpdailyreports1.69.0.zip`)。ZIPには tests/bin/composer/phpunit 等の開発ファイルは含めない。
 - CI の PHP lint は `drwp-daily-reports/` のみ対象。テーマ/新プラグインは手元で `php -l` する。
 
 ## 注意(変更禁止・慣習)
@@ -37,6 +40,9 @@
 
 ## jijipom コンテンツビルダー(現状の主な機能)
 - 管理画面「jijipom コンテンツ」＋ショートコード `[jijipom_builder]`(全幅は `width="full"`)。
+- ヘッダーのアクションボタン5つ(下書き保存/下書き読込/ZIPエクスポート/印刷・PDF/リセット)は
+  `.bar__actions` で1グループ化済み。個別のフレックスアイテムに戻すと、幅が足りないとき
+  「リセット」だけが次の行に孤立するので注意(1.8.1 で修正)。
 - ライブプレビュー: 基本設定タブ(サイトタイトル/ロゴ/フォント/ソーシャル)＋ ①トップ〜⑤プライバシー。PC/スマホ切替。
 - 画像/動画/YouTube、各ブロック・項目・カードの表示切替、サービス項目のリンクURL。
 - 「⬇ ZIPをエクスポート」= `jijipom-content.json`(= jijipom の theme_mods / pages にマッピング)。
