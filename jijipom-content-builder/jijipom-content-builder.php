@@ -3,7 +3,7 @@
  * Plugin Name: jijipom コンテンツビルダー
  * Plugin URI: https://nippoman.example.com/
  * Description: jijipom テーマ向けのコンテンツを画面上で組み立て、ZIP でエクスポートします。管理画面のほか、ショートコード [jijipom_builder] でフロントページにも設置できます。書き出した ZIP は「外観 > コンテンツ取込」(jijipom テーマ) から取り込みます。
- * Version: 1.5.5
+ * Version: 1.5.6
  * Author: jijipom
  * Text Domain: jijipom-content-builder
  * Requires at least: 6.0
@@ -18,7 +18,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('JCB_VERSION', '1.5.5');
+define('JCB_VERSION', '1.5.6');
 define('JCB_PATH', plugin_dir_path(__FILE__));
 define('JCB_URL', plugin_dir_url(__FILE__));
 
@@ -86,10 +86,19 @@ class JCB_Plugin {
     /**
      * ショートコード [jijipom_builder] — フロントページにビルダーを設置。
      * 入力/エクスポートはブラウザ内で完結(サーバーには保存しません)。
+     *
+     * 属性:
+     *   width="full" … 本文の最大幅(テーマの --wide-width)を無視して画面幅
+     *                  いっぱいに広げる(フルブリード)。フルワイドのページ向け。
+     *   min_height   … iframe の初期高さ(px)。
      */
     public static function shortcode($atts) {
-        $atts = shortcode_atts(['min_height' => 600], $atts, 'jijipom_builder');
-        return '<div class="jijipom-builder-embed">' . self::builder_iframe((int) $atts['min_height']) . '</div>';
+        $atts = shortcode_atts(['min_height' => 600, 'width' => ''], $atts, 'jijipom_builder');
+        $full = in_array(strtolower((string) $atts['width']), ['full', 'wide', 'fullwidth', '100%'], true);
+        $class = 'jijipom-builder-embed' . ($full ? ' alignfull' : '');
+        // フルブリード: 親の最大幅に関係なく画面幅いっぱいにする。
+        $style = $full ? ' style="width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);"' : '';
+        return '<div class="' . esc_attr($class) . '"' . $style . '>' . self::builder_iframe((int) $atts['min_height']) . '</div>';
     }
 }
 

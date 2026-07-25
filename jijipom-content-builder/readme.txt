@@ -2,7 +2,7 @@
 Contributors: jijipom
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.5.5
+Stable tag: 1.5.6
 License: GPLv2 or later
 
 jijipom テーマ向けのコンテンツを画面上で組み立て、ZIP でエクスポートするプラグインです。
@@ -27,6 +27,11 @@ ZIP は別サイトへ持って行って取り込むこともできます。
 　このプラグインはビルダーとエクスポートを担当します。
 
 == 変更履歴 ==
+
+= 1.5.6 =
+* ショートコードに全幅オプションを追加: [jijipom_builder width="full"]。テーマの
+  本文最大幅(--wide-width)に縛られず画面幅いっぱいに広げられる(フルワイドの
+  ページ向け)。
 
 = 1.5.5 =
 * 印刷時のヘッダーが全幅になり実サイトとズレる不具合を修正。ヘッダー内容を

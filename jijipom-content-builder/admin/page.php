@@ -10,9 +10,10 @@ if (!defined('ABSPATH')) exit;
     <p class="description" style="max-width:820px;">
         <?php
         printf(
-            /* translators: %s: ショートコード */
-            esc_html__('フロントページに設置したい場合は、固定ページや投稿にショートコード %s を貼り付けてください。', 'jijipom-content-builder'),
-            '<code>[jijipom_builder]</code>'
+            /* translators: 1: ショートコード, 2: 全幅ショートコード */
+            esc_html__('フロントページに設置したい場合は、固定ページや投稿にショートコード %1$s を貼り付けてください。画面幅いっぱいに広げたいときは %2$s（フルワイドのページ推奨）。', 'jijipom-content-builder'),
+            '<code>[jijipom_builder]</code>',
+            '<code>[jijipom_builder width=&quot;full&quot;]</code>'
         );
         ?>
     </p>
