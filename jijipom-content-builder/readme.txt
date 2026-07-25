@@ -2,7 +2,7 @@
 Contributors: jijipom
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.4.1
+Stable tag: 1.5.0
 License: GPLv2 or later
 
 jijipom テーマ向けのコンテンツを画面上で組み立て、ZIP でエクスポートするプラグインです。
@@ -27,6 +27,11 @@ ZIP は別サイトへ持って行って取り込むこともできます。
 　このプラグインはビルダーとエクスポートを担当します。
 
 == 変更履歴 ==
+
+= 1.5.0 =
+* トップに「ソーシャルメディア」設定を追加(X/Instagram/Facebook/Threads/
+  TikTok/YouTube のURL＋表示順)。URLを入れたSNSがフッターにアイコン表示され、
+  取り込みで jijipom のソーシャル設定に反映される。
 
 = 1.4.1 =
 * プレビューのフッターを jijipom 実際のフッター(footer.php)と同じ構成に修正
