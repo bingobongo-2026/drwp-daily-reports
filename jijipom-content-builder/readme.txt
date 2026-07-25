@@ -2,7 +2,7 @@
 Contributors: jijipom
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.5.0
+Stable tag: 1.5.1
 License: GPLv2 or later
 
 jijipom テーマ向けのコンテンツを画面上で組み立て、ZIP でエクスポートするプラグインです。
@@ -27,6 +27,10 @@ ZIP は別サイトへ持って行って取り込むこともできます。
 　このプラグインはビルダーとエクスポートを担当します。
 
 == 変更履歴 ==
+
+= 1.5.1 =
+* 「基本設定」タブを①トップの前に追加し、サイト基本・フォント・ソーシャルの
+  3項目をそこへ移動(全ページ共通の設定として整理)。
 
 = 1.5.0 =
 * トップに「ソーシャルメディア」設定を追加(X/Instagram/Facebook/Threads/
