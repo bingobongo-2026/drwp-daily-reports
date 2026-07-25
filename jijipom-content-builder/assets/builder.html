@@ -190,9 +190,21 @@
   .jjp .article p { margin:0 0 .85rem; }
   .jjp .article .op { text-align:right; font-weight:600; margin-top:1.5rem; }
 
-  .jjp .footer { background:#141822; color:#c9cdd8; padding:24px clamp(18px,4vw,40px); font-size:12.5px; }
-  .jjp .footer .fnav { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:8px; color:#e7e9f0; }
-  .jjp .footer .soc { display:flex; gap:8px; margin-top:8px; } .jjp .footer .soc i { width:24px; height:24px; border-radius:50%; background:#2b3245; }
+  /* フッター(jijipom の footer.php と同じ構成): 明るい背景・ブランド+ナビ、
+     下段にコピーライトとソーシャル */
+  .jjp .footer { border-top:1px solid var(--border); background:var(--subtle); color:var(--muted); padding:2.4rem clamp(18px,4vw,40px); font-size:.82rem; }
+  .jjp .footer-inner { max-width:1000px; margin-inline:auto; }
+  .jjp .footer-main { display:flex; flex-wrap:wrap; gap:1.4rem 2.4rem; justify-content:space-between; align-items:flex-start; }
+  .jjp .footer-brand { display:flex; flex-direction:column; gap:.7rem; }
+  .jjp .footer-brand .logo { font-weight:700; font-size:1rem; color:var(--ink); }
+  .jjp .footer-info { font-style:normal; line-height:1.8; margin:0; }
+  .jjp .footer-nav { display:flex; gap:1.1rem; flex-wrap:wrap; }
+  .jjp .footer-nav a { color:var(--muted); text-decoration:none; }
+  .jjp .footer-nav a:hover { color:var(--accent); }
+  .jjp .footer-bottom { margin-top:1.6rem; padding-top:1.1rem; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.7rem 1.4rem; }
+  .jjp .footer-bottom p { margin:0; }
+  .jjp .footer-soc { display:flex; align-items:center; gap:.9rem; list-style:none; margin:0 0 0 auto; padding:0; }
+  .jjp .footer-soc li { width:22px; height:22px; border-radius:50%; background:var(--border); }
 
   /* placeholder (empty text field) rendering */
   .pl { white-space:pre-line; }
@@ -525,8 +537,17 @@
                 <div id="tp-about3"><div class="ph" id="tp-ab3-img" data-ph="画像"></div><h4 class="pl" id="tp-ab3-t"></h4><p class="pl" id="tp-ab3-x"></p></div>
               </div>
             </div></section>
-            <div class="footer"><div class="fnav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span><span>プライバシーポリシー</span></div>
-              <div>〒000-0000 ○○県△△市中央1-2-3 ／ TEL 000-000-0000</div><div class="soc"><i></i><i></i><i></i></div></div>
+            <footer class="footer"><div class="footer-inner">
+              <div class="footer-main">
+                <div class="footer-brand">
+                  <span class="logo">山田工務店</span>
+                  <address class="footer-info">〒000-0000 ○○県△△市中央1-2-3<br>TEL 000-000-0000</address>
+                </div>
+                <nav class="footer-nav"><a>サービス</a><a>会社概要</a><a>お問い合わせ</a><a>プライバシーポリシー</a></nav>
+              </div>
+              <div class="footer-bottom"><p>&copy; 2026 <span class="site-name">山田工務店</span></p>
+                <ul class="footer-soc"><li></li><li></li><li></li></ul></div>
+            </div></footer>
           </div>
 
           <!-- SERVICE -->
@@ -548,6 +569,15 @@
               <h2 class="sec__h pl" id="sv-cta-h" style="margin-bottom:.4rem"></h2>
               <p class="lead" style="margin:0 auto 1.3rem">現地調査・お見積りは無料です。</p>
               <span class="btn pl" id="sv-cta-btn"></span></div></section>
+            <footer class="footer"><div class="footer-inner">
+              <div class="footer-main">
+                <div class="footer-brand"><span class="logo">山田工務店</span>
+                  <address class="footer-info">〒000-0000 ○○県△△市中央1-2-3<br>TEL 000-000-0000</address></div>
+                <nav class="footer-nav"><a>サービス</a><a>会社概要</a><a>お問い合わせ</a><a>プライバシーポリシー</a></nav>
+              </div>
+              <div class="footer-bottom"><p>&copy; 2026 <span class="site-name">山田工務店</span></p>
+                <ul class="footer-soc"><li></li><li></li><li></li></ul></div>
+            </div></footer>
           </div>
 
           <!-- COMPANY -->
@@ -574,6 +604,15 @@
                 <dt>営業時間</dt><dd class="pl" id="co-ac-hours"></dd>
                 <dt>定休日</dt><dd class="pl" id="co-ac-holiday"></dd></dl>
               <div class="ph map" id="co-map" data-ph="Googleマップ（埋め込み）"></div></div></section>
+            <footer class="footer"><div class="footer-inner">
+              <div class="footer-main">
+                <div class="footer-brand"><span class="logo">山田工務店</span>
+                  <address class="footer-info">〒000-0000 ○○県△△市中央1-2-3<br>TEL 000-000-0000</address></div>
+                <nav class="footer-nav"><a>サービス</a><a>会社概要</a><a>お問い合わせ</a><a>プライバシーポリシー</a></nav>
+              </div>
+              <div class="footer-bottom"><p>&copy; 2026 <span class="site-name">山田工務店</span></p>
+                <ul class="footer-soc"><li></li><li></li><li></li></ul></div>
+            </div></footer>
           </div>
 
           <!-- CONTACT -->
@@ -594,6 +633,15 @@
                 <span class="btn" style="justify-self:start">送信する</span>
               </div></div></section>
             <section class="sec"><div class="inner"><div class="ph map" id="ct-map" data-ph="Googleマップ（埋め込み）"></div></div></section>
+            <footer class="footer"><div class="footer-inner">
+              <div class="footer-main">
+                <div class="footer-brand"><span class="logo">山田工務店</span>
+                  <address class="footer-info">〒000-0000 ○○県△△市中央1-2-3<br>TEL 000-000-0000</address></div>
+                <nav class="footer-nav"><a>サービス</a><a>会社概要</a><a>お問い合わせ</a><a>プライバシーポリシー</a></nav>
+              </div>
+              <div class="footer-bottom"><p>&copy; 2026 <span class="site-name">山田工務店</span></p>
+                <ul class="footer-soc"><li></li><li></li><li></li></ul></div>
+            </div></footer>
           </div>
 
           <!-- PRIVACY -->
@@ -607,7 +655,17 @@
               <div class="pl" id="pv-body" style="white-space:pre-line"></div>
               <p class="op pl" id="pv-op"></p>
             </article>
-            <div class="footer"><div>〒000-0000 ○○県△△市中央1-2-3 ／ TEL 000-000-0000</div></div>
+            <footer class="footer"><div class="footer-inner">
+              <div class="footer-main">
+                <div class="footer-brand">
+                  <span class="logo">山田工務店</span>
+                  <address class="footer-info">〒000-0000 ○○県△△市中央1-2-3<br>TEL 000-000-0000</address>
+                </div>
+                <nav class="footer-nav"><a>サービス</a><a>会社概要</a><a>お問い合わせ</a><a>プライバシーポリシー</a></nav>
+              </div>
+              <div class="footer-bottom"><p>&copy; 2026 <span class="site-name">山田工務店</span></p>
+                <ul class="footer-soc"><li></li><li></li><li></li></ul></div>
+            </div></footer>
           </div>
 
          </div><!-- .device -->
@@ -843,6 +901,8 @@
       var img = el.querySelector('img');
       if (img) { img.alt = v; } else { el.textContent = v; }
     });
+    // コピーライトのサイト名(文字のみ・画像化しない)
+    document.querySelectorAll('.jjp .site-name').forEach(function (el) { el.textContent = v; });
   }
   if (siteTitleInput) { siteTitleInput.addEventListener('input', applySiteTitle); applySiteTitle(); }
 

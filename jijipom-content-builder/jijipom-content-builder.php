@@ -3,7 +3,7 @@
  * Plugin Name: jijipom コンテンツビルダー
  * Plugin URI: https://nippoman.example.com/
  * Description: jijipom テーマ向けのコンテンツを画面上で組み立て、ZIP でエクスポートします。管理画面のほか、ショートコード [jijipom_builder] でフロントページにも設置できます。書き出した ZIP は「外観 > コンテンツ取込」(jijipom テーマ) から取り込みます。
- * Version: 1.4.0
+ * Version: 1.4.1
  * Author: jijipom
  * Text Domain: jijipom-content-builder
  * Requires at least: 6.0
@@ -18,7 +18,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('JCB_VERSION', '1.4.0');
+define('JCB_VERSION', '1.4.1');
 define('JCB_PATH', plugin_dir_path(__FILE__));
 define('JCB_URL', plugin_dir_url(__FILE__));
 
