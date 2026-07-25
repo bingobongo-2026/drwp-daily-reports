@@ -122,8 +122,16 @@
   .jjp .site-header { display:flex; align-items:center; gap:14px; padding:15px clamp(18px,4vw,40px); border-bottom:1px solid var(--border); }
   .jjp .logo { font-weight:800; font-size:1.1rem; display:inline-flex; align-items:center; }
   .jjp .logo img { max-height:34px; width:auto; display:block; }
-  .jjp .nav { display:flex; gap:15px; margin-left:auto; font-size:13px; color:var(--muted); }
-  .jjp .cta-btn { background:var(--accent); color:#fff; padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:600; }
+  .jjp .site-actions { margin-left:auto; display:flex; align-items:center; gap:14px; }
+  .jjp .nav { display:flex; gap:15px; font-size:13px; color:var(--muted); }
+  .jjp .cta-btn { background:var(--accent); color:#fff; padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:600; white-space:nowrap; }
+  /* ハンバーガー(スマホ時のみ表示。実テーマの menu-toggle と同じ見た目) */
+  .jjp .hamburger { display:none; width:38px; height:32px; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:6px; flex:none; }
+  .jjp .hamburger i { position:relative; display:block; width:18px; height:2px; background:var(--ink); border-radius:2px; }
+  .jjp .hamburger i::before, .jjp .hamburger i::after { content:""; position:absolute; left:0; width:18px; height:2px; background:var(--ink); border-radius:2px; }
+  .jjp .hamburger i::before { top:-6px; }
+  .jjp .hamburger i::after { top:6px; }
+  .dev-mobile .jjp .hamburger { display:flex; }
   .jjp .sec { padding-block:clamp(2rem,5vw,3.4rem); }
   .jjp .sec--muted { background:var(--subtle); }
   .jjp .sec__h { text-align:center; font-size:clamp(1.3rem,1.05rem+1vw,1.75rem); margin:0 0 1.3rem; }
@@ -536,7 +544,7 @@
           <!-- TOP -->
           <div class="preview is-shown jjp" id="page-top">
             <div class="site-header"><span class="logo">山田工務店</span>
-              <span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span></div>
+              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span><span class="hamburger" aria-hidden="true"><i></i></span></span></div>
             <div class="hero" id="tp-hero"><div class="hero__media" id="tp-hero-media"></div><div class="hero__in">
               <h2 class="pl" id="tp-hero-h"></h2>
               <p class="pl" id="tp-hero-sub"></p>
@@ -577,7 +585,7 @@
           <!-- SERVICE -->
           <div class="preview jjp" id="page-service">
             <div class="site-header"><span class="logo">山田工務店</span>
-              <span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span></div>
+              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span><span class="hamburger" aria-hidden="true"><i></i></span></span></div>
             <header class="page-head"><div class="inner"><h1 class="pl" id="sv-title"></h1><p class="lead pl" id="sv-lead"></p></div></header>
             <section class="sec sec--muted"><div class="inner"><h2 class="sec__h pl" id="sv-items-h"></h2>
               <div class="cards">
@@ -607,7 +615,7 @@
           <!-- COMPANY -->
           <div class="preview jjp" id="page-company">
             <div class="site-header"><span class="logo">山田工務店</span>
-              <span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span></div>
+              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span><span class="hamburger" aria-hidden="true"><i></i></span></span></div>
             <header class="page-head"><div class="inner"><h1 class="pl" id="co-title"></h1><p class="lead pl" id="co-lead"></p></div></header>
             <section class="sec"><div class="inner"><h2 class="sec__h">ごあいさつ</h2>
               <div class="split"><div class="ph" id="co-greet-img" data-ph="代表者の写真"></div>
@@ -642,7 +650,7 @@
           <!-- CONTACT -->
           <div class="preview jjp" id="page-contact">
             <div class="site-header"><span class="logo">山田工務店</span>
-              <span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span></div>
+              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span><span class="hamburger" aria-hidden="true"><i></i></span></span></div>
             <header class="page-head"><div class="inner"><h1 class="pl" id="ct-title"></h1><p class="lead pl" id="ct-lead"></p></div></header>
             <section class="sec"><div class="inner"><div class="cc">
               <div class="cc__i" id="ct-card-tel"><span class="lb">お電話</span><span class="big pl" id="ct-tel"></span><span class="lb pl" id="ct-tel-note"></span></div>
@@ -671,7 +679,7 @@
           <!-- PRIVACY -->
           <div class="preview jjp" id="page-privacy">
             <div class="site-header"><span class="logo">山田工務店</span>
-              <span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span></div>
+              <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="cta-btn">無料相談</span><span class="hamburger" aria-hidden="true"><i></i></span></span></div>
             <article class="article">
               <h1>プライバシーポリシー</h1>
               <p class="meta pl" id="pv-date"></p>
