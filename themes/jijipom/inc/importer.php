@@ -222,6 +222,7 @@ class Jijipom_Importer {
 			$s[ "jijipom_svc_item{$n}_title" ] = 'text';
 			$s[ "jijipom_svc_item{$n}_text" ]  = 'textarea';
 			$s[ "jijipom_svc_item{$n}_image" ] = 'url';
+			$s[ "jijipom_svc_item{$n}_url" ]   = 'url';
 		}
 		for ( $n = 1; $n <= 8; $n++ ) {
 			$s[ "jijipom_company_row{$n}_label" ] = 'text';

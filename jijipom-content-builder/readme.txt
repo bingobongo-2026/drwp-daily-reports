@@ -2,7 +2,7 @@
 Contributors: jijipom
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.6.0
+Stable tag: 1.7.0
 License: GPLv2 or later
 
 jijipom テーマ向けのコンテンツを画面上で組み立て、ZIP でエクスポートするプラグインです。
@@ -27,6 +27,10 @@ ZIP は別サイトへ持って行って取り込むこともできます。
 　このプラグインはビルダーとエクスポートを担当します。
 
 == 変更履歴 ==
+
+= 1.7.0 =
+* サービスページの各サービス項目に「リンク先URL」を設定できるようにした。
+  URLを入れるとカード全体がリンクになる(取り込みで jijipom に反映)。
 
 = 1.6.0 =
 * 「下書き保存」「下書き読込」を追加。入力途中の内容をファイル(jijipom-draft.json)

@@ -164,6 +164,11 @@
 
   .jjp .cards { display:flex; flex-wrap:wrap; justify-content:center; gap:clamp(1rem,2.5vw,1.5rem); margin-top:1.3rem; }
   .jjp .card { flex:1 1 300px; max-width:460px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  /* リンク設定ありのサービスカード(プレビュー): 目印＋ホバー演出 */
+  .jjp .card.is-link { position:relative; cursor:pointer; transition:transform .18s, box-shadow .18s, border-color .18s; }
+  .jjp .card.is-link::after { content:"🔗"; position:absolute; top:8px; right:8px; z-index:2; background:rgba(255,255,255,.92); border-radius:6px; padding:0 5px; font-size:12px; box-shadow:0 1px 3px rgba(0,0,0,.18); }
+  .jjp .card.is-link:hover { transform:translateY(-3px); border-color:var(--accent); box-shadow:0 8px 22px rgba(0,0,0,.08); }
+  .jjp .card.is-link:hover .card__b h3 { color:var(--accent); }
   .jjp .card .ph { border-radius:0; aspect-ratio:16/9; }
   .jjp .card__b { padding:1rem 1.15rem 1.25rem; }
   .jjp .card__b h3 { margin:0 0 .35rem; font-size:1.08rem; }
@@ -426,6 +431,7 @@
           <label class="fld"><span>項目1 タイトル</span><input data-bind="sv-i1-t" data-sample="新築工事"></label>
           <label class="fld"><span>項目1 説明</span><input data-bind="sv-i1-x" data-sample="自由設計の木造住宅。"></label>
         </div>
+        <label class="fld"><span>項目1 リンク先URL（任意）</span><input data-bind="sv-i1-url" data-link="sv-card1" placeholder="例: /service/newbuild/"></label>
         <label class="chk"><input type="checkbox" data-vis="sv-card1" checked> 項目1を表示する</label>
         <div class="media" data-target="sv-i2-img" data-mode="image"><span class="cap">項目2 写真</span>
           <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
@@ -434,6 +440,7 @@
           <label class="fld"><span>項目2 タイトル</span><input data-bind="sv-i2-t" data-sample="リフォーム"></label>
           <label class="fld"><span>項目2 説明</span><input data-bind="sv-i2-x" data-sample="水回り・内装・断熱改修まで。"></label>
         </div>
+        <label class="fld"><span>項目2 リンク先URL（任意）</span><input data-bind="sv-i2-url" data-link="sv-card2" placeholder="例: /service/reform/"></label>
         <label class="chk"><input type="checkbox" data-vis="sv-card2" checked> 項目2を表示する</label>
         <div class="media" data-target="sv-i3-img" data-mode="image"><span class="cap">項目3 写真</span>
           <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
@@ -442,6 +449,7 @@
           <label class="fld"><span>項目3 タイトル</span><input data-bind="sv-i3-t" data-sample="外構工事"></label>
           <label class="fld"><span>項目3 説明</span><input data-bind="sv-i3-x" data-sample="駐車場・フェンス・デッキ。"></label>
         </div>
+        <label class="fld"><span>項目3 リンク先URL（任意）</span><input data-bind="sv-i3-url" data-link="sv-card3" placeholder="例: /service/exterior/"></label>
         <label class="chk"><input type="checkbox" data-vis="sv-card3" checked> 項目3を表示する</label>
         <div class="media" data-target="sv-i4-img" data-mode="image"><span class="cap">項目4 写真</span>
           <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
@@ -450,6 +458,7 @@
           <label class="fld"><span>項目4 タイトル</span><input data-bind="sv-i4-t" data-sample="メンテナンス"></label>
           <label class="fld"><span>項目4 説明</span><input data-bind="sv-i4-x" data-sample="定期点検・修繕。"></label>
         </div>
+        <label class="fld"><span>項目4 リンク先URL（任意）</span><input data-bind="sv-i4-url" data-link="sv-card4" placeholder="例: /service/maintenance/"></label>
         <label class="chk"><input type="checkbox" data-vis="sv-card4" checked> 項目4を表示する</label>
 
         <div class="grp">強み・特徴</div>
@@ -1002,6 +1011,16 @@
   });
   applySocial();
 
+  // ---- サービス項目のリンク: URLが入っているカードにリンク目印(is-link)を付ける ----
+  function applyLinks() {
+    document.querySelectorAll('[data-link]').forEach(function (inp) {
+      var card = document.getElementById(inp.dataset.link);
+      if (card) card.classList.toggle('is-link', inp.value.trim() !== '');
+    });
+  }
+  document.querySelectorAll('[data-link]').forEach(function (inp) { inp.addEventListener('input', applyLinks); });
+  applyLinks();
+
   // ---- mobile view switch ----
   document.querySelectorAll('.switch button').forEach(function (b) {
     b.addEventListener('click', function () {
@@ -1090,6 +1109,7 @@
       set('jijipom_svc_item' + n + '_title', vis ? fv('sv-i' + n + '-t') : '');
       set('jijipom_svc_item' + n + '_text', vis ? fv('sv-i' + n + '-x') : '');
       set('jijipom_svc_item' + n + '_image', im ? im.src : '');
+      set('jijipom_svc_item' + n + '_url', vis ? fv('sv-i' + n + '-url') : '');
     });
     set('jijipom_svc_feature_heading', fv('sv-feat-h'));
     set('jijipom_svc_feature_text', fv('sv-feat-x'));
