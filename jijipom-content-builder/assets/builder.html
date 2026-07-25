@@ -27,6 +27,8 @@
   .bar h1 { margin:0; font-size:clamp(1.05rem,.9rem+.6vw,1.35rem); }
   .bar .lede { margin:2px 0 0; font-size:13px; color:var(--app-muted); }
   .bar .spacer { flex:1; }
+  /* アクションボタンは1グループにまとめ、折り返す時も5つ一緒に並ぶようにする(リセットだけ孤立させない) */
+  .bar__actions { display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:flex-end; }
   .btn-a { font-family:inherit; font-size:13px; cursor:pointer; border:1px solid var(--app-border);
     background:var(--app-panel); color:var(--app-ink); padding:8px 14px; border-radius:999px; }
   .btn-a.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
@@ -269,11 +271,13 @@
       <p class="lede">左に入力すると、右のプレビューにすぐ反映されます（jijipom テーマ）。テキストは自動保存されます。</p>
     </div>
     <span class="spacer"></span>
-    <button class="btn-a" onclick="saveDraft()" title="途中まで作成した内容をファイルに保存">💾 下書き保存</button>
-    <label class="btn-a" style="cursor:pointer;" title="保存した下書きファイルを読み込んで続きから編集">📂 下書き読込<input type="file" accept="application/json,.json" style="display:none" onchange="loadDraftFile(this.files[0]); this.value='';"></label>
-    <button class="btn-a primary" onclick="exportZip()">⬇ ZIPをエクスポート</button>
-    <button class="btn-a" onclick="printPreview()">🖨 印刷 / PDF</button>
-    <button class="btn-a" onclick="resetAll()">リセット</button>
+    <div class="bar__actions">
+      <button class="btn-a" onclick="saveDraft()" title="途中まで作成した内容をファイルに保存">💾 下書き保存</button>
+      <label class="btn-a" style="cursor:pointer;" title="保存した下書きファイルを読み込んで続きから編集">📂 下書き読込<input type="file" accept="application/json,.json" style="display:none" onchange="loadDraftFile(this.files[0]); this.value='';"></label>
+      <button class="btn-a primary" onclick="exportZip()">⬇ ZIPをエクスポート</button>
+      <button class="btn-a" onclick="printPreview()">🖨 印刷 / PDF</button>
+      <button class="btn-a" onclick="resetAll()">リセット</button>
+    </div>
   </div>
 
   <nav class="tabs">
