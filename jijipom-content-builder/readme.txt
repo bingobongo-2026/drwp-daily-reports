@@ -2,7 +2,7 @@
 Contributors: jijipom
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.5.6
+Stable tag: 1.5.7
 License: GPLv2 or later
 
 jijipom テーマ向けのコンテンツを画面上で組み立て、ZIP でエクスポートするプラグインです。
@@ -27,6 +27,10 @@ ZIP は別サイトへ持って行って取り込むこともできます。
 　このプラグインはビルダーとエクスポートを担当します。
 
 == 変更履歴 ==
+
+= 1.5.7 =
+* 左の入力エリアを太い枠(アクセント色)で囲み、「入力フォーム」の見出しを付けて
+  入力欄だと分かりやすくした。
 
 = 1.5.6 =
 * ショートコードに全幅オプションを追加: [jijipom_builder width="full"]。テーマの
