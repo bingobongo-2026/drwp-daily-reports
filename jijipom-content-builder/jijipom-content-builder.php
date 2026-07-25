@@ -3,7 +3,7 @@
  * Plugin Name: jijipom コンテンツビルダー
  * Plugin URI: https://nippoman.example.com/
  * Description: jijipom テーマ向けのコンテンツを画面上で組み立て、ZIP でエクスポートします。管理画面のほか、ショートコード [jijipom_builder] でフロントページにも設置できます。書き出した ZIP は「外観 > コンテンツ取込」(jijipom テーマ) から取り込みます。
- * Version: 1.5.3
+ * Version: 1.5.4
  * Author: jijipom
  * Text Domain: jijipom-content-builder
  * Requires at least: 6.0
@@ -18,7 +18,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('JCB_VERSION', '1.5.3');
+define('JCB_VERSION', '1.5.4');
 define('JCB_PATH', plugin_dir_path(__FILE__));
 define('JCB_URL', plugin_dir_url(__FILE__));
 
@@ -68,7 +68,13 @@ class JCB_Plugin {
             if (!f) return;
             window.addEventListener('message', function (e) {
                 if (f.contentWindow && e.source === f.contentWindow && e.data && e.data.jijipomBuilderHeight) {
-                    f.style.height = (parseInt(e.data.jijipomBuilderHeight, 10) + 2) + 'px';
+                    var h = parseInt(e.data.jijipomBuilderHeight, 10);
+                    // 実際に高さが変わった時だけ反映(2px 未満の揺れは無視)し、
+                    // 余白は足さない。加算するとリサイズが際限なく繰り返される。
+                    if (h > 0 && Math.abs(h - (f._jcbH || 0)) > 1) {
+                        f._jcbH = h;
+                        f.style.height = h + 'px';
+                    }
                 }
             });
         })();

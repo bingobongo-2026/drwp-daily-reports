@@ -1216,10 +1216,17 @@
 
   // 親フレーム(管理画面 / ショートコード)へ中身の高さを通知し、iframe を
   // 自動リサイズさせる。これで iframe 自体のスクロールバーが出ない。
+  // 通知する高さは「コンテンツの実高さ(body.scrollHeight)」のみを使う。
+  // documentElement.scrollHeight は iframe のビューポート高さを含むため、
+  // 親が iframe を高くする → ビューポートが伸びる → さらに高い値を通知… と
+  // 無限に伸び続けてしまう。実高さに固定し、変化した時だけ通知する。
+  var jcbLastH = 0;
   function jcbPostHeight() {
     try {
       if (window.parent && window.parent !== window) {
-        var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+        var h = document.body.scrollHeight;
+        if (!h || Math.abs(h - jcbLastH) < 2) return; // 微小変化は無視してループを止める
+        jcbLastH = h;
         window.parent.postMessage({ jijipomBuilderHeight: h }, '*');
       }
     } catch (e) {}
