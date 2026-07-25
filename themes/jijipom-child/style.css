@@ -1,0 +1,51 @@
+/*
+Theme Name: jijipom child
+Theme URI: https://example.com/jijipom
+Template: jijipom
+Author: jijipom
+Author URI: https://example.com
+Description: jijipom テーマ用の子テーマ。親テーマ(jijipom)を更新しても消えないカスタマイズ用の置き場です。CSSはこのファイルに、PHPは functions.php に追記します。テンプレートを差し替えたいときは、親テーマから同じファイル名でコピーしてこのフォルダーに置いてください。
+Version: 1.0.0
+Requires at least: 6.0
+Tested up to: 6.5
+Requires PHP: 7.4
+License: GNU General Public License v2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: jijipom-child
+Tags: blog, custom-menu, featured-images, threaded-comments, translation-ready, block-styles, wide-blocks, accessibility-ready, custom-logo
+*/
+
+/* =========================================================
+   ここから下にカスタムCSSを書きます
+   ---------------------------------------------------------
+   このファイルは親テーマの style.css の「後」に読み込まれるので、
+   同じセレクターを書けば親の指定を上書きできます。
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   例1: サイト全体の配色を変える
+   親テーマはデザイントークンを :root のカスタムプロパティで
+   管理しているので、ここを上書きするだけで全体のトーンが変わります。
+   (使えるトークンの一覧は親テーマの style.css 冒頭を参照)
+   --------------------------------------------------------- */
+/*
+:root {
+  --color-accent: #0a7d5a;
+  --color-accent-hover: #075f44;
+}
+*/
+
+/* ---------------------------------------------------------
+   例2: ヘッダーのボタンの角丸をやめて四角にする
+   --------------------------------------------------------- */
+/*
+.header-cta,
+.header-sub { border-radius: 4px; }
+*/
+
+/* ---------------------------------------------------------
+   例3: 本文の読みやすい幅を広げる
+   --------------------------------------------------------- */
+/*
+:root { --content-width: 820px; }
+*/
