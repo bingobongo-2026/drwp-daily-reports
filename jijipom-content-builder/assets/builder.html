@@ -259,6 +259,8 @@
       <p class="lede">左に入力すると、右のプレビューにすぐ反映されます（jijipom テーマ）。テキストは自動保存されます。</p>
     </div>
     <span class="spacer"></span>
+    <button class="btn-a" onclick="saveDraft()" title="途中まで作成した内容をファイルに保存">💾 下書き保存</button>
+    <label class="btn-a" style="cursor:pointer;" title="保存した下書きファイルを読み込んで続きから編集">📂 下書き読込<input type="file" accept="application/json,.json" style="display:none" onchange="loadDraftFile(this.files[0]); this.value='';"></label>
     <button class="btn-a primary" onclick="exportZip()">⬇ ZIPをエクスポート</button>
     <button class="btn-a" onclick="copyAll()">📋 内容をコピー</button>
     <button class="btn-a" onclick="printPreview()">🖨 印刷 / PDF</button>
@@ -1219,7 +1221,34 @@
     setTimeout(function () { try { w.print(); } catch (e) {} }, 500);
   }
 
+  // ---- 下書きの保存 / 読み込み ----
+  // 入力内容(state)をファイルに書き出して、後で(別端末でも)続きから再開できる。
+  // 通常はブラウザに自動保存されるが、それは同じ端末・ブラウザに限られるため。
+  function saveDraft() {
+    var doc = { schema: 'jijipom-builder-draft', version: 1, savedAt: new Date().toISOString(), device: devMode, state: state };
+    downloadBlob(new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' }), 'jijipom-draft.json');
+  }
+  function loadDraftFile(file) {
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var doc;
+      try { doc = JSON.parse(reader.result); } catch (e) { alert('下書きファイルを読み取れませんでした。'); return; }
+      if (!doc || doc.schema !== 'jijipom-builder-draft' || !doc.state || typeof doc.state !== 'object') {
+        alert('これは下書きファイル（jijipom-draft.json）ではないようです。'); return;
+      }
+      if (!confirm('現在の入力内容を、読み込む下書きで置き換えます。よろしいですか？')) return;
+      try {
+        localStorage.setItem(STORE, JSON.stringify(doc.state));
+        if (doc.device === 'pc' || doc.device === 'mobile') localStorage.setItem('jijipom_live_dev', doc.device);
+      } catch (e) {}
+      location.reload();
+    };
+    reader.readAsText(file);
+  }
+
   window.resetAll = resetAll; window.copyAll = copyAll; window.exportZip = exportZip; window.printPreview = printPreview;
+  window.saveDraft = saveDraft; window.loadDraftFile = loadDraftFile;
 
   // 親フレーム(管理画面 / ショートコード)へ中身の高さを通知し、iframe を
   // 自動リサイズさせる。これで iframe 自体のスクロールバーが出ない。
