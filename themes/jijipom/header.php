@@ -69,7 +69,7 @@
 							'theme_location' => 'primary',
 							'menu_id'        => 'primary-menu',
 							'container'      => false,
-							'depth'          => 2,
+							'depth'          => 3,
 						)
 					);
 					?>
