@@ -255,7 +255,7 @@
     <span class="spacer"></span>
     <button class="btn-a primary" onclick="exportZip()">⬇ ZIPをエクスポート</button>
     <button class="btn-a" onclick="copyAll()">📋 内容をコピー</button>
-    <button class="btn-a" onclick="window.print()">🖨 印刷 / PDF</button>
+    <button class="btn-a" onclick="printPreview()">🖨 印刷 / PDF</button>
     <button class="btn-a" onclick="resetAll()">リセット</button>
   </div>
 
@@ -1182,7 +1182,37 @@
     downloadBlob(makeZip('jijipom-content.json', json), 'jijipom-content.zip');
   }
 
-  window.resetAll = resetAll; window.copyAll = copyAll; window.exportZip = exportZip;
+  // 印刷 / PDF: 現在のプレビュー(全ページ)を別ウィンドウで開いて印刷する。
+  // iframe 埋め込み時に window.print() だと親が対象になり白紙になるため、
+  // プレビュー内容だけを独立ドキュメントに書き出してから印刷する。
+  function printPreview() {
+    var styleEl = document.querySelector('style');
+    var css = styleEl ? styleEl.textContent : '';
+    var dev = document.getElementById('device');
+    var pagesHtml = dev ? dev.innerHTML : '';
+    // フォント等の CSS 変数(--pv-*)は device のインラインスタイルにあるので引き継ぐ。
+    var devStyle = dev ? (dev.getAttribute('style') || '') : '';
+    devStyle = devStyle.replace(/zoom\s*:[^;]*;?/gi, '').replace(/transform[^:]*:[^;]*;?/gi, '');
+
+    var w = window.open('', '_blank');
+    if (!w) { window.print(); return; } // ポップアップがブロックされたら従来動作
+    var doc = '<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>jijipom プレビュー印刷</title>'
+      + '<style>' + css
+      + '\nbody{margin:0;background:#fff;}'
+      + '\n#print-root .preview{display:block !important;}'
+      + '\n#print-root .preview + .preview{margin-top:0;page-break-before:always;}'
+      + '\n#print-root .device{width:auto;zoom:1;transform:none;}'
+      + '</style></head><body>'
+      + '<div id="print-root" class="dev-pc" style="' + devStyle.replace(/"/g, '&quot;') + '">' + pagesHtml + '</div>'
+      + '</body></html>';
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+    w.focus();
+    setTimeout(function () { try { w.print(); } catch (e) {} }, 500);
+  }
+
+  window.resetAll = resetAll; window.copyAll = copyAll; window.exportZip = exportZip; window.printPreview = printPreview;
 
   // 親フレーム(管理画面 / ショートコード)へ中身の高さを通知し、iframe を
   // 自動リサイズさせる。これで iframe 自体のスクロールバーが出ない。
