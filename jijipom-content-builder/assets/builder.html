@@ -90,6 +90,19 @@
     border-radius:999px; padding:5px 12px; font-variant-numeric:tabular-nums; }
   .tpl-badge { font-size:11px; color:var(--app-muted); white-space:nowrap; }
   .viewport { background:var(--bg); color:var(--ink); }
+  /* デバイス枠: 固定幅で描画し、パネル幅に合わせて zoom で縮小して収める */
+  .device { margin:0 auto; }
+  .device.dev-pc { width:1140px; }
+  .device.dev-mobile { width:400px; }
+  /* デバイス切り替えボタン(ブラウザバー内) */
+  .devsel { display:inline-flex; border:1px solid var(--app-border); border-radius:999px; overflow:hidden; }
+  .devsel button { font-family:inherit; font-size:12px; line-height:1; padding:4px 9px; border:none; background:var(--app-panel); color:var(--app-ink); cursor:pointer; }
+  .devsel button.on { background:var(--accent); color:#fff; }
+  /* スマホ表示: 各セクションを1カラムに(ウィンドウ幅ではなくデバイスで判定) */
+  .dev-mobile .jjp .nav { display:none; }
+  .dev-mobile .jjp .split, .dev-mobile .jjp .blog { grid-template-columns:1fr; }
+  .dev-mobile .jjp .cards, .dev-mobile .jjp .abouts, .dev-mobile .jjp .cc { flex-direction:column; align-items:stretch; }
+  .dev-mobile .jjp .card, .dev-mobile .jjp .abouts > div, .dev-mobile .jjp .cc__i { max-width:none; }
   .preview { display:none; } .preview.is-shown { display:block; }
   .hintline { margin:10px 4px 0; font-size:12px; color:var(--app-muted); }
 
@@ -185,8 +198,6 @@
     .switch { display:flex; }
     body.show-preview .editor-col { display:none; }
     body.show-editor .previewWrap { display:none; }
-    .jjp .split, .jjp .blog { grid-template-columns:1fr; }
-    .jjp .nav { display:none; }
   }
   @media (prefers-reduced-motion:reduce){ * { transition:none !important; } }
 
@@ -434,9 +445,14 @@
         <div class="browser-bar">
           <span class="dots"><i></i><i></i><i></i></span>
           <span class="urlbar" id="urlbar">yamada-koumuten.example.com/</span>
+          <span class="devsel" role="group" aria-label="表示切替">
+            <button type="button" data-dev="pc" class="on" title="PC表示">🖥 PC</button>
+            <button type="button" data-dev="mobile" title="スマホ表示">📱 スマホ</button>
+          </span>
           <span class="tpl-badge" id="tplBadge">front-page.php</span>
         </div>
         <div class="viewport" id="viewport">
+         <div class="device dev-pc" id="device">
 
           <!-- TOP -->
           <div class="preview is-shown jjp" id="page-top">
@@ -551,6 +567,7 @@
             <div class="footer"><div>〒000-0000 ○○県△△市中央1-2-3 ／ TEL 000-000-0000</div></div>
           </div>
 
+         </div><!-- .device -->
         </div>
       </div>
       <p class="hintline">空欄はサンプル文が<span style="opacity:.6">薄く</span>表示されます。画像・動画はファイル選択（この画面用・保存されません）またはURL（保存されます）でセットできます。</p>
@@ -724,14 +741,51 @@
       editors.forEach(function (e) { e.hidden = (e.dataset.page !== key); });
       if (meta[key]) { urlbar.textContent = meta[key].url; badge.textContent = meta[key].tpl; }
       viewport.scrollTop = 0;
+      fitDevice();
     });
   });
+
+  // ---- デバイス切替 (PC / スマホ) ----
+  var device = document.getElementById('device');
+  var DEV_WIDTHS = { pc: 1140, mobile: 400 };
+  var devMode = 'pc';
+  try { var dm = localStorage.getItem('jijipom_live_dev'); if (dm === 'pc' || dm === 'mobile') devMode = dm; } catch (e) {}
+
+  function fitDevice() {
+    if (!device) return;
+    var w = DEV_WIDTHS[devMode] || 1140;
+    var avail = viewport ? viewport.clientWidth : w;
+    var scale = Math.min(1, (avail - 2) / w);
+    device.style.zoom = scale;
+    // zoom 未対応ブラウザ向けフォールバック(transform)
+    if (!('zoom' in device.style) || device.style.zoom === '') {
+      device.style.transform = scale < 1 ? 'scale(' + scale + ')' : '';
+      device.style.transformOrigin = 'top center';
+    }
+    setTimeout(jcbPostHeight, 20);
+  }
+  function applyDevMode() {
+    device.classList.toggle('dev-pc', devMode === 'pc');
+    device.classList.toggle('dev-mobile', devMode === 'mobile');
+    document.querySelectorAll('.devsel button').forEach(function (b) { b.classList.toggle('on', b.dataset.dev === devMode); });
+    fitDevice();
+  }
+  document.querySelectorAll('.devsel button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      devMode = b.dataset.dev === 'mobile' ? 'mobile' : 'pc';
+      try { localStorage.setItem('jijipom_live_dev', devMode); } catch (e) {}
+      applyDevMode();
+    });
+  });
+  window.addEventListener('resize', fitDevice);
+  applyDevMode();
 
   // ---- mobile view switch ----
   document.querySelectorAll('.switch button').forEach(function (b) {
     b.addEventListener('click', function () {
       document.querySelectorAll('.switch button').forEach(function (x) { x.classList.toggle('on', x === b); });
       document.body.className = (b.dataset.view === 'preview') ? 'show-preview' : 'show-editor';
+      setTimeout(fitDevice, 20);
     });
   });
 
@@ -911,7 +965,7 @@
       }
     } catch (e) {}
   }
-  window.addEventListener('load', jcbPostHeight);
+  window.addEventListener('load', function () { fitDevice(); jcbPostHeight(); });
   window.addEventListener('resize', jcbPostHeight);
   if (window.ResizeObserver) { new ResizeObserver(jcbPostHeight).observe(document.body); }
   document.addEventListener('click', function () { setTimeout(jcbPostHeight, 60); });
