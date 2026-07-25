@@ -31,11 +31,16 @@
     background:var(--app-panel); color:var(--app-ink); padding:8px 14px; border-radius:999px; }
   .btn-a.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
 
-  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
-  .tab { font-family:inherit; font-size:13.5px; cursor:pointer; border:1px solid var(--app-border);
-    background:var(--app-panel); color:var(--app-ink); padding:8px 15px; border-radius:999px; transition:.15s; }
-  .tab:hover { border-color:var(--accent); }
-  .tab.is-active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  /* ページ切替タブ: アクションボタンと区別するため「セグメント型」の
+     ひとまとまりの箱にする(白いトラック＋角丸チップ)。 */
+  .tabs { display:inline-flex; align-items:center; flex-wrap:wrap; gap:3px; margin-bottom:16px;
+    padding:5px 6px 5px 12px; background:var(--app-panel); border:1px solid var(--app-border);
+    border-radius:12px; box-shadow:0 1px 3px rgba(20,28,60,.06); }
+  .tabs__label { font-size:11px; font-weight:800; letter-spacing:.08em; color:var(--app-muted); margin-right:4px; }
+  .tab { font-family:inherit; font-size:13.5px; cursor:pointer; border:0; background:transparent;
+    color:var(--app-ink); padding:7px 14px; border-radius:8px; transition:.15s; }
+  .tab:hover { background:var(--app-bg); }
+  .tab.is-active { background:var(--accent); color:#fff; box-shadow:0 1px 5px rgba(43,92,255,.40); }
   .tab .n { font-weight:800; margin-right:5px; }
 
   .switch { display:none; gap:6px; margin-bottom:12px; }
@@ -267,12 +272,12 @@
     <button class="btn-a" onclick="saveDraft()" title="途中まで作成した内容をファイルに保存">💾 下書き保存</button>
     <label class="btn-a" style="cursor:pointer;" title="保存した下書きファイルを読み込んで続きから編集">📂 下書き読込<input type="file" accept="application/json,.json" style="display:none" onchange="loadDraftFile(this.files[0]); this.value='';"></label>
     <button class="btn-a primary" onclick="exportZip()">⬇ ZIPをエクスポート</button>
-    <button class="btn-a" onclick="copyAll()">📋 内容をコピー</button>
     <button class="btn-a" onclick="printPreview()">🖨 印刷 / PDF</button>
     <button class="btn-a" onclick="resetAll()">リセット</button>
   </div>
 
   <nav class="tabs">
+    <span class="tabs__label">ページ</span>
     <button class="tab is-active" data-page="basic">⚙ 基本設定</button>
     <button class="tab" data-page="top"><span class="n">①</span>トップ</button>
     <button class="tab" data-page="service"><span class="n">②</span>サービス</button>
@@ -1036,29 +1041,6 @@
     state = { f: {}, b: {}, m: {} }; persist();
     location.reload();
   }
-  function copyAll() {
-    var byPage = { basic:'基本設定', top:'① トップ', service:'② サービス', company:'③ 会社概要', contact:'④ お問い合わせ', privacy:'⑤ プライバシー' };
-    var out = [];
-    editors.forEach(function (ed) {
-      out.push('■ ' + (byPage[ed.dataset.page] || ed.dataset.page));
-      ed.querySelectorAll('.fld').forEach(function (fld) {
-        var lb = fld.querySelector('span'); var input = fld.querySelector('[data-bind]');
-        if (!input) return;
-        var v = input.value.trim();
-        if (v) out.push('・' + (lb ? lb.textContent.trim() : '') + ': ' + v);
-      });
-      ed.querySelectorAll('[data-btn],[data-vis]').forEach(function (c) {
-        if (!c.checked) { var lbl = (c.parentElement ? c.parentElement.textContent : '').trim(); out.push('・' + lbl + ' → 非表示'); }
-      });
-      out.push('');
-    });
-    var text = out.join('\n').trim() || '(未入力)';
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { alert('入力内容をコピーしました。'); }, function () { fb(text); });
-    } else { fb(text); }
-    function fb(t) { var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); alert('入力内容をコピーしました。'); } catch (e) { prompt('コピーしてください:', t); } document.body.removeChild(ta); }
-  }
   // ================= エクスポート (jijipom テーマ設定 → ZIP) =================
   function fv(id) { var el = document.querySelector('[data-bind="' + id + '"]'); return el ? el.value.trim() : ''; }
   function isOn(attr, id) { var el = document.querySelector('[' + attr + '="' + id + '"]'); return el ? el.checked : true; }
@@ -1267,7 +1249,7 @@
     reader.readAsText(file);
   }
 
-  window.resetAll = resetAll; window.copyAll = copyAll; window.exportZip = exportZip; window.printPreview = printPreview;
+  window.resetAll = resetAll; window.exportZip = exportZip; window.printPreview = printPreview;
   window.saveDraft = saveDraft; window.loadDraftFile = loadDraftFile;
 
   // 親フレーム(管理画面 / ショートコード)へ中身の高さを通知し、iframe を
