@@ -21,7 +21,9 @@
 
   * { box-sizing:border-box; }
   body { margin:0; background:var(--app-bg); color:var(--app-ink); font-family:var(--font); line-height:1.7; }
-  .app { max-width:1240px; margin:0 auto; padding:18px clamp(12px,3vw,26px) 60px; }
+  /* 上限1240pxだとプレビュー列が約776pxまでしか取れず、PC表示(1140px)が
+     常に7割程度に縮小されていた。広い画面では等倍で見えるところまで許容する。 */
+  .app { max-width:1640px; margin:0 auto; padding:18px clamp(12px,3vw,26px) 60px; }
 
   .bar { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:4px 2px 14px; }
   .bar h1 { margin:0; font-size:clamp(1.05rem,.9rem+.6vw,1.35rem); }
@@ -50,7 +52,9 @@
     background:var(--app-panel); color:var(--app-ink); border-radius:999px; cursor:pointer; }
   .switch button.on { background:var(--app-ink); color:var(--app-panel); border-color:var(--app-ink); }
 
-  .work { display:grid; grid-template-columns:390px 1fr; gap:20px; align-items:start; }
+  /* プレビュー列は minmax(0,1fr)。既定の min-width:auto のままだと中の .device
+     (固定1140px)より狭くできず、列が1140pxまで広がってページが横にはみ出す。 */
+  .work { display:grid; grid-template-columns:390px minmax(0,1fr); gap:20px; align-items:start; }
 
   /* editor */
   /* 左の入力エリアを太枠で囲み、入力フォームだと分かるようにする */
@@ -105,7 +109,7 @@
   .mclear:hover { color:var(--accent); }
 
   /* preview */
-  .previewWrap { position:sticky; top:14px; }
+  .previewWrap { position:sticky; top:14px; min-width:0; }
   .browser { background:var(--app-panel); border:1px solid var(--app-border); border-radius:12px; overflow:hidden;
     box-shadow:0 12px 34px rgba(20,28,60,.14); }
   .browser-bar { display:flex; align-items:center; gap:8px; padding:10px 13px; border-bottom:1px solid var(--app-border);
@@ -115,7 +119,9 @@
   .urlbar { flex:1; font-size:12px; color:var(--app-muted); background:var(--app-bg); border:1px solid var(--app-border);
     border-radius:999px; padding:5px 12px; font-variant-numeric:tabular-nums; }
   .tpl-badge { font-size:11px; color:var(--app-muted); white-space:nowrap; }
-  .viewport { background:var(--bg); color:var(--ink); }
+  /* zoom 非対応で transform フォールバックになった場合、レイアウト幅は
+     縮まないのでここで切り取る(見た目は縮小済みなので欠けない)。 */
+  .viewport { background:var(--bg); color:var(--ink); overflow:hidden; }
   /* デバイス枠: 固定幅で描画し、パネル幅に合わせて zoom で縮小して収める */
   .device { margin:0 auto; }
   .device.dev-pc { width:1140px; }
@@ -1004,6 +1010,16 @@
     });
   });
   window.addEventListener('resize', fitDevice);
+  // ウィンドウリサイズ以外で表示幅が変わる場合(ショートコード埋め込みで親が
+  // iframe をリサイズする・他スクリプトの読み込みでレイアウトが確定する等)にも
+  // 追従させる。幅が変わったときだけ再計算し、高さ変化では発火させない(無限ループ防止)。
+  if (window.ResizeObserver && viewport) {
+    var lastFitW = 0;
+    new ResizeObserver(function () {
+      var vw = viewport.clientWidth;
+      if (vw && Math.abs(vw - lastFitW) > 1) { lastFitW = vw; fitDevice(); }
+    }).observe(viewport);
+  }
   applyDevMode();
 
   // ---- サイトタイトル (全ページのロゴ文字) ----
