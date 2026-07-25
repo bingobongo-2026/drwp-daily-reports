@@ -252,7 +252,8 @@
   </div>
 
   <nav class="tabs">
-    <button class="tab is-active" data-page="top"><span class="n">①</span>トップ</button>
+    <button class="tab is-active" data-page="basic">⚙ 基本設定</button>
+    <button class="tab" data-page="top"><span class="n">①</span>トップ</button>
     <button class="tab" data-page="service"><span class="n">②</span>サービス</button>
     <button class="tab" data-page="company"><span class="n">③</span>会社概要</button>
     <button class="tab" data-page="contact"><span class="n">④</span>お問い合わせ</button>
@@ -270,7 +271,7 @@
     <div class="editor-col">
 
       <!-- ① TOP -->
-      <div class="editor" data-page="top">
+      <div class="editor" data-page="basic">
         <div class="grp">サイト基本（全ページ共通）</div>
         <label class="fld"><span>サイトタイトル</span><input data-bind="site-title" data-sample="山田工務店"></label>
         <div class="media" data-target="site-logo" data-mode="logo">
@@ -320,7 +321,9 @@
           <div class="sns-row"><input data-bind="sns-tiktok-url" placeholder="https://www.tiktok.com/@..."><input data-bind="sns-tiktok-order" type="number" min="1" max="6" value="5" title="表示順"></div></label>
         <label class="fld"><span>YouTube</span>
           <div class="sns-row"><input data-bind="sns-youtube-url" placeholder="https://www.youtube.com/@..."><input data-bind="sns-youtube-order" type="number" min="1" max="6" value="6" title="表示順"></div></label>
+      </div>
 
+      <div class="editor" data-page="top" hidden>
         <div class="grp">メインビジュアル</div>
         <div class="media" data-target="tp-hero" data-mode="hero">
           <span class="cap">背景（画像 / 動画 / YouTube）</span>
@@ -870,10 +873,12 @@
   tabs.forEach(function (t) {
     t.addEventListener('click', function () {
       var key = t.dataset.page;
+      // 「基本設定」は全ページ共通なので、プレビューはトップページを表示。
+      var pkey = (key === 'basic') ? 'top' : key;
       tabs.forEach(function (x) { x.classList.toggle('is-active', x === t); });
-      previews.forEach(function (p) { p.classList.toggle('is-shown', p.id === 'page-' + key); });
+      previews.forEach(function (p) { p.classList.toggle('is-shown', p.id === 'page-' + pkey); });
       editors.forEach(function (e) { e.hidden = (e.dataset.page !== key); });
-      if (meta[key]) { urlbar.textContent = meta[key].url; badge.textContent = meta[key].tpl; }
+      if (meta[pkey]) { urlbar.textContent = meta[pkey].url; badge.textContent = meta[pkey].tpl; }
       viewport.scrollTop = 0;
       fitDevice();
     });
@@ -996,7 +1001,7 @@
     location.reload();
   }
   function copyAll() {
-    var byPage = { top:'① トップ', service:'② サービス', company:'③ 会社概要', contact:'④ お問い合わせ', privacy:'⑤ プライバシー' };
+    var byPage = { basic:'基本設定', top:'① トップ', service:'② サービス', company:'③ 会社概要', contact:'④ お問い合わせ', privacy:'⑤ プライバシー' };
     var out = [];
     editors.forEach(function (ed) {
       out.push('■ ' + (byPage[ed.dataset.page] || ed.dataset.page));
