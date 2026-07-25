@@ -227,6 +227,10 @@ class Jijipom_Importer {
 			$s[ "jijipom_company_row{$n}_label" ] = 'text';
 			$s[ "jijipom_company_row{$n}_value" ] = 'textarea';
 		}
+		foreach ( array( 'x', 'instagram', 'facebook', 'threads', 'tiktok', 'youtube' ) as $slug ) {
+			$s[ "jijipom_social_{$slug}_url" ]   = 'url';
+			$s[ "jijipom_social_{$slug}_order" ] = 'order';
+		}
 		return $s;
 	}
 
@@ -245,6 +249,9 @@ class Jijipom_Importer {
 				$v = sanitize_text_field( (string) $value );
 				$allowed = array( '', 'gothic', 'mincho', 'yugothic', 'yumincho', 'maru', 'meiryo', 'system', 'mono' );
 				return in_array( $v, $allowed, true ) ? $v : '';
+			case 'order':
+				$n = (int) $value;
+				return ( $n >= 1 && $n <= 6 ) ? $n : 6;
 			case 'text':
 			default:
 				return sanitize_text_field( (string) $value );
