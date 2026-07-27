@@ -358,6 +358,10 @@ class DRWP_Admin {
         add_submenu_page('drwp_reports', $list_label, $list_label, self::CAP_EDIT, 'drwp_reports', [__CLASS__, 'reports_page']);
         $plans = __('予定一覧', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $plans, $plans, DRWP_Plan::CAP_LIST, 'drwp_plans', ['DRWP_Plan', 'render_page']);
+        // 予定のCSV取り込み (サイボウズ Office)。他人の予定も作るため
+        // 運用者権限 (edit_others_posts) を要求する。
+        $plan_import = __('予定の取り込み', 'drwp-daily-reports');
+        add_submenu_page('drwp_reports', $plan_import, $plan_import, DRWP_Plan::CAP_REVIEW, 'drwp_plan_import', ['DRWP_Plan_Import', 'render_page']);
         $articles = __('記事作成', 'drwp-daily-reports');
         add_submenu_page('drwp_reports', $articles, $articles, self::CAP_CONVERT, 'drwp_articles', [__CLASS__, 'articles_page']);
         $proj = __('案件', 'drwp-daily-reports');

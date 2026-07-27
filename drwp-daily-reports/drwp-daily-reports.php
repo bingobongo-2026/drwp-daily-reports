@@ -3,7 +3,7 @@
  * Plugin Name: 日報マン
  * Plugin URI: https://nippoman.example.com/
  * Description: 現場日報のレビュー・写真添付・公開記事化を一体化したライセンス制プラグイン。ライセンスサーバと連動して書込・記事化を有効化します。
- * Version: 1.69.0
+ * Version: 1.70.0
  * Author: 日報マン
  * Author URI: https://nippoman.example.com/
  * Text Domain: drwp-daily-reports
@@ -27,7 +27,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('DRWP_VERSION', '1.69.0');
+define('DRWP_VERSION', '1.70.0');
 define('DRWP_PATH', plugin_dir_path(__FILE__));
 define('DRWP_URL', plugin_dir_url(__FILE__));
 
@@ -41,6 +41,7 @@ require_once DRWP_PATH . 'includes/class-drwp-project.php';
 require_once DRWP_PATH . 'includes/class-drwp-project-group.php';
 require_once DRWP_PATH . 'includes/class-drwp-groups-admin.php';
 require_once DRWP_PATH . 'includes/class-drwp-plan.php';
+require_once DRWP_PATH . 'includes/class-drwp-plan-import.php';
 require_once DRWP_PATH . 'includes/class-drwp-user.php';
 require_once DRWP_PATH . 'includes/class-drwp-audit.php';
 require_once DRWP_PATH . 'includes/class-drwp-audit-admin.php';
@@ -92,6 +93,7 @@ add_action('plugins_loaded', function () {
     DRWP_Project::init();
     DRWP_Project_Group::init();
     DRWP_Plan::init();
+    DRWP_Plan_Import::init();
     DRWP_User::init();
     DRWP_Review::init();
     DRWP_Audit::init();
