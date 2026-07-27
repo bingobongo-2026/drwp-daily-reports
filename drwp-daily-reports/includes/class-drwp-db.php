@@ -262,6 +262,8 @@ class DRWP_DB {
             notes TEXT NULL,
             status VARCHAR(32) NOT NULL DEFAULT 'active',
             linked_report_id BIGINT UNSIGNED NULL,
+            external_source VARCHAR(32) NULL,
+            external_id VARCHAR(64) NULL,
             created_by BIGINT UNSIGNED NOT NULL DEFAULT 0,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -269,7 +271,8 @@ class DRWP_DB {
             KEY planned_date (planned_date),
             KEY user_id (user_id),
             KEY project_id (project_id),
-            KEY linked_report_id (linked_report_id)
+            KEY linked_report_id (linked_report_id),
+            UNIQUE KEY external_ref (external_source, external_id)
         ) $charset;";
         dbDelta($sql10);
 
