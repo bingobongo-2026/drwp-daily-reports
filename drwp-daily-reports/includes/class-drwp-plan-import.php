@@ -29,6 +29,12 @@ class DRWP_Plan_Import {
     /** 1回で取り込める最大行数 (メモリとトランジェント肥大の保険)。 */
     const MAX_ROWS = 2000;
 
+    /** 1予定が何日まで連続できるか (終了日が壊れていた場合の暴走よけ)。 */
+    const MAX_SPAN_DAYS = 62;
+
+    /** CSV1行から作る予定の上限 (参加者 × 日数)。 */
+    const MAX_PLANS_PER_ROW = 200;
+
     public static function init() {
         add_action('admin_post_drwp_plan_import_upload', [__CLASS__, 'handle_upload']);
         add_action('admin_post_drwp_plan_import_run',    [__CLASS__, 'handle_run']);
@@ -126,9 +132,14 @@ class DRWP_Plan_Import {
     public static function fields() {
         return [
             'planned_date' => [
-                'label'    => __('予定日', 'drwp-daily-reports'),
+                'label'    => __('開始日', 'drwp-daily-reports'),
                 'required' => true,
-                'hints'    => ['開始日', '日付', '予定日', '開始年月日', 'date', 'start date'],
+                'hints'    => ['開始日付', '開始日', '予定日', '日付', '開始年月日', 'date', 'start date'],
+            ],
+            'end_date' => [
+                'label'    => __('終了日', 'drwp-daily-reports'),
+                'required' => false,
+                'hints'    => ['終了日付', '終了日', '終了年月日', 'end date'],
             ],
             'started_at' => [
                 'label'    => __('開始時刻', 'drwp-daily-reports'),
@@ -140,10 +151,15 @@ class DRWP_Plan_Import {
                 'required' => false,
                 'hints'    => ['終了時刻', '終了時間', '終了', 'end time'],
             ],
-            'title' => [
-                'label'    => __('予定のタイトル', 'drwp-daily-reports'),
+            'category' => [
+                'label'    => __('区分 (予定メニュー)', 'drwp-daily-reports'),
                 'required' => false,
-                'hints'    => ['予定', 'タイトル', '件名', '内容', 'title'],
+                'hints'    => ['予定メニュー', '予定', 'メニュー', '種別', '区分'],
+            ],
+            'title' => [
+                'label'    => __('件名 (予定詳細)', 'drwp-daily-reports'),
+                'required' => false,
+                'hints'    => ['予定詳細', '件名', 'タイトル', '内容', 'title'],
             ],
             'notes' => [
                 'label'    => __('メモ・備考', 'drwp-daily-reports'),
@@ -285,13 +301,17 @@ class DRWP_Plan_Import {
     }
 
     /**
-     * 1行分のCSVを、予定テーブルに入れられる形へ変換する。
+     * 1行分のCSVを、予定テーブルに入れられる形へ展開する。
+     *
+     * サイボウズの1予定は「参加者 × 日数」に展開される。予定テーブルは
+     * 1行1担当者なので、参加者が3人なら3件の予定を作らないと2人分の
+     * 予定が消えてしまう。複数日にまたがる予定も日ごとに分ける。
      *
      * 担当者の解決やDBアクセスはここではやらない (呼び出し側が担当する)。
      *
-     * @param string[]            $cols    CSVの1行
-     * @param array<string,int>   $mapping 項目キー => 列番号
-     * @return array{data: array, assignee: string, error: string|null}
+     * @param string[]          $cols    CSVの1行
+     * @param array<string,int> $mapping 項目キー => 列番号
+     * @return array{plans: array, people: string[], dates: string[], notes: string, error: string|null}
      */
     public static function build_row(array $cols, array $mapping) {
         $get = static function ($key) use ($cols, $mapping) {
@@ -299,59 +319,160 @@ class DRWP_Plan_Import {
             $i = (int) $mapping[$key];
             return isset($cols[$i]) ? trim((string) $cols[$i]) : '';
         };
+        $fail = static function ($msg) {
+            return ['plans' => [], 'people' => [], 'dates' => [], 'notes' => '', 'error' => $msg];
+        };
 
         $date = self::normalize_date($get('planned_date'));
         if ($date === null) {
-            return [
-                'data'     => [],
-                'assignee' => '',
-                'error'    => __('予定日を読み取れませんでした。', 'drwp-daily-reports'),
-            ];
+            return $fail(__('開始日を読み取れませんでした。', 'drwp-daily-reports'));
+        }
+
+        // 終了日。未指定・開始日より前なら単日扱い。
+        $end_date = self::normalize_date($get('end_date'));
+        if ($end_date === null || $end_date < $date) {
+            $end_date = $date;
+        }
+        $dates = self::date_range($date, $end_date);
+        if ($dates === null) {
+            return $fail(sprintf(
+                /* translators: %d: 上限日数 */
+                __('期間が長すぎます (上限%d日)。', 'drwp-daily-reports'),
+                self::MAX_SPAN_DAYS
+            ));
         }
 
         $started = self::normalize_time($get('started_at'));
         $ended   = self::normalize_time($get('ended_at'));
-        // 開始 > 終了 は入れ替わりとみなして交換する (書き出し設定のゆれ対策)
-        if ($started !== null && $ended !== null && $started > $ended) {
+        // 単日で開始 > 終了 は入れ替わりとみなして交換する (書き出し設定のゆれ対策)。
+        // 複数日の場合は「初日の開始 / 最終日の終了」なので入れ替えない。
+        if (count($dates) === 1 && $started !== null && $ended !== null && $started > $ended) {
             $tmp = $started; $started = $ended; $ended = $tmp;
         }
 
-        // タイトルとメモを notes にまとめる。予定テーブルに件名の列は
-        // 無いため、タイトルを先頭行に置いて可読性を保つ。
-        $title = $get('title');
-        $memo  = $get('notes');
-        $notes = trim($title . ($title !== '' && $memo !== '' ? "\n" : '') . $memo);
+        $notes  = self::compose_notes($get('category'), $get('title'), $get('notes'));
+        $people = self::split_people($get('assignee'));
+        $raw_id = $get('external_id');
 
-        return [
-            'data' => [
-                'planned_date' => $date,
-                'started_at'   => $started,
-                'ended_at'     => $ended,
-                'notes'        => $notes,
-                'external_id'  => self::external_id($get('external_id'), $date, $started, $notes, $get('assignee')),
-            ],
-            'assignee' => $get('assignee'),
-            'error'    => null,
-        ];
+        // 参加者が1人も書かれていない予定も取り込む (担当者なしの予定として)
+        $slots = $people ?: [''];
+
+        if (count($slots) * count($dates) > self::MAX_PLANS_PER_ROW) {
+            return $fail(sprintf(
+                /* translators: %d: 上限件数 */
+                __('参加者×日数が多すぎます (上限%d件)。', 'drwp-daily-reports'),
+                self::MAX_PLANS_PER_ROW
+            ));
+        }
+
+        $plans = [];
+        $last  = count($dates) - 1;
+        foreach ($slots as $person) {
+            foreach ($dates as $i => $d) {
+                // 複数日: 初日は開始時刻のみ、最終日は終了時刻のみ、間は終日。
+                if ($last === 0) {
+                    $s = $started; $e = $ended;
+                } elseif ($i === 0) {
+                    $s = $started; $e = null;
+                } elseif ($i === $last) {
+                    $s = null;     $e = $ended;
+                } else {
+                    $s = null;     $e = null;
+                }
+                $plans[] = [
+                    'planned_date' => $d,
+                    'started_at'   => $s,
+                    'ended_at'     => $e,
+                    'notes'        => $notes,
+                    'person'       => $person,
+                    'external_id'  => self::external_id($raw_id, $d, $s, $notes, $person),
+                ];
+            }
+        }
+
+        return ['plans' => $plans, 'people' => $people, 'dates' => $dates, 'notes' => $notes, 'error' => null];
     }
 
     /**
-     * 再取り込みしても同じ行が同じIDになるよう、安定したキーを作る。
+     * 区分・件名・メモを予定の「メモ」欄1つにまとめる。
      *
-     * CSVにサイボウズ側のIDがあればそれを使う。無い場合は
-     * 日付・開始時刻・担当者・本文から作ったハッシュで代用する
-     * (同じ内容の行は同じIDになり、重複登録されない)。
+     * 予定テーブルに区分や件名の列は無いので、
+     *   【区分】件名
+     *   メモ本文
+     * の形にして一覧で読みやすくする。
      */
-    public static function external_id($raw_id, $date, $started, $notes, $assignee) {
+    public static function compose_notes($category, $title, $memo) {
+        $category = trim((string) $category);
+        $title    = trim((string) $title);
+        $memo     = trim((string) $memo);
+
+        $head = ($category !== '' ? '【' . $category . '】' : '') . $title;
+        $head = trim($head);
+
+        $parts = array_filter([$head, $memo], static function ($v) { return $v !== ''; });
+        return implode("\n", $parts);
+    }
+
+    /**
+     * 開始日〜終了日の日付を配列で返す。上限を超えたら null。
+     *
+     * @return string[]|null
+     */
+    public static function date_range($start, $end) {
+        if ($end <= $start) return [$start];
+        $out = [];
+        $cur = $start;
+        while ($cur <= $end) {
+            $out[] = $cur;
+            if (count($out) > self::MAX_SPAN_DAYS) return null;
+            $ts = strtotime($cur . ' +1 day');
+            if ($ts === false) return null;
+            $cur = gmdate('Y-m-d', $ts);
+        }
+        return $out;
+    }
+
+    /**
+     * 参加者欄を1人ずつに分解する。
+     *
+     * サイボウズ Office は参加者を**改行区切り**で書き出す。カンマ・読点・
+     * セミコロン・スラッシュ区切りの書き出し設定もありうるので併せて扱う。
+     *
+     * @return string[] 重複を除いた氏名の配列 (空欄なら空配列)
+     */
+    public static function split_people($s) {
+        $s = trim((string) $s);
+        if ($s === '') return [];
+        $parts = preg_split('/[\r\n,、;；\/]+/u', $s);
+        $out   = [];
+        foreach ($parts as $p) {
+            $p = trim($p);
+            if ($p === '') continue;
+            // 同じ人が二重に書かれていても1件にする
+            if (!in_array($p, $out, true)) $out[] = $p;
+        }
+        return $out;
+    }
+
+    /**
+     * 再取り込みしても同じ予定が同じIDになるよう、安定したキーを作る。
+     *
+     * 1予定を「参加者 × 日」に展開するため、IDにも担当者と日付を混ぜないと
+     * 展開した行同士が同じIDになって1件しか登録されない。
+     *
+     * サイボウズ側のIDがある場合は本文を鍵に含めない。こうすると
+     * サイボウズ側で内容を書き換えても同じ行として更新できる。
+     * IDが無い場合だけ、行を見分けるために本文を鍵に含める。
+     */
+    public static function external_id($raw_id, $date, $started, $notes, $person) {
         $raw_id = trim((string) $raw_id);
         if ($raw_id !== '') {
-            // 64文字に収める。IDが長い場合はハッシュへ倒す。
-            return strlen($raw_id) <= 64 ? $raw_id : sha1($raw_id);
+            return sha1(implode("\x1f", [$raw_id, (string) $date, (string) $person]));
         }
         return sha1(implode("\x1f", [
             (string) $date,
             (string) $started,
-            (string) $assignee,
+            (string) $person,
             (string) $notes,
         ]));
     }
@@ -389,18 +510,16 @@ class DRWP_Plan_Import {
     }
 
     /**
-     * 参加者名を照合用に正規化する。
+     * 氏名を1件ぶん照合用に正規化する。
      *
      * サイボウズ側は「山田 太郎」「山田太郎」など空白のゆれがあるので
-     * 空白を落として比較する。複数参加者が区切られている場合は
-     * 先頭の1人だけを担当者として扱う。
+     * 空白を落として比較する。複数人が入っている場合は split_people() で
+     * 先に分解しておくこと (ここでは先頭の1人だけを見る)。
      */
     public static function normalize_person($s) {
-        $s = trim((string) $s);
+        $people = self::split_people($s);
+        $s = $people ? $people[0] : '';
         if ($s === '') return '';
-        // 複数参加者は先頭だけ採用 (カンマ・読点・セミコロン・スラッシュ区切り)
-        $parts = preg_split('/[,、;；\/]+/u', $s);
-        if ($parts && $parts[0] !== '') $s = trim($parts[0]);
         if (function_exists('mb_convert_kana')) $s = mb_convert_kana($s, 'as');
         $s = str_replace(['　', ' '], '', $s);
         return function_exists('mb_strtolower') ? mb_strtolower($s) : strtolower($s);
@@ -425,33 +544,42 @@ class DRWP_Plan_Import {
         $fields     = self::fields();
         $workers    = DRWP_Plan::worker_options();
         $projects   = DRWP_Project::all_for_filter();
-        $preview    = [];
-        $unmatched  = [];
+        $preview    = [];   // 展開後の予定 (先頭20件)
+        $unmatched  = [];   // 対応するユーザーが見つからない参加者名
+        $total      = 0;    // 展開後の予定の総件数
+        $bad_rows   = 0;    // 取り込めない行数
 
         if ($rows) {
             $index = self::user_index();
             $seen  = [];
-            foreach (array_slice($rows, 0, 20) as $cols) {
-                $built = self::build_row($cols, $mapping);
-                $uid   = 0;
-                if ($built['assignee'] !== '') {
-                    $key = self::normalize_person($built['assignee']);
-                    $uid = $index[$key] ?? 0;
-                    if (!$uid && !isset($seen[$key])) {
-                        $seen[$key]  = true;
-                        $unmatched[] = $built['assignee'];
-                    }
-                }
-                $preview[] = ['built' => $built, 'user_id' => $uid, 'raw' => $cols];
-            }
-            // プレビュー20件の外にも未対応の名前がありうるので全行から集める
             foreach ($rows as $cols) {
-                $b = self::build_row($cols, $mapping);
-                if ($b['assignee'] === '') continue;
-                $key = self::normalize_person($b['assignee']);
-                if (isset($index[$key]) || isset($seen[$key])) continue;
-                $seen[$key]  = true;
-                $unmatched[] = $b['assignee'];
+                $built = self::build_row($cols, $mapping);
+                if ($built['error'] !== null) {
+                    $bad_rows++;
+                    if (count($preview) < 20) {
+                        $preview[] = ['error' => $built['error']];
+                    }
+                    continue;
+                }
+                $total += count($built['plans']);
+
+                // 未対応の名前は全行から集める (プレビュー20件の外も拾う)
+                foreach ($built['people'] as $name) {
+                    $key = self::normalize_person($name);
+                    if ($key === '' || isset($index[$key]) || isset($seen[$key])) continue;
+                    $seen[$key]  = true;
+                    $unmatched[] = $name;
+                }
+
+                foreach ($built['plans'] as $plan) {
+                    if (count($preview) >= 20) continue;
+                    $key = self::normalize_person($plan['person']);
+                    $preview[] = [
+                        'plan'    => $plan,
+                        'user_id' => $key !== '' ? ($index[$key] ?? 0) : 0,
+                        'error'   => null,
+                    ];
+                }
             }
         }
 
@@ -553,43 +681,44 @@ class DRWP_Plan_Import {
                 continue;
             }
 
-            $uid = $default_uid;
-            if ($built['assignee'] !== '') {
-                $key = self::normalize_person($built['assignee']);
-                if (!empty($index[$key])) $uid = (int) $index[$key];
-            }
+            // 1予定は「参加者 × 日」に展開済み。1件ずつ登録する。
+            foreach ($built['plans'] as $plan) {
+                $uid = $default_uid;
+                $key = self::normalize_person($plan['person']);
+                if ($key !== '' && !empty($index[$key])) $uid = (int) $index[$key];
 
-            $data = [
-                'project_id'      => $project_id,
-                'user_id'         => $uid,
-                'planned_date'    => $built['data']['planned_date'],
-                'started_at'      => $built['data']['started_at'],
-                'ended_at'        => $built['data']['ended_at'],
-                'notes'           => wp_kses_post($built['data']['notes']),
-                'status'          => 'active',
-                'external_source' => self::SOURCE,
-                'external_id'     => $built['data']['external_id'],
-            ];
+                $data = [
+                    'project_id'      => $project_id,
+                    'user_id'         => $uid,
+                    'planned_date'    => $plan['planned_date'],
+                    'started_at'      => $plan['started_at'],
+                    'ended_at'        => $plan['ended_at'],
+                    'notes'           => wp_kses_post($plan['notes']),
+                    'status'          => 'active',
+                    'external_source' => self::SOURCE,
+                    'external_id'     => $plan['external_id'],
+                ];
 
-            $existing = $wpdb->get_var($wpdb->prepare(
-                "SELECT id FROM $table WHERE external_source = %s AND external_id = %s",
-                self::SOURCE,
-                $data['external_id']
-            ));
-            if ($existing) {
-                // 取り込み済みの行は更新する。担当者・現場は画面で
-                // 後から直している可能性があるため、CSV側で決められない
-                // ものは上書きしない。
-                $update = $data;
-                unset($update['external_source'], $update['external_id']);
-                if ($uid === null)        unset($update['user_id']);
-                if ($project_id === null) unset($update['project_id']);
-                $wpdb->update($table, $update, ['id' => (int) $existing]);
-                $updated++;
-            } else {
-                $data['created_by'] = get_current_user_id();
-                $wpdb->insert($table, $data);
-                $created++;
+                $existing = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM $table WHERE external_source = %s AND external_id = %s",
+                    self::SOURCE,
+                    $data['external_id']
+                ));
+                if ($existing) {
+                    // 取り込み済みの行は更新する。担当者・現場は画面で
+                    // 後から直している可能性があるため、CSV側で決められない
+                    // ものは上書きしない。
+                    $update = $data;
+                    unset($update['external_source'], $update['external_id']);
+                    if ($uid === null)        unset($update['user_id']);
+                    if ($project_id === null) unset($update['project_id']);
+                    $wpdb->update($table, $update, ['id' => (int) $existing]);
+                    $updated++;
+                } else {
+                    $data['created_by'] = get_current_user_id();
+                    $wpdb->insert($table, $data);
+                    $created++;
+                }
             }
         }
 
