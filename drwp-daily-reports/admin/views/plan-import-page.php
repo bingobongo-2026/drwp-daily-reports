@@ -85,12 +85,24 @@ if ($row_errors) delete_transient(DRWP_Plan_Import::TRANSIENT_PREFIX . 'err_' . 
   <p>
     <?php
       printf(
-        /* translators: %d: 読み込んだ行数 */
-        esc_html__('%d件の行を読み込みました。取り込む内容を確認してください。', 'drwp-daily-reports'),
-        count($rows)
+        /* translators: 1: CSVの行数 2: 展開後の予定件数 */
+        esc_html__('CSV %1$d行を読み込みました。参加者と日数に展開すると %2$d件の予定になります。', 'drwp-daily-reports'),
+        count($rows),
+        (int) $total
       );
     ?>
   </p>
+  <?php if (!empty($bad_rows)): ?>
+    <div class="notice notice-warning inline">
+      <p><?php
+        printf(
+          /* translators: %d: 取り込めない行数 */
+          esc_html__('%d行は取り込めません（下の確認欄に理由を表示しています）。', 'drwp-daily-reports'),
+          (int) $bad_rows
+        );
+      ?></p>
+    </div>
+  <?php endif; ?>
   <?php if ($truncated): ?>
     <div class="notice notice-warning inline">
       <p><?php
@@ -192,7 +204,7 @@ if ($row_errors) delete_transient(DRWP_Plan_Import::TRANSIENT_PREFIX . 'err_' . 
     <?php endif; ?>
 
     <h2><?php esc_html_e('3. 取り込み内容の確認', 'drwp-daily-reports'); ?></h2>
-    <p class="description"><?php esc_html_e('先頭20件を、いまの対応付けで変換した結果です。', 'drwp-daily-reports'); ?></p>
+    <p class="description"><?php esc_html_e('参加者と日数に展開したあとの、先頭20件です。参加者が3人いる予定は3件になります。', 'drwp-daily-reports'); ?></p>
     <table class="widefat striped" style="max-width:1000px">
       <thead>
         <tr>
@@ -203,26 +215,26 @@ if ($row_errors) delete_transient(DRWP_Plan_Import::TRANSIENT_PREFIX . 'err_' . 
         </tr>
       </thead>
       <tbody>
-      <?php foreach ($preview as $row): $b = $row['built']; ?>
+      <?php foreach ($preview as $row): ?>
         <tr>
-          <?php if ($b['error'] !== null): ?>
-            <td colspan="4" style="color:#b32d2e"><?php echo esc_html($b['error']); ?></td>
-          <?php else: ?>
-            <td><?php echo esc_html($b['data']['planned_date']); ?></td>
+          <?php if (!empty($row['error'])): ?>
+            <td colspan="4" style="color:#b32d2e"><?php echo esc_html($row['error']); ?></td>
+          <?php else: $p = $row['plan']; ?>
+            <td><?php echo esc_html($p['planned_date']); ?></td>
             <td><?php
-              $s = $b['data']['started_at']; $e = $b['data']['ended_at'];
+              $s = $p['started_at']; $e = $p['ended_at'];
               if ($s === null && $e === null) {
                   esc_html_e('終日', 'drwp-daily-reports');
               } else {
                   echo esc_html(substr((string) $s, 0, 5) . ' 〜 ' . substr((string) $e, 0, 5));
               }
             ?></td>
-            <td><?php echo esc_html(mb_strimwidth((string) $b['data']['notes'], 0, 60, '…')); ?></td>
+            <td><?php echo esc_html(mb_strimwidth(str_replace("\n", ' / ', (string) $p['notes']), 0, 60, '…')); ?></td>
             <td><?php
               if ($row['user_id']) {
                   echo esc_html($workers[$row['user_id']] ?? '#' . (int) $row['user_id']);
-              } elseif ($b['assignee'] !== '') {
-                  echo '<span style="color:#8a6d3b">' . esc_html($b['assignee']) . '</span>';
+              } elseif ($p['person'] !== '') {
+                  echo '<span style="color:#8a6d3b">' . esc_html($p['person']) . '</span>';
               } else {
                   echo '—';
               }
