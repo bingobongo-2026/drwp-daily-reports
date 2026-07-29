@@ -2445,6 +2445,11 @@ class DRWP_Report_Archive {
         DRWP_Audit::log('report_edited_frontend', __('日報をフロントから編集', 'drwp-daily-reports'), $id, []);
         if ($was_returned) {
             DRWP_Audit::log('report_resubmitted', __('差戻しからの再提出 (needs_revision → pending)', 'drwp-daily-reports'), $id, []);
+            // 再提出(差戻し→承認待ち)を事務所へ通知する。$report は更新前の
+            // 状態なので、通知側の pending 判定に合わせて review_status を
+            // 更新後の値に揃えてから渡す。
+            $report->review_status = 'pending';
+            do_action('drwp_report_submitted', $id, $report);
         }
 
         wp_safe_redirect(add_query_arg(['drwp_id' => $id, 'drwp_saved' => 1], get_permalink()));

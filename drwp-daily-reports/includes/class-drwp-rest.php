@@ -722,7 +722,13 @@ class DRWP_REST {
         // のものだけが対象(他人の予定や済んだ予定は触らない)。
         self::link_plan_to_report($input['linked_plan_id'] ?? 0, $id);
 
-        $response = rest_ensure_response(self::shape_report(self::find_report($id)));
+        // 承認待ち通知を送る。モバイルフォームなど主要な入力導線は REST 経由
+        // なので、ここで発火しないと事務所に「承認待ち」メールが届かない
+        // (管理画面の save_report と同じフック・同じ引数)。
+        $fresh = self::find_report($id);
+        do_action('drwp_report_submitted', $id, $fresh);
+
+        $response = rest_ensure_response(self::shape_report($fresh));
         $response->set_status(201);
         return $response;
     }
@@ -767,10 +773,12 @@ class DRWP_REST {
         // 日報承認待ちに戻す (= 再提出)。レビュアーが編集した場合は
         // 状態を維持するので、運用上の小修正 → 即承認のフローを
         // 邪魔しない。
+        $resubmitted = false;
         if ($report->review_status === 'needs_revision'
             && (int) $report->user_id === get_current_user_id()
             && !current_user_can('edit_others_posts')) {
             $data['review_status'] = 'pending';
+            $resubmitted = true;
         }
         if (!empty($data)) {
             $wpdb->update($wpdb->prefix . 'drwp_reports', $data, ['id' => $id]);
@@ -782,7 +790,13 @@ class DRWP_REST {
         if (array_key_exists('attachment_ids', $input)) {
             self::sync_photos_from_input($id, $input);
         }
-        return rest_ensure_response(self::shape_report(self::find_report($id)));
+        $fresh = self::find_report($id);
+        // 差戻し → 承認待ちへ戻した(再提出した)ときだけ通知する。
+        // 単なる小修正では飛ばさない。
+        if ($resubmitted) {
+            do_action('drwp_report_submitted', $id, $fresh);
+        }
+        return rest_ensure_response(self::shape_report($fresh));
     }
 
     public static function archive_report(WP_REST_Request $request) {
@@ -824,14 +838,14 @@ class DRWP_REST {
         if (!$report) return new WP_Error('drwp_not_found', '指定された日報が見つかりませんでした。', ['status' => 404]);
 
         $input = $request->get_json_params() ?: [];
-        $publish_fields = [];
+        // sanitize_writable() で列ごとに正しくサニタイズする。以前はここで
+        // 全列を sanitize_text_field で通しており、複数行の公開本文
+        // (public_body 等) が改行・タグ・リンクごと潰れて保存されていた。
+        // 公開・投稿設定の列だけを取り出す (下書き系の列は記事化では触らない)。
+        $sanitized = self::sanitize_writable($input);
         $allowed = ['post_template', 'post_category_id', 'post_tags', 'post_status', 'scheduled_at',
                      'public_title', 'public_intro', 'public_body', 'public_next_plan'];
-        foreach ($allowed as $key) {
-            if (array_key_exists($key, $input)) {
-                $publish_fields[$key] = sanitize_text_field((string) $input[$key]);
-            }
-        }
+        $publish_fields = array_intersect_key($sanitized, array_flip($allowed));
         if (!empty($publish_fields)) {
             global $wpdb;
             $wpdb->update($wpdb->prefix . 'drwp_reports', $publish_fields, ['id' => $id]);
@@ -976,6 +990,9 @@ class DRWP_REST {
             'comment_id' => $comment_id ?: null,
         ]);
 
+        // 承認/差戻しの本人通知を送る(管理画面の一括操作と同じフック)。
+        do_action('drwp_review_changed', $id, (string) $report->review_status, $status, $comment);
+
         return rest_ensure_response(self::shape_report(self::find_report($id)));
     }
 
@@ -1003,6 +1020,8 @@ class DRWP_REST {
             return new WP_Error('drwp_empty_comment', 'コメント本文 (body) を入力してください。', ['status' => 400]);
         }
         DRWP_Audit::log('comment_added', 'コメントを追加 (REST)', $id, ['comment_id' => $comment_id]);
+        // コメント通知を送る(管理画面のコメント追加と同じフック・同じ引数)。
+        do_action('drwp_comment_added', $id, $comment_id, wp_strip_all_tags($body));
         $response = rest_ensure_response(['id' => $comment_id]);
         $response->set_status(201);
         return $response;

@@ -508,4 +508,94 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         $this->assertSame(400, $resp->get_status());
         $this->assertSame('drwp_upload_error', $resp->get_data()['code']);
     }
+
+    /* ---------- 通知フックの発火 (REST 経由でメール通知が飛ぶための起点) ---------- */
+
+    private function create_report_via_rest($project_id) {
+        $resp = $this->call('POST', '/drwp/v1/reports', [
+            'project_id'       => $project_id,
+            'report_date'      => '2026-08-01',
+            'work_description' => '作業内容',
+        ]);
+        $this->assertSame(201, $resp->get_status());
+        return (int) $resp->get_data()['id'];
+    }
+
+    public function test_create_report_fires_submitted_hook() {
+        $this->activate_license();
+        $this->make_subscriber_with_edit();
+        $pid = $this->make_project('現場A');
+
+        $fired = [];
+        add_action('drwp_report_submitted', function ($id, $report) use (&$fired) {
+            $fired[] = [$id, $report->review_status ?? null];
+        }, 10, 2);
+
+        $rid = $this->create_report_via_rest($pid);
+        $this->assertSame([[$rid, 'pending']], $fired);
+    }
+
+    public function test_review_fires_review_changed_hook() {
+        $this->activate_license();
+        $this->make_admin();
+        $pid = $this->make_project('現場A');
+        $rid = $this->create_report_via_rest($pid);
+
+        $seen = null;
+        add_action('drwp_review_changed', function ($id, $from, $to, $comment) use (&$seen) {
+            $seen = [$id, $from, $to];
+        }, 10, 4);
+
+        $resp = $this->call('POST', "/drwp/v1/reports/$rid/review", [
+            'review_status' => 'approved',
+            'comment'       => '確認しました',
+        ]);
+        $this->assertSame(200, $resp->get_status());
+        $this->assertSame([$rid, 'pending', 'approved'], $seen);
+    }
+
+    public function test_add_comment_fires_comment_added_hook() {
+        $this->activate_license();
+        $this->make_admin();
+        $pid = $this->make_project('現場A');
+        $rid = $this->create_report_via_rest($pid);
+
+        $body = null;
+        add_action('drwp_comment_added', function ($id, $comment_id, $comment_body) use (&$body) {
+            $body = $comment_body;
+        }, 10, 3);
+
+        $resp = $this->call('POST', "/drwp/v1/reports/$rid/comments", [
+            'body' => '<b>了解</b>です',
+        ]);
+        $this->assertSame(201, $resp->get_status());
+        $this->assertSame('了解です', $body); // タグは wp_strip_all_tags で除去
+    }
+
+    /* ---------- 記事化で公開本文が潰れない ---------- */
+
+    public function test_convert_preserves_multiline_html_in_public_body() {
+        $this->activate_license();
+        update_option(DRWP_License::OPT_PLAN, 'pro');
+        $this->make_admin();
+        $pid = $this->make_project('現場A');
+        $rid = $this->create_report_via_rest($pid);
+
+        $body = "1行目\n\n2行目に <a href=\"https://example.com\">リンク</a> あり";
+        $this->call('POST', "/drwp/v1/reports/$rid/convert", [
+            'public_title' => '記事タイトル',
+            'public_body'  => $body,
+            'post_status'  => 'draft',
+        ]);
+
+        global $wpdb;
+        $saved = $wpdb->get_var($wpdb->prepare(
+            "SELECT public_body FROM {$wpdb->prefix}drwp_reports WHERE id = %d",
+            $rid
+        ));
+        // 以前は sanitize_text_field で改行もタグも消えていた。
+        $this->assertStringContainsString("\n", (string) $saved, '改行が保持されていない');
+        $this->assertStringContainsString('<a href="https://example.com">', (string) $saved, 'リンクが保持されていない');
+        $this->assertStringContainsString('リンク', (string) $saved);
+    }
 }
