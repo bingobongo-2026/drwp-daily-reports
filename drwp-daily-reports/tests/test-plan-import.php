@@ -349,6 +349,26 @@ class Test_DRWP_Plan_Import extends WP_UnitTestCase {
         $this->assertSame(count($ids), count(array_unique($ids)));
     }
 
+    /* ---------- 段階間トークン ---------- */
+
+    public function test_make_token_survives_sanitize_key() {
+        // 受け取り側は sanitize_key() を通す。小文字化されても変わらない
+        // トークンでなければ、トランジェントを引けず取り込みが失敗する。
+        for ($i = 0; $i < 50; $i++) {
+            $token = DRWP_Plan_Import::make_token();
+            $this->assertSame($token, sanitize_key($token), "トークン {$token} が sanitize_key で変化した");
+            $this->assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $token);
+        }
+    }
+
+    public function test_make_token_is_reasonably_unique() {
+        $tokens = [];
+        for ($i = 0; $i < 100; $i++) {
+            $tokens[DRWP_Plan_Import::make_token()] = true;
+        }
+        $this->assertCount(100, $tokens);
+    }
+
     /* ---------- 担当者の照合 ---------- */
 
     public function test_normalize_person_ignores_spacing() {
