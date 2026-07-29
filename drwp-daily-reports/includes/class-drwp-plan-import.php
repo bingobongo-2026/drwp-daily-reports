@@ -615,7 +615,7 @@ class DRWP_Plan_Import {
             self::redirect(['error' => 'parse']);
         }
 
-        $token = wp_generate_password(16, false, false);
+        $token = self::make_token();
         set_transient(self::TRANSIENT_PREFIX . $token, [
             'headers'   => $parsed['headers'],
             'rows'      => $parsed['rows'],
@@ -705,11 +705,14 @@ class DRWP_Plan_Import {
                     $data['external_id']
                 ));
                 if ($existing) {
-                    // 取り込み済みの行は更新する。担当者・現場は画面で
-                    // 後から直している可能性があるため、CSV側で決められない
-                    // ものは上書きしない。
+                    // 取り込み済みの行は更新する。ただし取り込み後に画面で
+                    // 直している可能性があるものは上書きしない:
+                    //   - status: 作業者が「完了」「キャンセル」にした予定を
+                    //     再取り込みで「予定(active)」へ戻さない。
+                    //   - user_id / project_id: CSV側で決められないものは
+                    //     画面で割り当てた内容を残す。
                     $update = $data;
-                    unset($update['external_source'], $update['external_id']);
+                    unset($update['external_source'], $update['external_id'], $update['status']);
                     if ($uid === null)        unset($update['user_id']);
                     if ($project_id === null) unset($update['project_id']);
                     $wpdb->update($table, $update, ['id' => (int) $existing]);
@@ -734,6 +737,19 @@ class DRWP_Plan_Import {
             set_transient(self::TRANSIENT_PREFIX . 'err_' . get_current_user_id(), $errors, MINUTE_IN_SECONDS * 5);
         }
         self::redirect(['done' => 1, 'created' => $created, 'updated' => $updated, 'skipped' => $skipped]);
+    }
+
+    /**
+     * アップロードしたCSVを段階間で持ち回るトランジェント用のトークン。
+     *
+     * トークンは手順1→手順2へ URL / hidden で渡り、受け取り側は
+     * sanitize_key() を通す (英小文字・数字・_ - 以外を除去し、さらに小文字化)。
+     * そのため生成側も**小文字16進**にしておかないと、大文字を含んだ瞬間に
+     * sanitize_key で別物になり、トランジェントを引けなくなる
+     * (wp_generate_password は大文字を含むため、以前はほぼ必ず失敗していた)。
+     */
+    public static function make_token() {
+        return bin2hex(random_bytes(16)); // 32文字の小文字16進。sanitize_key で不変。
     }
 
     /** トランジェントから読み出す (他人のトークンは読ませない)。 */
