@@ -1245,6 +1245,15 @@ class DRWP_Report_Archive {
         $use_range = ($view === 'list' && $range_from !== '' && $range_to !== '');
         $q_start = $use_range ? $range_from : $month_start;
         $q_end   = $use_range ? $range_to   : $month_end;
+        // 範囲の上限は 92 日 (プリセット最長の「直近90日」+月境界の余裕)。
+        // 無制限だと ?drwp_from=1970-01-01 のような URL で全期間を 1 回で
+        // 読み込むことになる。超えた場合は開始側を新しい方へ詰める。
+        if ($use_range) {
+            $min_start = gmdate('Y-m-d', strtotime($q_end . ' -92 days'));
+            if ($q_start < $min_start) {
+                $q_start = $min_start;
+            }
+        }
 
         // アーカイブ済み (レビュアーが非表示にした日報) はフロントには出さない。
         $where = ['r.report_date >= %s', 'r.report_date <= %s', 'r.archived_at IS NULL'];
@@ -1268,7 +1277,9 @@ class DRWP_Report_Archive {
         }
         $where_sql = implode(' AND ', $where);
 
-        $list_sql = "SELECT r.* FROM $reports_t r WHERE $where_sql ORDER BY r.report_date ASC, r.started_at ASC, r.id ASC";
+        // LIMIT は暴走よけのバックストップ。92日 × 大人数でも通常は
+        // 届かない値にしてある (ページネーションの代替ではない)。
+        $list_sql = "SELECT r.* FROM $reports_t r WHERE $where_sql ORDER BY r.report_date ASC, r.started_at ASC, r.id ASC LIMIT 2000";
         $rows = $wpdb->get_results($wpdb->prepare($list_sql, $args));
 
         $by_date = [];

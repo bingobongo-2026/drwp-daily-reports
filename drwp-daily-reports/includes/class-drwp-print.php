@@ -46,6 +46,12 @@ class DRWP_Print {
                     $placeholders = implode(',', array_fill(0, count($ids), '%d'));
                     $where .= " AND id IN ($placeholders)";
                     foreach ($ids as $id) $args[] = $id;
+                } else {
+                    // ID指定欄に数値が1つも無い ("abc" 等)。以前はここで
+                    // 何も条件を足さず、日付・案件フィルタも else 側で
+                    // スキップされるため承認済み全件が PDF 化されていた。
+                    // 意図が読めない入力は「該当なし」に倒す。
+                    $where .= ' AND 0=1';
                 }
             } else {
                 if ($filters['date_from'] !== '') { $where .= ' AND report_date >= %s'; $args[] = $filters['date_from']; }
@@ -75,7 +81,9 @@ class DRWP_Print {
                     }
                 }
             }
-            $sql = "SELECT * FROM $table WHERE $where ORDER BY report_date ASC, id ASC";
+            // 1日報=1ページの紙面なので 500 件あれば十分。無制限だと
+            // 絞り込みなしの実行で全履歴を1リクエストで組み立ててしまう。
+            $sql = "SELECT * FROM $table WHERE $where ORDER BY report_date ASC, id ASC LIMIT 500";
             $reports = $args
                 ? $wpdb->get_results($wpdb->prepare($sql, $args))
                 : $wpdb->get_results($sql);
