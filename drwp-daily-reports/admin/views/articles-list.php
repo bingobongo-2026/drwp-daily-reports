@@ -295,17 +295,7 @@
   .drwp-list-bulk-sub-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:4px 8px 8px}
   .drwp-list-bulk-sub-row label{display:flex;flex-direction:column;gap:2px;min-width:120px}
   .drwp-list-bulk-sub-row label>span{font-size:.8em;color:#50575e;font-weight:600}
-  .drwp-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:640px;width:90vw}
-  .drwp-modal-wide{max-width:780px}
-  .drwp-modal::backdrop{background:rgba(0,0,0,.45)}
-  .drwp-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e5e7eb}
-  .drwp-modal-header h2{margin:0;font-size:1.1em}
-  .drwp-modal-close{background:transparent;border:0;font-size:1.6em;cursor:pointer;color:#50575e;line-height:1;padding:0 4px}
-  .drwp-modal-body{padding:16px 20px;max-height:65vh;overflow-y:auto}
-  .drwp-modal-body .form-table th{width:100px;padding:6px 0}
-  .drwp-modal-body .form-table td{padding:6px 0}
-  .drwp-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
-  .drwp-view-text{white-space:pre-wrap}
+  /* モーダルのシェルは admin.css の共通スタイル (drwp-modal-*) を使用 */
   .drwp-view-photos{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
   .drwp-view-photos img{width:100px;height:100px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb}
   .drwp-article-section{margin-bottom:16px;padding-bottom:4px;border-bottom:1px solid #e5e7eb}

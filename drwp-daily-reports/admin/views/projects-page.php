@@ -175,18 +175,18 @@
   <?php echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total); ?>
 
   <!-- Modal for add / edit -->
-  <dialog id="drwp-project-dialog" class="drwp-project-modal">
+  <dialog id="drwp-project-dialog" class="drwp-modal drwp-project-modal">
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
       <?php wp_nonce_field('drwp_save_project'); ?>
       <input type="hidden" name="action" value="drwp_save_project" />
       <input type="hidden" name="id" id="drwp-pm-id" value="0" />
 
-      <div class="drwp-project-modal-header">
+      <div class="drwp-modal-header drwp-project-modal-header">
         <h2 id="drwp-pm-title"><?php esc_html_e('新しい案件を追加', 'drwp-daily-reports'); ?></h2>
-        <button type="button" class="drwp-project-modal-close">&times;</button>
+        <button type="button" class="drwp-modal-close drwp-project-modal-close">&times;</button>
       </div>
 
-      <div class="drwp-project-modal-body">
+      <div class="drwp-modal-body drwp-project-modal-body">
         <table class="form-table">
           <tr>
             <th><label for="drwp-pm-name"><?php esc_html_e('案件名', 'drwp-daily-reports'); ?> <em style="color:#b91c1c;">*</em></label></th>
@@ -307,11 +307,11 @@
         </table>
       </div>
 
-      <div class="drwp-project-modal-footer">
+      <div class="drwp-modal-footer drwp-project-modal-footer">
         <button type="submit" class="button button-primary" id="drwp-pm-submit">
           <?php esc_html_e('保存', 'drwp-daily-reports'); ?>
         </button>
-        <button type="button" class="button drwp-project-modal-close">
+        <button type="button" class="button drwp-modal-close drwp-project-modal-close">
           <?php esc_html_e('キャンセル', 'drwp-daily-reports'); ?>
         </button>
       </div>
@@ -319,27 +319,27 @@
   </dialog>
 
   <?php if (DRWP_AI::is_enabled()): ?>
-  <dialog id="drwp-ai-briefing-dialog" class="drwp-project-modal">
-    <div class="drwp-project-modal-header">
+  <dialog id="drwp-ai-briefing-dialog" class="drwp-modal drwp-project-modal">
+    <div class="drwp-modal-header drwp-project-modal-header">
       <h2 id="drwp-ai-briefing-title"><?php esc_html_e('AI ブリーフィング', 'drwp-daily-reports'); ?></h2>
-      <button type="button" class="drwp-project-modal-close">&times;</button>
+      <button type="button" class="drwp-modal-close drwp-project-modal-close">&times;</button>
     </div>
-    <div class="drwp-project-modal-body">
+    <div class="drwp-modal-body drwp-project-modal-body">
       <p class="description" id="drwp-ai-briefing-meta"></p>
       <div id="drwp-ai-briefing-status" style="margin:8px 0;"></div>
       <div id="drwp-ai-briefing-output" style="white-space:pre-wrap;font-family:inherit;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px;min-height:200px;line-height:1.6;"></div>
     </div>
-    <div class="drwp-project-modal-footer">
-      <button type="button" class="button drwp-project-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
+    <div class="drwp-modal-footer drwp-project-modal-footer">
+      <button type="button" class="button drwp-modal-close drwp-project-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
     </div>
   </dialog>
 
-  <dialog id="drwp-ai-summary-dialog" class="drwp-project-modal">
-    <div class="drwp-project-modal-header">
+  <dialog id="drwp-ai-summary-dialog" class="drwp-modal drwp-project-modal">
+    <div class="drwp-modal-header drwp-project-modal-header">
       <h2 id="drwp-ai-summary-title"><?php esc_html_e('AI サマリ', 'drwp-daily-reports'); ?></h2>
-      <button type="button" class="drwp-project-modal-close">&times;</button>
+      <button type="button" class="drwp-modal-close drwp-project-modal-close">&times;</button>
     </div>
-    <div class="drwp-project-modal-body">
+    <div class="drwp-modal-body drwp-project-modal-body">
       <p class="description" id="drwp-ai-summary-meta"></p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0;">
         <label><?php esc_html_e('期間', 'drwp-daily-reports'); ?>
@@ -356,8 +356,8 @@
       <div id="drwp-ai-summary-status" style="margin:8px 0;"></div>
       <div id="drwp-ai-summary-output" style="white-space:pre-wrap;font-family:inherit;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px;min-height:160px;line-height:1.6;"></div>
     </div>
-    <div class="drwp-project-modal-footer">
-      <button type="button" class="button drwp-project-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
+    <div class="drwp-modal-footer drwp-project-modal-footer">
+      <button type="button" class="button drwp-modal-close drwp-project-modal-close"><?php esc_html_e('閉じる', 'drwp-daily-reports'); ?></button>
     </div>
   </dialog>
   <?php endif; ?>
@@ -369,15 +369,8 @@
 .drwp-ai-briefing-btn-locked{opacity:.55;cursor:not-allowed;display:inline-flex;align-items:center;gap:6px}
 .drwp-pro-badge{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:.72em;font-weight:700;padding:1px 7px;border-radius:999px;letter-spacing:.04em;line-height:1.4}
 
-.drwp-project-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:640px;width:90vw}
-.drwp-project-modal::backdrop{background:rgba(0,0,0,.45)}
-.drwp-project-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e5e7eb}
-.drwp-project-modal-header h2{margin:0;font-size:1.1em}
-.drwp-project-modal-close{background:transparent;border:0;font-size:1.6em;cursor:pointer;color:#50575e;line-height:1;padding:0 4px}
-.drwp-project-modal-body{padding:16px 20px;max-height:65vh;overflow-y:auto}
-.drwp-project-modal-body .form-table th{width:120px;padding:6px 0;vertical-align:top}
-.drwp-project-modal-body .form-table td{padding:6px 0}
-.drwp-project-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
+/* モーダルのシェルは admin.css の共通スタイル (drwp-modal-*) を使用 */
+.drwp-project-modal-body .form-table th{width:120px}
 /* 検索・絞り込み — 日報一覧・予定一覧と同じ薄いグレー枠の details。 */
 /* Project-group chips on the 案件 listing. Shares classnames with
    the 顧客 page chips for visual consistency. */
