@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import hashlib
 import io
 import json
@@ -219,6 +220,8 @@ _FLASH = {
     "restored": ("バックアップから復元しました。", "ok"),
     "restore_invalid": ("バックアップファイルが不正です（zip ではない / 中身が想定外）。", "err"),
     "restore_failed": ("復元処理に失敗しました。詳細はサーバーログを確認してください。", "err"),
+    "restore_encrypted": ("このバックアップは暗号化されています。環境変数 DRWP_BACKUP_PASSPHRASE を設定してから復元してください。", "err"),
+    "restore_wrong_passphrase": ("バックアップの復号に失敗しました。DRWP_BACKUP_PASSPHRASE が取得時のパスフレーズと一致しているか確認してください。", "err"),
     "totp_setup_started": ("2FA セットアップを開始しました。QR コードをスキャンし、表示された 6 桁コードで確定してください。", "ok"),
     "totp_enabled": ("2FA を有効化しました。次回以降のログインで 6 桁コードの入力が必要になります。", "ok"),
     "totp_disabled": ("2FA を無効化しました。", "ok"),
@@ -1661,6 +1664,7 @@ def ui_settings(
             "key_created_at": key_created_at,
             "last_rotated_at": db.get_setting("last_rotated_at"),
             "last_backup_at": db.get_setting("last_backup_at"),
+            "backup_encrypted": bool(os.environ.get("DRWP_BACKUP_PASSPHRASE")),
             "rotation_interval_days": ROTATION_INTERVAL_DAYS,
             "next_rotation_due_at": next_rotation_due_at(),
             "audit_retention_days": AUDIT_RETENTION_DAYS,
@@ -1822,6 +1826,32 @@ _BACKUP_FILES = (
     ("data.sqlite3", lambda: db._db_path()),
 )
 
+# バックアップ zip には署名秘密鍵と DB が丸ごと入るため、環境変数
+# DRWP_BACKUP_PASSPHRASE を設定すると zip をパスフレーズ由来の鍵で暗号化
+# して払い出す (Fernet = AES-128-CBC + HMAC。cryptography は既存依存)。
+# 形式: b"DRWPENC1" + salt(16 バイト) + Fernet トークン。
+# 未設定なら従来どおり平文 zip (挙動不変)。復元は平文 zip・暗号化済みの
+# どちらを渡されても受け付ける (暗号化済みはパスフレーズ必須)。
+_BACKUP_MAGIC = b"DRWPENC1"
+
+
+def _backup_fernet(passphrase: str, salt: bytes):
+    from cryptography.fernet import Fernet
+    key = hashlib.pbkdf2_hmac("sha256", passphrase.encode("utf-8"), salt, 200_000)
+    return Fernet(base64.urlsafe_b64encode(key))
+
+
+def _encrypt_backup(data: bytes, passphrase: str) -> bytes:
+    salt = secrets.token_bytes(16)
+    return _BACKUP_MAGIC + salt + _backup_fernet(passphrase, salt).encrypt(data)
+
+
+def _decrypt_backup(blob: bytes, passphrase: str) -> bytes:
+    """復号に失敗したら cryptography.fernet.InvalidToken を送出する。"""
+    off = len(_BACKUP_MAGIC)
+    salt = blob[off:off + 16]
+    return _backup_fernet(passphrase, salt).decrypt(blob[off + 16:])
+
 
 @app.get("/admin/ui/settings/backup", include_in_schema=False)
 def ui_backup(_: str = Depends(require_admin)):
@@ -1839,9 +1869,16 @@ def ui_backup(_: str = Depends(require_admin)):
     buf.seek(0)
     db.set_setting("last_backup_at", _now_iso())
     fname = "drwp-license-backup-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S") + ".zip"
+    content = buf.getvalue()
+    media_type = "application/zip"
+    passphrase = os.environ.get("DRWP_BACKUP_PASSPHRASE", "")
+    if passphrase:
+        content = _encrypt_backup(content, passphrase)
+        fname += ".enc"
+        media_type = "application/octet-stream"
     return Response(
-        content=buf.getvalue(),
-        media_type="application/zip",
+        content=content,
+        media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{fname}"'},
     )
 
@@ -1852,8 +1889,23 @@ def ui_restore(file: UploadFile = File(...), _: str = Depends(require_admin)):
     previously produced by ui_backup. Each file is written via a
     tmp + rename to keep the on-disk state consistent if any single
     step fails."""
+    raw = file.file.read()
+    if raw.startswith(_BACKUP_MAGIC):
+        passphrase = os.environ.get("DRWP_BACKUP_PASSPHRASE", "")
+        if not passphrase:
+            return RedirectResponse(
+                "/admin/ui/settings?msg=restore_encrypted",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+        from cryptography.fernet import InvalidToken
+        try:
+            raw = _decrypt_backup(raw, passphrase)
+        except InvalidToken:
+            return RedirectResponse(
+                "/admin/ui/settings?msg=restore_wrong_passphrase",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
     try:
-        raw = file.file.read()
         zf = zipfile.ZipFile(io.BytesIO(raw))
     except zipfile.BadZipFile:
         return RedirectResponse(

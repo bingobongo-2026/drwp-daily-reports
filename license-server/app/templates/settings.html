@@ -243,13 +243,24 @@
 
   <h3 style="margin-top:14px;">バックアップを取得</h3>
   <p>
-    <a class="btn" href="/admin/ui/settings/backup">バックアップをダウンロード (zip)</a>
+    <a class="btn" href="/admin/ui/settings/backup">バックアップをダウンロード ({{ 'zip.enc（暗号化）' if backup_encrypted else 'zip' }})</a>
   </p>
+  {% if backup_encrypted %}
+  <p class="muted">
+    暗号化: <strong>有効</strong> — <code>DRWP_BACKUP_PASSPHRASE</code> から導出した鍵で暗号化した
+    <code>.zip.enc</code> を払い出します。復元にも同じパスフレーズが必要です。
+  </p>
+  {% else %}
+  <p class="muted">
+    暗号化: 無効 — zip には署名秘密鍵とライセンス DB がそのまま入ります。保管先が第三者に
+    渡り得る場合は、環境変数 <code>DRWP_BACKUP_PASSPHRASE</code> を設定すると暗号化して払い出せます。
+  </p>
+  {% endif %}
 
   <h3 style="margin-top:18px;">バックアップから復元</h3>
   <form method="post" action="/admin/ui/settings/restore" enctype="multipart/form-data"
         onsubmit="return confirm('現在の署名鍵 / 過去鍵 / ライセンス DB をアップロードしたファイルで上書きします。続行しますか？');">
-    <input type="file" name="file" accept=".zip,application/zip" required />
+    <input type="file" name="file" accept=".zip,.enc,application/zip,application/octet-stream" required />
     <div style="margin-top:8px;">
       <button type="submit" class="btn danger">復元する</button>
     </div>

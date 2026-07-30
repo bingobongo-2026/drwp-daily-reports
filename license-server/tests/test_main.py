@@ -874,6 +874,72 @@ def test_clear_removes_hash_and_falls_back_to_env(tmp_path, monkeypatch):
     assert c.get("/admin/licenses", auth=("admin", "test-token")).status_code == 200
 
 
+# --- バックアップの暗号化 ----------------------------------------------------
+
+def test_backup_plain_zip_by_default(tmp_path, monkeypatch):
+    """DRWP_BACKUP_PASSPHRASE 未設定なら従来どおり平文 zip。"""
+    monkeypatch.delenv("DRWP_BACKUP_PASSPHRASE", raising=False)
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    r = c.get("/admin/ui/settings/backup", auth=("admin", "test-token"))
+    assert r.status_code == 200
+    assert r.content[:2] == b"PK"  # zip マジック
+    assert r.headers["content-disposition"].endswith('.zip"')
+
+
+def test_backup_encrypted_roundtrip(tmp_path, monkeypatch):
+    """パスフレーズ設定時は .zip.enc で払い出し、同じパスフレーズで復元できる。"""
+    monkeypatch.setenv("DRWP_BACKUP_PASSPHRASE", "hunter2-strong")
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    auth = ("admin", "test-token")
+    main.db.create_license(license_key="ENC-1", domain="enc.test")
+
+    r = c.get("/admin/ui/settings/backup", auth=auth)
+    assert r.status_code == 200
+    assert r.content.startswith(b"DRWPENC1")
+    assert b"PK" not in r.content[:16]  # 平文 zip がそのまま出ていない
+    assert r.headers["content-disposition"].endswith('.zip.enc"')
+
+    # ライセンスを消してから復元 → 復元後に戻っている
+    main.db.delete_license("ENC-1")
+    assert main.db.get_license("ENC-1") is None
+    res = c.post(
+        "/admin/ui/settings/restore",
+        auth=auth,
+        files={"file": ("backup.zip.enc", r.content, "application/octet-stream")},
+        follow_redirects=False,
+    )
+    assert res.status_code == 303
+    assert "msg=restored" in res.headers["location"]
+    assert main.db.get_license("ENC-1") is not None
+
+
+def test_restore_encrypted_needs_matching_passphrase(tmp_path, monkeypatch):
+    """暗号化バックアップは、パスフレーズ未設定 / 不一致では復元できない。"""
+    monkeypatch.setenv("DRWP_BACKUP_PASSPHRASE", "correct-horse")
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    auth = ("admin", "test-token")
+    blob = c.get("/admin/ui/settings/backup", auth=auth).content
+    assert blob.startswith(b"DRWPENC1")
+
+    monkeypatch.delenv("DRWP_BACKUP_PASSPHRASE")
+    res = c.post(
+        "/admin/ui/settings/restore",
+        auth=auth,
+        files={"file": ("backup.zip.enc", blob, "application/octet-stream")},
+        follow_redirects=False,
+    )
+    assert "msg=restore_encrypted" in res.headers["location"]
+
+    monkeypatch.setenv("DRWP_BACKUP_PASSPHRASE", "battery-staple")
+    res2 = c.post(
+        "/admin/ui/settings/restore",
+        auth=auth,
+        files={"file": ("backup.zip.enc", blob, "application/octet-stream")},
+        follow_redirects=False,
+    )
+    assert "msg=restore_wrong_passphrase" in res2.headers["location"]
+
+
 # --- TOTP 2FA ---------------------------------------------------------------
 
 def test_totp_helpers_pure_python(tmp_path, monkeypatch):
