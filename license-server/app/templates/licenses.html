@@ -51,6 +51,13 @@
     {% endif %}
   </form>
 
+  {% if created_key %}
+    <div class="created-key-box">
+      <span>作成したライセンスキー（コピーして控えてください）:</span>
+      <code class="mono">{{ created_key }}</code>
+    </div>
+  {% endif %}
+
   {% set has_filter = search or plan_filter or status_filter %}
   <p class="muted">{{ '絞り込み結果: ' if has_filter else '' }}合計 {{ items|length }} 件</p>
   <table class="drwp-license-table">
@@ -61,7 +68,7 @@
         <th>利用者</th>
         <th>プラン</th>
         <th>状態</th>
-        <th>有効期限</th>
+        <th>有効期限 (JST)</th>
         <th></th>
       </tr>
     </thead>
@@ -81,10 +88,18 @@
         </td>
         <td class="nowrap">{{ it.plan|plan_label }}</td>
         <td class="nowrap"><span class="pill {{ 'active' if it.status == 'active' else 'inactive' }}">{{ it.status|status_label }}</span></td>
-        <td class="nowrap">{{ it.expires_at|short_date }}</td>
+        <td class="nowrap">
+          {% set ex = it.expires_at|expiry_info %}
+          {{ it.expires_at|short_date }}
+          {% if ex.state == 'expired' %}
+            <span class="pill expired">期限切れ</span>
+          {% elif ex.state == 'soon' %}
+            <span class="pill soon">あと{{ ex.days }}日</span>
+          {% endif %}
+        </td>
         <td class="actions">
           <a class="btn ghost btn-small" href="/admin/ui/licenses/{{ it.license_key }}/edit">編集</a>
-          <form class="inline" method="post" action="/admin/ui/licenses/{{ it.license_key }}/delete" onsubmit="return confirm('削除しますか？');">
+          <form class="inline" method="post" action="/admin/ui/licenses/{{ it.license_key }}/delete" onsubmit="return confirm('このライセンスを削除します。元に戻せません。\n\n' + {{ (it.license_key ~ '\n' ~ it.domain)|tojson }});">
             <button class="btn danger btn-small" type="submit">削除</button>
           </form>
         </td>
