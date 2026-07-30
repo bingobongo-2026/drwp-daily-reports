@@ -22,4 +22,9 @@ EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
   CMD curl -fsS http://127.0.0.1:8000/healthz || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --proxy-headers / --forwarded-allow-ips: 本番は TLS 終端リバースプロキシ
+# (nginx / Caddy 等) の背後で動く前提。これが無いと (1) request.client.host が
+# 常にプロキシの内部IPになり、ログイン失敗のIPロックが全顧客で共有され連鎖
+# ロックする (2) X-Forwarded-Proto を無視して http と誤認し Secure Cookie の
+# 判定がずれる。直背後のプロキシのみを信頼する構成なら "*" を実IPに絞ること。
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
