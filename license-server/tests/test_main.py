@@ -1,3 +1,4 @@
+import base64
 import importlib
 import sys
 
@@ -1358,3 +1359,114 @@ def test_check_free_plan_invalid_publisher_id_disables(tmp_path, monkeypatch):
     r = c.post("/api/check", json={"license_key": "FREE-BAD", "domain": "example.test"})
     body = r.json()
     assert body["adsense"] == {"enabled": False}
+
+
+# ==========================================================================
+# 認証: 非ASCII の資格情報で 500 ロックアウトしない (B-1)
+# ==========================================================================
+
+def _basic(user, token):
+    """UTF-8 でエンコードした Basic 認証ヘッダーを組み立てる。"""
+    raw = f"{user}:{token}".encode("utf-8")
+    return {"Authorization": "Basic " + base64.b64encode(raw).decode()}
+
+
+def test_non_ascii_admin_username_does_not_500(tmp_path, monkeypatch):
+    # 管理ユーザー名を日本語にすると、以前は compare_digest(str, str) が
+    # 非ASCIIで TypeError を投げ、全管理機能が 500 で永久ロックアウト
+    # されていた。bytes 比較にしたので、一致しなければ普通に 401 になる。
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    monkeypatch.setenv("DRWP_ADMIN_USERNAME", "管理者")
+    for name in ("app.main", "app.db", "app.signing", "app"):
+        sys.modules.pop(name, None)
+    main = importlib.import_module("app.main")
+    client = TestClient(main.app, raise_server_exceptions=False)
+    r = client.get("/admin/licenses", headers=_basic("admin", "test-token"))
+    assert r.status_code == 401  # 500 ではない
+
+
+def test_non_ascii_password_in_header_does_not_500(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    client = TestClient(main.app, raise_server_exceptions=False)
+    r = client.get("/admin/licenses", headers=_basic("admin", "日本語パスワード"))
+    assert r.status_code == 401
+
+
+# ==========================================================================
+# 有効期限: datetime 比較で正しく判定する (B-5)
+# ==========================================================================
+
+def test_normalize_expires_date_only_is_end_of_day(tmp_path, monkeypatch):
+    _, main = _fresh_client(tmp_path, monkeypatch)
+    # 日付のみは当日いっぱい有効 (00:00:00 だと当日朝に失効していた)
+    assert main._normalize_expires("2026-07-29") == "2026-07-29T23:59:59+00:00"
+
+
+def test_normalize_expires_naive_gets_utc(tmp_path, monkeypatch):
+    _, main = _fresh_client(tmp_path, monkeypatch)
+    assert main._normalize_expires("2026-07-29T12:00:00") == "2026-07-29T12:00:00+00:00"
+
+
+def test_normalize_expires_keeps_negative_offset(tmp_path, monkeypatch):
+    _, main = _fresh_client(tmp_path, monkeypatch)
+    # 以前は "+00:00" を継ぎ足して "...-05:00+00:00" と壊していた
+    assert main._normalize_expires("2026-01-01T00:00:00-05:00") == "2026-01-01T00:00:00-05:00"
+
+
+def test_normalize_expires_empty_is_none(tmp_path, monkeypatch):
+    _, main = _fresh_client(tmp_path, monkeypatch)
+    assert main._normalize_expires("") is None
+    assert main._normalize_expires(None) is None
+
+
+def test_is_expired_past_and_future(tmp_path, monkeypatch):
+    _, main = _fresh_client(tmp_path, monkeypatch)
+    assert main._is_expired("2000-01-01T00:00:00+00:00") is True
+    assert main._is_expired("2999-01-01T00:00:00+00:00") is False
+    assert main._is_expired(None) is False
+    assert main._is_expired("") is False
+
+
+def test_is_expired_respects_timezone_offset(tmp_path, monkeypatch):
+    _, main = _fresh_client(tmp_path, monkeypatch)
+    # 過去の JST 時刻。辞書順比較では "2000-...T23:59:59+09:00" が現在の
+    # "20xx-...+00:00" より大きく見えて「有効」と誤判定されていた。
+    assert main._is_expired("2000-01-01T23:59:59+09:00") is True
+
+
+def test_check_marks_jst_past_license_expired(tmp_path, monkeypatch):
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    c.post(
+        "/admin/licenses",
+        auth=("admin", "test-token"),
+        json={
+            "license_key": "JST-PAST",
+            "domain": "example.test",
+            "plan": "pro",
+            "status": "active",
+            "expires_at": "2000-01-01T23:59:59+09:00",
+        },
+    )
+    r = c.post("/api/check", json={"license_key": "JST-PAST", "domain": "example.test"})
+    assert r.status_code == 200
+    assert r.json()["status"] == "expired"
+
+
+def test_check_date_only_future_expiry_stays_active(tmp_path, monkeypatch):
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    # 日付のみの未来日。以前は "2099-12-31+00:00" < now の辞書順比較で
+    # ('+' < 'T' により) 終日「期限切れ」に倒れることがあった。
+    c.post(
+        "/admin/licenses",
+        auth=("admin", "test-token"),
+        json={
+            "license_key": "DATE-ONLY",
+            "domain": "example.test",
+            "plan": "pro",
+            "status": "active",
+            "expires_at": "2099-12-31",
+        },
+    )
+    r = c.post("/api/check", json={"license_key": "DATE-ONLY", "domain": "example.test"})
+    assert r.status_code == 200
+    assert r.json()["status"] == "active"
