@@ -3,7 +3,7 @@
   <h1><?php esc_html_e('公開設定', 'drwp-daily-reports'); ?></h1>
 
   <?php if (!empty($_GET['saved'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('保存しました。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('保存しました。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
 
   <p class="description">

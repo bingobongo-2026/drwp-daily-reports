@@ -12,19 +12,18 @@
   <?php if (!empty($_GET['retention_saved'])): ?>
     <div class="notice notice-success is-dismissible"><p><?php esc_html_e('保存期間を更新しました。', 'drwp-daily-reports'); ?></p></div>
   <?php endif; ?>
-  <?php if (isset($_GET['purged'])): ?>
-    <div class="notice notice-success is-dismissible">
-      <p><?php
-        $n = max(0, (int) $_GET['purged']);
-        if ($n === 0) {
-            esc_html_e('削除対象の古い履歴はありませんでした。', 'drwp-daily-reports');
-        } else {
+  <?php if (isset($_GET['purged'])):
+    $n = max(0, (int) $_GET['purged']);
+    if ($n === 0) {
+        DRWP_Admin::admin_notice('success', __('削除対象の古い履歴はありませんでした。', 'drwp-daily-reports'));
+    } else {
+        DRWP_Admin::admin_notice('success', sprintf(
             /* translators: %d: deleted row count */
-            printf(esc_html(_n('%d 件の古い履歴を削除しました。', '%d 件の古い履歴を削除しました。', $n, 'drwp-daily-reports')), $n);
-        }
-      ?></p>
-    </div>
-  <?php endif; ?>
+            _n('%d 件の古い履歴を削除しました。', '%d 件の古い履歴を削除しました。', $n, 'drwp-daily-reports'),
+            $n
+        ));
+    }
+  endif; ?>
   <details class="drwp-audit-retention" style="margin:12px 0;border:1px solid #c3c4c7;border-radius:8px;padding:0 14px;">
     <summary style="cursor:pointer;padding:10px 0;font-weight:600;color:#1d2327;">
       ⚙️ <?php esc_html_e('保存期間と自動削除', 'drwp-daily-reports'); ?>

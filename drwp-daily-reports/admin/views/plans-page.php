@@ -15,16 +15,16 @@ $is_retired = DRWP_User::is_retired();
   <h1><?php esc_html_e('予定', 'drwp-daily-reports'); ?></h1>
 
   <?php if (!empty($_GET['saved'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('予定を保存しました。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('予定を保存しました。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
   <?php if (!empty($_GET['deleted'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('予定を削除しました。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('予定を削除しました。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
   <?php if (!empty($_GET['error']) && $_GET['error'] === 'missing_date'): ?>
-    <div class="notice notice-error"><p><?php esc_html_e('日付は必須です。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('error', __('日付は必須です。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
   <?php if ($is_retired): ?>
-    <div class="notice notice-warning"><p><?php esc_html_e('このアカウントは退職状態のため、予定の追加・編集はできません。閲覧のみ可能です。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('warning', __('このアカウントは退職状態のため、予定の追加・編集はできません。閲覧のみ可能です。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
 
   <?php if (!$is_retired): ?>

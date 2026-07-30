@@ -5,10 +5,10 @@
 ?>
 <div class="drwp-groups-tab-body">
   <?php if (!empty($_GET['saved'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('顧客グループを保存しました。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('顧客グループを保存しました。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
   <?php if (!empty($_GET['error']) && $_GET['error'] === 'missing_name'): ?>
-    <div class="notice notice-error"><p><?php esc_html_e('グループ名は必須です。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('error', __('グループ名は必須です。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
 
   <p>
