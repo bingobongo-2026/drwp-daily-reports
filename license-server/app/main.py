@@ -6,6 +6,7 @@ import os
 import re
 import secrets
 import zipfile
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import quote, urlsplit
@@ -30,7 +31,28 @@ if not logging.getLogger().handlers:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
-app = FastAPI(title="Nippoman License Server v1.9")
+@asynccontextmanager
+async def _lifespan(_app: "FastAPI"):
+    # 起動時: 署名鍵の自動ローテート + 監査ログ自動削除のバックグラウンド
+    # ループを起動する。0 で完全停止 (テスト / 単発スクリプト)。
+    # 停止時: タスクをキャンセルして綺麗に畳む。
+    # (参照している定数・関数はモジュール末尾で定義されるが、この関数が
+    #  呼ばれるのはアプリ起動時なので解決済み。)
+    task = None
+    if ROTATION_INTERVAL_DAYS > 0 or AUDIT_RETENTION_DAYS > 0:
+        task = asyncio.create_task(_maintenance_loop())
+    try:
+        yield
+    finally:
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+
+app = FastAPI(title="Nippoman License Server v1.9", lifespan=_lifespan)
 
 
 def _same_origin_ok(request: Request) -> bool:
@@ -1693,12 +1715,7 @@ async def _maintenance_loop():
         await asyncio.sleep(max(ROTATION_CHECK_HOURS, 1) * 3600)
 
 
-@app.on_event("startup")
-async def _on_startup() -> None:
-    # 0 disables (tests / one-shot scripts). Any positive value starts
-    # the background task.
-    if ROTATION_INTERVAL_DAYS > 0 or AUDIT_RETENTION_DAYS > 0:
-        asyncio.create_task(_maintenance_loop())
+# 起動/停止時のバックグラウンドタスク管理は _lifespan (ファイル冒頭) に集約。
 
 
 # --- Backup / restore ------------------------------------------------------
