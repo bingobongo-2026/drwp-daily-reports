@@ -169,10 +169,10 @@ def _row_to_dict(row: Optional[sqlite3.Row]) -> Optional[dict]:
     return dict(row) if row is not None else None
 
 
-def list_licenses(search: str = "", plan: str = "", status: str = "") -> list[dict]:
-    """検索キーワード + プラン + 状態の AND 絞り込み。`plan` / `status`
-    は完全一致 (空文字は無条件)。検索キーワードは複数カラムの OR LIKE
-    なのでサブクエリにまとめて AND する。"""
+def _license_where(search: str, plan: str, status: str) -> tuple[str, list]:
+    """list_licenses / count_licenses が共有する WHERE 句。`plan` /
+    `status` は完全一致 (空文字は無条件)。検索キーワードは複数カラムの
+    OR LIKE なのでサブクエリにまとめて AND する。"""
     where: list[str] = []
     args: list = []
     if search:
@@ -188,13 +188,33 @@ def list_licenses(search: str = "", plan: str = "", status: str = "") -> list[di
     if status:
         where.append("status = ?")
         args.append(status)
-    sql = "SELECT * FROM licenses"
-    if where:
-        sql += " WHERE " + " AND ".join(where)
-    sql += " ORDER BY id DESC"
+    clause = (" WHERE " + " AND ".join(where)) if where else ""
+    return clause, args
+
+
+def list_licenses(
+    search: str = "",
+    plan: str = "",
+    status: str = "",
+    limit: Optional[int] = None,
+    offset: int = 0,
+) -> list[dict]:
+    """絞り込み付き一覧。`limit=None` は全件 (admin API の従来挙動)。"""
+    clause, args = _license_where(search, plan, status)
+    sql = "SELECT * FROM licenses" + clause + " ORDER BY id DESC"
+    if limit is not None:
+        sql += " LIMIT ? OFFSET ?"
+        args = args + [max(0, int(limit)), max(0, int(offset))]
     with connection() as c:
         rows: Iterable[sqlite3.Row] = c.execute(sql, args).fetchall()
         return [dict(r) for r in rows]
+
+
+def count_licenses(search: str = "", plan: str = "", status: str = "") -> int:
+    clause, args = _license_where(search, plan, status)
+    with connection() as c:
+        row = c.execute("SELECT COUNT(*) FROM licenses" + clause, args).fetchone()
+        return int(row[0])
 
 
 def get_license(license_key: str) -> Optional[dict]:

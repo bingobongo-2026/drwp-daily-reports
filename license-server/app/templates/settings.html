@@ -187,6 +187,18 @@
     <strong>{{ (limiter_block_sec / 60)|round(0)|int }} 分</strong> 自動遮断（Fail2ban 風）。
     保存期間は <strong>{{ audit_retention_days }} 日</strong> で、24 時間ごとに古い行が自動削除されます。
   </p>
+  <p class="muted">
+    表示件数:
+    {% for n in (30, 100, 300) %}
+      {% if n == audit_limit %}
+        <strong>{{ n }}</strong>
+      {% else %}
+        <a href="/admin/ui/settings?audit_limit={{ n }}#tab-audit">{{ n }}</a>
+      {% endif %}
+      {{ '/' if not loop.last }}
+    {% endfor %}
+    （新しい順）
+  </p>
   {% if audit_rows %}
   <table>
     <thead>
@@ -425,8 +437,10 @@ function generateToken() {
   document.getElementById('token').value = hex;
 }
 
-// タブ切り替え。フォーム送信 → リダイレクトで再読込されるので、
-// 直前に見ていたタブを sessionStorage に覚えて復元する
+// タブ切り替え。選択中のタブは URL ハッシュ (#tab-audit 等) に反映する
+// ので、リロード・リンク共有・ブックマークでも同じタブが開く。
+// フォーム送信 → リダイレクトではハッシュが落ちるため、直前のタブを
+// sessionStorage にも覚えておき、ハッシュ無しの時の復元に使う
 // (保存後に毎回「認証」タブに戻るのを防ぐ)。
 (function () {
   var KEY = 'drwp_settings_tab';
@@ -436,17 +450,31 @@ function generateToken() {
     tabs.forEach(function (t) { t.classList.toggle('is-active', t.dataset.tab === name); });
     panels.forEach(function (p) { p.hidden = (p.id !== 'panel-' + name); });
   }
+  function fromHash() {
+    var m = /^#tab-([a-z]+)$/.exec(location.hash || '');
+    return (m && document.getElementById('panel-' + m[1])) ? m[1] : null;
+  }
   tabs.forEach(function (t) {
     t.addEventListener('click', function () {
       activate(t.dataset.tab);
+      // replaceState なら履歴を汚さず、対応する id を持つ要素も無いので
+      // スクロールも起きない。
+      try { history.replaceState(null, '', '#tab-' + t.dataset.tab); } catch (e) {}
       try { sessionStorage.setItem(KEY, t.dataset.tab); } catch (e) {}
     });
   });
-  var initial = 'auth';
-  try {
-    var saved = sessionStorage.getItem(KEY);
-    if (saved && document.getElementById('panel-' + saved)) initial = saved;
-  } catch (e) {}
+  window.addEventListener('hashchange', function () {
+    var name = fromHash();
+    if (name) activate(name);
+  });
+  var initial = fromHash();
+  if (!initial) {
+    initial = 'auth';
+    try {
+      var saved = sessionStorage.getItem(KEY);
+      if (saved && document.getElementById('panel-' + saved)) initial = saved;
+    } catch (e) {}
+  }
   activate(initial);
 })();
 </script>
