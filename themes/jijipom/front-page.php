@@ -16,16 +16,16 @@ get_header();
 	<?php
 	get_template_part( 'template-parts/front-page/hero' );
 
-	if ( get_theme_mod( 'jijipom_service_enable', true ) ) {
-		get_template_part( 'template-parts/front-page/service' );
-	}
+	// セクションの並び順は「外観 > カスタマイズ > レイアウト」で変更できる。
+	// 非表示に設定されたセクションは飛ばす。
+	$jijipom_order = function_exists( 'jijipom_front_section_order' )
+		? jijipom_front_section_order()
+		: array( 'service', 'blog', 'about' );
 
-	if ( get_theme_mod( 'jijipom_blog_enable', true ) ) {
-		get_template_part( 'template-parts/front-page/blog' );
-	}
-
-	if ( get_theme_mod( 'jijipom_about_enable', true ) ) {
-		get_template_part( 'template-parts/front-page/about' );
+	foreach ( $jijipom_order as $jijipom_section ) {
+		if ( get_theme_mod( "jijipom_{$jijipom_section}_enable", true ) ) {
+			get_template_part( 'template-parts/front-page/' . $jijipom_section );
+		}
 	}
 
 	// 固定ページに書いた本文があれば、各セクションの下に表示。

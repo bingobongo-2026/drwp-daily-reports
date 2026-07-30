@@ -1,10 +1,12 @@
 <?php
 /**
- * カスタマイザー: 配色（リンクのホバー色）
+ * カスタマイザー: 配色
  *
- * 「外観 > カスタマイズ > 配色（ホバー色）」で、リンク類にマウスを
- * のせたときの色を変更できます。おすすめ 4 色から選ぶか、「自由に設定」
- * を選んで下のカラーパレットで好きな色を指定できます。
+ * 「外観 > カスタマイズ > 配色」で次の2つを設定できます。
+ *   - メインカラー … ボタン・リンク・アンダーラインなどテーマ全体の
+ *     アクセント色 (CSS 変数 --color-accent)。ホバー時の濃い色は自動計算。
+ *   - リンクのホバー色 … リンク類にマウスをのせたときの色だけを個別に
+ *     変えたい場合。おすすめ 4 色または自由設定。
  *
  * @package jijipom
  */
@@ -46,15 +48,56 @@ function jijipom_sanitize_hover_preset( $value ) {
 }
 
 /**
- * カスタマイザーに「配色（ホバー色）」セクションを登録。
+ * HEX カラーを指定割合だけ暗くする (#rrggbb を返す)。失敗時は空文字。
+ */
+function jijipom_darken_hex( $hex, $ratio = 0.2 ) {
+	$hex = ltrim( (string) $hex, '#' );
+	if ( 3 === strlen( $hex ) ) {
+		$hex = preg_replace( '/(.)/', '$1$1', $hex );
+	}
+	if ( ! preg_match( '/^[0-9a-fA-F]{6}$/', $hex ) ) {
+		return '';
+	}
+	$out = '#';
+	foreach ( str_split( $hex, 2 ) as $pair ) {
+		$v    = (int) round( hexdec( $pair ) * ( 1 - $ratio ) );
+		$out .= str_pad( dechex( max( 0, min( 255, $v ) ) ), 2, '0', STR_PAD_LEFT );
+	}
+	return $out;
+}
+
+/**
+ * カスタマイザーに「配色」セクションを登録。
  */
 function jijipom_customize_register_colors( $wp_customize ) {
 	$wp_customize->add_section(
 		'jijipom_colors',
 		array(
-			'title'       => __( '配色（ホバー色）', 'jijipom' ),
-			'description' => __( 'リンク類にマウスをのせたときの色を変更できます。「自由に設定」を選ぶと下のパレットで好きな色を指定できます。', 'jijipom' ),
+			'title'       => __( '配色', 'jijipom' ),
+			'description' => __( 'メインカラー(ボタン・リンクなどのアクセント色)と、リンクのホバー色を変更できます。', 'jijipom' ),
 			'priority'    => 46,
+		)
+	);
+
+	// メインカラー (テーマ全体のアクセント色)。
+	$wp_customize->add_setting(
+		'jijipom_accent_color',
+		array(
+			'default'           => '',
+			'sanitize_callback' => 'sanitize_hex_color',
+			'transport'         => 'refresh',
+		)
+	);
+	$wp_customize->add_control(
+		new WP_Customize_Color_Control(
+			$wp_customize,
+			'jijipom_accent_color',
+			array(
+				'label'       => __( 'メインカラー', 'jijipom' ),
+				'description' => __( 'ボタン・リンク・メニューのアンダーラインなど、テーマ全体のアクセント色。未設定ならテーマ標準(ブルー)。ホバー時の濃い色は自動で作られます。', 'jijipom' ),
+				'section'     => 'jijipom_colors',
+				'priority'    => 5,
+			)
 		)
 	);
 
@@ -118,24 +161,38 @@ function jijipom_resolve_hover_color() {
 }
 
 /**
- * ホバー色を CSS として <head> に出力する。リンク系のホバー状態を
- * まとめて上書きする（未設定なら何も出力せずテーマ標準のまま）。
+ * 配色を CSS として <head> に出力する。
+ *  - メインカラー: CSS 変数 --color-accent / --color-accent-hover を上書き
+ *    (ホバー色は 20% 暗くした色を自動計算)。
+ *  - ホバー色: リンク系のホバー状態をまとめて上書き。
+ * どちらも未設定なら何も出力せずテーマ標準のまま。
  */
 function jijipom_colors_inline_css() {
+	$css = '';
+
+	$accent = sanitize_hex_color( get_theme_mod( 'jijipom_accent_color', '' ) );
+	if ( $accent ) {
+		$hover_auto = jijipom_darken_hex( $accent, 0.2 );
+		$css       .= ':root{--color-accent:' . esc_attr( $accent ) . ';'
+			. '--color-accent-hover:' . esc_attr( $hover_auto ? $hover_auto : $accent ) . ';}';
+	}
+
 	$c = jijipom_resolve_hover_color();
-	if ( ! $c ) {
+	if ( $c ) {
+		$c    = esc_attr( $c );
+		$css .= 'a:hover,';
+		$css .= '.entry-title a:hover,';
+		$css .= '.entry-meta a:hover,';
+		$css .= '.breadcrumbs a:hover,';
+		$css .= '.footer-navigation a:hover,';
+		$css .= '.blog-card__title a:hover{color:' . $c . ';}';
+		$css .= '.main-navigation a:hover{border-bottom-color:' . $c . ';}';
+		$css .= '.pagination a.page-numbers:hover{border-color:' . $c . ';color:' . $c . ';}';
+	}
+
+	if ( '' === $css ) {
 		return;
 	}
-	$c = esc_attr( $c );
-
-	$css  = 'a:hover,';
-	$css .= '.entry-title a:hover,';
-	$css .= '.entry-meta a:hover,';
-	$css .= '.breadcrumbs a:hover,';
-	$css .= '.footer-navigation a:hover,';
-	$css .= '.blog-card__title a:hover{color:' . $c . ';}';
-	$css .= '.main-navigation a:hover{border-bottom-color:' . $c . ';}';
-	$css .= '.pagination a.page-numbers:hover{border-color:' . $c . ';color:' . $c . ';}';
 
 	echo "\n<style id=\"jijipom-colors\">" . $css . "</style>\n";
 }

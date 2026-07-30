@@ -43,7 +43,7 @@ if ( $jijipom_blog_query->have_posts() ) :
 							if ( has_post_thumbnail() ) {
 								the_post_thumbnail( 'medium_large', array( 'loading' => 'lazy' ) );
 							} elseif ( $jijipom_blog_fallback ) {
-								echo '<img src="' . esc_url( $jijipom_blog_fallback ) . '" alt="" loading="lazy" />';
+								echo '<img src="' . esc_url( $jijipom_blog_fallback ) . '" alt="" loading="lazy" decoding="async" />';
 							} else {
 								echo '<span class="front-placeholder"></span>';
 							}

@@ -20,7 +20,7 @@ $jijipom_svc_btn_url  = get_theme_mod( 'jijipom_service_button_url', '' );
 		<div class="front-service__grid">
 			<div class="front-service__media">
 				<?php if ( $jijipom_svc_image ) : ?>
-					<img src="<?php echo esc_url( $jijipom_svc_image ); ?>" alt="<?php echo esc_attr( $jijipom_svc_heading ); ?>" loading="lazy">
+					<img src="<?php echo esc_url( $jijipom_svc_image ); ?>" alt="<?php echo esc_attr( $jijipom_svc_heading ); ?>" loading="lazy" decoding="async">
 				<?php else : ?>
 					<div class="front-placeholder" aria-hidden="true"></div>
 				<?php endif; ?>
