@@ -133,18 +133,18 @@
 
   <?php echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total); ?>
 
-  <dialog id="drwp-customer-dialog" class="drwp-customer-modal">
+  <dialog id="drwp-customer-dialog" class="drwp-modal drwp-customer-modal">
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
       <?php wp_nonce_field('drwp_save_customer'); ?>
       <input type="hidden" name="action" value="drwp_save_customer" />
       <input type="hidden" name="id" id="drwp-cm-id" value="0" />
 
-      <div class="drwp-customer-modal-header">
+      <div class="drwp-modal-header drwp-customer-modal-header">
         <h2 id="drwp-cm-title"><?php esc_html_e('新しい顧客を追加', 'drwp-daily-reports'); ?></h2>
-        <button type="button" class="drwp-customer-modal-close">&times;</button>
+        <button type="button" class="drwp-modal-close drwp-customer-modal-close">&times;</button>
       </div>
 
-      <div class="drwp-customer-modal-body">
+      <div class="drwp-modal-body drwp-customer-modal-body">
         <table class="form-table">
           <tr>
             <th><label for="drwp-cm-name"><?php esc_html_e('顧客名', 'drwp-daily-reports'); ?> <em style="color:#b91c1c;">*</em></label></th>
@@ -239,11 +239,11 @@
         </table>
       </div>
 
-      <div class="drwp-customer-modal-footer">
+      <div class="drwp-modal-footer drwp-customer-modal-footer">
         <button type="submit" class="button button-primary" id="drwp-cm-submit">
           <?php esc_html_e('保存', 'drwp-daily-reports'); ?>
         </button>
-        <button type="button" class="button drwp-customer-modal-close">
+        <button type="button" class="button drwp-modal-close drwp-customer-modal-close">
           <?php esc_html_e('キャンセル', 'drwp-daily-reports'); ?>
         </button>
       </div>
@@ -252,15 +252,8 @@
 </div>
 
 <style>
-.drwp-customer-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:640px;width:90vw}
-.drwp-customer-modal::backdrop{background:rgba(0,0,0,.45)}
-.drwp-customer-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e5e7eb}
-.drwp-customer-modal-header h2{margin:0;font-size:1.1em}
-.drwp-customer-modal-close{background:transparent;border:0;font-size:1.6em;cursor:pointer;color:#50575e;line-height:1;padding:0 4px}
-.drwp-customer-modal-body{padding:16px 20px;max-height:65vh;overflow-y:auto}
-.drwp-customer-modal-body .form-table th{width:120px;padding:6px 0;vertical-align:top}
-.drwp-customer-modal-body .form-table td{padding:6px 0}
-.drwp-customer-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
+/* モーダルのシェルは admin.css の共通スタイル (drwp-modal-*) を使用 */
+.drwp-customer-modal-body .form-table th{width:120px}
 /* 検索・絞り込み — 日報一覧・予定一覧と同じ薄いグレー枠の details。 */
 /* Group chips shown in the 顧客 listing table — color dot + name
    in a soft pill. The color comes from the group's color column,
