@@ -171,17 +171,12 @@ $author_name   = !empty($report->user_id)
       </p>
       <?php endif; ?>
       <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-        <?php wp_nonce_field('drwp_save_report'); ?>
-        <input type="hidden" name="action" value="drwp_save_report" />
+        <?php wp_nonce_field('drwp_save_report_publish'); ?>
+        <input type="hidden" name="action" value="drwp_save_report_publish" />
         <input type="hidden" name="id" value="<?php echo esc_attr($report_id); ?>" />
-        <!-- Re-post fields the save handler expects but we don't edit here -->
-        <input type="hidden" name="project_id" value="<?php echo esc_attr($report->project_id ?? ''); ?>" />
-        <input type="hidden" name="report_date" value="<?php echo esc_attr($report->report_date ?? ''); ?>" />
-        <input type="hidden" name="started_at" value="<?php echo esc_attr($report->started_at ?? ''); ?>" />
-        <input type="hidden" name="ended_at" value="<?php echo esc_attr($report->ended_at ?? ''); ?>" />
-        <input type="hidden" name="work_description" value="<?php echo esc_attr($report->work_description ?? ''); ?>" />
-        <input type="hidden" name="issues" value="<?php echo esc_attr($report->issues ?? ''); ?>" />
-        <input type="hidden" name="next_plan" value="<?php echo esc_attr($report->next_plan ?? ''); ?>" />
+        <!-- 公開・投稿設定だけを保存する。下書き系(作業内容など)と写真は
+             このフォームでは触らない (A フォーム / 写真欄が担当) ため、
+             以前のように DB 値を hidden で再送する必要はない。 -->
         <table class="form-table" role="presentation">
           <tr>
             <th><label><?php esc_html_e('公開タイトル', 'drwp-daily-reports'); ?></label></th>
