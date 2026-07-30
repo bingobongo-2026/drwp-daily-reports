@@ -11,7 +11,7 @@
 - `marketing/`, `scripts/`, `docker-compose.yml`, `README.md`
 
 ## 現在のバージョン(すべて main にマージ済み)
-- 日報マン プラグイン(`drwp-daily-reports`): **1.74.0**
+- 日報マン プラグイン(`drwp-daily-reports`): **1.75.1**
 - テーマ jijipom: **1.18.0**
 - 子テーマ jijipom-child: **1.0.0**
 - プラグイン jijipom-content-builder: **1.9.1**
@@ -135,11 +135,30 @@ PR化した。**修正済み(#269〜#271)**:
   し直し(既存テストは同値で隠していたので別値化)。domain 空を API 422/
   フォームエラーで拒否。logging.basicConfig 追加(署名鍵ローテートが記録される)。
 
-**未対応(調査で挙がった残り。着手時はここから)**:
-- 日報: `photo_kind`(Before/After)がどのUIからも保存されず毎回消える。
-- 日報: `drwp_reports` に `user_id`/`project_id` インデックス無し。フロント一覧・
-  PDF に LIMIT 無し(N+1 も多い)。
-- license-server: CSRF 対策ゼロ(全 /admin/ui POST。変更範囲が広いので単独PRで)。
+**さらに修正済み(#277〜#280)**:
+- license-server: /admin/ui の更新系に CSRF ガード(Origin/Referer のヘッダー
+  検証。非ブラウザは素通し・他オリジンは403+監査ログ csrf_rejected)。
+- 日報 1.75.0: drwp_reports に user_id/project_id インデックス、
+  DRWP_Project::find のリクエスト内キャッシュ(N+1解消・保存時 flush)、
+  フロント一覧の範囲92日クランプ+LIMIT 2000、PDF の非数値ID入力で
+  全件出力になるバグ修正+LIMIT 500。
+- 日報 1.75.1: photo_kind(Before/After)が区分UIの無い画面の保存で毎回消えて
+  いた問題を修正。※指定UIは記事作成モーダルに既にあった。sync() は
+  photo_kind キーの無い行で既存の区分を保持する(送らない=保持、送る=上書き)。
+- license-server: 一覧の有効期限を JST 表示+期限切れ/あとN日バッジ、作成後の
+  自動生成キー表示、削除確認にキー・ドメイン明示、?msg= 未知値の偽装防止。
+
+**未対応(UX改善の残り。優先度は低め)**:
+- 日報: 編集UIが3系統に分裂(一覧モーダル/隠しページ report_edit/フロント)。
+  report_edit は A/B 別フォームで A の未保存変更が B 保存で消える。
+- 日報: 保存通知のキー名・文言・表示方法が画面ごとにバラバラ。
+- 日報: フィルタ/モーダルの CSS が6〜7ファイルにコピペ(値も微妙に不一致)。
+  admin.css は report_edit でしか読み込まれていない。ダッシュボードは
+  インラインstyle 30個。
+- 日報: 予定と日報の紐付けが ID 手入力。AI実行の進捗表示なし。
+- license-server: 一覧のページネーション無し。設定タブがURLに反映されない。
+  監査ログ30件固定。管理トークンのDB平文保存(ハッシュ化)。バックアップzip
+  無暗号化。uvicorn --proxy-headers 未設定。.env.example に変数10個未記載。
 - UX: 日報の編集UIが3系統に分裂・保存通知がバラバラ・フィルタ/モーダルCSSが
   6〜7ファイルにコピペ。ライセンス一覧に期限切れ/期限間近バッジ無し・作成後の
   自動生成キーが画面に出ない、等。
