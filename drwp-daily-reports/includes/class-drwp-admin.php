@@ -457,7 +457,12 @@ class DRWP_Admin {
         if (current_user_can(self::CAP_REVIEW)) return true;
         if (!current_user_can(self::CAP_EDIT)) return false;
         if (!$report) return true;
-        return (int) $report->user_id === get_current_user_id();
+        if ((int) $report->user_id !== get_current_user_id()) return false;
+        // REST (can_edit_one) と同じ制限: 投稿者本人が編集できるのは
+        // 承認ロックの掛かっていない状態だけ。以前はここで review_status
+        // を見ておらず、承認済みの自分の日報を管理画面からは書き換え
+        // られる非対称があった (REST では 403)。
+        return in_array((string) $report->review_status, ['pending', 'needs_revision', 'edit_requested'], true);
     }
 
     /** Read 日報一覧 filter values from $_GET / $_POST into a normalized array. */
@@ -816,13 +821,28 @@ class DRWP_Admin {
         $action = sanitize_text_field($_POST['bulk_action'] ?? '');
         $count = 0;
 
+        // CSV出力は読み取りなので退職者・ライセンス失効中でも許す。
         if ($action === 'bulk_export_csv') {
             self::export_csv($ids);
             return;
         }
 
+        // ここから先は全て書き込み。単発の save_report / DRWP_Plan::save と
+        // 同じく、退職者とライセンス失効中は止める (この経路だけ抜けていた)。
+        DRWP_User::block_write_or_die();
+        if (!DRWP_License::can_write()) {
+            wp_die(
+                DRWP_License::blocked_message(__('ライセンス状態により一括操作を実行できません。', 'drwp-daily-reports')),
+                esc_html__('ライセンス未有効', 'drwp-daily-reports'),
+                ['response' => 402]
+            );
+        }
+
         $review_actions = ['bulk_approve', 'bulk_revision'];
-        $convert_actions = ['bulk_convert'];
+        // 公開設定の一括変更 (bulk_update_publish) は記事化と同じく
+        // 事務所権限 (publish_posts)。ゲートに入れないと、作業者が自分の
+        // 日報の post_status を publish に書き換えられてしまう。
+        $convert_actions = ['bulk_convert', 'bulk_update_publish'];
         if (in_array($action, $review_actions, true) && !current_user_can(self::CAP_REVIEW)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         if (in_array($action, $convert_actions, true) && !current_user_can(self::CAP_CONVERT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
 

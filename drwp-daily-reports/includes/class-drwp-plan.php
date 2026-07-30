@@ -301,6 +301,14 @@ class DRWP_Plan {
         }
         DRWP_User::block_write_or_die();
         check_admin_referer('drwp_delete_plan');
+        // 削除も書き込み — save() と同じくライセンス失効中は止める。
+        if (!DRWP_License::can_write()) {
+            wp_die(
+                DRWP_License::blocked_message(__('ライセンス状態により予定を削除できません。', 'drwp-daily-reports')),
+                esc_html__('ライセンス未有効', 'drwp-daily-reports'),
+                ['response' => 402]
+            );
+        }
         $id = absint($_POST['id'] ?? 0);
         $plan = $id ? self::find($id) : null;
         if (!$plan || !self::can_edit($plan)) {

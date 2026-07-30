@@ -12,6 +12,16 @@ class DRWP_Review {
     public static function handle() {
         if (!current_user_can('edit_others_posts')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
         check_admin_referer('drwp_review_report');
+        // レビューも書き込み — 退職者・ライセンス失効中は他の書き込み系と
+        // 同じく止める (この経路だけ抜けていた)。
+        DRWP_User::block_write_or_die();
+        if (!DRWP_License::can_write()) {
+            wp_die(
+                DRWP_License::blocked_message(__('ライセンス状態によりレビューを保存できません。', 'drwp-daily-reports')),
+                esc_html__('ライセンス未有効', 'drwp-daily-reports'),
+                ['response' => 402]
+            );
+        }
 
         $id = absint($_POST['id'] ?? 0);
         $status = sanitize_text_field($_POST['review_status'] ?? '');
@@ -49,6 +59,14 @@ class DRWP_Review {
 
     public static function add_comment() {
         check_admin_referer('drwp_add_comment');
+        DRWP_User::block_write_or_die();
+        if (!DRWP_License::can_write()) {
+            wp_die(
+                DRWP_License::blocked_message(__('ライセンス状態によりコメントを保存できません。', 'drwp-daily-reports')),
+                esc_html__('ライセンス未有効', 'drwp-daily-reports'),
+                ['response' => 402]
+            );
+        }
         $id = absint($_POST['id'] ?? 0);
         if (!$id) wp_die(esc_html__('見つかりませんでした', 'drwp-daily-reports'));
 
