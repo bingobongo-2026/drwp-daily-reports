@@ -28,7 +28,7 @@ $jijipom_about_heading = get_theme_mod( 'jijipom_about_heading', __( '会社紹�
 				<div class="about-block">
 					<div class="about-block__thumb">
 						<?php if ( $jijipom_about_image ) : ?>
-							<img src="<?php echo esc_url( $jijipom_about_image ); ?>" alt="<?php echo esc_attr( $jijipom_about_title ); ?>" loading="lazy">
+							<img src="<?php echo esc_url( $jijipom_about_image ); ?>" alt="<?php echo esc_attr( $jijipom_about_title ); ?>" loading="lazy" decoding="async">
 						<?php else : ?>
 							<span class="front-placeholder" aria-hidden="true"></span>
 						<?php endif; ?>

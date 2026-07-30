@@ -4,7 +4,7 @@ Theme URI: https://example.com/jijipom
 Author: jijipom
 Author URI: https://example.com
 Description: どんなジャンルのサイトにも馴染む、シンプルで軽量・SEOに強いベーステーマ。セマンティックなHTML5マークアップ、構造化データ(JSON-LD)、OGP、パンくずリストを標準搭載。カスタマイズの叩き台としてお使いください。
-Version: 1.18.0
+Version: 1.19.0
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
@@ -238,7 +238,8 @@ th { background: var(--color-bg-subtle); }
   border-bottom: 2px solid transparent;
 }
 .main-navigation a:hover,
-.main-navigation .current-menu-item > a { border-bottom-color: var(--color-accent); }
+.main-navigation .current-menu-item > a,
+.main-navigation .current-menu-ancestor > a { border-bottom-color: var(--color-accent); }
 /* 子メニューを開いている間(サブツリーにホバー/フォーカス)も、
    親項目のアンダーラインを保つ。子リンクへマウスが移ると親 a の
    :hover が外れてアンダーラインが消えていたため。 */

@@ -6,7 +6,7 @@
  */
 
 if ( ! defined( 'JIJIPOM_VERSION' ) ) {
-	define( 'JIJIPOM_VERSION', '1.18.0' );
+	define( 'JIJIPOM_VERSION', '1.19.0' );
 }
 
 /**
@@ -113,6 +113,26 @@ function jijipom_scripts() {
 add_action( 'wp_enqueue_scripts', 'jijipom_scripts' );
 
 /**
+ * トップページの最大コンテンツ(LCP)であるヒーロー1枚目の画像をプリロード。
+ * 背景画像 (CSS) はブラウザのプリロードスキャナに拾われず読み込み開始が
+ * 遅れるため、<head> 冒頭で先読みを宣言して表示を速くする。
+ */
+function jijipom_preload_hero_image() {
+	if ( ! is_front_page() ) {
+		return;
+	}
+	if ( 'image' !== get_theme_mod( 'jijipom_hero_type', 'image' ) ) {
+		return;
+	}
+	$url = get_theme_mod( 'jijipom_hero_image', '' );
+	if ( ! $url ) {
+		return;
+	}
+	printf( '<link rel="preload" as="image" href="%s" fetchpriority="high">' . "\n", esc_url( $url ) );
+}
+add_action( 'wp_head', 'jijipom_preload_hero_image', 2 );
+
+/**
  * ウィジェットエリア(サイドバー / フッター)の登録
  */
 function jijipom_widgets_init() {
@@ -162,6 +182,7 @@ add_filter( 'excerpt_length', 'jijipom_excerpt_length' );
 remove_action( 'wp_head', 'wp_generator' );                 // WPバージョンを隠す
 remove_action( 'wp_head', 'wlwmanifest_link' );             // Windows Live Writer
 remove_action( 'wp_head', 'rsd_link' );                     // Really Simple Discovery
+remove_action( 'wp_head', 'wp_shortlink_wp_head' );         // ?p=123 の shortlink (不要)
 add_filter( 'the_generator', '__return_empty_string' );
 
 /**
@@ -185,6 +206,7 @@ require get_template_directory() . '/inc/customizer.php';
 require get_template_directory() . '/inc/customizer-frontpage.php';
 require get_template_directory() . '/inc/customizer-fonts.php';
 require get_template_directory() . '/inc/customizer-colors.php';
+require get_template_directory() . '/inc/customizer-layout.php';
 require get_template_directory() . '/inc/customizer-social.php';
 require get_template_directory() . '/inc/customizer-pages.php';
 require get_template_directory() . '/inc/importer.php';

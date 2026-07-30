@@ -32,9 +32,10 @@ if ( ! in_array( $jijipom_hero_align, array( 'left', 'center', 'right' ), true )
 }
 $jijipom_inner_class = 'front-inner front-hero__inner is-align-' . $jijipom_hero_align;
 
-// ボタンの色 (未設定ならテーマ標準色のまま)。
-$jijipom_hero_btn_bg    = get_theme_mod( 'jijipom_hero_button_bg', '' );
-$jijipom_hero_btn_color = get_theme_mod( 'jijipom_hero_button_color', '' );
+// ボタンの色 (未設定ならテーマ標準色のまま)。ヘッダーボタンと同じく
+// 出力時にも hex サニタイズを通す。
+$jijipom_hero_btn_bg    = sanitize_hex_color( get_theme_mod( 'jijipom_hero_button_bg', '' ) );
+$jijipom_hero_btn_color = sanitize_hex_color( get_theme_mod( 'jijipom_hero_button_color', '' ) );
 $jijipom_btn_style      = '';
 if ( $jijipom_hero_btn_bg ) {
 	$jijipom_btn_style .= 'background-color:' . $jijipom_hero_btn_bg . ';border-color:' . $jijipom_hero_btn_bg . ';';
@@ -66,6 +67,11 @@ $jijipom_hero_class = 'front-hero'
 		</video>
 	<?php elseif ( $jijipom_use_youtube ) : ?>
 		<?php
+		// origin はパスを含まないスキーム+ホスト(+ポート)。サブディレクトリ
+		// 設置サイトで home_url() をそのまま渡すと API 側の検証と一致しない。
+		$jijipom_home     = wp_parse_url( home_url() );
+		$jijipom_yt_origin = $jijipom_home['scheme'] . '://' . $jijipom_home['host']
+			. ( isset( $jijipom_home['port'] ) ? ':' . $jijipom_home['port'] : '' );
 		$jijipom_yt_src = add_query_arg(
 			array(
 				'autoplay'       => 1,
@@ -83,7 +89,7 @@ $jijipom_hero_class = 'front-hero'
 				// IFrame API から制御 (無音自動再生 + 終了画面を出さない
 				// シームレスループ) するため。
 				'enablejsapi'    => 1,
-				'origin'         => home_url(),
+				'origin'         => $jijipom_yt_origin,
 			),
 			'https://www.youtube-nocookie.com/embed/' . rawurlencode( $jijipom_yt_id )
 		);
@@ -94,7 +100,12 @@ $jijipom_hero_class = 'front-hero'
 	<?php elseif ( $jijipom_has_image ) : ?>
 		<div class="front-hero__slides" aria-hidden="true">
 			<?php foreach ( $jijipom_hero_images as $jijipom_i => $jijipom_img ) : ?>
-				<div class="front-hero__slide<?php echo 0 === $jijipom_i ? ' is-active' : ''; ?>" style="background-image:url(<?php echo esc_url( $jijipom_img ); ?>)"></div>
+				<?php if ( 0 === $jijipom_i ) : ?>
+					<div class="front-hero__slide is-active" style="background-image:url(<?php echo esc_url( $jijipom_img ); ?>)"></div>
+				<?php else : ?>
+					<?php // 2枚目以降は初期表示に不要なので、スライダーJSが後から読み込む (LCPを最初の1枚に集中させる)。 ?>
+					<div class="front-hero__slide" data-bg="<?php echo esc_url( $jijipom_img ); ?>"></div>
+				<?php endif; ?>
 			<?php endforeach; ?>
 		</div>
 	<?php endif; ?>
