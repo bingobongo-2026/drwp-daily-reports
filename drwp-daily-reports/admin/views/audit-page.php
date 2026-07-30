@@ -161,7 +161,7 @@
           <td><?php echo esc_html(DRWP_User::display_name((int) $log['user_id']) ?: ('#' . (int) $log['user_id'])); ?></td>
           <td>
             <?php if (!empty($log['report_id'])): ?>
-              <a href="<?php echo esc_url(admin_url('admin.php?page=drwp_report_edit&id=' . (int) $log['report_id'])); ?>">#<?php echo (int) $log['report_id']; ?></a>
+              <a href="<?php echo esc_url(admin_url('admin.php?page=drwp_reports&view=' . (int) $log['report_id'])); ?>">#<?php echo (int) $log['report_id']; ?></a>
             <?php else: ?>-<?php endif; ?>
           </td>
           <td><?php echo esc_html($log['message']); ?></td>

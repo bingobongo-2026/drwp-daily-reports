@@ -4,7 +4,7 @@
   <?php if (empty($report)): ?>
     <?php DRWP_Admin::admin_notice('error', __('日報が見つかりません。', 'drwp-daily-reports')); ?>
   <?php else: ?>
-    <p><a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_report_edit&id=' . (int) $report->id)); ?>"><?php esc_html_e('編集に戻る', 'drwp-daily-reports'); ?></a></p>
+    <p><a class="button" href="<?php echo esc_url(admin_url('admin.php?page=drwp_reports&edit=' . (int) $report->id)); ?>"><?php esc_html_e('編集に戻る', 'drwp-daily-reports'); ?></a></p>
     <?php echo DRWP_Post_Converter::build_preview_html($report); ?>
   <?php endif; ?>
 </div>

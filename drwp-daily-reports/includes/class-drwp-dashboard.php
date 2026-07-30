@@ -92,7 +92,7 @@ class DRWP_Dashboard {
                   $date_label = date_i18n('Y年n月j日', strtotime((string) $r->report_date));
               ?>
                 <li style="padding:6px 0;border-bottom:1px solid #f0f0f1;">
-                  <a href="<?php echo esc_url(admin_url('admin.php?page=drwp_report_edit&id=' . (int) $r->id)); ?>" style="text-decoration:none;color:inherit;">
+                  <a href="<?php echo esc_url(admin_url('admin.php?page=drwp_reports&view=' . (int) $r->id)); ?>" style="text-decoration:none;color:inherit;">
                     <strong><?php echo esc_html($date_label); ?></strong>
                     <span style="color:#50575e;margin:0 4px;">—</span>
                     <span><?php echo esc_html($proj_name); ?></span>
@@ -106,7 +106,7 @@ class DRWP_Dashboard {
           <?php endif; ?>
 
           <p style="margin-top:12px;">
-            <a class="button button-primary button-small" href="<?php echo esc_url(admin_url('admin.php?page=drwp_report_edit')); ?>"><?php esc_html_e('日報を作成', 'drwp-daily-reports'); ?></a>
+            <a class="button button-primary button-small" href="<?php echo esc_url(admin_url('admin.php?page=drwp_reports&new=1')); ?>"><?php esc_html_e('日報を作成', 'drwp-daily-reports'); ?></a>
             <a class="button button-small" href="<?php echo esc_url($list_url); ?>"><?php esc_html_e('一覧を開く', 'drwp-daily-reports'); ?></a>
             <a class="button button-small" href="<?php echo esc_url(admin_url('admin.php?page=drwp_help')); ?>"><?php esc_html_e('使い方', 'drwp-daily-reports'); ?></a>
           </p>

@@ -17,7 +17,9 @@ $review_labels = [
 $can_review = current_user_can('edit_others_posts');
 ?>
 <div class="wrap">
-  <h1><?php esc_html_e('日報一覧', 'drwp-daily-reports'); ?></h1>
+  <h1 class="wp-heading-inline"><?php esc_html_e('日報一覧', 'drwp-daily-reports'); ?></h1>
+  <button type="button" class="page-title-action" id="drwp-new-report-btn"><?php esc_html_e('日報を作成', 'drwp-daily-reports'); ?></button>
+  <hr class="wp-header-end">
 
   <?php if (DRWP_AI::is_enabled()): ?>
     <?php
@@ -357,10 +359,10 @@ $can_review = current_user_can('edit_others_posts');
     </div>
   </dialog>
 
-  <!-- 編集モーダル — フォーム -->
+  <!-- 編集モーダル — フォーム (id=0 で新規作成モード) -->
   <dialog id="drwp-edit-dialog" class="drwp-modal drwp-modal-wide">
     <div class="drwp-modal-header">
-      <h2><?php esc_html_e('日報を編集', 'drwp-daily-reports'); ?></h2>
+      <h2 id="drwp-edit-title"><?php esc_html_e('日報を編集', 'drwp-daily-reports'); ?></h2>
       <button type="button" class="drwp-modal-close" aria-label="<?php esc_attr_e('閉じる', 'drwp-daily-reports'); ?>">&times;</button>
     </div>
     <div class="drwp-modal-body">
@@ -894,6 +896,7 @@ $can_review = current_user_can('edit_others_posts');
        指定は記事作成モーダルでテンプレ選択時に出すフローに統一した */) {
     var div = document.createElement('div');
     div.className = 'drwp-edit-photo-item';
+    div.draggable = true;
     div.innerHTML =
       '<img alt="" />' +
       '<input type="hidden" name="attachment_ids" />' +
@@ -915,6 +918,29 @@ $can_review = current_user_can('edit_others_posts');
       var item = e.target.closest('.drwp-edit-photo-item');
       if (item) item.remove();
     }
+  });
+
+  // ドラッグで並べ替え (保存時は DOM 順がそのまま並び順になる)。
+  // 旧・日報編集ページが持っていた並べ替え機能をモーダルでも提供する。
+  var draggingPhoto = null;
+  photosEl.addEventListener('dragstart', function (e) {
+    var item = e.target.closest('.drwp-edit-photo-item');
+    if (!item) return;
+    draggingPhoto = item;
+    item.style.opacity = '0.5';
+  });
+  photosEl.addEventListener('dragend', function (e) {
+    if (draggingPhoto) draggingPhoto.style.opacity = '';
+    draggingPhoto = null;
+  });
+  photosEl.addEventListener('dragover', function (e) {
+    if (!draggingPhoto) return;
+    e.preventDefault();
+    var over = e.target.closest('.drwp-edit-photo-item');
+    if (!over || over === draggingPhoto) return;
+    var rect = over.getBoundingClientRect();
+    var before = (e.clientX - rect.left) < rect.width / 2;
+    photosEl.insertBefore(draggingPhoto, before ? over : over.nextSibling);
   });
 
   // モーダルを開いたときに現在の最大アップロードサイズをヒント表示。
@@ -982,8 +1008,14 @@ $can_review = current_user_can('edit_others_posts');
     next();
   });
 
+  // id=0 (falsy) は新規作成モード: GET は呼ばず、日付を今日にして
+  // 空のフォームを出す。保存時は POST /reports になる。
   function openEditModal(id) {
+    id = id || 0;
     document.getElementById('drwp-edit-id').value = id;
+    document.getElementById('drwp-edit-title').textContent = id
+      ? <?php echo wp_json_encode(__('日報を編集', 'drwp-daily-reports')); ?>
+      : <?php echo wp_json_encode(__('日報を作成', 'drwp-daily-reports')); ?>;
     document.getElementById('drwp-edit-status').textContent = '';
     ['drwp-edit-date','drwp-edit-started','drwp-edit-ended'].forEach(function (k) { document.getElementById(k).value = ''; });
     ['drwp-edit-work','drwp-edit-issues','drwp-edit-next'].forEach(function (k) { document.getElementById(k).value = ''; });
@@ -991,6 +1023,13 @@ $can_review = current_user_can('edit_others_posts');
     clearEditPhotos();
     photoStatus.textContent = '';
     editDlg.showModal();
+    if (!id) {
+      var today = new Date();
+      var pad = function (n) { return String(n).padStart(2, '0'); };
+      document.getElementById('drwp-edit-date').value =
+        today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
+      return;
+    }
     api('/reports/' + id).then(function (d) {
       document.getElementById('drwp-edit-date').value = d.report_date || '';
       document.getElementById('drwp-edit-project').value = d.project_id || '';
@@ -1008,7 +1047,7 @@ $can_review = current_user_can('edit_others_posts');
   }
 
   document.getElementById('drwp-edit-save').addEventListener('click', function () {
-    var id = document.getElementById('drwp-edit-id').value;
+    var id = parseInt(document.getElementById('drwp-edit-id').value, 10) || 0;
     var st = document.getElementById('drwp-edit-status');
     st.textContent = '<?php echo esc_js(__('保存中…', 'drwp-daily-reports')); ?>';
     this.disabled = true;
@@ -1019,8 +1058,9 @@ $can_review = current_user_can('edit_others_posts');
     // 送らない。
     var ids = Array.from(photosEl.querySelectorAll('input[name="attachment_ids"]')).map(function (i) { return Number(i.value); });
     var caps = Array.from(photosEl.querySelectorAll('input[name="attachment_captions"]')).map(function (i) { return i.value; });
-    api('/reports/' + id, {
-      method: 'PATCH',
+    // id=0 は新規作成 → POST /reports (作成者は自分・承認待ちで登録)。
+    api(id ? '/reports/' + id : '/reports', {
+      method: id ? 'PATCH' : 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         report_date:         document.getElementById('drwp-edit-date').value,
@@ -1047,6 +1087,23 @@ $can_review = current_user_can('edit_others_posts');
       if (editBtn) { openEditModal(parseInt(editBtn.dataset.id, 10)); return; }
     });
   }
+
+  /* ---- 新規作成ボタン ---- */
+  var newBtn = document.getElementById('drwp-new-report-btn');
+  if (newBtn) newBtn.addEventListener('click', function () { openEditModal(0); });
+
+  /* ---- URL パラメータでモーダルを自動で開く ----
+     ?edit=ID / ?view=ID / ?new=1。旧・日報編集ページ (drwp_report_edit)
+     へのリンクやメール内 URL は、このパラメータ付き一覧 URL に
+     リダイレクトされてここで開く。 */
+  (function () {
+    var params = new URLSearchParams(location.search);
+    var editId = parseInt(params.get('edit') || '', 10);
+    var viewId = parseInt(params.get('view') || '', 10);
+    if (params.get('new') === '1') { openEditModal(0); }
+    else if (editId > 0) { openEditModal(editId); }
+    else if (viewId > 0) { openViewModal(viewId); }
+  })();
 
   /* ---- AI 対応アラート ---- */
   var alertsBtn = document.getElementById('drwp-ai-alerts-btn');
