@@ -59,7 +59,10 @@
   {% endif %}
 
   {% set has_filter = search or plan_filter or status_filter %}
-  <p class="muted">{{ '絞り込み結果: ' if has_filter else '' }}合計 {{ items|length }} 件</p>
+  <p class="muted">
+    {{ '絞り込み結果: ' if has_filter else '' }}合計 {{ total }} 件
+    {% if pages > 1 %}（{{ page }} / {{ pages }} ページ）{% endif %}
+  </p>
   <table class="drwp-license-table">
     <thead>
       <tr>
@@ -107,6 +110,20 @@
       {% endfor %}
     </tbody>
   </table>
+
+  {% if pages > 1 %}
+  {# 絞り込み条件 (q / plan / status) を保持したままページ移動する。 #}
+  {% set base = '/admin/ui/licenses?q=' ~ (search|urlencode) ~ '&plan=' ~ (plan_filter|urlencode) ~ '&status=' ~ (status_filter|urlencode) ~ '&page=' %}
+  <nav class="drwp-pager" aria-label="ページ送り">
+    {% if page > 1 %}
+      <a class="btn ghost btn-small" href="{{ base }}{{ page - 1 }}">« 前へ</a>
+    {% endif %}
+    <span class="muted">{{ page }} / {{ pages }}</span>
+    {% if page < pages %}
+      <a class="btn ghost btn-small" href="{{ base }}{{ page + 1 }}">次へ »</a>
+    {% endif %}
+  </nav>
+  {% endif %}
 </div>
 
 <style>
@@ -130,5 +147,9 @@
   padding: 4px 10px; font-size: .85em;
 }
 .drwp-license-table .actions form.inline { margin-left: 4px; }
+.drwp-pager {
+  display: flex; gap: 12px; align-items: center; justify-content: center;
+  margin-top: 14px;
+}
 </style>
 {% endblock %}

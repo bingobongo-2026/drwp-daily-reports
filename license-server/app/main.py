@@ -1353,6 +1353,11 @@ def ui_guide(request: Request, msg: Optional[str] = None, _: str = Depends(requi
     return templates.TemplateResponse(request, "guide.html", {**_flash_ctx(msg)})
 
 
+# 一覧の 1 ページあたりの件数。顧客数がこの規模を超えても全行レンダリング
+# しないための上限で、絞り込み検索と併用する前提の値。
+_UI_LICENSES_PER_PAGE = 50
+
+
 @app.get("/admin/ui/licenses", response_class=HTMLResponse, include_in_schema=False)
 def ui_list(
     request: Request,
@@ -1361,6 +1366,7 @@ def ui_list(
     q: str = "",
     plan: str = "",
     status_: str = Query("", alias="status"),
+    page: int = 1,
     _: str = Depends(require_admin),
 ):
     # 未知の slug は黙って空 (= 絞り込まない) に落として、自由入力で
@@ -1372,11 +1378,24 @@ def ui_list(
     created_key = None
     if msg == "created" and key and db.get_license(key) is not None:
         created_key = key
+    total = db.count_licenses(search=q, plan=plan_f, status=status_f)
+    pages = max(1, -(-total // _UI_LICENSES_PER_PAGE))  # ceil
+    page = min(max(1, page), pages)
+    items = db.list_licenses(
+        search=q,
+        plan=plan_f,
+        status=status_f,
+        limit=_UI_LICENSES_PER_PAGE,
+        offset=(page - 1) * _UI_LICENSES_PER_PAGE,
+    )
     return templates.TemplateResponse(
         request,
         "licenses.html",
         {
-            "items": db.list_licenses(search=q, plan=plan_f, status=status_f),
+            "items": items,
+            "total": total,
+            "page": page,
+            "pages": pages,
             "search": q,
             "plan_filter": plan_f,
             "status_filter": status_f,
@@ -1544,7 +1563,15 @@ def ui_delete(license_key: str, _: str = Depends(require_admin)):
 # --- Settings UI -----------------------------------------------------------
 
 @app.get("/admin/ui/settings", response_class=HTMLResponse, include_in_schema=False)
-def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(require_admin)):
+def ui_settings(
+    request: Request,
+    msg: Optional[str] = None,
+    audit_limit: int = 30,
+    _: str = Depends(require_admin),
+):
+    # 監査ログの表示件数は画面から 30/100/300 で切り替えられる。範囲外の
+    # 自由入力は recent_audit 側でも 1..500 にクランプされる。
+    audit_limit = audit_limit if audit_limit in (30, 100, 300) else 30
     db_token = db.get_setting("admin_token") or ""
     db_username = db.get_setting("admin_username") or ""
     key_path = signing._key_path()
@@ -1572,7 +1599,8 @@ def ui_settings(request: Request, msg: Optional[str] = None, _: str = Depends(re
             "rotation_interval_days": ROTATION_INTERVAL_DAYS,
             "next_rotation_due_at": next_rotation_due_at(),
             "audit_retention_days": AUDIT_RETENTION_DAYS,
-            "audit_rows": db.recent_audit(limit=30),
+            "audit_rows": db.recent_audit(limit=audit_limit),
+            "audit_limit": audit_limit,
             "limiter_threshold": LIMITER_THRESHOLD,
             "limiter_window_sec": LIMITER_WINDOW_SEC,
             "limiter_block_sec": LIMITER_BLOCK_SEC,

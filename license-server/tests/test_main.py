@@ -760,6 +760,68 @@ def test_ui_list_renders_filter_dropdowns_and_applies(tmp_path, monkeypatch):
     assert "K-PRO" in fallback.text
 
 
+def test_ui_list_paginates_over_50(tmp_path, monkeypatch):
+    """一覧は 50 件/ページでページ送りされ、合計件数は全体を表示する。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    auth = ("admin", "test-token")
+    for i in range(55):
+        main.db.create_license(license_key=f"PG-{i:04d}", domain="pg.test")
+
+    page1 = c.get("/admin/ui/licenses", auth=auth)
+    assert page1.status_code == 200
+    assert "合計 55 件" in page1.text
+    assert "1 / 2" in page1.text
+    # id DESC なので 1 ページ目は新しい方 (PG-0054〜PG-0005)
+    assert "PG-0054" in page1.text
+    assert "PG-0004" not in page1.text
+    assert "page=2" in page1.text
+
+    page2 = c.get("/admin/ui/licenses?page=2", auth=auth)
+    assert "PG-0004" in page2.text
+    assert "PG-0054" not in page2.text
+    assert "2 / 2" in page2.text
+
+    # 範囲外のページは最終ページにクランプ (500 にしない)
+    over = c.get("/admin/ui/licenses?page=99", auth=auth)
+    assert over.status_code == 200
+    assert "PG-0000" in over.text
+
+    # 絞り込みと併用しても件数はフィルタ後の総数
+    filtered = c.get("/admin/ui/licenses?q=PG-000", auth=auth)
+    assert "合計 10 件" in filtered.text
+
+
+def test_admin_api_list_still_returns_all(tmp_path, monkeypatch):
+    """admin API (/admin/licenses) はページネーションせず従来どおり全件。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    for i in range(55):
+        main.db.create_license(license_key=f"API-{i:04d}", domain="api.test")
+    r = c.get("/admin/licenses", auth=("admin", "test-token"))
+    assert r.status_code == 200
+    assert len(r.json()["items"]) == 55
+
+
+def test_ui_settings_audit_limit_switch(tmp_path, monkeypatch):
+    """監査ログの表示件数は 30/100/300 で切替。既定 30、未知値は 30 に落ちる。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    auth = ("admin", "test-token")
+    for i in range(40):
+        main.db.log_audit("login_failed", ip="10.0.0.1", detail=f"row-{i:03d}")
+
+    default = c.get("/admin/ui/settings", auth=auth)
+    assert default.status_code == 200
+    assert "row-039" in default.text          # 新しい行は出る
+    assert "row-005" not in default.text      # 30 件を超えた古い行は出ない
+    assert "audit_limit=100" in default.text  # 切替リンク
+
+    more = c.get("/admin/ui/settings?audit_limit=100", auth=auth)
+    assert "row-005" in more.text
+
+    bogus = c.get("/admin/ui/settings?audit_limit=300000", auth=auth)
+    assert bogus.status_code == 200
+    assert "row-005" not in bogus.text        # 既定 30 にフォールバック
+
+
 # --- TOTP 2FA ---------------------------------------------------------------
 
 def test_totp_helpers_pure_python(tmp_path, monkeypatch):
