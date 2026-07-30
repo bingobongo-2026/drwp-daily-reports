@@ -66,11 +66,31 @@ class DRWP_Project {
         return implode(' ', $parts);
     }
 
+    /**
+     * リクエスト内キャッシュ。日報一覧・フロントのカレンダー/リスト・
+     * PDF・ダッシュボードが行(チップ)ごとに find() を呼ぶため、素の
+     * 都度クエリだと 1 画面で同じ案件を何十回も引く N+1 になっていた。
+     * 見つからない ID も null でキャッシュして再クエリを防ぐ。
+     *
+     * @var array<int, object|null>
+     */
+    private static $find_cache = [];
+
     public static function find($id) {
         global $wpdb;
         $id = absint($id);
         if (!$id) return null;
-        return $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . self::table() . ' WHERE id = %d', $id));
+        if (!array_key_exists($id, self::$find_cache)) {
+            self::$find_cache[$id] = $wpdb->get_row(
+                $wpdb->prepare('SELECT * FROM ' . self::table() . ' WHERE id = %d', $id)
+            );
+        }
+        return self::$find_cache[$id];
+    }
+
+    /** 保存・削除後にキャッシュを捨てる (同一リクエスト内の再取得用)。 */
+    public static function flush_find_cache() {
+        self::$find_cache = [];
     }
 
     public static function render_page() {
@@ -207,6 +227,7 @@ class DRWP_Project {
             $wpdb->insert(self::table(), $data);
             $saved_id = (int) $wpdb->insert_id;
         }
+        self::flush_find_cache();
 
         // 案件グループ memberships — replace wholesale with the set in
         // the submitted form. Missing key (no select rendered, or

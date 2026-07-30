@@ -8,6 +8,28 @@ class Test_DRWP_Project extends WP_UnitTestCase {
         parent::set_up();
         global $wpdb;
         $wpdb->query('DELETE FROM ' . DRWP_Project::table());
+        // find() のリクエスト内キャッシュはテストプロセスをまたいで残る
+        // ので、各テストの開始時に必ず捨てる。
+        DRWP_Project::flush_find_cache();
+    }
+
+    public function test_find_uses_request_cache() {
+        global $wpdb;
+        $wpdb->insert(DRWP_Project::table(), ['name' => 'Cached', 'status' => 'active']);
+        $id = (int) $wpdb->insert_id;
+        DRWP_Project::flush_find_cache();
+
+        $first = DRWP_Project::find($id);
+        $n = $wpdb->num_queries;
+        $second = DRWP_Project::find($id);
+        $this->assertSame($n, (int) $wpdb->num_queries, '2回目の find がクエリを発行している');
+        $this->assertSame($first, $second);
+
+        // 見つからない ID の null も再クエリしない
+        DRWP_Project::find(424242);
+        $n2 = $wpdb->num_queries;
+        $this->assertNull(DRWP_Project::find(424242));
+        $this->assertSame($n2, (int) $wpdb->num_queries);
     }
 
     public function test_find_returns_null_for_unknown_id() {

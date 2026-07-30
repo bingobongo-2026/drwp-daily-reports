@@ -129,7 +129,9 @@ class DRWP_DB {
             KEY report_date (report_date),
             KEY review_status (review_status),
             KEY linked_post_id (linked_post_id),
-            KEY archived_at (archived_at)
+            KEY archived_at (archived_at),
+            KEY user_id (user_id),
+            KEY project_id (project_id)
         ) $charset;";
         dbDelta($sql2);
 
