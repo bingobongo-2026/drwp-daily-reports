@@ -169,18 +169,35 @@ class Jijipom_Importer {
 		$s = array(
 			'jijipom_hero_type'           => 'select_hero',
 			'jijipom_hero_image'          => 'url',
+			'jijipom_hero_image_2'        => 'url',
+			'jijipom_hero_image_3'        => 'url',
+			'jijipom_hero_interval'       => 'interval',
 			'jijipom_hero_video'          => 'url',
 			'jijipom_hero_youtube'        => 'text',
 			'jijipom_hero_title'          => 'textarea',
 			'jijipom_hero_subtitle'       => 'textarea',
+			'jijipom_hero_align'          => 'select_align',
 			'jijipom_hero_button_text'    => 'text',
 			'jijipom_hero_button_url'     => 'url',
+			'jijipom_hero_button_bg'      => 'color',
+			'jijipom_hero_button_color'   => 'color',
 			'jijipom_service_enable'      => 'bool',
+			'jijipom_service_heading'     => 'text',
 			'jijipom_service_text'        => 'textarea',
 			'jijipom_service_button_text' => 'text',
 			'jijipom_service_button_url'  => 'url',
 			'jijipom_service_image'       => 'url',
+			'jijipom_blog_enable'         => 'bool',
 			'jijipom_blog_heading'        => 'text',
+			'jijipom_about_enable'        => 'bool',
+			'jijipom_accent_color'        => 'color',
+			'jijipom_content_width'       => 'px',
+			'jijipom_wide_width'          => 'px',
+			'jijipom_hero_height'         => 'select_hero_height',
+			'jijipom_front_order'         => 'select_front_order',
+			'jijipom_footer_address'      => 'textarea',
+			'jijipom_footer_tel'          => 'text',
+			'jijipom_contact_form_shortcode' => 'text',
 			'jijipom_font_base'           => 'font',
 			'jijipom_font_form'           => 'font',
 			'jijipom_font_heading'        => 'font',
@@ -254,6 +271,28 @@ class Jijipom_Importer {
 			case 'select_hero':
 				$v = sanitize_text_field( (string) $value );
 				return in_array( $v, array( 'image', 'video', 'youtube' ), true ) ? $v : 'image';
+			case 'select_align':
+				$v = sanitize_text_field( (string) $value );
+				return in_array( $v, array( 'left', 'center', 'right' ), true ) ? $v : 'center';
+			case 'select_hero_height':
+				$v = sanitize_text_field( (string) $value );
+				$ok = function_exists( 'jijipom_hero_height_choices' )
+					? array_keys( jijipom_hero_height_choices() )
+					: array( '', 'compact', 'tall', 'full' );
+				return in_array( $v, $ok, true ) ? $v : '';
+			case 'select_front_order':
+				$v = sanitize_text_field( (string) $value );
+				$ok = function_exists( 'jijipom_front_order_choices' )
+					? array_keys( jijipom_front_order_choices() )
+					: array( 'service-blog-about' );
+				return in_array( $v, $ok, true ) ? $v : 'service-blog-about';
+			case 'interval':
+				$n = (int) $value;
+				return ( $n >= 2 && $n <= 12 ) ? $n : 5;
+			case 'px':
+				// 0 = テーマ標準。範囲外は 0 に倒す。
+				$n = (int) $value;
+				return ( $n >= 0 && $n <= 1600 ) ? $n : 0;
 			case 'font':
 				$v = sanitize_text_field( (string) $value );
 				$allowed = array( '', 'gothic', 'mincho', 'yugothic', 'yumincho', 'maru', 'meiryo', 'system', 'mono' );

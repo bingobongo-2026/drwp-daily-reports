@@ -147,10 +147,10 @@
   }
   .jjp .entry-content, .jjp .privacy-article__body { font-family: var(--pv-body, inherit); }
   .jjp .form .fake, .jjp .form label { font-family: var(--pv-form, inherit); }
-  .jjp .inner { max-width:1000px; margin-inline:auto; padding-inline:clamp(18px,4vw,40px); }
+  .jjp .inner { max-width:var(--pv-wide,1080px); margin-inline:auto; padding-inline:clamp(18px,4vw,40px); }
   /* ヘッダーは全幅バー。内容は本文(.inner)と同じ最大幅で中央寄せにして揃える */
   .jjp .site-header { border-bottom:1px solid var(--border); }
-  .jjp .site-header__in { display:flex; align-items:center; gap:14px; max-width:1000px; margin-inline:auto; padding:15px clamp(18px,4vw,40px); }
+  .jjp .site-header__in { display:flex; align-items:center; gap:14px; max-width:var(--pv-wide,1080px); margin-inline:auto; padding:15px clamp(18px,4vw,40px); }
   .jjp .logo { font-weight:800; font-size:1.1rem; display:inline-flex; align-items:center; }
   .jjp .logo img { max-height:34px; width:auto; display:block; }
   .jjp .site-actions { margin-left:auto; display:flex; align-items:center; gap:14px; }
@@ -169,9 +169,11 @@
   .jjp .hamburger i::before { top:-6px; }
   .jjp .hamburger i::after { top:6px; }
   .dev-mobile .jjp .hamburger { display:flex; }
-  .jjp .sec { padding-block:clamp(2rem,5vw,3.4rem); }
+  .jjp .sec { padding-block:5rem; }
+  .dev-mobile .jjp .sec { padding-block:3rem; }
   .jjp .sec--muted { background:var(--subtle); }
-  .jjp .sec__h { text-align:center; font-size:clamp(1.3rem,1.05rem+1vw,1.75rem); margin:0 0 1.3rem; }
+  .jjp .sec__h { text-align:center; font-size:2rem; margin:0 0 2.5rem; }
+  .dev-mobile .jjp .sec__h { font-size:1.5rem; margin-bottom:1.6rem; }
   .jjp .btn { display:inline-block; background:var(--accent); color:#fff; padding:10px 20px; border-radius:var(--radius); font-weight:600; font-size:.92rem; }
   .jjp .btn--ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
   .jjp .ph { position:relative; background:linear-gradient(135deg,var(--ph-a),var(--ph-b)); border-radius:var(--radius); background-size:cover; background-position:center; }
@@ -179,19 +181,24 @@
   .jjp .ph.has-media::after { display:none; }
   .jjp .ph.has-media > iframe { position:absolute; inset:0; width:100%; height:100%; border:0; border-radius:inherit; }
 
-  .jjp .hero { position:relative; overflow:hidden; min-height:300px; display:grid; align-items:center; color:#fff;
+  .jjp .hero { position:relative; overflow:hidden; min-height:var(--pv-hero-min,520px); display:grid; align-items:center; color:#fff;
     background:linear-gradient(120deg,#3a4a7a,#7d8bb5); }
+  .dev-mobile .jjp .hero { min-height:var(--pv-hero-min-m,320px); }
   .jjp .hero__media { position:absolute; inset:0; z-index:0; background-size:cover; background-position:center; pointer-events:none; }
   .jjp .hero__media video, .jjp .hero__media iframe { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border:0; }
-  .jjp .hero::before { content:""; position:absolute; inset:0; z-index:1; background:linear-gradient(180deg,rgba(10,16,40,.35),rgba(10,16,40,.55)); }
+  .jjp .hero::before { content:""; position:absolute; inset:0; z-index:1; background:rgba(0,0,0,.3); }
   .jjp .hero__in { position:relative; z-index:2; text-align:center; padding:42px 20px; margin-inline:auto; max-width:56ch; }
-  .jjp .hero h2 { font-size:clamp(1.6rem,1.1rem+2.2vw,2.6rem); margin:0 0 .5rem; text-wrap:balance; text-shadow:0 2px 12px rgba(0,0,0,.35); }
+  .jjp .hero h2 { font-size:3rem; margin:0 0 .5rem; text-wrap:balance; text-shadow:0 2px 12px rgba(0,0,0,.35); line-height:1.4; }
+  .dev-mobile .jjp .hero h2 { font-size:1.9rem; }
+  .jjp .hero__in.is-align-left { text-align:left; margin-left:0; }
+  .jjp .hero__in.is-align-right { text-align:right; margin-right:0; }
   .jjp .hero p { font-size:1.05rem; margin:0 0 1.3rem; opacity:.96; }
   .jjp .hero .btn { box-shadow:0 6px 20px rgba(0,0,0,.28); }
 
   .jjp .lead { text-align:center; color:var(--muted); font-size:1.05rem; max-width:62ch; margin:.7rem auto 0; }
   .jjp .page-head { text-align:center; padding:clamp(2rem,5vw,3.2rem) 0 0; }
-  .jjp .page-head h1 { font-size:clamp(1.55rem,1.2rem+1.6vw,2.3rem); margin:0; }
+  .jjp .page-head h1 { font-size:2.6rem; margin:0; }
+  .dev-mobile .jjp .page-head h1 { font-size:1.75rem; }
 
   .jjp .cards { display:flex; flex-wrap:wrap; justify-content:center; gap:clamp(1rem,2.5vw,1.5rem); margin-top:1.3rem; }
   .jjp .card { flex:1 1 300px; max-width:460px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
@@ -214,7 +221,7 @@
   .jjp .abouts .ph { aspect-ratio:1/1; margin-bottom:.6rem; }
   .jjp .abouts h4 { margin:0 0 .25rem; } .jjp .abouts p { margin:0; color:var(--muted); font-size:.9rem; }
 
-  .jjp .blog { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(1rem,2.5vw,1.4rem); margin-top:1.3rem; }
+  .jjp .blog { display:grid; grid-template-columns:repeat(4,1fr); gap:clamp(1rem,2.5vw,1.6rem); margin-top:1.3rem; }
   .jjp .blog .ph { aspect-ratio:16/10; margin-bottom:.5rem; }
   .jjp .blog time { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
   .jjp .blog h4 { margin:.2rem 0 0; font-size:.98rem; line-height:1.5; }
@@ -236,7 +243,7 @@
   .jjp .form .fake { border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg); padding:9px 11px; color:var(--muted); font-size:13px; }
   .jjp .form .fake.ta { min-height:66px; }
 
-  .jjp .article { max-width:70ch; margin-inline:auto; padding-block:clamp(2rem,5vw,3.2rem); }
+  .jjp .article { max-width:var(--pv-content,70ch); margin-inline:auto; padding-block:clamp(2rem,5vw,3.2rem); }
   .jjp .article h1 { font-size:clamp(1.5rem,1.2rem+1.4vw,2rem); margin:0; }
   .jjp .article .meta { color:var(--muted); font-size:13px; margin:.4rem 0 1.3rem; }
   .jjp .article h2 { font-size:1.12rem; margin:1.6rem 0 .35rem; }
@@ -246,11 +253,12 @@
   /* フッター(jijipom の footer.php と同じ構成): 明るい背景・ブランド+ナビ、
      下段にコピーライトとソーシャル */
   .jjp .footer { border-top:1px solid var(--border); background:var(--subtle); color:var(--muted); padding:2.4rem clamp(18px,4vw,40px); font-size:.82rem; }
-  .jjp .footer-inner { max-width:1000px; margin-inline:auto; }
+  .jjp .footer-inner { max-width:var(--pv-wide,1080px); margin-inline:auto; }
   .jjp .footer-main { display:flex; flex-wrap:wrap; gap:1.4rem 2.4rem; justify-content:space-between; align-items:flex-start; }
   .jjp .footer-brand { display:flex; flex-direction:column; gap:.7rem; }
   .jjp .footer-brand .logo { font-weight:700; font-size:1rem; color:var(--ink); }
   .jjp .footer-info { font-style:normal; line-height:1.8; margin:0; }
+  .jjp .footer-info.is-ph { opacity:.6; }
   .jjp .footer-nav { display:flex; gap:1.1rem; flex-wrap:wrap; }
   .jjp .footer-nav a { color:var(--muted); text-decoration:none; }
   .jjp .footer-nav a:hover { color:var(--accent); }
@@ -335,6 +343,33 @@
           <input class="murl" type="text" placeholder="または画像URL"><button type="button" class="mclear">×</button>
         </div>
         <p class="hintline" style="margin:-4px 0 12px">推奨サイズ: 横 240 × 縦 60px 程度（背景透過のPNG推奨・可変）。設定するとタイトル文字の代わりにロゴ画像が表示されます。</p>
+
+        <div class="grp">配色（jijipom テーマ設定）</div>
+        <div class="fld"><span>メインカラー（ボタン・リンクなどのアクセント色）</span>
+          <div class="colorrow"><input type="color" data-color="accent-color" value="#2b5cff"><span class="cstate"></span><button type="button" class="cclear">テーマ標準に戻す</button></div></div>
+        <p class="hintline" style="margin:-4px 0 12px">ヘッダーボタン・各ボタン・リンク色などテーマ全体に反映されます。ホバー時の濃い色は自動で作られます。</p>
+
+        <div class="grp">レイアウト（jijipom テーマ設定）</div>
+        <label class="fld"><span>全体の幅 (px)</span><input type="number" data-bind="layout-wide" data-layout min="0" max="1600" step="20" placeholder="0 = 標準 (1080)"></label>
+        <label class="fld"><span>本文の幅 (px)</span><input type="number" data-bind="layout-content" data-layout min="0" max="960" step="10" placeholder="0 = 標準 (720)"></label>
+        <label class="fld"><span>メインビジュアルの高さ</span>
+          <select data-bind="layout-hero-height" data-layout>
+            <option value="">標準</option><option value="compact">低め（コンパクト）</option>
+            <option value="tall">高め（ワイド）</option><option value="full">画面いっぱい</option>
+          </select></label>
+        <label class="fld"><span>トップページのセクション並び順</span>
+          <select data-bind="layout-order" data-layout>
+            <option value="service-blog-about">サービス → ブログ → 会社紹介（標準）</option>
+            <option value="service-about-blog">サービス → 会社紹介 → ブログ</option>
+            <option value="blog-service-about">ブログ → サービス → 会社紹介</option>
+            <option value="blog-about-service">ブログ → 会社紹介 → サービス</option>
+            <option value="about-service-blog">会社紹介 → サービス → ブログ</option>
+            <option value="about-blog-service">会社紹介 → ブログ → サービス</option>
+          </select></label>
+
+        <div class="grp">フッター情報（全ページ共通）</div>
+        <label class="fld"><span>住所（改行可）</span><textarea data-bind="footer-addr" data-footer data-sample="〒000-0000 ○○県△△市中央1-2-3"></textarea></label>
+        <label class="fld"><span>電話番号</span><input data-bind="footer-tel" data-footer data-sample="000-000-0000"></label>
 
         <div class="grp">フォント（jijipom テーマ設定）</div>
         <label class="fld"><span>全体のフォント</span>
@@ -425,14 +460,31 @@
           <input class="murl" type="text" placeholder="または画像URL">
           <button type="button" class="mclear" title="クリア">×</button>
         </div>
+        <div class="cols2">
+          <label class="fld"><span>背景画像2（URL・任意）</span><input data-bind="tp-hero-img2" placeholder="https://..."></label>
+          <label class="fld"><span>背景画像3（URL・任意）</span><input data-bind="tp-hero-img3" placeholder="https://..."></label>
+        </div>
+        <div class="cols2">
+          <label class="fld"><span>切り替え間隔（秒）</span><input type="number" data-bind="tp-hero-interval" min="2" max="12" placeholder="5"></label>
+          <label class="fld"><span>文字・ボタンの配置</span>
+            <select data-bind="tp-hero-align" data-heroalign>
+              <option value="center">中央</option><option value="left">左寄せ</option><option value="right">右寄せ</option>
+            </select></label>
+        </div>
+        <p class="hintline" style="margin:-4px 0 11px">画像を2枚以上入れると実サイトでスライドショーになります（プレビューは1枚目のみ表示）。</p>
         <label class="fld"><span>キャッチコピー</span><textarea data-bind="tp-hero-h" data-sample="地域とともに、&#10;100年住み継ぐ家を。"></textarea></label>
         <label class="fld"><span>サブテキスト</span><input data-bind="tp-hero-sub" data-sample="新築・リフォーム・外構工事｜創業35年の安心施工"></label>
         <label class="fld"><span>ボタンの文言</span><input data-bind="tp-hero-btn" data-sample="無料相談はこちら"></label>
         <label class="fld"><span>ボタンのリンク先URL</span><input data-bind="tp-hero-btn-url" placeholder="例: /contact/"></label>
         <label class="chk"><input type="checkbox" data-btn="tp-hero-btn" checked> ボタンを表示する</label>
+        <div class="fld"><span>ボタンの背景色</span>
+          <div class="colorrow"><input type="color" data-color="tp-hero-btn-bg" value="#2b5cff"><span class="cstate"></span><button type="button" class="cclear">テーマ標準に戻す</button></div></div>
+        <div class="fld"><span>ボタンの文字色</span>
+          <div class="colorrow"><input type="color" data-color="tp-hero-btn-color" value="#ffffff"><span class="cstate"></span><button type="button" class="cclear">テーマ標準に戻す</button></div></div>
 
         <div class="grp">サービスセクション</div>
         <label class="chk"><input type="checkbox" data-vis="tp-sec-service" checked> サービスセクションを表示する</label>
+        <label class="fld"><span>見出し</span><input data-bind="tp-svc-h" data-sample="サービス"></label>
         <div class="media" data-target="tp-svc-img" data-mode="image">
           <span class="cap">画像</span>
           <label class="filebtn">ファイル選択<input type="file" accept="image/*" hidden></label>
@@ -445,10 +497,12 @@
         <label class="chk"><input type="checkbox" data-btn="tp-svc-btn" checked> ボタンを表示する</label>
 
         <div class="grp">お知らせ（ブログ）</div>
+        <label class="chk"><input type="checkbox" data-vis="tp-sec-blog" checked> ブログセクションを表示する</label>
         <label class="fld"><span>見出し</span><input data-bind="tp-blog-h" data-sample="お知らせ"></label>
         <p class="hintline" style="margin:0">記事とアイキャッチは投稿から自動表示されます。</p>
 
         <div class="grp">会社紹介</div>
+        <label class="chk"><input type="checkbox" data-vis="tp-sec-about" checked> 会社紹介セクションを表示する</label>
         <label class="fld"><span>見出し</span><input data-bind="tp-about-h" data-sample="会社紹介"></label>
         <div class="media" data-target="tp-ab1-img" data-mode="image">
           <span class="cap">ブロック1 画像</span>
@@ -594,6 +648,9 @@
         <label class="chk"><input type="checkbox" data-vis="ct-card-email" checked> 「メール」カードを表示する</label>
         <label class="chk"><input type="checkbox" data-vis="ct-card-recv" checked> 「受付」カードを表示する</label>
         <label class="fld"><span>対応エリア・補足</span><input data-bind="ct-area" data-sample="対応エリア：△△市および近隣市町村"></label>
+        <div class="grp">お問い合わせフォーム</div>
+        <label class="fld"><span>フォームのショートコード（任意）</span><input data-bind="ct-form-sc" placeholder='例: [contact-form-7 id="123"]'></label>
+        <p class="hintline" style="margin:-4px 0 11px">Contact Form 7 などのショートコード。実サイトのフォーム領域に表示されます（プレビューは見本のまま）。</p>
         <div class="grp">地図</div>
         <div class="media" data-target="ct-map" data-mode="embed"><span class="cap">Googleマップ埋め込みURL</span>
           <input class="murl" type="text" placeholder="https://www.google.com/maps/embed?..."><button type="button" class="mclear">×</button></div>
@@ -630,24 +687,25 @@
           <div class="preview is-shown jjp" id="page-top">
             <div class="site-header"><div class="site-header__in"><span class="logo">山田工務店</span>
               <span class="site-actions"><span class="nav"><span>サービス</span><span>会社概要</span><span>お問い合わせ</span></span><span class="hdr-btns"></span><span class="hamburger" aria-hidden="true"><i></i></span></span></div></div>
-            <div class="hero" id="tp-hero"><div class="hero__media" id="tp-hero-media"></div><div class="hero__in">
+            <div class="hero" id="tp-hero"><div class="hero__media" id="tp-hero-media"></div><div class="hero__in" id="tp-hero-in">
               <h2 class="pl" id="tp-hero-h"></h2>
               <p class="pl" id="tp-hero-sub"></p>
               <span class="btn pl" id="tp-hero-btn"></span>
             </div></div>
-            <section class="sec" id="tp-sec-service"><div class="inner"><h2 class="sec__h">サービス</h2>
+            <section class="sec" id="tp-sec-service"><div class="inner"><h2 class="sec__h pl" id="tp-svc-h"></h2>
               <div class="split"><div class="ph" id="tp-svc-img" data-ph="サービス画像"></div>
                 <div><p class="pl" id="tp-svc-text"></p><span class="btn btn--ghost pl" id="tp-svc-btn"></span></div></div>
             </div></section>
-            <section class="sec sec--muted"><div class="inner">
+            <section class="sec sec--muted" id="tp-sec-blog"><div class="inner">
               <h2 class="sec__h pl" id="tp-blog-h"></h2>
               <div class="blog">
                 <article><div class="ph" data-ph="アイキャッチ"></div><time>2026.06.18</time><h4>△△市 S様邸 上棟しました</h4></article>
                 <article><div class="ph" data-ph="アイキャッチ"></div><time>2026.06.05</time><h4>キッチンリフォーム事例を追加</h4></article>
                 <article><div class="ph" data-ph="アイキャッチ"></div><time>2026.05.22</time><h4>夏の完成見学会のお知らせ</h4></article>
+                <article><div class="ph" data-ph="アイキャッチ"></div><time>2026.05.10</time><h4>外構リニューアル施工例</h4></article>
               </div>
             </div></section>
-            <section class="sec"><div class="inner"><h2 class="sec__h pl" id="tp-about-h"></h2>
+            <section class="sec" id="tp-sec-about"><div class="inner"><h2 class="sec__h pl" id="tp-about-h"></h2>
               <div class="abouts">
                 <div id="tp-about1"><div class="ph" id="tp-ab1-img" data-ph="画像"></div><h4 class="pl" id="tp-ab1-t"></h4><p class="pl" id="tp-ab1-x"></p></div>
                 <div id="tp-about2"><div class="ph" id="tp-ab2-img" data-ph="画像"></div><h4 class="pl" id="tp-ab2-t"></h4><p class="pl" id="tp-ab2-x"></p></div>
@@ -1145,14 +1203,107 @@
       if (lab) lab.textContent = v ? v.toUpperCase() : 'テーマ標準';
     }
     inp.addEventListener('input', function () {
-      state.f[key] = inp.value; sync(); applyHeaderButtons(); persist();
+      state.f[key] = inp.value; sync(); applyHeaderButtons(); applyAccent(); applyHeroBtnColors(); persist();
     });
     if (clr) clr.addEventListener('click', function () {
-      delete state.f[key]; sync(); applyHeaderButtons(); persist();
+      delete state.f[key]; sync(); applyHeaderButtons(); applyAccent(); applyHeroBtnColors(); persist();
     });
     sync();
   });
   applyHeaderButtons();
+
+  // ---- メインカラー (jijipom 1.19 の「配色 > メインカラー」に対応) ----
+  // テーマと同じく、ホバー用の濃い色は 20% 暗くして自動生成する。
+  function darkenHex(hex, ratio) {
+    var m = /^#([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return '';
+    var out = '#';
+    for (var i = 0; i < 3; i++) {
+      var v = Math.round(parseInt(m[1].substr(i * 2, 2), 16) * (1 - ratio));
+      out += ('0' + Math.max(0, Math.min(255, v)).toString(16)).slice(-2);
+    }
+    return out;
+  }
+  function applyAccent() {
+    var v = colorVal('accent-color');
+    if (v) {
+      device.style.setProperty('--accent', v);
+      device.style.setProperty('--accent-2', darkenHex(v, 0.2) || v);
+    } else {
+      device.style.removeProperty('--accent');
+      device.style.removeProperty('--accent-2');
+    }
+  }
+  applyAccent();
+
+  // ---- ヒーローのボタン色 / 文字・ボタンの配置 (jijipom テーマ設定) ----
+  function applyHeroBtnColors() {
+    var el = document.getElementById('tp-hero-btn'); if (!el) return;
+    var bg = colorVal('tp-hero-btn-bg'), fg = colorVal('tp-hero-btn-color');
+    el.style.background = bg || ''; el.style.borderColor = bg || ''; el.style.color = fg || '';
+  }
+  function applyHeroAlign() {
+    var sel = document.querySelector('[data-heroalign]');
+    var inEl = document.getElementById('tp-hero-in'); if (!inEl) return;
+    var v = sel ? sel.value : 'center';
+    inEl.classList.toggle('is-align-left', v === 'left');
+    inEl.classList.toggle('is-align-right', v === 'right');
+  }
+  document.querySelectorAll('[data-heroalign]').forEach(function (el) { el.addEventListener('change', applyHeroAlign); });
+  applyHeroBtnColors(); applyHeroAlign();
+
+  // ---- フッター情報 (住所 / 電話) — 全ページのフッターに反映 ----
+  function applyFooterInfo() {
+    var addrEl = document.querySelector('[data-bind="footer-addr"]');
+    var telEl  = document.querySelector('[data-bind="footer-tel"]');
+    if (!addrEl || !telEl) return;
+    var addr = addrEl.value.trim() || addrEl.dataset.sample || '';
+    var tel  = telEl.value.trim() || telEl.dataset.sample || '';
+    var isPh = addrEl.value.trim() === '' && telEl.value.trim() === '';
+    var html = '';
+    if (addr) html += escAttr(addr).replace(/\n/g, '<br>');
+    if (tel) html += (addr ? '<br>' : '') + 'TEL ' + escAttr(tel);
+    document.querySelectorAll('.jjp .footer-info').forEach(function (el) {
+      el.innerHTML = html; el.classList.toggle('is-ph', isPh);
+    });
+  }
+  document.querySelectorAll('[data-footer]').forEach(function (el) { el.addEventListener('input', applyFooterInfo); });
+  applyFooterInfo();
+
+  // ---- レイアウト (jijipom 1.19 の「レイアウト」設定に対応) ----
+  // ヒーローの高さはテーマの clamp 値を PC / モバイル幅で評価した近似px。
+  var HERO_HEIGHTS = { compact: ['365px', '240px'], tall: ['680px', '420px'], full: ['780px', '620px'] };
+  function applyLayout() {
+    var wideEl = document.querySelector('[data-bind="layout-wide"]');
+    var contEl = document.querySelector('[data-bind="layout-content"]');
+    var hEl = document.querySelector('[data-bind="layout-hero-height"]');
+    var oEl = document.querySelector('[data-bind="layout-order"]');
+    var wide = wideEl ? parseInt(wideEl.value, 10) || 0 : 0;
+    if (wide >= 720) device.style.setProperty('--pv-wide', wide + 'px');
+    else device.style.removeProperty('--pv-wide');
+    var cont = contEl ? parseInt(contEl.value, 10) || 0 : 0;
+    if (cont >= 480) device.style.setProperty('--pv-content', cont + 'px');
+    else device.style.removeProperty('--pv-content');
+    var hh = hEl ? HERO_HEIGHTS[hEl.value] : null;
+    if (hh) { device.style.setProperty('--pv-hero-min', hh[0]); device.style.setProperty('--pv-hero-min-m', hh[1]); }
+    else { device.style.removeProperty('--pv-hero-min'); device.style.removeProperty('--pv-hero-min-m'); }
+    // セクション並び順: トップページの3セクションをフッターの前に並べ直す
+    var order = (oEl && oEl.value ? oEl.value : 'service-blog-about').split('-');
+    var top = document.getElementById('page-top');
+    var footer = top ? top.querySelector('.footer') : null;
+    if (top && footer) {
+      order.forEach(function (k) {
+        var sec = document.getElementById('tp-sec-' + k);
+        if (sec) top.insertBefore(sec, footer);
+      });
+    }
+    setTimeout(jcbPostHeight, 30);
+  }
+  document.querySelectorAll('[data-layout]').forEach(function (el) {
+    el.addEventListener('input', applyLayout);
+    el.addEventListener('change', applyLayout);
+  });
+  applyLayout();
 
   // ---- サービス項目のリンク: URLが入っているカードにリンク目印(is-link)を付ける ----
   function applyLinks() {
@@ -1196,21 +1347,30 @@
     set('jijipom_hero_youtube', heroM && heroM.type === 'youtube' ? heroM.src : '');
     set('jijipom_hero_title', fv('tp-hero-h'));
     set('jijipom_hero_subtitle', fv('tp-hero-sub'));
+    set('jijipom_hero_image_2', fv('tp-hero-img2'));
+    set('jijipom_hero_image_3', fv('tp-hero-img3'));
+    set('jijipom_hero_interval', parseInt(fv('tp-hero-interval'), 10) || 5);
+    set('jijipom_hero_align', fv('tp-hero-align') || 'center');
     var heroBtn = isOn('data-btn', 'tp-hero-btn');
     set('jijipom_hero_button_text', heroBtn ? fv('tp-hero-btn') : '');
     set('jijipom_hero_button_url', heroBtn ? fv('tp-hero-btn-url') : '');
+    set('jijipom_hero_button_bg', colorVal('tp-hero-btn-bg'));
+    set('jijipom_hero_button_color', colorVal('tp-hero-btn-color'));
 
     // ---- トップ: サービスセクション ----
     set('jijipom_service_enable', isOn('data-vis', 'tp-sec-service'));
+    set('jijipom_service_heading', fv('tp-svc-h'));
     set('jijipom_service_text', fv('tp-svc-text'));
     var svcBtn = isOn('data-btn', 'tp-svc-btn');
     set('jijipom_service_button_text', svcBtn ? fv('tp-svc-btn') : '');
     set('jijipom_service_button_url', svcBtn ? fv('tp-svc-btn-url') : '');
     var svcImg = media('tp-svc-img'); set('jijipom_service_image', svcImg ? svcImg.src : '');
 
+    set('jijipom_blog_enable', isOn('data-vis', 'tp-sec-blog'));
     set('jijipom_blog_heading', fv('tp-blog-h'));
 
     // ---- トップ: 会社紹介 ----
+    set('jijipom_about_enable', isOn('data-vis', 'tp-sec-about'));
     set('jijipom_about_heading', fv('tp-about-h'));
     [1, 2, 3].forEach(function (n) {
       var vis = isOn('data-vis', 'tp-about' + n);
@@ -1264,6 +1424,7 @@
     set('jijipom_contact_hours', recvOn ? fv('ct-hours') : '');
     set('jijipom_contact_holiday', recvOn ? fv('ct-holiday') : '');
     set('jijipom_contact_area', fv('ct-area'));
+    set('jijipom_contact_form_shortcode', fv('ct-form-sc'));
     var tm2 = media('ct-map'); set('jijipom_contact_map_url', tm2 ? tm2.src : '');
 
     // ---- プライバシーポリシー ----
@@ -1276,6 +1437,19 @@
       var sel = document.querySelector('[data-font="' + role + '"]');
       set('jijipom_font_' + role, sel ? sel.value : '');
     });
+
+    // ---- 配色 (メインカラー) ----
+    set('jijipom_accent_color', colorVal('accent-color'));
+
+    // ---- レイアウト ----
+    set('jijipom_content_width', parseInt(fv('layout-content'), 10) || 0);
+    set('jijipom_wide_width', parseInt(fv('layout-wide'), 10) || 0);
+    set('jijipom_hero_height', fv('layout-hero-height'));
+    set('jijipom_front_order', fv('layout-order') || 'service-blog-about');
+
+    // ---- フッター情報 ----
+    set('jijipom_footer_address', fv('footer-addr'));
+    set('jijipom_footer_tel', fv('footer-tel'));
 
     // ---- ヘッダーボタン (メイン=cta / サブ=sub) ----
     // 色は未指定なら空文字で送り、jijipom 側でテーマ標準の配色になる。
