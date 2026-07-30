@@ -14,13 +14,28 @@ class DRWP_Admin {
         add_action('admin_menu', [__CLASS__, 'menu']);
         add_action('admin_menu', [__CLASS__, 'mark_settings_section'], 999);
         add_action('admin_head', [__CLASS__, 'settings_section_css']);
-        add_action('admin_post_drwp_save_report', [__CLASS__, 'save_report']);
-        add_action('admin_post_drwp_save_report_publish', [__CLASS__, 'save_report_publish']);
         add_action('admin_post_drwp_bulk_reports', [__CLASS__, 'bulk_reports']);
         add_action('admin_post_drwp_convert_single', [__CLASS__, 'convert_single']);
         add_action('admin_post_drwp_export_reports_csv', [__CLASS__, 'export_filtered_csv']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue']);
         add_action('admin_notices', [__CLASS__, 'license_notice']);
+        add_action('admin_init', [__CLASS__, 'redirect_report_edit_page']);
+    }
+
+    /**
+     * 旧・日報編集ページ (drwp_report_edit) は日報一覧のモーダルへ統合した。
+     * ブックマークや通知メール内の古い URL が生き続けるよう、ページ自体は
+     * 残して一覧のモーダル自動オープン URL へリダイレクトする。
+     * (admin_init で処理するのはヘッダー出力前に Location を返すため。)
+     */
+    public static function redirect_report_edit_page() {
+        if (!is_admin() || ($_GET['page'] ?? '') !== 'drwp_report_edit') return;
+        $id = isset($_GET['id']) ? absint($_GET['id']) : 0;
+        $target = $id
+            ? admin_url('admin.php?page=drwp_reports&edit=' . $id)
+            : admin_url('admin.php?page=drwp_reports&new=1');
+        wp_safe_redirect($target);
+        exit;
     }
 
     /** Validate per_page against the allowed choices (defaults to 25). */
@@ -328,26 +343,8 @@ class DRWP_Admin {
         if (is_string($hook) && (strpos($hook, 'drwp_reports') !== false || $hook === 'toplevel_page_drwp_reports')) {
             wp_enqueue_media();
         }
-        if (!is_string($hook) || strpos($hook, 'drwp_report_edit') === false) return;
-        wp_enqueue_media();
-        wp_enqueue_style('drwp-admin', DRWP_URL . 'admin/assets/admin.css', [], DRWP_VERSION);
-        wp_enqueue_script('drwp-admin', DRWP_URL . 'admin/assets/admin.js', ['jquery'], DRWP_VERSION, true);
-        wp_localize_script('drwp-admin', 'drwpRest', [
-            'url'            => esc_url_raw(rest_url('drwp/v1')),
-            'nonce'          => wp_create_nonce('wp_rest'),
-            'admin_edit_url' => admin_url('admin.php?page=drwp_report_edit&id=__ID__'),
-            'projects'       => self::project_map(),
-            'labels'         => [
-                'pending'        => DRWP_Labels::review_status('pending'),
-                'approved'       => DRWP_Labels::review_status('approved'),
-                'needs_revision' => DRWP_Labels::review_status('needs_revision'),
-                'edit_requested' => DRWP_Labels::review_status('edit_requested'),
-            ],
-            'i18n'           => [
-                'uploading' => __('アップロード中…', 'drwp-daily-reports'),
-                'failed'    => __('アップロードに失敗しました', 'drwp-daily-reports'),
-            ],
-        ]);
+        // 旧・日報編集ページ (drwp_report_edit) 用の enqueue は、ページ自体を
+        // 日報一覧のモーダルへ統合 (リダイレクト化) したため撤去した。
     }
 
     public static function menu() {
@@ -758,16 +755,18 @@ class DRWP_Admin {
     }
 
     public static function report_edit_page() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
-        DRWP_User::block_write_or_die();
-        global $wpdb;
-        $table = self::reports_table();
+        // 通常は admin_init の redirect_report_edit_page() が先に転送する。
+        // 万一ここまで来た場合 (ヘッダー送信後) の保険として JS で飛ばす。
         $id = isset($_GET['id']) ? absint($_GET['id']) : 0;
-        $report = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
-        if ($report && !self::current_user_can_edit_report($report)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
-        $projects = DRWP_Project::all(true);
-        $photos = $report ? DRWP_Media::for_report($report->id) : [];
-        include DRWP_PATH . 'admin/views/report-edit.php';
+        $target = $id
+            ? admin_url('admin.php?page=drwp_reports&edit=' . $id)
+            : admin_url('admin.php?page=drwp_reports&new=1');
+        printf(
+            '<p><a href="%1$s">%2$s</a></p><script>location.replace(%3$s);</script>',
+            esc_url($target),
+            esc_html__('日報一覧に移動します…', 'drwp-daily-reports'),
+            wp_json_encode(esc_url_raw($target))
+        );
     }
 
     public static function report_preview_page() {
@@ -780,114 +779,10 @@ class DRWP_Admin {
         include DRWP_PATH . 'admin/views/report-preview.php';
     }
 
-    public static function save_report() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
-        DRWP_User::block_write_or_die();
-        check_admin_referer('drwp_save_report');
-        if (!DRWP_License::can_write()) {
-            wp_die(
-                DRWP_License::blocked_message(__('ライセンス状態により保存できません。', 'drwp-daily-reports')),
-                esc_html__('ライセンス未有効', 'drwp-daily-reports'),
-                ['response' => 402]
-            );
-        }
-
-        global $wpdb;
-        $table = self::reports_table();
-        $id = absint($_POST['id'] ?? 0);
-        $existing = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
-        if ($existing && !self::current_user_can_edit_report($existing)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
-
-        // このハンドラは「A. 日報の内容」フォーム専用 — 下書き系の列だけを
-        // 更新する。以前は公開系 (public_* / post_*) もここで $_POST から
-        // 書いていたため、公開欄を持たない A フォームで保存すると公開設定が
-        // 空で上書きされていた。公開系は save_report_publish が担当する。
-        $project_id = absint($_POST['project_id'] ?? 0);
-        if ($project_id && !DRWP_Project::find($project_id)) $project_id = 0;
-        $report_date = sanitize_text_field($_POST['report_date'] ?? current_time('Y-m-d'));
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $report_date)) {
-            $report_date = current_time('Y-m-d');
-        }
-        $data = [
-            'project_id' => $project_id ?: null,
-            'report_date' => $report_date,
-            'started_at' => self::sanitize_time_input($_POST['started_at'] ?? ''),
-            'ended_at'   => self::sanitize_time_input($_POST['ended_at'] ?? ''),
-            'work_description' => wp_kses_post(wp_unslash($_POST['work_description'] ?? '')),
-            'issues' => wp_kses_post(wp_unslash($_POST['issues'] ?? '')),
-            'next_plan' => wp_kses_post(wp_unslash($_POST['next_plan'] ?? '')),
-        ];
-        if ($existing) {
-            $wpdb->update($table, $data, ['id' => $id]);
-            DRWP_Audit::log('report_updated', '日報を更新', $id, ['project_id' => $data['project_id']]);
-        } else {
-            $data['user_id'] = get_current_user_id();
-            $wpdb->insert($table, $data);
-            $id = (int) $wpdb->insert_id;
-            DRWP_Audit::log('report_created', '日報を作成', $id, ['project_id' => $data['project_id']]);
-        }
-
-        $photos = [];
-        $attachment_ids = (array) ($_POST['attachment_ids'] ?? []);
-        $captions = (array) ($_POST['attachment_captions'] ?? []);
-        foreach ($attachment_ids as $i => $att_id) {
-            $photos[] = [
-                'attachment_id' => (int) $att_id,
-                'caption'       => (string) ($captions[$i] ?? ''),
-            ];
-        }
-        $saved_photos = DRWP_Media::sync($id, $photos);
-        DRWP_Audit::log('photos_updated', '写真を更新', $id, ['count' => $saved_photos]);
-
-        $fresh = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
-        do_action('drwp_report_submitted', $id, $fresh);
-
-        wp_safe_redirect(admin_url('admin.php?page=drwp_reports&updated=1'));
-        exit;
-    }
-
-    /**
-     * 「B. 公開・投稿」フォーム専用の保存。公開系の列だけを更新し、
-     * 下書き系 (work_description 等) と写真には触らない。以前は B フォームが
-     * 下書き系を hidden で DB 値ごと再送していたため、A の未保存編集が
-     * 消え、写真の input が無いことで写真も全消えしていた。
-     */
-    public static function save_report_publish() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
-        DRWP_User::block_write_or_die();
-        check_admin_referer('drwp_save_report_publish');
-        if (!DRWP_License::can_write()) {
-            wp_die(
-                DRWP_License::blocked_message(__('ライセンス状態により保存できません。', 'drwp-daily-reports')),
-                esc_html__('ライセンス未有効', 'drwp-daily-reports'),
-                ['response' => 402]
-            );
-        }
-
-        global $wpdb;
-        $table = self::reports_table();
-        $id = absint($_POST['id'] ?? 0);
-        $existing = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
-        if (!$existing) wp_die(esc_html__('日報が見つかりませんでした。', 'drwp-daily-reports'));
-        if (!self::current_user_can_edit_report($existing)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
-
-        $wpdb->update($table, [
-            'public_title'     => sanitize_text_field($_POST['public_title'] ?? ''),
-            'public_intro'     => wp_kses_post(wp_unslash($_POST['public_intro'] ?? '')),
-            'public_body'      => wp_kses_post(wp_unslash($_POST['public_body'] ?? '')),
-            'public_next_plan' => wp_kses_post(wp_unslash($_POST['public_next_plan'] ?? '')),
-            'post_template'    => DRWP_Labels::sanitize_post_template($_POST['post_template'] ?? 'standard'),
-            'post_category_id' => absint($_POST['post_category_id'] ?? 0) ?: null,
-            'post_tags'        => sanitize_text_field($_POST['post_tags'] ?? ''),
-            'post_status'      => sanitize_text_field($_POST['post_status'] ?? 'draft'),
-            'scheduled_at'     => sanitize_text_field($_POST['scheduled_at'] ?? '') ?: null,
-        ], ['id' => $id]);
-        DRWP_Audit::log('publish_settings_updated', '公開設定を保存', $id, []);
-
-        // 編集ページに留まる (一覧へ飛ばすと編集内容を確認できないため)。
-        wp_safe_redirect(admin_url('admin.php?page=drwp_report_edit&id=' . $id . '&saved=1'));
-        exit;
-    }
+    // save_report / save_report_publish (旧・日報編集ページの A/B フォーム
+    // 専用ハンドラ) は、ページのモーダル統合に伴い撤去した。日報の保存は
+    // REST (POST/PATCH /reports) に一本化され、公開設定は記事作成モーダル
+    // が同じ REST 経由で保存する。
 
     public static function convert_single() {
         if (!current_user_can('publish_posts')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));

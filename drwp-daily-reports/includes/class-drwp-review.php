@@ -53,7 +53,7 @@ class DRWP_Review {
             isset($_POST['comment']) ? wp_strip_all_tags(wp_unslash($_POST['comment'])) : ''
         );
 
-        wp_safe_redirect(admin_url('admin.php?page=drwp_report_edit&id=' . $id . '&reviewed=1'));
+        wp_safe_redirect(admin_url('admin.php?page=drwp_reports&view=' . $id . '&reviewed=1'));
         exit;
     }
 
@@ -84,7 +84,7 @@ class DRWP_Review {
             DRWP_Audit::log('comment_added', 'コメントを追加', $id, ['comment_id' => $comment_id]);
             do_action('drwp_comment_added', $id, $comment_id, wp_strip_all_tags(wp_unslash($raw)));
         }
-        wp_safe_redirect(admin_url('admin.php?page=drwp_report_edit&id=' . $id . '&commented=1'));
+        wp_safe_redirect(admin_url('admin.php?page=drwp_reports&view=' . $id . '&commented=1'));
         exit;
     }
 }

@@ -77,7 +77,9 @@ class DRWP_Notifications {
     }
 
     private static function report_url($report_id) {
-        return admin_url('admin.php?page=drwp_report_edit&id=' . (int) $report_id);
+        // 一覧ページの確認モーダルを自動で開く URL。レビュー・コメントは
+        // 確認モーダル内から行える (旧・日報編集ページは廃止済み)。
+        return admin_url('admin.php?page=drwp_reports&view=' . (int) $report_id);
     }
 
     public static function on_report_submitted($report_id, $report) {
