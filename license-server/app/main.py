@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import io
 import json
 import logging
@@ -261,11 +262,78 @@ def _resolve_admin_username() -> str:
     )
 
 
-def _resolve_admin_token() -> Optional[str]:
-    """DB-stored token wins (manageable from the admin UI); env var is
-    the bootstrap fallback so an operator can reach the UI on a fresh
-    install before any DB-stored token exists."""
-    return db.get_setting("admin_token") or os.environ.get("DRWP_ADMIN_TOKEN")
+# --- 管理トークンのハッシュ保存 -------------------------------------------
+# UI から保存したトークンは平文ではなく salted PBKDF2 ハッシュで DB に持つ。
+# DB (= バックアップ zip) が漏れても管理パスワードはそのまま使えない。
+# 環境変数 DRWP_ADMIN_TOKEN は初回ブートストラップ用の平文フォールバック
+# (コンテナ側の管理で、DB 漏洩とは別のリスク管理)。
+K_ADMIN_TOKEN_HASH = "admin_token_hash"
+# Basic 認証はリクエストごとに再検証されるため、1 回あたり数十 ms に収まる
+# 反復回数にする (管理 UI は人間の操作のみ。顧客向け /api/* は通らない)。
+_PBKDF2_ITERATIONS = 60_000
+
+
+def _hash_admin_token(token: str) -> str:
+    salt = secrets.token_bytes(16)
+    dk = hashlib.pbkdf2_hmac(
+        "sha256", token.encode("utf-8"), salt, _PBKDF2_ITERATIONS
+    )
+    return f"pbkdf2_sha256${_PBKDF2_ITERATIONS}${salt.hex()}${dk.hex()}"
+
+
+def _verify_admin_token_hash(candidate: str, stored: str) -> bool:
+    try:
+        algo, iters, salt_hex, hash_hex = stored.split("$", 3)
+        if algo != "pbkdf2_sha256":
+            return False
+        dk = hashlib.pbkdf2_hmac(
+            "sha256", candidate.encode("utf-8"), bytes.fromhex(salt_hex), int(iters)
+        )
+        return secrets.compare_digest(dk.hex().encode(), hash_hex.encode())
+    except (ValueError, TypeError):
+        return False
+
+
+def _migrate_plaintext_admin_token() -> None:
+    """既存 DB に平文の admin_token が残っていたらハッシュへ置き換える。
+    起動 (モジュール import) 時に 1 回走る。バックアップからの復元で平文が
+    戻ってくるケースは restore ハンドラ側でも同じ関数を呼ぶ。"""
+    plain = db.get_setting("admin_token")
+    if plain:
+        db.set_setting(K_ADMIN_TOKEN_HASH, _hash_admin_token(plain))
+        db.delete_setting("admin_token")
+        log.info("migrated plaintext admin token to hashed storage")
+
+
+def _admin_auth_configured() -> bool:
+    return bool(
+        db.get_setting(K_ADMIN_TOKEN_HASH)
+        or db.get_setting("admin_token")
+        or os.environ.get("DRWP_ADMIN_TOKEN")
+    )
+
+
+def _verify_admin_password(candidate: str) -> bool:
+    """DB のハッシュ → (未移行の) DB 平文 → 環境変数 の優先順で照合する。
+    DB に設定があれば環境変数は使わない (従来の優先順位と同じ)。"""
+    stored = db.get_setting(K_ADMIN_TOKEN_HASH)
+    if stored:
+        return _verify_admin_token_hash(candidate, stored)
+    legacy = db.get_setting("admin_token")
+    if legacy:
+        return secrets.compare_digest(
+            candidate.encode("utf-8"), legacy.encode("utf-8")
+        )
+    env_token = os.environ.get("DRWP_ADMIN_TOKEN")
+    if env_token:
+        return secrets.compare_digest(
+            candidate.encode("utf-8"), env_token.encode("utf-8")
+        )
+    return False
+
+
+# 起動時に旧形式 (平文) の DB 保存トークンをハッシュへ移行する。
+_migrate_plaintext_admin_token()
 
 
 def _current_realm() -> str:
@@ -338,11 +406,10 @@ def require_admin_basic(
     """Basic 認証 + レート制限のみ。TOTP セットアップ / チャレンジ
     ページ自身がこちらを使う (TOTP ゲートに入ると無限ループする)。"""
     expected_user = _resolve_admin_username()
-    expected_pass = _resolve_admin_token()
     ip = _client_ip(request)
     www_auth = {"WWW-Authenticate": f'Basic realm="{_current_realm()}"'}
 
-    if not expected_pass:
+    if not _admin_auth_configured():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Admin token not configured",
@@ -368,8 +435,8 @@ def require_admin_basic(
             headers=www_auth,
         )
 
-    # Compare both sides with constant-time digest to avoid timing
-    # leaks on the username (rare but cheap to defend against).
+    # Compare with constant-time digest to avoid timing leaks on the
+    # username (rare but cheap to defend against).
     # NOTE: compare_digest with str args only accepts ASCII and raises
     # TypeError otherwise. A non-ASCII username/password — stored in the
     # DB, or merely typed into the browser's Basic dialog — would 500 the
@@ -378,9 +445,7 @@ def require_admin_basic(
     user_ok = secrets.compare_digest(
         credentials.username.encode("utf-8"), expected_user.encode("utf-8")
     )
-    pass_ok = secrets.compare_digest(
-        credentials.password.encode("utf-8"), expected_pass.encode("utf-8")
-    )
+    pass_ok = _verify_admin_password(credentials.password)
     if not (user_ok and pass_ok):
         db.log_audit("login_failed", ip=ip, username=credentials.username[:64])
         raise HTTPException(
@@ -1572,7 +1637,7 @@ def ui_settings(
     # 監査ログの表示件数は画面から 30/100/300 で切り替えられる。範囲外の
     # 自由入力は recent_audit 側でも 1..500 にクランプされる。
     audit_limit = audit_limit if audit_limit in (30, 100, 300) else 30
-    db_token = db.get_setting("admin_token") or ""
+    db_token = db.get_setting(K_ADMIN_TOKEN_HASH) or db.get_setting("admin_token") or ""
     db_username = db.get_setting("admin_username") or ""
     key_path = signing._key_path()
     key_created_at = None
@@ -1626,6 +1691,7 @@ def ui_set_admin_token(
 ):
     if clear:
         db.delete_setting("admin_token")
+        db.delete_setting(K_ADMIN_TOKEN_HASH)
         db.delete_setting("admin_username")
         _bump_admin_token_version()
         return RedirectResponse(
@@ -1639,7 +1705,9 @@ def ui_set_admin_token(
         db.set_setting("admin_username", username)
         changed = True
     if token:
-        db.set_setting("admin_token", token)
+        # 平文は保存しない。既存 DB に残っている旧平文もここで消す。
+        db.set_setting(K_ADMIN_TOKEN_HASH, _hash_admin_token(token))
+        db.delete_setting("admin_token")
         changed = True
     if changed:
         # Bump the realm version so the browser stops silently retrying
@@ -1821,6 +1889,9 @@ def ui_restore(file: UploadFile = File(...), _: str = Depends(require_admin)):
     # Drop the cached private key so the next sign() picks up the
     # restored bytes instead of the previous in-memory copy.
     signing._invalidate_cache()
+    # ハッシュ化前の古いバックアップは settings に平文 admin_token を含む。
+    # 復元直後にその場でハッシュへ置き換える。
+    _migrate_plaintext_admin_token()
     return RedirectResponse(
         "/admin/ui/settings?msg=restored",
         status_code=status.HTTP_303_SEE_OTHER,

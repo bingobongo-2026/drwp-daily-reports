@@ -81,6 +81,8 @@
     </div>
     <p class="muted" style="margin-top: 6px;">
       トークンは 32 バイトのランダム値（hex 64 文字）を推奨します。
+      保存されるのは<strong>ハッシュのみ</strong>（平文は DB に残らず、あとから確認できません）。
+      保存前に必ずパスワードマネージャ等に控えてください。
     </p>
     <div class="flash err" style="margin-top: 10px; font-weight: normal;">
       <strong>保存後の挙動:</strong> 保存直後にブラウザの Basic 認証ダイアログが再表示されます。

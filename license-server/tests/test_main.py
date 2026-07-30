@@ -822,6 +822,58 @@ def test_ui_settings_audit_limit_switch(tmp_path, monkeypatch):
     assert "row-005" not in bogus.text        # 既定 30 にフォールバック
 
 
+# --- 管理トークンのハッシュ保存 ---------------------------------------------
+
+def test_admin_token_saved_as_hash(tmp_path, monkeypatch):
+    """UI から保存したトークンは平文ではなく PBKDF2 ハッシュで DB に入る。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    r = c.post(
+        "/admin/ui/settings/admin-token",
+        auth=("admin", "test-token"),
+        data={"token": "new-secret-token"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert main.db.get_setting("admin_token") is None
+    stored = main.db.get_setting("admin_token_hash")
+    assert stored is not None
+    assert stored.startswith("pbkdf2_sha256$")
+    assert "new-secret-token" not in stored
+    # 新トークンで通り、旧 (環境変数の) トークンは通らない
+    assert c.get("/admin/licenses", auth=("admin", "new-secret-token")).status_code == 200
+    assert c.get("/admin/licenses", auth=("admin", "test-token")).status_code == 401
+
+
+def test_plaintext_admin_token_migrates_on_startup(tmp_path, monkeypatch):
+    """旧バージョンが DB に残した平文トークンは、再起動 (再 import) 時に
+    ハッシュへ移行され、同じトークンでログインし続けられる。"""
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    main.db.set_setting("admin_token", "legacy-secret")
+    c2, main2 = _fresh_client(tmp_path, monkeypatch)  # 同じ DB で再起動
+    assert main2.db.get_setting("admin_token") is None
+    assert (main2.db.get_setting("admin_token_hash") or "").startswith("pbkdf2_sha256$")
+    assert c2.get("/admin/licenses", auth=("admin", "legacy-secret")).status_code == 200
+
+
+def test_clear_removes_hash_and_falls_back_to_env(tmp_path, monkeypatch):
+    """「DB 認証情報を削除」でハッシュも消え、環境変数へフォールバックする。"""
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    c.post(
+        "/admin/ui/settings/admin-token",
+        auth=("admin", "test-token"),
+        data={"token": "db-token"},
+        follow_redirects=False,
+    )
+    assert c.get("/admin/licenses", auth=("admin", "test-token")).status_code == 401
+    c.post(
+        "/admin/ui/settings/admin-token",
+        auth=("admin", "db-token"),
+        data={"clear": "1"},
+        follow_redirects=False,
+    )
+    assert c.get("/admin/licenses", auth=("admin", "test-token")).status_code == 200
+
+
 # --- TOTP 2FA ---------------------------------------------------------------
 
 def test_totp_helpers_pure_python(tmp_path, monkeypatch):
