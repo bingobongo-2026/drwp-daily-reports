@@ -282,17 +282,6 @@
   <style>
   /* 検索・絞り込み — details で折りたたみ、アクセントカラー無しの
      薄いグレー枠だけで囲って補助領域感を出す。 */
-  .drwp-list-filter{margin-bottom:10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff}
-  .drwp-list-filter-summary{cursor:pointer;font-weight:600;color:#1d2327;list-style:none;display:flex;align-items:center;gap:6px;padding:8px 12px}
-  .drwp-list-filter-summary::-webkit-details-marker{display:none}
-  .drwp-list-filter-summary::before{content:'▸';font-size:.8em;color:#6b7280;transition:transform .15s}
-  .drwp-list-filter[open] .drwp-list-filter-summary{border-bottom:1px solid #f1f5f9}
-  .drwp-list-filter[open] .drwp-list-filter-summary::before{transform:rotate(90deg)}
-  .drwp-list-filter-summary:hover{color:#2271b1}
-  .drwp-list-filter-form{padding:10px 12px}
-  .drwp-list-filter-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%;margin-bottom:8px}
-  .drwp-list-filter-row:last-child{margin-bottom:0}
-  .drwp-list-filter-input{min-width:200px;flex:1}
 
   /* 一括操作 — カード化はやめてテーブル直上のインライン行に。
      公開設定の追加項目だけ details で畳んでおく。 */

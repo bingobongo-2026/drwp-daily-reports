@@ -303,6 +303,12 @@ class DRWP_Admin {
     }
 
     public static function enqueue($hook) {
+        // 共通の管理画面スタイル(通知・フィルタパネル等)を全 drwp ページで
+        // 読み込む。以前は日報編集ページでしか読まれておらず、各一覧ビューが
+        // 同じフィルタCSSを個別にコピーしていた。
+        if (is_string($hook) && strpos($hook, 'drwp_') !== false) {
+            wp_enqueue_style('drwp-admin', DRWP_URL . 'admin/assets/admin.css', [], DRWP_VERSION);
+        }
         if (is_string($hook) && strpos($hook, 'drwp_articles') !== false) {
             wp_enqueue_media();
             wp_enqueue_editor();
