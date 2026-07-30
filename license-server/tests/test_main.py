@@ -1580,3 +1580,64 @@ def test_ui_create_rejects_blank_domain(tmp_path, monkeypatch):
     # 何も作られていないこと
     lst = c.get("/admin/licenses", auth=("admin", "test-token")).json()
     assert lst.get("items", lst) in ([], {})  # {"items": []} / [] のどちらでも空
+
+
+# ==========================================================================
+# CSRF: /admin/ui の更新系はクロスオリジンの POST を拒否する (B-4)
+# ==========================================================================
+
+def test_cross_origin_admin_post_is_rejected(tmp_path, monkeypatch):
+    c, main = _fresh_client(tmp_path, monkeypatch)
+    r = c.post(
+        "/admin/ui/licenses",
+        auth=("admin", "test-token"),
+        data={"license_key": "EVIL", "domain": "example.test", "plan": "basic", "status": "active"},
+        headers={"Origin": "https://evil.example"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 403
+    # 何も作られていない
+    r2 = c.get("/admin/licenses/EVIL", auth=("admin", "test-token"))
+    assert r2.status_code == 404
+    # 監査ログに記録される
+    events = [row["event"] for row in main.db.recent_audit(limit=10)]
+    assert "csrf_rejected" in events
+
+
+def test_cross_site_referer_is_rejected(tmp_path, monkeypatch):
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    r = c.post(
+        "/admin/ui/settings/admin-token",
+        auth=("admin", "test-token"),
+        data={"username": "admin", "token": "hijacked"},
+        headers={"Referer": "https://evil.example/attack.html"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 403
+
+
+def test_same_origin_admin_post_is_allowed(tmp_path, monkeypatch):
+    # TestClient のベース URL は http://testserver — 同一オリジンの
+    # Origin ヘッダー付き POST は通る (通常のブラウザ操作)。
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    r = c.post(
+        "/admin/ui/licenses",
+        auth=("admin", "test-token"),
+        data={"license_key": "SAME-ORIGIN", "domain": "example.test", "plan": "basic", "status": "active"},
+        headers={"Origin": "http://testserver"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    r2 = c.get("/admin/licenses/SAME-ORIGIN", auth=("admin", "test-token"))
+    assert r2.status_code == 200
+
+
+def test_get_pages_are_not_blocked_by_origin_guard(tmp_path, monkeypatch):
+    # GET はガード対象外 (外部サイトからのリンク遷移は Referer が他所になる)
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    r = c.get(
+        "/admin/ui/licenses",
+        auth=("admin", "test-token"),
+        headers={"Referer": "https://other.example/"},
+    )
+    assert r.status_code == 200
