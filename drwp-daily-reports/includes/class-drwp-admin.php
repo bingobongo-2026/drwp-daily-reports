@@ -15,6 +15,7 @@ class DRWP_Admin {
         add_action('admin_menu', [__CLASS__, 'mark_settings_section'], 999);
         add_action('admin_head', [__CLASS__, 'settings_section_css']);
         add_action('admin_post_drwp_save_report', [__CLASS__, 'save_report']);
+        add_action('admin_post_drwp_save_report_publish', [__CLASS__, 'save_report_publish']);
         add_action('admin_post_drwp_bulk_reports', [__CLASS__, 'bulk_reports']);
         add_action('admin_post_drwp_convert_single', [__CLASS__, 'convert_single']);
         add_action('admin_post_drwp_export_reports_csv', [__CLASS__, 'export_filtered_csv']);
@@ -750,25 +751,24 @@ class DRWP_Admin {
         $existing = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
         if ($existing && !self::current_user_can_edit_report($existing)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
 
+        // このハンドラは「A. 日報の内容」フォーム専用 — 下書き系の列だけを
+        // 更新する。以前は公開系 (public_* / post_*) もここで $_POST から
+        // 書いていたため、公開欄を持たない A フォームで保存すると公開設定が
+        // 空で上書きされていた。公開系は save_report_publish が担当する。
         $project_id = absint($_POST['project_id'] ?? 0);
         if ($project_id && !DRWP_Project::find($project_id)) $project_id = 0;
+        $report_date = sanitize_text_field($_POST['report_date'] ?? current_time('Y-m-d'));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $report_date)) {
+            $report_date = current_time('Y-m-d');
+        }
         $data = [
             'project_id' => $project_id ?: null,
-            'report_date' => sanitize_text_field($_POST['report_date'] ?? current_time('Y-m-d')),
+            'report_date' => $report_date,
             'started_at' => self::sanitize_time_input($_POST['started_at'] ?? ''),
             'ended_at'   => self::sanitize_time_input($_POST['ended_at'] ?? ''),
             'work_description' => wp_kses_post(wp_unslash($_POST['work_description'] ?? '')),
             'issues' => wp_kses_post(wp_unslash($_POST['issues'] ?? '')),
             'next_plan' => wp_kses_post(wp_unslash($_POST['next_plan'] ?? '')),
-            'public_title' => sanitize_text_field($_POST['public_title'] ?? ''),
-            'public_intro' => wp_kses_post(wp_unslash($_POST['public_intro'] ?? '')),
-            'public_body' => wp_kses_post(wp_unslash($_POST['public_body'] ?? '')),
-            'public_next_plan' => wp_kses_post(wp_unslash($_POST['public_next_plan'] ?? '')),
-            'post_template' => DRWP_Labels::sanitize_post_template($_POST['post_template'] ?? 'standard'),
-            'post_category_id' => absint($_POST['post_category_id'] ?? 0) ?: null,
-            'post_tags' => sanitize_text_field($_POST['post_tags'] ?? ''),
-            'post_status' => sanitize_text_field($_POST['post_status'] ?? 'draft'),
-            'scheduled_at' => sanitize_text_field($_POST['scheduled_at'] ?? '') ?: null,
         ];
         if ($existing) {
             $wpdb->update($table, $data, ['id' => $id]);
@@ -796,6 +796,49 @@ class DRWP_Admin {
         do_action('drwp_report_submitted', $id, $fresh);
 
         wp_safe_redirect(admin_url('admin.php?page=drwp_reports&updated=1'));
+        exit;
+    }
+
+    /**
+     * 「B. 公開・投稿」フォーム専用の保存。公開系の列だけを更新し、
+     * 下書き系 (work_description 等) と写真には触らない。以前は B フォームが
+     * 下書き系を hidden で DB 値ごと再送していたため、A の未保存編集が
+     * 消え、写真の input が無いことで写真も全消えしていた。
+     */
+    public static function save_report_publish() {
+        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
+        DRWP_User::block_write_or_die();
+        check_admin_referer('drwp_save_report_publish');
+        if (!DRWP_License::can_write()) {
+            wp_die(
+                DRWP_License::blocked_message(__('ライセンス状態により保存できません。', 'drwp-daily-reports')),
+                esc_html__('ライセンス未有効', 'drwp-daily-reports'),
+                ['response' => 402]
+            );
+        }
+
+        global $wpdb;
+        $table = self::reports_table();
+        $id = absint($_POST['id'] ?? 0);
+        $existing = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
+        if (!$existing) wp_die(esc_html__('日報が見つかりませんでした。', 'drwp-daily-reports'));
+        if (!self::current_user_can_edit_report($existing)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
+
+        $wpdb->update($table, [
+            'public_title'     => sanitize_text_field($_POST['public_title'] ?? ''),
+            'public_intro'     => wp_kses_post(wp_unslash($_POST['public_intro'] ?? '')),
+            'public_body'      => wp_kses_post(wp_unslash($_POST['public_body'] ?? '')),
+            'public_next_plan' => wp_kses_post(wp_unslash($_POST['public_next_plan'] ?? '')),
+            'post_template'    => DRWP_Labels::sanitize_post_template($_POST['post_template'] ?? 'standard'),
+            'post_category_id' => absint($_POST['post_category_id'] ?? 0) ?: null,
+            'post_tags'        => sanitize_text_field($_POST['post_tags'] ?? ''),
+            'post_status'      => sanitize_text_field($_POST['post_status'] ?? 'draft'),
+            'scheduled_at'     => sanitize_text_field($_POST['scheduled_at'] ?? '') ?: null,
+        ], ['id' => $id]);
+        DRWP_Audit::log('publish_settings_updated', '公開設定を保存', $id, []);
+
+        // 編集ページに留まる (一覧へ飛ばすと編集内容を確認できないため)。
+        wp_safe_redirect(admin_url('admin.php?page=drwp_report_edit&id=' . $id . '&saved=1'));
         exit;
     }
 
