@@ -11,11 +11,11 @@
 - `marketing/`, `scripts/`, `docker-compose.yml`, `README.md`
 
 ## 現在のバージョン(すべて main にマージ済み)
-- 日報マン プラグイン(`drwp-daily-reports`): **1.70.0**
+- 日報マン プラグイン(`drwp-daily-reports`): **1.72.0**
 - テーマ jijipom: **1.18.0**
 - 子テーマ jijipom-child: **1.0.0**
 - プラグイン jijipom-content-builder: **1.9.1**
-- license-server: 稼働中
+- license-server: 稼働中(バージョン番号なし)
 
 ## 作業ブランチと運用ルール
 - 開発ブランチ名は**セッションごとに指定されるもの**を使う(固定ではない)。
@@ -106,6 +106,39 @@
 - `theme.json` は意図的に置いていない(子に置くと親の設定を完全に置き換えるため、
   未配置にして親のものを継承させる)。
 - テンプレートを差し替えるときは親から同じファイル名でコピーして子に置く。
+
+## デバッグ調査の記録(2026-07 実施)と残タスク
+日報プラグイン・ライセンスサーバーを調査し、確実に壊れているものを優先度順に
+PR化した。**修正済み(#269〜#271)**:
+- 日報 1.71.1: 予定CSV取り込みのトークンが `sanitize_key` で潰れ実質100%失敗
+  していた(生成を小文字16進 `make_token()` に)。再取り込みで完了/キャンセルが
+  active へ戻る問題も。
+- 日報 1.72.0: REST に `do_action` がゼロで、モバイル(REST)由来の日報作成・
+  レビュー・コメントの通知メールが飛んでいなかった → 4フック＋フロント再提出で発火。
+  記事化(`convert_report`)が公開本文を `sanitize_text_field` で潰していた →
+  `sanitize_writable`(本文は `wp_kses_post`)に。
+- license-server: 管理認証の `compare_digest` が非ASCIIで TypeError→500 で永久
+  ロックアウト → bytes比較。有効期限が ISO 文字列の辞書順比較で誤判定(日付のみが
+  終日失効・JSTオフセット過去が有効に化ける)→ `datetime` 比較 `_is_expired()` に統一。
+- ※license-server は pytest をローカル実行できる(venv に `requirements.txt`＋
+  `pytest httpx` を入れる)。CI の「License server pytest」でも走る。
+
+**未対応(調査で挙がった 🔴 の残り。着手時はここから)**:
+- 日報: アーカイブ済み日報が REST/フロントカレンダー/PDF から消えない
+  (除外条件が管理画面一覧の `build_reports_query` にしか無い)。
+- 日報: `edit_requested`(編集依頼中)にすると投稿者が編集不能(状態の目的と真逆。
+  `class-drwp-rest.php` の編集許可判定が pending/needs_revision のみ)。
+- 日報: archive/restore/purge と bulk_* に退職者・ライセンスチェック漏れ、
+  `bulk_update_publish` に権限ゲート無し(作業者が自分の日報を公開状態にできる)。
+- 日報: 管理画面の日報編集が review_status を見ず、承認済みを投稿者が改変できる
+  (REST とは非対称)。`photo_kind` がどのUIからも保存されず毎回消える。
+- 日報: `drwp_reports` に `user_id`/`project_id` インデックス無し。フロント一覧・
+  PDF に LIMIT 無し(N+1 も多い)。
+- license-server: CSRF 対策ゼロ、TOTP総当たり対策無し、`domain` 空でワイルドカード
+  ライセンス、ログ未設定で署名鍵自動ローテートが記録されない。
+- UX: 日報の編集UIが3系統に分裂・保存通知がバラバラ・フィルタ/モーダルCSSが
+  6〜7ファイルにコピペ。ライセンス一覧に期限切れ/期限間近バッジ無し・作成後の
+  自動生成キーが画面に出ない、等。
 
 ## VPS / デプロイ(参考・秘密情報は各自の保管先で)
 - nippo-man.com (133.167.125.119)、SSH は `ubuntu`(root ではない)、鍵はパスフレーズ付き。
