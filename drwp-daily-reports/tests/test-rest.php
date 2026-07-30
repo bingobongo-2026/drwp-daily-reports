@@ -693,4 +693,59 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         ]);
         $this->assertSame(403, $resp->get_status());
     }
+
+    /* ---------- 書き込み系のライセンスゲート (以前は抜けていた経路) ---------- */
+
+    public function test_archive_requires_active_license() {
+        $this->activate_license();
+        $this->make_admin();
+        $pid = $this->make_project('現場A');
+        $rid = $this->create_report_via_rest($pid);
+
+        $this->deactivate_license();
+        $resp = $this->call('POST', "/drwp/v1/reports/$rid/archive");
+        $this->assertSame(402, $resp->get_status(), 'ライセンス失効中でもアーカイブできてしまう');
+
+        // 失効中に状態が変わっていないこと
+        global $wpdb;
+        $archived = $wpdb->get_var($wpdb->prepare(
+            "SELECT archived_at FROM {$wpdb->prefix}drwp_reports WHERE id = %d", $rid
+        ));
+        $this->assertNull($archived);
+    }
+
+    public function test_review_requires_active_license() {
+        $this->activate_license();
+        $this->make_admin();
+        $pid = $this->make_project('現場A');
+        $rid = $this->create_report_via_rest($pid);
+
+        $this->deactivate_license();
+        $resp = $this->call('POST', "/drwp/v1/reports/$rid/review", [
+            'review_status' => 'approved',
+        ]);
+        $this->assertSame(402, $resp->get_status());
+    }
+
+    public function test_add_comment_requires_active_license() {
+        $this->activate_license();
+        $this->make_admin();
+        $pid = $this->make_project('現場A');
+        $rid = $this->create_report_via_rest($pid);
+
+        $this->deactivate_license();
+        $resp = $this->call('POST', "/drwp/v1/reports/$rid/comments", ['body' => 'x']);
+        $this->assertSame(402, $resp->get_status());
+    }
+
+    public function test_purge_requires_active_license() {
+        $this->activate_license();
+        $this->make_admin();
+        $pid = $this->make_project('現場A');
+        $rid = $this->create_report_via_rest($pid);
+
+        $this->deactivate_license();
+        $resp = $this->call('DELETE', "/drwp/v1/reports/$rid/purge");
+        $this->assertSame(402, $resp->get_status());
+    }
 }

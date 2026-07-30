@@ -811,6 +811,10 @@ class DRWP_REST {
     }
 
     public static function archive_report(WP_REST_Request $request) {
+        // アーカイブは状態を変える書き込み — 退職者・ライセンス失効中は
+        // 他の書き込み系と同じく止める (以前はこの3ハンドラだけ抜けていた)。
+        if ($err = DRWP_User::block_write_rest()) return $err;
+        if (!DRWP_License::can_write()) return self::license_error();
         $id = (int) $request['id'];
         $report = DRWP_Reports::find($id);
         if (!$report) return new WP_Error('drwp_not_found', '指定された日報が見つかりませんでした。', ['status' => 404]);
@@ -821,6 +825,8 @@ class DRWP_REST {
     }
 
     public static function restore_report(WP_REST_Request $request) {
+        if ($err = DRWP_User::block_write_rest()) return $err;
+        if (!DRWP_License::can_write()) return self::license_error();
         $id = (int) $request['id'];
         $report = DRWP_Reports::find($id);
         if (!$report) return new WP_Error('drwp_not_found', '指定された日報が見つかりませんでした。', ['status' => 404]);
@@ -829,6 +835,8 @@ class DRWP_REST {
     }
 
     public static function purge_report(WP_REST_Request $request) {
+        if ($err = DRWP_User::block_write_rest()) return $err;
+        if (!DRWP_License::can_write()) return self::license_error();
         $id = (int) $request['id'];
         $r = DRWP_Reports::purge($id);
         if (is_wp_error($r)) {
@@ -983,6 +991,8 @@ class DRWP_REST {
 
     public static function review_report(WP_REST_Request $request) {
         if ($err = DRWP_User::block_write_rest()) return $err;
+        // レビュー(状態変更)も書き込み — ライセンス失効中は止める。
+        if (!DRWP_License::can_write()) return self::license_error();
         global $wpdb;
         $id = (int) $request['id'];
         $report = self::find_report($id);
@@ -1024,6 +1034,8 @@ class DRWP_REST {
 
     public static function add_comment(WP_REST_Request $request) {
         if ($err = DRWP_User::block_write_rest()) return $err;
+        // コメント追加も書き込み — ライセンス失効中は止める。
+        if (!DRWP_License::can_write()) return self::license_error();
         $id = (int) $request['id'];
         $body = (string) $request->get_param('body');
         $comment_id = DRWP_Comment::insert($id, $body);
