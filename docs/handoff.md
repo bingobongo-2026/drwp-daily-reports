@@ -11,7 +11,7 @@
 - `marketing/`, `scripts/`, `docker-compose.yml`, `README.md`
 
 ## 現在のバージョン(すべて main にマージ済み)
-- 日報マン プラグイン(`drwp-daily-reports`): **1.72.0**
+- 日報マン プラグイン(`drwp-daily-reports`): **1.74.0**
 - テーマ jijipom: **1.18.0**
 - 子テーマ jijipom-child: **1.0.0**
 - プラグイン jijipom-content-builder: **1.9.1**
@@ -123,19 +123,23 @@ PR化した。**修正済み(#269〜#271)**:
 - ※license-server は pytest をローカル実行できる(venv に `requirements.txt`＋
   `pytest httpx` を入れる)。CI の「License server pytest」でも走る。
 
-**未対応(調査で挙がった 🔴 の残り。着手時はここから)**:
-- 日報: アーカイブ済み日報が REST/フロントカレンダー/PDF から消えない
-  (除外条件が管理画面一覧の `build_reports_query` にしか無い)。
-- 日報: `edit_requested`(編集依頼中)にすると投稿者が編集不能(状態の目的と真逆。
-  `class-drwp-rest.php` の編集許可判定が pending/needs_revision のみ)。
-- 日報: archive/restore/purge と bulk_* に退職者・ライセンスチェック漏れ、
-  `bulk_update_publish` に権限ゲート無し(作業者が自分の日報を公開状態にできる)。
-- 日報: 管理画面の日報編集が review_status を見ず、承認済みを投稿者が改変できる
-  (REST とは非対称)。`photo_kind` がどのUIからも保存されず毎回消える。
+**追加で修正済み(#273〜#275)**:
+- 日報 1.73.0: アーカイブ済みの除外を REST/フロント(一覧・詳細直リンク)/PDF へ
+  拡大(レビュアーのみ archived=with/only)。`edit_requested` を編集許可4箇所に
+  追加し、編集したら pending へ戻す。
+- 日報 1.74.0: archive/restore/purge・review/comment・bulk・予定削除に退職者/
+  ライセンスチェックを追加。`bulk_update_publish` に publish_posts ゲート。
+  管理画面編集も REST と同じく承認済みは投稿者本人が触れないように。
+- license-server: レート制限が totp_failed も数える(6桁コード総当たり対策)。
+  WINDOW/BLOCK を本来の「WINDOW内に閾値回→最後の失敗からBLOCK秒遮断」に実装
+  し直し(既存テストは同値で隠していたので別値化)。domain 空を API 422/
+  フォームエラーで拒否。logging.basicConfig 追加(署名鍵ローテートが記録される)。
+
+**未対応(調査で挙がった残り。着手時はここから)**:
+- 日報: `photo_kind`(Before/After)がどのUIからも保存されず毎回消える。
 - 日報: `drwp_reports` に `user_id`/`project_id` インデックス無し。フロント一覧・
   PDF に LIMIT 無し(N+1 も多い)。
-- license-server: CSRF 対策ゼロ、TOTP総当たり対策無し、`domain` 空でワイルドカード
-  ライセンス、ログ未設定で署名鍵自動ローテートが記録されない。
+- license-server: CSRF 対策ゼロ(全 /admin/ui POST。変更範囲が広いので単独PRで)。
 - UX: 日報の編集UIが3系統に分裂・保存通知がバラバラ・フィルタ/モーダルCSSが
   6〜7ファイルにコピペ。ライセンス一覧に期限切れ/期限間近バッジ無し・作成後の
   自動生成キーが画面に出ない、等。
