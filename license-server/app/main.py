@@ -13,11 +13,21 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request,
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from . import db, signing, totp
 
 log = logging.getLogger("drwp.license")
+
+# ルートロガーにハンドラが無いと log.info は捨てられる (lastResort は
+# WARNING 以上のみ)。署名鍵の自動ローテートなど全顧客サイトに影響する
+# 事象を INFO で記録しているため、未設定なら最低限の設定を入れる。
+# uvicorn 等が先に設定していればそのまま尊重する。
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
 
 app = FastAPI(title="Nippoman License Server v1.9")
 
@@ -108,6 +118,7 @@ _FLASH = {
     "updated": ("更新しました。", "ok"),
     "deleted": ("削除しました。", "ok"),
     "conflict": ("そのライセンスキーは既に存在します。", "err"),
+    "domain_required": ("ドメインを入力してください（空にすると全ドメインで有効になってしまうため保存できません）。", "err"),
     "not_found": ("ライセンスが見つかりませんでした。", "err"),
     "token_saved": ("管理トークンを保存しました。", "ok"),
     "token_cleared": ("管理トークンを削除しました（環境変数の値が使われます）。", "ok"),
@@ -202,10 +213,28 @@ def _client_ip(request: Optional[Request]) -> str:
 
 
 def _is_ip_blocked(ip: str) -> bool:
+    """「WINDOW 秒以内に THRESHOLD 回失敗したら、最後の失敗から BLOCK 秒
+    遮断する」を失敗時刻の列から判定する。
+
+    以前は BLOCK 秒窓の件数だけを見ており、LIMITER_WINDOW_SEC は監査ログの
+    文言と設定画面の表示にしか使われていなかった (環境変数を変えても挙動が
+    変わらない)。また Basic の失敗しか数えておらず、TOTP コードは無制限に
+    総当たりできた (failed_auth_times が両方数える)。
+    """
     if not ip or LIMITER_THRESHOLD <= 0:
         return False
-    n = db.count_failed_logins_since(ip, LIMITER_BLOCK_SEC)
-    return n >= LIMITER_THRESHOLD
+    times = db.failed_auth_times(ip, LIMITER_WINDOW_SEC + LIMITER_BLOCK_SEC)
+    if len(times) < LIMITER_THRESHOLD:
+        return False
+    now = int(datetime.now(timezone.utc).timestamp())
+    # 新しい順に THRESHOLD 個ずつずらしながら「WINDOW 内に閾値回」の並びを
+    # 探し、その最後の失敗から BLOCK 秒以内なら遮断中。
+    for i in range(len(times) - LIMITER_THRESHOLD + 1):
+        newest = times[i]
+        oldest = times[i + LIMITER_THRESHOLD - 1]
+        if newest - oldest <= LIMITER_WINDOW_SEC and now - newest < LIMITER_BLOCK_SEC:
+            return True
+    return False
 
 
 def require_admin_basic(
@@ -338,6 +367,16 @@ class LicenseIn(BaseModel):
     # JSON API でもキー入力を省略できる。
     license_key: Optional[str] = None
     domain: str
+
+    # domain 空はワイルドカード化する (判定側が `lic["domain"] and ...` で
+    # 素通りさせる) ため、事故で無制限ライセンスを発行しないよう拒否する。
+    @field_validator("domain")
+    @classmethod
+    def _domain_not_blank(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("domain must not be empty")
+        return v
     plan: str = "basic"
     status: str = "active"
     expires_at: Optional[str] = None
@@ -352,6 +391,18 @@ class LicenseIn(BaseModel):
 
 class LicenseUpdate(BaseModel):
     domain: Optional[str] = None
+
+    # None は「変更しない」。明示的に空文字へ変えるのは LicenseIn と同じ
+    # 理由で拒否する。
+    @field_validator("domain")
+    @classmethod
+    def _domain_not_blank(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            raise ValueError("domain must not be empty")
+        return v
     plan: Optional[str] = None
     status: Optional[str] = None
     expires_at: Optional[str] = None
@@ -1265,6 +1316,13 @@ def ui_create(
     notes: str = Form(""),
     _: str = Depends(require_admin),
 ):
+    # domain 空はワイルドカード化するため、空白だけの入力もここで弾く
+    # (required 属性はクライアント側でしか効かない)。
+    if not domain.strip():
+        return RedirectResponse(
+            "/admin/ui/licenses/new?msg=domain_required",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     key = license_key.strip()
     if not key:
         # 空欄なら自動生成 (NPM-XXXX-XXXX-XXXX-XXXX 形式)
@@ -1341,6 +1399,12 @@ def ui_update(
     notes: str = Form(""),
     _: str = Depends(require_admin),
 ):
+    # 作成時と同じ理由で domain 空は保存させない。
+    if not domain.strip():
+        return RedirectResponse(
+            f"/admin/ui/licenses/{license_key}/edit?msg=domain_required",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     updated = db.update_license(
         license_key,
         domain=domain.strip(),

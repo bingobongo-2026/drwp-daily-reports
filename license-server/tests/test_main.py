@@ -507,8 +507,10 @@ def test_anonymous_probe_is_not_audited(tmp_path, monkeypatch):
 def test_rate_limiter_blocks_after_threshold(tmp_path, monkeypatch):
     # しきい値・ウィンドウを小さくしてテスト時間を短縮。
     monkeypatch.setenv("DRWP_LOGIN_FAIL_LIMIT", "3")
+    # WINDOW と BLOCK を別値にする。同値だとどちらの変数を使った実装でも
+    # 通ってしまい、「WINDOW が使われていない」バグを検出できない。
     monkeypatch.setenv("DRWP_LOGIN_FAIL_WINDOW", "60")
-    monkeypatch.setenv("DRWP_LOGIN_BLOCK_SECONDS", "60")
+    monkeypatch.setenv("DRWP_LOGIN_BLOCK_SECONDS", "600")
     c, main = _fresh_client(tmp_path, monkeypatch)
 
     # 3 回失敗まで通常の 401。
@@ -519,7 +521,7 @@ def test_rate_limiter_blocks_after_threshold(tmp_path, monkeypatch):
     # 4 回目は 429 で遮断され、正しい資格情報でも入れない。
     r = c.get("/admin/licenses", auth=("admin", "wrong"))
     assert r.status_code == 429
-    assert r.headers.get("Retry-After") == "60"
+    assert r.headers.get("Retry-After") == "600"
 
     r2 = c.get("/admin/licenses", auth=("admin", "test-token"))
     assert r2.status_code == 429
@@ -1470,3 +1472,111 @@ def test_check_date_only_future_expiry_stays_active(tmp_path, monkeypatch):
     r = c.post("/api/check", json={"license_key": "DATE-ONLY", "domain": "example.test"})
     assert r.status_code == 200
     assert r.json()["status"] == "active"
+
+
+# ==========================================================================
+# レート制限: WINDOW の実効性と TOTP 総当たり (B-2 / B-3)
+# ==========================================================================
+
+def _insert_auth_failure(main, ip, event, seconds_ago):
+    """監査ログに過去時刻の失敗行を直接入れる (時間経過をテストするため)。"""
+    with main.db.connection() as c:
+        c.execute(
+            "INSERT INTO audit_log (event, ip, ts) VALUES (?, ?, datetime('now', ?))",
+            (event, ip, f"-{int(seconds_ago)} seconds"),
+        )
+
+
+def test_totp_failures_count_toward_block(tmp_path, monkeypatch):
+    # TOTP の失敗もレート制限の対象。数えないと、Basic パスワードが漏れた
+    # 攻撃者が 6 桁コードを無制限に総当たりできてしまう。
+    monkeypatch.setenv("DRWP_LOGIN_FAIL_LIMIT", "3")
+    monkeypatch.setenv("DRWP_LOGIN_FAIL_WINDOW", "60")
+    monkeypatch.setenv("DRWP_LOGIN_BLOCK_SECONDS", "600")
+    c, main = _fresh_client(tmp_path, monkeypatch)
+
+    for _ in range(3):
+        _insert_auth_failure(main, "testclient", "totp_failed", 1)
+
+    # 正しい Basic 資格情報でも遮断される
+    r = c.get("/admin/licenses", auth=("admin", "test-token"))
+    assert r.status_code == 429
+
+
+def test_window_limits_which_failures_count(tmp_path, monkeypatch):
+    # WINDOW(10秒) の外に散らばった失敗は閾値に達しない。
+    # 以前は WINDOW がどこにも使われておらず、環境変数を変えても
+    # 挙動が変わらなかった。
+    monkeypatch.setenv("DRWP_LOGIN_FAIL_LIMIT", "3")
+    monkeypatch.setenv("DRWP_LOGIN_FAIL_WINDOW", "10")
+    monkeypatch.setenv("DRWP_LOGIN_BLOCK_SECONDS", "600")
+    c, main = _fresh_client(tmp_path, monkeypatch)
+
+    # 100秒おきの失敗3回 → どの10秒窓にも3回入らない → 遮断されない
+    for ago in (300, 200, 100):
+        _insert_auth_failure(main, "testclient", "login_failed", ago)
+    r = c.get("/admin/licenses", auth=("admin", "test-token"))
+    assert r.status_code == 200
+
+    # 直近に3連続 → 10秒窓に3回 → 遮断される
+    for _ in range(3):
+        _insert_auth_failure(main, "testclient", "login_failed", 1)
+    r = c.get("/admin/licenses", auth=("admin", "test-token"))
+    assert r.status_code == 429
+
+
+def test_block_expires_after_block_seconds(tmp_path, monkeypatch):
+    # 遮断は「最後の失敗から BLOCK 秒」で解ける。
+    monkeypatch.setenv("DRWP_LOGIN_FAIL_LIMIT", "3")
+    monkeypatch.setenv("DRWP_LOGIN_FAIL_WINDOW", "60")
+    monkeypatch.setenv("DRWP_LOGIN_BLOCK_SECONDS", "30")
+    c, main = _fresh_client(tmp_path, monkeypatch)
+
+    # 60秒窓には収まっているが、最後の失敗が BLOCK(30秒) より古い
+    for ago in (50, 45, 40):
+        _insert_auth_failure(main, "testclient", "login_failed", ago)
+    r = c.get("/admin/licenses", auth=("admin", "test-token"))
+    assert r.status_code == 200
+
+
+# ==========================================================================
+# domain 空のワイルドカードライセンス禁止 (B-6)
+# ==========================================================================
+
+def test_api_create_rejects_empty_domain(client):
+    for bad in ("", "   "):
+        r = client.post(
+            "/admin/licenses",
+            auth=("admin", "test-token"),
+            json={"license_key": "K-EMPTY", "domain": bad, "plan": "pro", "status": "active"},
+        )
+        assert r.status_code == 422, f"domain={bad!r} が通ってしまった"
+
+
+def test_api_patch_rejects_empty_domain(tmp_path, monkeypatch):
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    _add_license(c, "K-PATCH", "pro")
+    r = c.patch(
+        "/admin/licenses/K-PATCH",
+        auth=("admin", "test-token"),
+        json={"domain": ""},
+    )
+    assert r.status_code == 422
+    # 変わっていないこと
+    r2 = c.get("/admin/licenses/K-PATCH", auth=("admin", "test-token"))
+    assert r2.json()["domain"] == "example.test"
+
+
+def test_ui_create_rejects_blank_domain(tmp_path, monkeypatch):
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    r = c.post(
+        "/admin/ui/licenses",
+        auth=("admin", "test-token"),
+        data={"license_key": "", "domain": "   ", "plan": "basic", "status": "active"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert "msg=domain_required" in r.headers["location"]
+    # 何も作られていないこと
+    lst = c.get("/admin/licenses", auth=("admin", "test-token")).json()
+    assert lst.get("items", lst) in ([], {})  # {"items": []} / [] のどちらでも空

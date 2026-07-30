@@ -301,16 +301,21 @@ def purge_audit(days: int) -> int:
         return cur.rowcount or 0
 
 
-def count_failed_logins_since(ip: str, seconds: int) -> int:
-    """Used by the rate limiter — how many login_failed rows in the
-    last `seconds` for this IP. SQLite's datetime() is the simplest
-    portable way to express "now minus N seconds" without bringing
-    Python time into the query."""
+def failed_auth_times(ip: str, seconds: int) -> list:
+    """Used by the rate limiter — UNIX timestamps (newest first) of
+    failed auth attempts by this IP in the last `seconds`.
+
+    Counts BOTH `login_failed` (Basic) and `totp_failed` (2FA) rows.
+    If TOTP failures were not counted, an attacker who has obtained the
+    Basic password could brute-force the 6-digit code without limit.
+    SQLite's datetime() is the simplest portable way to express
+    "now minus N seconds" without bringing Python time into the query."""
     with connection() as c:
-        row = c.execute(
-            f"SELECT COUNT(*) AS n FROM audit_log "
-            f"WHERE event = 'login_failed' AND ip = ? "
-            f"AND ts >= datetime('now', '-{int(seconds)} seconds')",
+        rows = c.execute(
+            f"SELECT CAST(strftime('%s', ts) AS INTEGER) AS t FROM audit_log "
+            f"WHERE event IN ('login_failed', 'totp_failed') AND ip = ? "
+            f"AND ts >= datetime('now', '-{int(seconds)} seconds') "
+            f"ORDER BY ts DESC",
             (ip,),
-        ).fetchone()
-        return int(row["n"]) if row else 0
+        ).fetchall()
+        return [int(r["t"]) for r in rows]
