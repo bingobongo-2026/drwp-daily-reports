@@ -253,7 +253,8 @@ $is_retired = DRWP_User::is_retired();
             <th><label for="drwp-plan-linked"><?php esc_html_e('紐づく日報', 'drwp-daily-reports'); ?></label></th>
             <td>
               <input type="number" id="drwp-plan-linked" name="linked_report_id" min="0" placeholder="0" style="width:100px;" />
-              <p class="description"><?php esc_html_e('日報の ID を入れると紐づきます。同日同案件の候補があれば自動で提案されます。', 'drwp-daily-reports'); ?></p>
+              <button type="button" class="button button-small" id="drwp-plan-unlink"><?php esc_html_e('解除', 'drwp-daily-reports'); ?></button>
+              <p class="description"><?php esc_html_e('日付を入れると同日の日報候補が下に表示され、クリックで紐づきます（案件を選ぶと候補を絞り込み）。ID の直接入力も可能です。', 'drwp-daily-reports'); ?></p>
               <div id="drwp-plan-linkable" class="drwp-plan-linkable"></div>
             </td>
           </tr>
@@ -338,7 +339,7 @@ $is_retired = DRWP_User::is_retired();
   var addLabel  = <?php echo wp_json_encode(__('追加', 'drwp-daily-reports')); ?>;
   var saveLabel = <?php echo wp_json_encode(__('更新', 'drwp-daily-reports')); ?>;
   var deleteConfirm = <?php echo wp_json_encode(__('この予定を削除します。よろしいですか？', 'drwp-daily-reports')); ?>;
-  var noLinkable = <?php echo wp_json_encode(__('同日同案件の日報候補はありません。', 'drwp-daily-reports')); ?>;
+  var noLinkable = <?php echo wp_json_encode(__('同日の日報候補はありません。', 'drwp-daily-reports')); ?>;
 
   function clearForm() {
     idEl.value = '0';
@@ -354,14 +355,16 @@ $is_retired = DRWP_User::is_retired();
   }
 
   function loadLinkable() {
-    // Pull reports matching the form's date + project so the
-    // operator can pick one with a click instead of typing the
-    // report id. Stays empty until both fields are set.
+    // Pull reports matching the form's date (project narrows the
+    // list when set) so the operator can pick one with a click
+    // instead of typing the report id.
     linkableEl.innerHTML = '';
     var date = dateEl.value;
     var pid  = projectEl.value;
-    if (!date || !pid) return;
-    fetch(rest.url + '/reports?date_from=' + encodeURIComponent(date) + '&date_to=' + encodeURIComponent(date) + '&project_id=' + encodeURIComponent(pid), {
+    if (!date) return;
+    var url = rest.url + '/reports?date_from=' + encodeURIComponent(date) + '&date_to=' + encodeURIComponent(date);
+    if (pid) url += '&project_id=' + encodeURIComponent(pid);
+    fetch(url, {
       credentials: 'same-origin',
       headers: { 'X-WP-Nonce': rest.nonce }
     }).then(function (r) { return r.json(); }).then(function (j) {
@@ -373,7 +376,9 @@ $is_retired = DRWP_User::is_retired();
       items.forEach(function (it) {
         var btn = document.createElement('button');
         btn.type = 'button';
-        btn.textContent = '#' + it.id + ' (' + (it.author_name || '') + ')';
+        btn.textContent = '#' + it.id
+          + (pid || !it.project_name ? '' : ' [' + it.project_name + ']')
+          + ' (' + (it.author_name || '') + ')';
         if (String(it.id) === String(linkedEl.value)) btn.classList.add('is-picked');
         btn.addEventListener('click', function () {
           linkedEl.value = it.id;
@@ -387,6 +392,11 @@ $is_retired = DRWP_User::is_retired();
 
   [dateEl, projectEl].forEach(function (el) {
     el.addEventListener('change', loadLinkable);
+  });
+
+  document.getElementById('drwp-plan-unlink').addEventListener('click', function () {
+    linkedEl.value = '';
+    linkableEl.querySelectorAll('button').forEach(function (b) { b.classList.remove('is-picked'); });
   });
 
   document.getElementById('drwp-plan-add-btn').addEventListener('click', function () {
