@@ -10,16 +10,16 @@ $author_name   = !empty($report->user_id)
   <h1><?php esc_html_e('日報新規・編集', 'drwp-daily-reports'); ?></h1>
 
   <?php if (!empty($_GET['saved'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('保存しました。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('保存しました。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
   <?php if (!empty($_GET['reviewed'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('レビュー状態を更新しました。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('レビュー状態を更新しました。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
   <?php if (!empty($_GET['commented'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('コメントを追加しました。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('コメントを追加しました。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
   <?php if (!empty($_GET['converted'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('記事を作成/更新しました。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('記事を作成/更新しました。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
 
   <?php if ($report_id): ?>
@@ -296,7 +296,7 @@ $author_name   = !empty($report->user_id)
     <?php endif; ?>
   </div>
   <?php else: ?>
-    <div class="notice notice-info"><p><?php esc_html_e('保存すると「公開・投稿」セクションが表示されます。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('info', __('保存すると「公開・投稿」セクションが表示されます。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
 
   <!-- ============================================================

@@ -2,14 +2,11 @@
 <div class="wrap">
   <h1><?php esc_html_e('記事作成', 'drwp-daily-reports'); ?></h1>
   <?php if (isset($_GET['updated'])): ?>
-    <div class="notice notice-success"><p>
-      <?php
-        printf(
-            esc_html(_n('%d 件更新しました。', '%d 件更新しました。', intval($_GET['updated']), 'drwp-daily-reports')),
-            intval($_GET['updated'])
-        );
-      ?>
-    </p></div>
+    <?php DRWP_Admin::admin_notice('success', sprintf(
+        /* translators: %d: 更新件数 */
+        _n('%d 件更新しました。', '%d 件更新しました。', intval($_GET['updated']), 'drwp-daily-reports'),
+        intval($_GET['updated'])
+    )); ?>
   <?php endif; ?>
 
   <p class="description"><?php esc_html_e('承認済みの日報のみ表示されます。', 'drwp-daily-reports'); ?></p>

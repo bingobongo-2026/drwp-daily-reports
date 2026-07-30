@@ -31,10 +31,10 @@ $_pages  = $_pager['pages'];
   <h1><?php esc_html_e('社員', 'drwp-daily-reports'); ?></h1>
 
   <?php if (!empty($_GET['saved'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('社員の情報を更新しました。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('社員の情報を更新しました。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
   <?php if (!empty($_GET['err']) && $_GET['err'] === 'invalid'): ?>
-    <div class="notice notice-error"><p><?php esc_html_e('対象のユーザーは作業員ではありません。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('error', __('対象のユーザーは作業員ではありません。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
 
   <p class="description">

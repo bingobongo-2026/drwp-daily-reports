@@ -3,10 +3,10 @@
   <h1><?php esc_html_e('顧客', 'drwp-daily-reports'); ?></h1>
 
   <?php if (!empty($_GET['saved'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('顧客を保存しました。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('顧客を保存しました。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
   <?php if (!empty($_GET['error']) && $_GET['error'] === 'missing_name'): ?>
-    <div class="notice notice-error"><p><?php esc_html_e('顧客名は必須です。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('error', __('顧客名は必須です。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
 
   <p>

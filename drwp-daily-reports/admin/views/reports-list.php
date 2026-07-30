@@ -62,14 +62,11 @@ $can_review = current_user_can('edit_others_posts');
   <?php endif; ?>
 
   <?php if (isset($_GET['updated'])): ?>
-    <div class="notice notice-success"><p>
-      <?php
-        printf(
-            esc_html(_n('%d 件更新しました。', '%d 件更新しました。', intval($_GET['updated']), 'drwp-daily-reports')),
-            intval($_GET['updated'])
-        );
-      ?>
-    </p></div>
+    <?php DRWP_Admin::admin_notice('success', sprintf(
+        /* translators: %d: 更新件数 */
+        _n('%d 件更新しました。', '%d 件更新しました。', intval($_GET['updated']), 'drwp-daily-reports'),
+        intval($_GET['updated'])
+    )); ?>
   <?php endif; ?>
 
   <!-- 検索・絞り込み — details で折りたたみ、条件があれば自動展開 -->

@@ -3,7 +3,7 @@
   <h1><?php esc_html_e('AI 設定', 'drwp-daily-reports'); ?></h1>
 
   <?php if (isset($_GET['saved'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('保存しました。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('保存しました。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
 
   <p><?php esc_html_e('日報を AI に渡して、文章生成・要約・チェックを行います。「運営契約 API」モードでは月次回数制限があり、API キーは不要です。「自分の API キー」モードでは OpenAI / Anthropic のキーを設定して直接利用します。', 'drwp-daily-reports'); ?></p>

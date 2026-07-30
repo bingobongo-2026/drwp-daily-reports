@@ -441,6 +441,47 @@ class DRWP_Admin {
     }
 
     /**
+     * 管理画面の通知(成功・エラー等)を統一マークアップで1件出力する。
+     *
+     * これまで各ビューが `<div class="notice notice-success"><p>…</p></div>`
+     * を手書きしており、is-dismissible の有無・エスケープの流儀がページごとに
+     * バラバラだった。ここを通すことで、閉じるボタン付き・エスケープ済みの
+     * 一貫した通知になる。
+     *
+     * @param string $type 'success' | 'error' | 'warning' | 'info'
+     * @param string $text 表示文字列 (プレーンテキスト。内部で esc_html)
+     */
+    public static function admin_notice($type, $text) {
+        $map = [
+            'success' => 'notice-success',
+            'error'   => 'notice-error',
+            'warning' => 'notice-warning',
+            'info'    => 'notice-info',
+        ];
+        $cls = $map[$type] ?? 'notice-info';
+        printf(
+            '<div class="notice %s is-dismissible"><p>%s</p></div>',
+            esc_attr($cls),
+            esc_html($text)
+        );
+    }
+
+    /**
+     * admin_notice の HTML 版 — リンクや件数の強調を含む通知用。
+     * $html は呼び出し側でエスケープ済みであること。
+     */
+    public static function admin_notice_html($type, $html) {
+        $map = [
+            'success' => 'notice-success',
+            'error'   => 'notice-error',
+            'warning' => 'notice-warning',
+            'info'    => 'notice-info',
+        ];
+        $cls = $map[$type] ?? 'notice-info';
+        echo '<div class="notice ' . esc_attr($cls) . ' is-dismissible"><p>' . $html . '</p></div>';
+    }
+
+    /**
      * Accept HH:MM or HH:MM:SS for the report's started_at /
      * ended_at TIME columns; anything else (empty, junk) becomes
      * NULL so we don't push garbage into MySQL.

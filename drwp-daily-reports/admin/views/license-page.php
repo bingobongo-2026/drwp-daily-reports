@@ -36,27 +36,23 @@
   <?php endif; ?>
 
   <?php if (!empty($_GET['saved'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('設定を保存しました。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('設定を保存しました。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
   <?php if (!empty($_GET['checked'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('ライセンスサーバに照会しました。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('ライセンスサーバに照会しました。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
   <?php if (!empty($_GET['key_fetched'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('公開鍵を取得しました。以降のライセンス照会では署名検証が行われます。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('公開鍵を取得しました。以降のライセンス照会では署名検証が行われます。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
   <?php if (!empty($_GET['rotated'])): ?>
-    <div class="notice notice-success"><p><?php esc_html_e('署名鍵をローテートしました。古い署名は previous_keys 経由で引き続き検証できます。', 'drwp-daily-reports'); ?></p></div>
+    <?php DRWP_Admin::admin_notice('success', __('署名鍵をローテートしました。古い署名は previous_keys 経由で引き続き検証できます。', 'drwp-daily-reports')); ?>
   <?php endif; ?>
   <?php if (!empty($_GET['error'])): ?>
-    <div class="notice notice-error"><p>
-      <?php
-        printf(
-            /* translators: %s: error message */
-            esc_html__('処理に失敗しました: %s', 'drwp-daily-reports'),
-            esc_html($license['message'])
-        );
-      ?>
-    </p></div>
+    <?php DRWP_Admin::admin_notice('error', sprintf(
+        /* translators: %s: error message */
+        __('処理に失敗しました: %s', 'drwp-daily-reports'),
+        (string) $license['message']
+    )); ?>
   <?php endif; ?>
 
   <?php
