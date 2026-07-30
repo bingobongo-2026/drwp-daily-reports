@@ -262,17 +262,6 @@
 .drwp-customer-modal-body .form-table td{padding:6px 0}
 .drwp-customer-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
 /* 検索・絞り込み — 日報一覧・予定一覧と同じ薄いグレー枠の details。 */
-.drwp-filter{margin-bottom:10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff}
-.drwp-filter-summary{cursor:pointer;font-weight:600;color:#1d2327;list-style:none;display:flex;align-items:center;gap:6px;padding:8px 12px}
-.drwp-filter-summary::-webkit-details-marker{display:none}
-.drwp-filter-summary::before{content:'▸';font-size:.8em;color:#6b7280;transition:transform .15s}
-.drwp-filter[open] .drwp-filter-summary{border-bottom:1px solid #f1f5f9}
-.drwp-filter[open] .drwp-filter-summary::before{transform:rotate(90deg)}
-.drwp-filter-summary:hover{color:#2271b1}
-.drwp-filter-form{padding:10px 12px}
-.drwp-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
-.drwp-row:last-child{margin-bottom:0}
-.drwp-search-input{min-width:200px;flex:1}
 /* Group chips shown in the 顧客 listing table — color dot + name
    in a soft pill. The color comes from the group's color column,
    left blank renders the pill without a dot. */

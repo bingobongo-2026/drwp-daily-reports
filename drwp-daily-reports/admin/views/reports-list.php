@@ -461,17 +461,6 @@ $can_review = current_user_can('edit_others_posts');
 <style>
 /* 検索・絞り込み — `<details>` で控えめにまとめる。アクセントカラ
    ーを使わず、薄いグレーの枠だけで囲んで「補助領域」感を出す。 */
-.drwp-filter{margin-bottom:10px;border:1px solid #e5e7eb;border-radius:6px;background:#fff}
-.drwp-filter-summary{cursor:pointer;font-weight:600;color:#1d2327;list-style:none;display:flex;align-items:center;gap:6px;padding:8px 12px}
-.drwp-filter-summary::-webkit-details-marker{display:none}
-.drwp-filter-summary::before{content:'▸';font-size:.8em;color:#6b7280;transition:transform .15s}
-.drwp-filter[open] .drwp-filter-summary{border-bottom:1px solid #f1f5f9}
-.drwp-filter[open] .drwp-filter-summary::before{transform:rotate(90deg)}
-.drwp-filter-summary:hover{color:#2271b1}
-.drwp-filter-form{padding:10px 12px}
-.drwp-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
-.drwp-row:last-child{margin-bottom:0}
-.drwp-search-input{min-width:240px;flex:1}
 
 /* AI ツールバー — 2 つの AI 操作をヘッダー直下にコンパクトに並べる。
    旧来は薄いグレーカードに長い説明文を 2 行表示していたが、ヘッダー
