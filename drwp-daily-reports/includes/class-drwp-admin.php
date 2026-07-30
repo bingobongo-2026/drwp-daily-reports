@@ -19,23 +19,6 @@ class DRWP_Admin {
         add_action('admin_post_drwp_export_reports_csv', [__CLASS__, 'export_filtered_csv']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue']);
         add_action('admin_notices', [__CLASS__, 'license_notice']);
-        add_action('admin_init', [__CLASS__, 'redirect_report_edit_page']);
-    }
-
-    /**
-     * 旧・日報編集ページ (drwp_report_edit) は日報一覧のモーダルへ統合した。
-     * ブックマークや通知メール内の古い URL が生き続けるよう、ページ自体は
-     * 残して一覧のモーダル自動オープン URL へリダイレクトする。
-     * (admin_init で処理するのはヘッダー出力前に Location を返すため。)
-     */
-    public static function redirect_report_edit_page() {
-        if (!is_admin() || ($_GET['page'] ?? '') !== 'drwp_report_edit') return;
-        $id = isset($_GET['id']) ? absint($_GET['id']) : 0;
-        $target = $id
-            ? admin_url('admin.php?page=drwp_reports&edit=' . $id)
-            : admin_url('admin.php?page=drwp_reports&new=1');
-        wp_safe_redirect($target);
-        exit;
     }
 
     /** Validate per_page against the allowed choices (defaults to 25). */
@@ -408,11 +391,10 @@ class DRWP_Admin {
             add_submenu_page('drwp_reports', $seed, $seed, 'manage_options', DRWP_Seed::SLUG, ['DRWP_Seed', 'render_page']);
         }
 
-        // Hidden pages (parent = null): reachable only via direct links
-        // from the dashboard / review redirects / notification emails /
-        // audit log, not from the sidebar.
-        $edit = __('日報編集', 'drwp-daily-reports');
-        add_submenu_page(null, $edit, $edit, self::CAP_EDIT, 'drwp_report_edit', [__CLASS__, 'report_edit_page']);
+        // Hidden page (parent = null): reachable only via direct links,
+        // not from the sidebar. 旧・日報編集ページ (drwp_report_edit) は
+        // 一覧モーダルへの統合により削除済み (未公開プラグインのため
+        // 旧URL互換のリダイレクトも置かない)。
         $prev = __('公開プレビュー', 'drwp-daily-reports');
         add_submenu_page(null, $prev, $prev, self::CAP_EDIT, 'drwp_report_preview', [__CLASS__, 'report_preview_page']);
     }
@@ -752,21 +734,6 @@ class DRWP_Admin {
         $projects = DRWP_Project::all_for_filter();
 
         include DRWP_PATH . 'admin/views/articles-list.php';
-    }
-
-    public static function report_edit_page() {
-        // 通常は admin_init の redirect_report_edit_page() が先に転送する。
-        // 万一ここまで来た場合 (ヘッダー送信後) の保険として JS で飛ばす。
-        $id = isset($_GET['id']) ? absint($_GET['id']) : 0;
-        $target = $id
-            ? admin_url('admin.php?page=drwp_reports&edit=' . $id)
-            : admin_url('admin.php?page=drwp_reports&new=1');
-        printf(
-            '<p><a href="%1$s">%2$s</a></p><script>location.replace(%3$s);</script>',
-            esc_url($target),
-            esc_html__('日報一覧に移動します…', 'drwp-daily-reports'),
-            wp_json_encode(esc_url_raw($target))
-        );
     }
 
     public static function report_preview_page() {

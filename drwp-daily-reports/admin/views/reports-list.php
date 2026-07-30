@@ -490,17 +490,7 @@ $can_review = current_user_can('edit_others_posts');
 .drwp-sort-arrow{color:#94a3b8;font-size:.78em;font-weight:400}
 .drwp-sortable.is-active .drwp-sort-arrow{color:#2271b1}
 
-/* 共通モーダル — 確認 / 編集 で同じスタイル */
-.drwp-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:640px;width:90vw}
-.drwp-modal-wide{max-width:860px}
-.drwp-modal::backdrop{background:rgba(0,0,0,.45)}
-.drwp-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e5e7eb}
-.drwp-modal-header h2{margin:0;font-size:1.1em}
-.drwp-modal-close{background:transparent;border:0;font-size:1.6em;cursor:pointer;color:#50575e;line-height:1;padding:0 4px}
-.drwp-modal-body{padding:16px 20px;max-height:78vh;overflow-y:auto}
-.drwp-modal-body .form-table th{width:100px;padding:6px 0}
-.drwp-modal-body .form-table td{padding:6px 0}
-.drwp-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
+/* モーダルのシェル (drwp-modal-*) は admin.css の共通スタイルを使用 */
 .drwp-view-loading{color:#64748b;text-align:center;padding:32px 0}
 
 /* 編集モーダル — 写真リスト + 追加ボタン */
@@ -1093,9 +1083,8 @@ $can_review = current_user_can('edit_others_posts');
   if (newBtn) newBtn.addEventListener('click', function () { openEditModal(0); });
 
   /* ---- URL パラメータでモーダルを自動で開く ----
-     ?edit=ID / ?view=ID / ?new=1。旧・日報編集ページ (drwp_report_edit)
-     へのリンクやメール内 URL は、このパラメータ付き一覧 URL に
-     リダイレクトされてここで開く。 */
+     ?edit=ID / ?view=ID / ?new=1。通知メール・ダッシュボード・
+     操作履歴からのリンクはこのパラメータ付き一覧 URL で届く。 */
   (function () {
     var params = new URLSearchParams(location.search);
     var editId = parseInt(params.get('edit') || '', 10);

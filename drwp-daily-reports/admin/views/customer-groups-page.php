@@ -76,18 +76,18 @@
 
   <?php echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total); ?>
 
-  <dialog id="drwp-cg-dialog" class="drwp-cg-modal">
+  <dialog id="drwp-cg-dialog" class="drwp-modal drwp-modal-narrow drwp-cg-modal">
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
       <?php wp_nonce_field('drwp_save_customer_group'); ?>
       <input type="hidden" name="action" value="drwp_save_customer_group" />
       <input type="hidden" name="id" id="drwp-cg-id" value="0" />
 
-      <div class="drwp-cg-modal-header">
+      <div class="drwp-modal-header drwp-cg-modal-header">
         <h2 id="drwp-cg-title"><?php esc_html_e('新しい顧客グループを追加', 'drwp-daily-reports'); ?></h2>
-        <button type="button" class="drwp-cg-modal-close">&times;</button>
+        <button type="button" class="drwp-modal-close drwp-cg-modal-close">&times;</button>
       </div>
 
-      <div class="drwp-cg-modal-body">
+      <div class="drwp-modal-body drwp-cg-modal-body">
         <table class="form-table">
           <tr>
             <th><label for="drwp-cg-name"><?php esc_html_e('グループ名', 'drwp-daily-reports'); ?> <em style="color:#b91c1c;">*</em></label></th>
@@ -119,11 +119,11 @@
         </table>
       </div>
 
-      <div class="drwp-cg-modal-footer">
+      <div class="drwp-modal-footer drwp-cg-modal-footer">
         <button type="submit" class="button button-primary" id="drwp-cg-submit">
           <?php esc_html_e('保存', 'drwp-daily-reports'); ?>
         </button>
-        <button type="button" class="button drwp-cg-modal-close">
+        <button type="button" class="button drwp-modal-close drwp-cg-modal-close">
           <?php esc_html_e('キャンセル', 'drwp-daily-reports'); ?>
         </button>
       </div>
@@ -133,15 +133,8 @@
 
 <style>
 .drwp-cg-swatch{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.1);vertical-align:middle;margin-right:6px}
-.drwp-cg-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:560px;width:90vw}
-.drwp-cg-modal::backdrop{background:rgba(0,0,0,.45)}
-.drwp-cg-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e5e7eb}
-.drwp-cg-modal-header h2{margin:0;font-size:1.1em}
-.drwp-cg-modal-close{background:transparent;border:0;font-size:1.6em;cursor:pointer;color:#50575e;line-height:1;padding:0 4px}
-.drwp-cg-modal-body{padding:16px 20px;max-height:65vh;overflow-y:auto}
-.drwp-cg-modal-body .form-table th{width:120px;padding:6px 0;vertical-align:top}
-.drwp-cg-modal-body .form-table td{padding:6px 0}
-.drwp-cg-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
+/* モーダルのシェルは admin.css の共通スタイル (drwp-modal-*) を使用 */
+.drwp-cg-modal-body .form-table th{width:120px}
 </style>
 
 <script>
