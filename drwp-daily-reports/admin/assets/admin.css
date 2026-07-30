@@ -124,7 +124,10 @@ details.drwp-section-legacy[open] > summary::before {
 }
 .drwp-list-search-input { min-width: 200px; flex: 1; }
 
-/* Modals (dialog) ----------------------------------------------- */
+/* Modals (dialog) -----------------------------------------------
+   共通シェル。基準は日報一覧のモーダル。各ページの dialog は
+   `drwp-modal` を併記し、幅の違いは -narrow / -wide 修飾で表す。
+   ラベル列幅など実質差分だけを各ページの <style> で上書きする。 */
 .drwp-modal {
     border: 0;
     border-radius: 12px;
@@ -133,7 +136,8 @@ details.drwp-section-legacy[open] > summary::before {
     max-width: 640px;
     width: 90vw;
 }
-.drwp-modal-wide { max-width: 780px; }
+.drwp-modal-narrow { max-width: 560px; }
+.drwp-modal-wide { max-width: 860px; }
 .drwp-modal::backdrop {
     background: rgba(0, 0, 0, 0.45);
 }
@@ -156,10 +160,10 @@ details.drwp-section-legacy[open] > summary::before {
 }
 .drwp-modal-body {
     padding: 16px 20px;
-    max-height: 65vh;
+    max-height: 78vh;
     overflow-y: auto;
 }
-.drwp-modal-body .form-table th { width: 100px; padding: 6px 0; }
+.drwp-modal-body .form-table th { width: 100px; padding: 6px 0; vertical-align: top; }
 .drwp-modal-body .form-table td { padding: 6px 0; }
 .drwp-modal-footer {
     display: flex;
@@ -170,6 +174,7 @@ details.drwp-section-legacy[open] > summary::before {
     background: #f6f7f7;
     border-radius: 0 0 12px 12px;
 }
+.drwp-modal-spacer { flex: 1; }
 .drwp-view-text { white-space: pre-wrap; }
 
 /* Shared list-filter panel — was copy-pasted into every list view.

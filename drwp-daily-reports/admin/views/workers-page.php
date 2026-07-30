@@ -157,18 +157,18 @@ $_pages  = $_pager['pages'];
   <?php echo DRWP_Admin::render_pager($_paged, $_pages, $pager_base, $_total); ?>
 
   <!-- 社員情報編集モーダル (所属 / 入社日 / 備考 — すべて任意) -->
-  <dialog id="drwp-worker-dialog" class="drwp-worker-modal">
+  <dialog id="drwp-worker-dialog" class="drwp-modal drwp-modal-narrow drwp-worker-modal">
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
       <?php wp_nonce_field('drwp_save_worker'); ?>
       <input type="hidden" name="action" value="drwp_save_worker" />
       <input type="hidden" name="user_id" id="drwp-worker-id" value="0" />
 
-      <div class="drwp-worker-modal-header">
+      <div class="drwp-modal-header drwp-worker-modal-header">
         <h2 id="drwp-worker-title"><?php esc_html_e('社員情報を編集', 'drwp-daily-reports'); ?></h2>
-        <button type="button" class="drwp-worker-modal-close" aria-label="<?php esc_attr_e('閉じる', 'drwp-daily-reports'); ?>">&times;</button>
+        <button type="button" class="drwp-modal-close drwp-worker-modal-close" aria-label="<?php esc_attr_e('閉じる', 'drwp-daily-reports'); ?>">&times;</button>
       </div>
 
-      <div class="drwp-worker-modal-body">
+      <div class="drwp-modal-body drwp-worker-modal-body">
         <table class="form-table">
           <tr>
             <th><label for="drwp-worker-name"><?php esc_html_e('社員名', 'drwp-daily-reports'); ?></label></th>
@@ -195,9 +195,9 @@ $_pages  = $_pager['pages'];
         </table>
       </div>
 
-      <div class="drwp-worker-modal-footer">
+      <div class="drwp-modal-footer drwp-worker-modal-footer">
         <button type="submit" class="button button-primary"><?php esc_html_e('保存', 'drwp-daily-reports'); ?></button>
-        <button type="button" class="button drwp-worker-modal-close"><?php esc_html_e('キャンセル', 'drwp-daily-reports'); ?></button>
+        <button type="button" class="button drwp-modal-close drwp-worker-modal-close"><?php esc_html_e('キャンセル', 'drwp-daily-reports'); ?></button>
       </div>
     </form>
   </dialog>
@@ -212,15 +212,8 @@ $_pages  = $_pager['pages'];
 .drwp-worker-badge.is-retired { background:#f3f4f6; color:#6b7280; }
 .drwp-worker-note-icon { cursor: help; margin-left: 4px; }
 
-.drwp-worker-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:560px;width:90vw}
-.drwp-worker-modal::backdrop{background:rgba(0,0,0,.45)}
-.drwp-worker-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e5e7eb}
-.drwp-worker-modal-header h2{margin:0;font-size:1.1em}
-.drwp-worker-modal-close{background:transparent;border:0;font-size:1.6em;cursor:pointer;color:#50575e;line-height:1;padding:0 4px}
-.drwp-worker-modal-body{padding:16px 20px}
-.drwp-worker-modal-body .form-table th{width:90px;padding:6px 0;vertical-align:top}
-.drwp-worker-modal-body .form-table td{padding:6px 0}
-.drwp-worker-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
+/* モーダルのシェルは admin.css の共通スタイル (drwp-modal-*) を使用 */
+.drwp-worker-modal-body .form-table th{width:90px}
 </style>
 
 <script>

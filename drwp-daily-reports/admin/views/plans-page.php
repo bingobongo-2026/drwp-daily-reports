@@ -178,18 +178,18 @@ $is_retired = DRWP_User::is_retired();
   <?php echo DRWP_Admin::render_pager($paged, $pages, $pager_base, $total); ?>
 
   <!-- 追加・編集モーダル -->
-  <dialog id="drwp-plan-dialog" class="drwp-plan-modal">
+  <dialog id="drwp-plan-dialog" class="drwp-modal drwp-plan-modal">
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
       <?php wp_nonce_field('drwp_save_plan'); ?>
       <input type="hidden" name="action" value="drwp_save_plan" />
       <input type="hidden" name="id" id="drwp-plan-id" value="0" />
 
-      <div class="drwp-plan-modal-header">
+      <div class="drwp-modal-header drwp-plan-modal-header">
         <h2 id="drwp-plan-title"><?php esc_html_e('新しい予定を追加', 'drwp-daily-reports'); ?></h2>
-        <button type="button" class="drwp-plan-modal-close" aria-label="<?php esc_attr_e('閉じる', 'drwp-daily-reports'); ?>">&times;</button>
+        <button type="button" class="drwp-modal-close drwp-plan-modal-close" aria-label="<?php esc_attr_e('閉じる', 'drwp-daily-reports'); ?>">&times;</button>
       </div>
 
-      <div class="drwp-plan-modal-body">
+      <div class="drwp-modal-body drwp-plan-modal-body">
         <table class="form-table">
           <tr>
             <th><label for="drwp-plan-date"><?php esc_html_e('日付', 'drwp-daily-reports'); ?> <em style="color:#b91c1c;">*</em></label></th>
@@ -261,15 +261,15 @@ $is_retired = DRWP_User::is_retired();
         </table>
       </div>
 
-      <div class="drwp-plan-modal-footer">
+      <div class="drwp-modal-footer drwp-plan-modal-footer">
         <button type="submit" class="button button-primary" id="drwp-plan-submit">
           <?php esc_html_e('保存', 'drwp-daily-reports'); ?>
         </button>
-        <span class="drwp-plan-modal-spacer"></span>
+        <span class="drwp-modal-spacer drwp-plan-modal-spacer"></span>
         <button type="button" class="button button-link-delete" id="drwp-plan-delete-btn" hidden>
           <?php esc_html_e('削除', 'drwp-daily-reports'); ?>
         </button>
-        <button type="button" class="button drwp-plan-modal-close">
+        <button type="button" class="button drwp-modal-close drwp-plan-modal-close">
           <?php esc_html_e('キャンセル', 'drwp-daily-reports'); ?>
         </button>
         <span id="drwp-plan-save-msg" style="margin-left:10px;font-size:.9em;"></span>
@@ -293,16 +293,7 @@ $is_retired = DRWP_User::is_retired();
 .drwp-plan-badge.is-completed{background:#dcfce7;color:#166534}
 .drwp-plan-badge.is-cancelled{background:#f3f4f6;color:#6b7280}
 
-.drwp-plan-modal{border:0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:0;max-width:640px;width:90vw}
-.drwp-plan-modal::backdrop{background:rgba(0,0,0,.45)}
-.drwp-plan-modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e5e7eb}
-.drwp-plan-modal-header h2{margin:0;font-size:1.1em}
-.drwp-plan-modal-close{background:transparent;border:0;font-size:1.6em;cursor:pointer;color:#50575e;line-height:1;padding:0 4px}
-.drwp-plan-modal-body{padding:16px 20px;max-height:72vh;overflow-y:auto}
-.drwp-plan-modal-body .form-table th{width:100px;padding:6px 0;vertical-align:top}
-.drwp-plan-modal-body .form-table td{padding:6px 0}
-.drwp-plan-modal-footer{display:flex;gap:8px;align-items:center;padding:12px 20px;border-top:1px solid #e5e7eb;background:#f6f7f7;border-radius:0 0 12px 12px}
-.drwp-plan-modal-spacer{flex:1}
+/* モーダルのシェルは admin.css の共通スタイル (drwp-modal-*) を使用 */
 .drwp-plan-linkable{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
 .drwp-plan-linkable button{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.85em;color:#1d4ed8}
 .drwp-plan-linkable button:hover{background:#dbeafe}
