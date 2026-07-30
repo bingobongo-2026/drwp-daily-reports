@@ -8,9 +8,10 @@ import secrets
 import zipfile
 from datetime import datetime, timezone
 from typing import Optional
+from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, status
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator
@@ -30,6 +31,45 @@ if not logging.getLogger().handlers:
     )
 
 app = FastAPI(title="Nippoman License Server v1.9")
+
+
+def _same_origin_ok(request: Request) -> bool:
+    """ブラウザ発の管理 POST がクロスサイトでないかを Origin / Referer で
+    検証する (OWASP の標準ヘッダー検証)。
+
+    ブラウザはクロスサイトのフォーム POST に必ず Origin を付けるため、
+    別サイトからの偽装 POST はここで落ちる。Basic 認証はブラウザが自動
+    再送するので、これが無いと攻撃サイトを踏ませるだけで管理トークンの
+    書き換えやライセンス削除ができてしまう。
+
+    curl / CI のような非ブラウザは Origin も Referer も送らないので素通し
+    (それらは Basic 資格情報を明示的に持っている = CSRF ではない)。
+    スキームは比較しない — TLS 終端プロキシ配下では内側が http に
+    見えるため、ホスト名 (netloc) だけを見る。
+    """
+    src = request.headers.get("origin") or request.headers.get("referer") or ""
+    if not src:
+        return True
+    if src == "null":
+        # サンドボックス iframe 等。出所不明のブラウザ POST は拒否する。
+        return False
+    return (urlsplit(src).netloc or "").lower() == (request.headers.get("host") or "").lower()
+
+
+@app.middleware("http")
+async def _csrf_origin_guard(request: Request, call_next):
+    # /admin/ui 配下の更新系 (16 本の POST) を一括で守る。JSON API
+    # (/admin/licenses) はフォーム POST では 422 になり、fetch は CORS の
+    # プリフライトで落ちるため対象外でよい。
+    if request.url.path.startswith("/admin/ui") and request.method not in ("GET", "HEAD", "OPTIONS"):
+        if not _same_origin_ok(request):
+            src = (request.headers.get("origin") or request.headers.get("referer") or "")[:200]
+            db.log_audit("csrf_rejected", ip=_client_ip(request), detail=src)
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"detail": "Cross-origin request rejected"},
+            )
+    return await call_next(request)
 
 db.init_db()
 
@@ -75,6 +115,7 @@ def _status_label(slug: str) -> str:
 _AUDIT_EVENT_LABELS = {
     "login_failed":           "ログイン失敗",
     "login_blocked":          "ログイン遮断（連続失敗）",
+    "csrf_rejected":          "クロスサイト要求を拒否",
     "login_success":          "ログイン成功",
     "signing_rotated_auto":   "署名鍵 自動ローテート",
     "signing_rotated_manual": "署名鍵 手動ローテート",
