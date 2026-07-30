@@ -55,6 +55,36 @@ class Test_DRWP_Media extends WP_UnitTestCase {
         $this->assertCount(0, DRWP_Media::for_report(1));
     }
 
+    public function test_sync_preserves_kind_when_caller_omits_it() {
+        // Before/After の指定UIは記事作成モーダルにしかない。区分を
+        // 扱わない画面 (一覧の編集モーダル等) の保存で photo_kind キーを
+        // 送らなくても、既存の区分が消えないこと。
+        $a = $this->attachment_id();
+        DRWP_Media::sync(1, [
+            ['attachment_id' => $a, 'photo_kind' => 'before'],
+        ]);
+        $this->assertSame('before', DRWP_Media::for_report(1)[0]->photo_kind);
+
+        // キー無しで保存し直しても区分は残る
+        DRWP_Media::sync(1, [
+            ['attachment_id' => $a, 'caption' => 'キャプションだけ更新'],
+        ]);
+        $row = DRWP_Media::for_report(1)[0];
+        $this->assertSame('before', $row->photo_kind, '区分UIの無い画面の保存で区分が消えた');
+        $this->assertSame('キャプションだけ更新', $row->caption);
+    }
+
+    public function test_sync_explicit_kind_still_overrides() {
+        // キーを明示的に送った場合 (記事作成モーダル) は上書きできる。
+        // 'normal' への戻しも効く。
+        $a = $this->attachment_id();
+        DRWP_Media::sync(1, [['attachment_id' => $a, 'photo_kind' => 'after']]);
+        $this->assertSame('after', DRWP_Media::for_report(1)[0]->photo_kind);
+
+        DRWP_Media::sync(1, [['attachment_id' => $a, 'photo_kind' => 'normal']]);
+        $this->assertNull(DRWP_Media::for_report(1)[0]->photo_kind);
+    }
+
     public function test_render_figure_returns_empty_when_no_image_url() {
         // Attachment with no actual file → wp_get_attachment_image_url
         // returns false, so render_figure returns ''.

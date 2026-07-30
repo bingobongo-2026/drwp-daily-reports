@@ -882,15 +882,21 @@ class DRWP_REST {
         $ids = (array) $input['attachment_ids'];
         $captions = (array) ($input['attachment_captions'] ?? []);
         // 並列配列 attachment_kinds[] (normal / before / after) を受ける。
-        // 未指定なら 'normal' 扱い → DB 上は NULL。
+        // キーごと省略された場合は photo_kind を行に含めない — sync() が
+        // 既存の区分を保持する (含めてしまうと、区分UIを持たない画面の
+        // 保存で Before/After 指定が毎回消える)。
+        $has_kinds = array_key_exists('attachment_kinds', $input);
         $kinds = (array) ($input['attachment_kinds'] ?? []);
         $rows = [];
         foreach ($ids as $i => $att_id) {
-            $rows[] = [
+            $row = [
                 'attachment_id' => (int) $att_id,
                 'caption'       => (string) ($captions[$i] ?? ''),
-                'photo_kind'    => (string) ($kinds[$i] ?? ''),
             ];
+            if ($has_kinds) {
+                $row['photo_kind'] = (string) ($kinds[$i] ?? '');
+            }
+            $rows[] = $row;
         }
         DRWP_Media::sync((int) $report_id, $rows);
     }

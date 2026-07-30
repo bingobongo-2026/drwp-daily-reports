@@ -33,6 +33,22 @@ class DRWP_Media {
         $report_id = (int) $report_id;
         if (!$report_id) return 0;
 
+        // Before/After 区分 (photo_kind) を指定する UI は記事作成モーダル
+        // だけにある。他の保存経路 (一覧の編集モーダル・管理編集ページ・
+        // フロント編集) は kind を送らないため、行を作り直すこの方式だと
+        // 保存のたびに区分が消えてしまう。行に 'photo_kind' キーが無い
+        // 場合は既存の区分を引き継ぐ。
+        $existing_kinds = [];
+        $current = $wpdb->get_results($wpdb->prepare(
+            'SELECT attachment_id, photo_kind FROM ' . self::table() . ' WHERE report_id = %d',
+            $report_id
+        ));
+        foreach ($current as $c) {
+            if (!empty($c->photo_kind)) {
+                $existing_kinds[(int) $c->attachment_id] = (string) $c->photo_kind;
+            }
+        }
+
         $wpdb->delete(self::table(), ['report_id' => $report_id]);
 
         $saved = 0;
@@ -44,7 +60,12 @@ class DRWP_Media {
 
             $caption = isset($row['caption']) ? sanitize_text_field(wp_unslash($row['caption'])) : '';
             // 'normal' は DB 上 NULL に倒す (デフォルト値と等価)。
-            $kind = isset($row['photo_kind']) ? self::normalize_kind($row['photo_kind']) : self::KIND_NORMAL;
+            // キー無し = 呼び出し元が区分を扱わない画面 → 既存値を保持。
+            if (array_key_exists('photo_kind', $row)) {
+                $kind = self::normalize_kind($row['photo_kind']);
+            } else {
+                $kind = $existing_kinds[$attachment_id] ?? self::KIND_NORMAL;
+            }
 
             // entry_id is a legacy column from the v1.9–1.10
             // multi-entry model; new rows always write NULL.
