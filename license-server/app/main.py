@@ -6,9 +6,9 @@ import os
 import re
 import secrets
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -139,20 +139,47 @@ templates.env.filters["status_label"] = _status_label
 templates.env.filters["audit_label"] = _audit_label
 
 
+_JST = timezone(timedelta(hours=9))
+
+
 def _short_date(iso: Optional[str]) -> str:
-    """ISO 8601 文字列を `YYYY/MM/DD` に整形。タイムスタンプ部分は
+    """ISO 8601 文字列を JST の `YYYY/MM/DD` に整形。タイムスタンプ部分は
     捨てる (ライセンス期限の用途では時刻まで見たいケースが稀なため)。
-    パース失敗時 / 空入力時はダッシュ。"""
+    以前は UTC の日付をそのまま出しており、JST の運用者には最大9時間
+    ズレて見えた。パース失敗時 / 空入力時はダッシュ。"""
     if not iso:
         return "—"
     try:
         dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
-        return dt.strftime("%Y/%m/%d")
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(_JST).strftime("%Y/%m/%d")
     except (ValueError, TypeError):
         return str(iso)
 
 
+def _expiry_info(iso: Optional[str]) -> dict:
+    """一覧の期限バッジ用。state: none(無期限)/expired/soon(30日以内)/ok。
+    soon のときは days (残日数) も返す。"""
+    if not iso:
+        return {"state": "none", "days": None}
+    try:
+        dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return {"state": "none", "days": None}
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    if dt < now:
+        return {"state": "expired", "days": None}
+    days = (dt - now).days
+    if days < 30:
+        return {"state": "soon", "days": days}
+    return {"state": "ok", "days": days}
+
+
 templates.env.filters["short_date"] = _short_date
+templates.env.filters["expiry_info"] = _expiry_info
 
 _FLASH = {
     "created": ("作成しました。", "ok"),
@@ -187,7 +214,11 @@ _FLASH = {
 def _flash_ctx(msg: Optional[str]) -> dict:
     if not msg:
         return {"flash": None, "flash_class": None}
-    text, cls = _FLASH.get(msg, (msg, "ok"))
+    if msg not in _FLASH:
+        # 未知の値は表示しない。?msg= に任意の文言を入れて「成功通知」を
+        # 偽装できてしまうため、ホワイトリスト外は破棄する。
+        return {"flash": None, "flash_class": None}
+    text, cls = _FLASH[msg]
     return {"flash": text, "flash_class": cls}
 
 security = HTTPBasic(auto_error=False)
@@ -1304,6 +1335,7 @@ def ui_guide(request: Request, msg: Optional[str] = None, _: str = Depends(requi
 def ui_list(
     request: Request,
     msg: Optional[str] = None,
+    key: Optional[str] = None,
     q: str = "",
     plan: str = "",
     status_: str = Query("", alias="status"),
@@ -1313,6 +1345,11 @@ def ui_list(
     # 通常リストが消える事故を防ぐ。
     plan_f = plan if plan in _PLAN_LABELS else ""
     status_f = status_ if status_ in _STATUS_LABELS else ""
+    # 作成直後はキーを目立つ形で見せる (自動生成キーが画面のどこにも
+    # 出ず、一覧から目視で探すしかなかった)。実在するキーだけ表示する。
+    created_key = None
+    if msg == "created" and key and db.get_license(key) is not None:
+        created_key = key
     return templates.TemplateResponse(
         request,
         "licenses.html",
@@ -1323,6 +1360,7 @@ def ui_list(
             "status_filter": status_f,
             "plan_options": _PLAN_LABELS,
             "status_options": _STATUS_LABELS,
+            "created_key": created_key,
             **_flash_ctx(msg),
         },
     )
@@ -1391,7 +1429,8 @@ def ui_create(
         notes=notes.strip(),
     )
     return RedirectResponse(
-        "/admin/ui/licenses?msg=created",
+        # 作成したキーを一覧のフラッシュで見せる (自動生成時に控えるため)。
+        "/admin/ui/licenses?msg=created&key=" + quote(key, safe=""),
         status_code=status.HTTP_303_SEE_OTHER,
     )
 

@@ -273,7 +273,8 @@ def test_ui_create_via_form(client):
         follow_redirects=False,
     )
     assert r.status_code == 303
-    assert r.headers["location"] == "/admin/ui/licenses?msg=created"
+    # 作成キーを一覧で見せるため key= が付くようになった
+    assert r.headers["location"] == "/admin/ui/licenses?msg=created&key=UI-KEY"
 
     listed = client.get("/admin/ui/licenses?msg=created", auth=auth)
     assert listed.status_code == 200
@@ -1641,3 +1642,60 @@ def test_get_pages_are_not_blocked_by_origin_guard(tmp_path, monkeypatch):
         headers={"Referer": "https://other.example/"},
     )
     assert r.status_code == 200
+
+
+# ==========================================================================
+# 管理画面UX: 期限バッジ・作成キー表示・削除確認・フラッシュ偽装 (U-3/4/6/12, I-8)
+# ==========================================================================
+
+def test_expiry_info_states(tmp_path, monkeypatch):
+    _, main = _fresh_client(tmp_path, monkeypatch)
+    assert main._expiry_info(None)["state"] == "none"
+    assert main._expiry_info("2000-01-01T00:00:00+00:00")["state"] == "expired"
+    ok = main._expiry_info("2999-01-01T00:00:00+00:00")
+    assert ok["state"] == "ok"
+    soon = main._expiry_info(
+        (main.datetime.now(main.timezone.utc) + main.timedelta(days=5)).isoformat()
+    )
+    assert soon["state"] == "soon"
+    assert 4 <= soon["days"] <= 5
+
+
+def test_short_date_displays_jst(tmp_path, monkeypatch):
+    _, main = _fresh_client(tmp_path, monkeypatch)
+    # UTC 15:00 = JST 翌日 00:00 — 以前は UTC の日付が出て1日ズレて見えた
+    assert main._short_date("2026-07-01T15:00:00+00:00") == "2026/07/02"
+    assert main._short_date("2026-07-01T14:00:00+00:00") == "2026/07/01"
+
+
+def test_list_shows_expired_badge(tmp_path, monkeypatch):
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    c.post(
+        "/admin/licenses",
+        auth=("admin", "test-token"),
+        json={"license_key": "OLD-KEY", "domain": "example.test", "plan": "pro",
+              "status": "active", "expires_at": "2000-01-01T00:00:00+00:00"},
+    )
+    r = c.get("/admin/ui/licenses", auth=("admin", "test-token"))
+    assert "期限切れ" in r.text
+
+
+def test_created_key_is_shown_after_ui_create(tmp_path, monkeypatch):
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    r = c.post(
+        "/admin/ui/licenses",
+        auth=("admin", "test-token"),
+        data={"license_key": "", "domain": "example.test", "plan": "basic", "status": "active"},
+        follow_redirects=True,
+    )
+    # 自動生成キーがフラッシュ横の枠に表示される
+    assert "作成したライセンスキー" in r.text
+    assert "NPM-" in r.text
+
+
+def test_unknown_flash_msg_is_discarded(tmp_path, monkeypatch):
+    # ?msg= に任意文言を入れて「緑の成功通知」を偽装できないこと (I-8)
+    c, _ = _fresh_client(tmp_path, monkeypatch)
+    r = c.get("/admin/ui/licenses?msg=%E5%81%BD%E3%81%AE%E9%80%9A%E7%9F%A5",
+              auth=("admin", "test-token"))
+    assert "偽の通知" not in r.text
