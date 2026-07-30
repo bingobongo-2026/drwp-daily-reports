@@ -1246,7 +1246,8 @@ class DRWP_Report_Archive {
         $q_start = $use_range ? $range_from : $month_start;
         $q_end   = $use_range ? $range_to   : $month_end;
 
-        $where = ['r.report_date >= %s', 'r.report_date <= %s'];
+        // アーカイブ済み (レビュアーが非表示にした日報) はフロントには出さない。
+        $where = ['r.report_date >= %s', 'r.report_date <= %s', 'r.archived_at IS NULL'];
         $args  = [$q_start, $q_end];
         if ($opts['user_id']) {
             $where[] = 'r.user_id = %d';
@@ -2087,6 +2088,12 @@ class DRWP_Report_Archive {
         $report = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM " . $wpdb->prefix . "drwp_reports WHERE id = %d", $id
         ));
+        // アーカイブ済みは一覧から消えるだけでなく、直リンクでも
+        // 見せない (レビュアーは管理画面の復元画面から確認できる)。
+        if ($report && !empty($report->archived_at)
+            && !current_user_can(DRWP_Reports::CAP_ARCHIVE)) {
+            $report = null;
+        }
         if (!$report) {
             return self::wrap('<p class="drwp-archive-message">'
                 . esc_html__('該当する日報が見つかりません。', 'drwp-daily-reports')
@@ -2095,12 +2102,12 @@ class DRWP_Report_Archive {
 
         $author_name = DRWP_User::display_name((int) $report->user_id) ?: '-';
         $back_url = esc_url(remove_query_arg('drwp_id'));
-        // 「自分の日報」かつ「まだ承認前 (日報承認待ち or 差戻し)」
-        // のときだけフロント編集 CTA を表示する。差戻し中も再編集
-        // できるようにすることで「差し戻し → 修正 → 再提出」のループ
-        // が成立する。
+        // 「自分の日報」かつ「承認ロックが掛かっていない (日報承認待ち /
+        // 差戻し / 編集依頼中)」のときだけフロント編集 CTA を表示する。
+        // 差戻し中の再編集で「差し戻し → 修正 → 再提出」、編集依頼中で
+        // 「承認後にロックを開けてもらって再編集」のループが成立する。
         $is_own_editable = ((int) $report->user_id === get_current_user_id())
-                          && in_array((string) $report->review_status, ['pending', 'needs_revision'], true)
+                          && in_array((string) $report->review_status, ['pending', 'needs_revision', 'edit_requested'], true)
                           && !DRWP_User::is_retired();
 
         $project = $report->project_id ? DRWP_Project::find((int) $report->project_id) : null;
@@ -2226,13 +2233,13 @@ class DRWP_Report_Archive {
                 . '</a></p>');
         }
         if ((int) $report->user_id !== get_current_user_id()
-            || !in_array((string) $report->review_status, ['pending', 'needs_revision'], true)) {
+            || !in_array((string) $report->review_status, ['pending', 'needs_revision', 'edit_requested'], true)) {
             // Permission check, defense in depth — JS link won't be
             // shown for non-own / approved / archived reports, but a
             // direct URL hit still needs to be rejected.
             $back = esc_url(remove_query_arg('drwp_edit'));
             return self::wrap('<p class="drwp-archive-message">'
-                . esc_html__('この日報はフロントから編集できません(自分の 日報承認待ち または 差戻し の日報のみ編集可能です)。', 'drwp-daily-reports')
+                . esc_html__('この日報はフロントから編集できません(自分の 日報承認待ち・差戻し・編集依頼中 の日報のみ編集可能です)。', 'drwp-daily-reports')
                 . '</p><p class="drwp-archive-back"><a href="' . $back . '">&laquo; '
                 . esc_html__('一覧に戻る', 'drwp-daily-reports')
                 . '</a></p>');
@@ -2393,7 +2400,7 @@ class DRWP_Report_Archive {
         $report = $wpdb->get_row($wpdb->prepare("SELECT * FROM $reports_t WHERE id = %d", $id));
         if (!$report) return;
         if ((int) $report->user_id !== get_current_user_id()) return;
-        if (!in_array((string) $report->review_status, ['pending', 'needs_revision'], true)) return;
+        if (!in_array((string) $report->review_status, ['pending', 'needs_revision', 'edit_requested'], true)) return;
 
         $back_to_edit = function ($err) use ($id) {
             return add_query_arg(['drwp_id' => $id, 'drwp_edit' => 1, 'drwp_err' => $err], get_permalink());
@@ -2421,10 +2428,10 @@ class DRWP_Report_Archive {
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $report_date)) {
             $update['report_date'] = $report_date;
         }
-        // 差戻しからの再編集は自動的に「日報承認待ち」に戻して
-        // 再提出扱いにする。投稿者が別途「再提出」ボタンを押す手間
-        // を省く (修正したら自然に再日報承認待ちのキューへ)。
-        $was_returned = ($report->review_status === 'needs_revision');
+        // 差戻し / 編集依頼中からの再編集は自動的に「日報承認待ち」に
+        // 戻して再提出扱いにする。投稿者が別途「再提出」ボタンを押す
+        // 手間を省く (修正したら自然に再日報承認待ちのキューへ)。
+        $was_returned = in_array((string) $report->review_status, ['needs_revision', 'edit_requested'], true);
         if ($was_returned) {
             $update['review_status'] = 'pending';
         }

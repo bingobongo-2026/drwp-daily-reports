@@ -598,4 +598,99 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         $this->assertStringContainsString('<a href="https://example.com">', (string) $saved, 'リンクが保持されていない');
         $this->assertStringContainsString('リンク', (string) $saved);
     }
+
+    /* ---------- アーカイブ済みの可視性 ---------- */
+
+    private function archive_directly($report_id) {
+        global $wpdb;
+        $wpdb->update(
+            $wpdb->prefix . 'drwp_reports',
+            ['archived_at' => '2026-01-01 00:00:00'],
+            ['id' => $report_id]
+        );
+    }
+
+    public function test_archived_report_hidden_from_rest_list_by_default() {
+        $this->activate_license();
+        $this->make_admin();
+        $pid = $this->make_project('現場A');
+        $keep = $this->create_report_via_rest($pid);
+        $hidden = $this->create_report_via_rest($pid);
+        $this->archive_directly($hidden);
+
+        $resp = $this->call('GET', '/drwp/v1/reports');
+        $ids = array_column($resp->get_data()['items'], 'id');
+        $this->assertContains($keep, $ids);
+        $this->assertNotContains($hidden, $ids, 'アーカイブ済みが一覧に出ている');
+    }
+
+    public function test_reviewer_can_list_archived_with_param() {
+        $this->activate_license();
+        $this->make_admin();
+        $pid = $this->make_project('現場A');
+        $hidden = $this->create_report_via_rest($pid);
+        $this->archive_directly($hidden);
+
+        $req = new WP_REST_Request('GET', '/drwp/v1/reports');
+        $req->set_query_params(['archived' => 'only']);
+        $resp = rest_do_request($req);
+        $ids = array_column($resp->get_data()['items'], 'id');
+        $this->assertContains($hidden, $ids);
+    }
+
+    public function test_worker_cannot_opt_into_archived() {
+        $this->activate_license();
+        $this->make_subscriber_with_edit();
+        $pid = $this->make_project('現場A');
+        $hidden = $this->create_report_via_rest($pid);
+        $this->archive_directly($hidden);
+
+        // 作業者は archived=with を渡しても見えない
+        $req = new WP_REST_Request('GET', '/drwp/v1/reports');
+        $req->set_query_params(['archived' => 'with']);
+        $resp = rest_do_request($req);
+        $ids = array_column($resp->get_data()['items'], 'id');
+        $this->assertNotContains($hidden, $ids);
+    }
+
+    /* ---------- edit_requested (編集依頼中) で投稿者が編集できる ---------- */
+
+    private function set_review_status($report_id, $status) {
+        global $wpdb;
+        $wpdb->update(
+            $wpdb->prefix . 'drwp_reports',
+            ['review_status' => $status],
+            ['id' => $report_id]
+        );
+    }
+
+    public function test_author_can_edit_own_edit_requested_report() {
+        $this->activate_license();
+        $this->make_subscriber_with_edit();
+        $pid = $this->make_project('現場A');
+        $rid = $this->create_report_via_rest($pid);
+        // 承認 → 編集依頼中 (承認後にロックを開けてもらった状態)
+        $this->set_review_status($rid, 'edit_requested');
+
+        $resp = $this->call('PATCH', "/drwp/v1/reports/$rid", [
+            'work_description' => '修正した内容',
+        ]);
+        // 以前は 403 で、ステータスの目的 (再編集を許可) と真逆だった
+        $this->assertSame(200, $resp->get_status());
+        // 編集したら承認待ちへ戻り、再レビューのキューに乗る
+        $this->assertSame('pending', $resp->get_data()['review_status']);
+    }
+
+    public function test_author_still_cannot_edit_approved_report() {
+        $this->activate_license();
+        $this->make_subscriber_with_edit();
+        $pid = $this->make_project('現場A');
+        $rid = $this->create_report_via_rest($pid);
+        $this->set_review_status($rid, 'approved');
+
+        $resp = $this->call('PATCH', "/drwp/v1/reports/$rid", [
+            'work_description' => '書き換え',
+        ]);
+        $this->assertSame(403, $resp->get_status());
+    }
 }

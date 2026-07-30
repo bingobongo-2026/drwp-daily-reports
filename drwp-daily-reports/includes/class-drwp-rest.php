@@ -358,14 +358,15 @@ class DRWP_REST {
         // Operators (`edit_others_posts`) can edit any report in any
         // state — that's the review/fix-up workflow. Everyone else
         // (a worker editing their own report) is restricted to
-        // `pending` か `needs_revision`、すなわち「まだ承認されて
-        // いない」状態だけ。差戻し中もここを通すことで再編集 →
+        // `pending` / `needs_revision` / `edit_requested`、すなわち
+        // 「承認ロックが掛かっていない」状態だけ。差戻し中と、承認後に
+        // ロックを開けてもらった編集依頼中もここを通すことで再編集 →
         // 再提出ができる。承認済みを後から書き換えるのは塞ぐ。
         if (current_user_can('edit_others_posts')) return true;
-        if ($report && !in_array((string) $report->review_status, ['pending', 'needs_revision'], true)) {
+        if ($report && !in_array((string) $report->review_status, ['pending', 'needs_revision', 'edit_requested'], true)) {
             return new WP_Error(
                 'drwp_forbidden',
-                __('日報承認待ち または 差戻し の日報のみ編集できます。', 'drwp-daily-reports'),
+                __('日報承認待ち・差戻し・編集依頼中 の日報のみ編集できます。', 'drwp-daily-reports'),
                 ['status' => 403]
             );
         }
@@ -486,6 +487,16 @@ class DRWP_REST {
         if (!current_user_can('edit_others_posts')) {
             $where .= ' AND user_id = %d';
             $args[] = get_current_user_id();
+        }
+        // アーカイブ済みは既定で除外する (管理画面一覧と同じ規約)。
+        // レビュアー (CAP_ARCHIVE) だけが archived=with / only で含められる。
+        // 作業者には常に見せない — 「レビュアーが隠した日報」がスマホの
+        // 一覧に出続けるのを防ぐ。
+        $archived = (string) $request->get_param('archived');
+        if (current_user_can(DRWP_Reports::CAP_ARCHIVE) && $archived === 'only') {
+            $where .= ' AND archived_at IS NOT NULL';
+        } elseif (!(current_user_can(DRWP_Reports::CAP_ARCHIVE) && $archived === 'with')) {
+            $where .= ' AND archived_at IS NULL';
         }
         $search = (string) $request->get_param('search');
         if ($search !== '') {
@@ -769,12 +780,12 @@ class DRWP_REST {
         if ($err = self::validate_input($input)) return $err;
 
         $data = self::sanitize_writable($input);
-        // 投稿者本人が差戻し中の日報を再編集した場合は、自動で再び
-        // 日報承認待ちに戻す (= 再提出)。レビュアーが編集した場合は
-        // 状態を維持するので、運用上の小修正 → 即承認のフローを
-        // 邪魔しない。
+        // 投稿者本人が差戻し中 / 編集依頼中の日報を再編集した場合は、
+        // 自動で再び日報承認待ちに戻す (= 再提出して再レビューに乗せる)。
+        // レビュアーが編集した場合は状態を維持するので、運用上の
+        // 小修正 → 即承認のフローを邪魔しない。
         $resubmitted = false;
-        if ($report->review_status === 'needs_revision'
+        if (in_array((string) $report->review_status, ['needs_revision', 'edit_requested'], true)
             && (int) $report->user_id === get_current_user_id()
             && !current_user_can('edit_others_posts')) {
             $data['review_status'] = 'pending';

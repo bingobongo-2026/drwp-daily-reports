@@ -33,7 +33,8 @@ class DRWP_Print {
 
         $reports = [];
         if ($filters['go']) {
-            $where = "review_status = 'approved'";
+            // アーカイブ済み (非表示) は PDF にも出さない。
+            $where = "review_status = 'approved' AND archived_at IS NULL";
             $args = [];
             if (!current_user_can('edit_others_posts')) {
                 $where .= ' AND user_id = %d';
