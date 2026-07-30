@@ -247,8 +247,17 @@ def require_admin_basic(
 
     # Compare both sides with constant-time digest to avoid timing
     # leaks on the username (rare but cheap to defend against).
-    user_ok = secrets.compare_digest(credentials.username, expected_user)
-    pass_ok = secrets.compare_digest(credentials.password, expected_pass)
+    # NOTE: compare_digest with str args only accepts ASCII and raises
+    # TypeError otherwise. A non-ASCII username/password — stored in the
+    # DB, or merely typed into the browser's Basic dialog — would 500 the
+    # whole admin surface and lock the operator out. Compare bytes so a
+    # non-ASCII value is a plain mismatch (401), never a crash.
+    user_ok = secrets.compare_digest(
+        credentials.username.encode("utf-8"), expected_user.encode("utf-8")
+    )
+    pass_ok = secrets.compare_digest(
+        credentials.password.encode("utf-8"), expected_pass.encode("utf-8")
+    )
     if not (user_ok and pass_ok):
         db.log_audit("login_failed", ip=ip, username=credentials.username[:64])
         raise HTTPException(
@@ -403,12 +412,46 @@ def _generate_unique_license_key(max_tries: int = 5) -> str:
 
 
 def _normalize_expires(raw: Optional[str]) -> Optional[str]:
+    """有効期限の入力を aware な ISO 8601 文字列へ正規化する。
+
+    - 日付のみ (YYYY-MM-DD) はその日いっぱい有効とみなし 23:59:59 にする。
+      00:00:00 にすると当日の朝に失効し「1日早い失効」になっていた。
+    - タイムゾーンなしは UTC 扱い。
+    - 既にオフセット付き (+09:00 / -05:00) はそのまま尊重する。以前は
+      文字列に "+00:00" を継ぎ足しており、負オフセットだと
+      "...-05:00+00:00" という壊れた値になっていた。
+    パースできない入力は元の文字列をそのまま返す。
+    """
     val = (raw or "").strip()
     if not val:
         return None
-    if "+" not in val and "Z" not in val:
-        val += "+00:00"
-    return val
+    candidate = val if "T" in val else val + "T23:59:59"
+    try:
+        dt = datetime.fromisoformat(candidate.replace("Z", "+00:00"))
+    except ValueError:
+        return val
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
+
+
+def _is_expired(expires_at: Optional[str]) -> bool:
+    """有効期限が現在より前かを datetime で判定する。
+
+    以前は ISO 文字列同士を辞書順比較しており、日付のみの値が終日
+    「期限切れ」になったり、JST オフセット付きの過去日時が「有効」と
+    誤判定されたりしていた。パースできない値は誤って全ライセンスを
+    失効させないよう「期限切れとみなさない」。空 (無期限) も False。
+    """
+    if not expires_at:
+        return False
+    try:
+        dt = datetime.fromisoformat(str(expires_at).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return False
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt < datetime.now(timezone.utc)
 
 
 def _sign_response(body: dict) -> dict:
@@ -459,7 +502,7 @@ def check_license(payload: CheckRequest):
         )
         return _sign_response(_attach_adsense(base, lic))
 
-    if lic["expires_at"] and lic["expires_at"] < now:
+    if _is_expired(lic["expires_at"]):
         base.update(
             status="expired",
             plan=lic["plan"],
@@ -515,7 +558,7 @@ def _verify_license_or_403(license_key: str, domain: str) -> dict:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="License not found")
     if lic["status"] != "active":
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail=f"License is {lic['status']}")
-    if lic["expires_at"] and lic["expires_at"] < _now_iso():
+    if _is_expired(lic["expires_at"]):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="License is expired")
     if lic["domain"] and lic["domain"] != domain:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Domain mismatch")
