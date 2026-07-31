@@ -133,13 +133,14 @@
   /* スマホ表示: 各セクションを1カラムに(ウィンドウ幅ではなくデバイスで判定) */
   .dev-mobile .jjp .nav { display:none; }
   .dev-mobile .jjp .split, .dev-mobile .jjp .blog { grid-template-columns:1fr; }
-  .dev-mobile .jjp .cards, .dev-mobile .jjp .abouts, .dev-mobile .jjp .cc { flex-direction:column; align-items:stretch; }
-  .dev-mobile .jjp .card, .dev-mobile .jjp .abouts > div, .dev-mobile .jjp .cc__i { max-width:none; }
+  .dev-mobile .jjp .cards { grid-template-columns:1fr; }
+  .dev-mobile .jjp .abouts, .dev-mobile .jjp .cc { flex-direction:column; align-items:stretch; }
+  .dev-mobile .jjp .abouts > div, .dev-mobile .jjp .cc__i { max-width:none; }
   .preview { display:none; } .preview.is-shown { display:block; }
   .hintline { margin:10px 4px 0; font-size:12px; color:var(--app-muted); }
 
   /* ===== jijipom theme-faithful ===== */
-  .jjp { font-family:var(--pv-base, var(--font)); color:var(--ink); }
+  .jjp { font-family:var(--pv-base, var(--font)); color:var(--ink); font-size:17px; line-height:1.8; }
   /* フォント設定(jijipom相当): 見出し/本文/フォーム部品に反映。未設定は継承 */
   .jjp h1, .jjp h2, .jjp h3, .jjp h4,
   .jjp .sec__h, .jjp .hero h2, .jjp .page-head h1, .jjp .card__b h3, .jjp .article h1, .jjp .article h2 {
@@ -151,13 +152,13 @@
   /* ヘッダーは全幅バー。内容は本文(.inner)と同じ最大幅で中央寄せにして揃える */
   .jjp .site-header { border-bottom:1px solid var(--border); }
   .jjp .site-header__in { display:flex; align-items:center; gap:14px; max-width:var(--pv-wide,1080px); margin-inline:auto; padding:15px clamp(18px,4vw,40px); }
-  .jjp .logo { font-weight:800; font-size:1.1rem; display:inline-flex; align-items:center; }
+  .jjp .logo { font-weight:700; font-size:1.25rem; display:inline-flex; align-items:center; }
   .jjp .logo img { max-height:34px; width:auto; display:block; }
   .jjp .site-actions { margin-left:auto; display:flex; align-items:center; gap:14px; }
-  .jjp .nav { display:flex; gap:15px; font-size:13px; color:var(--muted); }
+  .jjp .nav { display:flex; gap:1.4rem; font-size:.875rem; color:var(--ink); }
   .jjp .hdr-btns { display:inline-flex; align-items:center; gap:8px; }
-  .jjp .cta-btn, .jjp .sub-btn { display:inline-flex; align-items:center; gap:5px; padding:7px 14px;
-    border:1px solid transparent; border-radius:999px; font-size:12.5px; font-weight:600; white-space:nowrap; }
+  .jjp .cta-btn, .jjp .sub-btn { display:inline-flex; align-items:center; gap:.4em; padding:.55em 1.2em;
+    border:1px solid transparent; border-radius:999px; font-size:.875rem; font-weight:600; white-space:nowrap; }
   .jjp .cta-btn { background:var(--accent); color:#fff; }
   /* サブボタンの既定は控えめな枠線スタイル(jijipom の .header-sub と揃える) */
   .jjp .sub-btn { background:transparent; border-color:var(--accent); color:var(--accent); }
@@ -174,8 +175,7 @@
   .jjp .sec--muted { background:var(--subtle); }
   .jjp .sec__h { text-align:center; font-size:2rem; margin:0 0 2.5rem; }
   .dev-mobile .jjp .sec__h { font-size:1.5rem; margin-bottom:1.6rem; }
-  .jjp .btn { display:inline-block; background:var(--accent); color:#fff; padding:10px 20px; border-radius:var(--radius); font-weight:600; font-size:.92rem; }
-  .jjp .btn--ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  .jjp .btn { display:inline-block; background:var(--accent); color:#fff; padding:.65em 1.3em; border-radius:var(--radius); font-weight:600; }
   .jjp .ph { position:relative; background:linear-gradient(135deg,var(--ph-a),var(--ph-b)); border-radius:var(--radius); background-size:cover; background-position:center; }
   .jjp .ph::after { content:attr(data-ph); position:absolute; inset:0; display:grid; place-items:center; color:var(--muted); font-size:12px; letter-spacing:.03em; }
   .jjp .ph.has-media::after { display:none; }
@@ -202,17 +202,17 @@
   .jjp .page-head h1 { font-size:2.6rem; margin:0; }
   .dev-mobile .jjp .page-head h1 { font-size:1.75rem; }
 
-  .jjp .cards { display:flex; flex-wrap:wrap; justify-content:center; gap:clamp(1rem,2.5vw,1.5rem); margin-top:1.3rem; }
-  .jjp .card { flex:1 1 300px; max-width:460px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .jjp .cards { display:grid; grid-template-columns:repeat(2,1fr); gap:clamp(1.25rem,3vw,2rem); margin-top:2rem; }
+  .jjp .card { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; display:flex; flex-direction:column; }
   /* リンク設定ありのサービスカード(プレビュー): 目印＋ホバー演出 */
   .jjp .card.is-link { position:relative; cursor:pointer; transition:transform .18s, box-shadow .18s, border-color .18s; }
   .jjp .card.is-link::after { content:"🔗"; position:absolute; top:8px; right:8px; z-index:2; background:rgba(255,255,255,.92); border-radius:6px; padding:0 5px; font-size:12px; box-shadow:0 1px 3px rgba(0,0,0,.18); }
   .jjp .card.is-link:hover { transform:translateY(-3px); border-color:var(--accent); box-shadow:0 8px 22px rgba(0,0,0,.08); }
   .jjp .card.is-link:hover .card__b h3 { color:var(--accent); }
   .jjp .card .ph { border-radius:0; aspect-ratio:16/9; }
-  .jjp .card__b { padding:1rem 1.15rem 1.25rem; }
-  .jjp .card__b h3 { margin:0 0 .35rem; font-size:1.08rem; }
-  .jjp .card__b p { margin:0; color:var(--muted); font-size:.92rem; }
+  .jjp .card__b { padding:1.25rem 1.4rem 1.5rem; }
+  .jjp .card__b h3 { margin:0 0 .5rem; font-size:1.1rem; }
+  .jjp .card__b p { margin:0; color:var(--muted); }
 
   .jjp .split { display:grid; grid-template-columns:1fr 1fr; gap:clamp(1.2rem,3vw,2.2rem); align-items:center; }
   .jjp .split .ph { aspect-ratio:4/3; }
@@ -242,8 +242,28 @@
   .jjp .cc__i .v { font-weight:600; }
   .jjp .form { max-width:60ch; margin:1.3rem auto 0; display:grid; gap:11px; }
   .jjp .form .row { display:grid; gap:5px; } .jjp .form label { font-size:13px; font-weight:600; }
+  .jjp .form #cf-preview { display:contents; }
   .jjp .form .fake { border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg); padding:9px 11px; color:var(--muted); font-size:13px; }
   .jjp .form .fake.ta { min-height:66px; }
+  .jjp .form .fake.sel { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .jjp .form .fake.sel::after { content:"▾"; color:var(--muted); }
+  .jjp .form .opts { display:grid; gap:6px; }
+  .jjp .form .opt { display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink); }
+  .jjp .form .opt i { flex:none; width:15px; height:15px; border:1px solid var(--border); background:var(--bg); display:inline-block; }
+  .jjp .form .opt i.cb { border-radius:3px; }
+  .jjp .form .opt i.rd { border-radius:50%; }
+
+  /* お問い合わせフォームの項目設計UI (エディタ側) */
+  .cfrow { display:grid; grid-template-columns:112px 1fr auto; gap:6px; align-items:start; margin-bottom:7px;
+    padding:8px; background:var(--app-bg); border:1px solid var(--app-border); border-radius:8px; }
+  .cfrow select, .cfrow input { font:inherit; font-size:12.5px; color:var(--app-ink); background:var(--bg);
+    border:1px solid var(--app-border); border-radius:var(--r-sm); padding:6px 8px; width:100%; }
+  .cfrow .cfmain { display:grid; gap:5px; min-width:0; }
+  .cfrow .cfops { display:flex; gap:3px; }
+  .cfrow .cfops button { font:inherit; font-size:12px; line-height:1; padding:6px 7px; cursor:pointer;
+    background:var(--app-panel); border:1px solid var(--app-border); border-radius:6px; color:var(--app-ink); }
+  .cfrow .cfops button:hover { border-color:var(--accent); color:var(--accent); }
+  .cfrow .cfops button:disabled { opacity:.35; cursor:default; }
 
   .jjp .article { max-width:var(--pv-content,70ch); margin-inline:auto; padding-block:clamp(2rem,5vw,3.2rem); }
   .jjp .article h1 { font-size:clamp(1.5rem,1.2rem+1.4vw,2rem); margin:0; }
@@ -276,6 +296,8 @@
   .pl { white-space:pre-line; }
   .pl.is-ph { color:var(--muted); opacity:.65; }
   .hero .pl.is-ph { color:rgba(255,255,255,.72); }
+  /* 塗りボタン上のプレースホルダは半透明白 (アクセント地に灰色だと読めない) */
+  .jjp .btn.pl.is-ph { color:rgba(255,255,255,.78); opacity:1; }
   .is-hidden { display:none !important; }
 
   @media (max-width:980px) {
@@ -650,6 +672,11 @@
         <label class="chk"><input type="checkbox" data-vis="ct-card-email" checked> 「メール」カードを表示する</label>
         <label class="chk"><input type="checkbox" data-vis="ct-card-recv" checked> 「受付」カードを表示する</label>
         <label class="fld"><span>対応エリア・補足</span><input data-bind="ct-area" data-sample="対応エリア：△△市および近隣市町村"></label>
+        <div class="grp">お問い合わせフォームの項目</div>
+        <p class="hintline" style="margin:-2px 0 10px">フォームに載せる項目を設計できます（テキスト / テキストエリア / ドロップダウン / チェックボックス / ラジオボタン）。プレビューと書き出しZIPに反映され、実サイトでフォームを作るときの仕様書になります。</p>
+        <div id="cf-fields"></div>
+        <button type="button" class="filebtn" id="cf-add" style="margin-bottom:12px">＋ 項目を追加</button>
+
         <div class="grp">お問い合わせフォーム</div>
         <label class="fld"><span>フォームのショートコード（任意）</span><input data-bind="ct-form-sc" placeholder='例: [contact-form-7 id="123"]'></label>
         <p class="hintline" style="margin:-4px 0 11px">Contact Form 7 などのショートコード。実サイトのフォーム領域に表示されます（プレビューは見本のまま）。</p>
@@ -696,7 +723,7 @@
             </div></div>
             <section class="sec" id="tp-sec-service"><div class="inner"><h2 class="sec__h pl" id="tp-svc-h"></h2>
               <div class="split"><div class="ph" id="tp-svc-img" data-ph="サービス画像"></div>
-                <div><p class="pl" id="tp-svc-text"></p><span class="btn btn--ghost pl" id="tp-svc-btn"></span></div></div>
+                <div><p class="pl" id="tp-svc-text"></p><span class="btn pl" id="tp-svc-btn"></span></div></div>
             </div></section>
             <section class="sec sec--muted" id="tp-sec-blog"><div class="inner">
               <h2 class="sec__h pl" id="tp-blog-h"></h2>
@@ -803,10 +830,7 @@
               <div class="cc__i" id="ct-card-recv"><span class="lb">受付</span><span class="v pl" id="ct-hours"></span><span class="lb">定休日: <span class="pl" id="ct-holiday" style="display:inline"></span></span></div>
             </div><p class="lead pl" id="ct-area" style="margin-top:1.3rem"></p></div></section>
             <section class="sec sec--muted"><div class="inner"><h2 class="sec__h">お問い合わせフォーム</h2>
-              <div class="form">
-                <div class="row"><label>お名前</label><div class="fake">山田 花子</div></div>
-                <div class="row"><label>メールアドレス</label><div class="fake">hanako@example.com</div></div>
-                <div class="row"><label>ご相談内容</label><div class="fake ta">リフォームの見積りをお願いします…</div></div>
+              <div class="form"><div id="cf-preview"></div>
                 <span class="btn" style="justify-self:start">送信する</span>
               </div></div></section>
             <section class="sec"><div class="inner"><div class="ph map" id="ct-map" data-ph="Googleマップ（埋め込み）"></div></div></section>
@@ -1307,6 +1331,99 @@
   });
   applyLayout();
 
+  // ---- お問い合わせフォームの項目設計 ----
+  // 5種類 (テキスト/テキストエリア/ドロップダウン/チェックボックス/ラジオ)。
+  // state.cf に [{t,l,o}] で保存 (t=種類, l=項目名, o=選択肢カンマ区切り)。
+  var CF_TYPES = { text: 'テキスト', textarea: 'テキストエリア', select: 'ドロップダウン', checkbox: 'チェックボックス', radio: 'ラジオボタン' };
+  var CF_DEFAULT = [
+    { t: 'text', l: 'お名前', o: '' },
+    { t: 'text', l: 'メールアドレス', o: '' },
+    { t: 'textarea', l: 'ご相談内容', o: '' }
+  ];
+  var CF_SAMPLES = { 'お名前': '山田 花子', 'メールアドレス': 'hanako@example.com', 'ご相談内容': 'リフォームの見積りをお願いします…' };
+  if (!Array.isArray(state.cf)) state.cf = CF_DEFAULT.map(function (f) { return { t: f.t, l: f.l, o: f.o }; });
+  function cfNeedsOptions(t) { return t === 'select' || t === 'checkbox' || t === 'radio'; }
+
+  var cfWrap = document.getElementById('cf-fields');
+  function renderCfEditor() {
+    if (!cfWrap) return;
+    cfWrap.innerHTML = '';
+    state.cf.forEach(function (f, i) {
+      var row = document.createElement('div');
+      row.className = 'cfrow';
+      row.dataset.idx = i;
+      var typeSel = '<select data-cf="t">' + Object.keys(CF_TYPES).map(function (k) {
+        return '<option value="' + k + '"' + (f.t === k ? ' selected' : '') + '>' + CF_TYPES[k] + '</option>';
+      }).join('') + '</select>';
+      var main = '<div class="cfmain"><input data-cf="l" placeholder="項目名 (例: ご希望の工事)" value="' + escAttr(f.l || '') + '">';
+      if (cfNeedsOptions(f.t)) {
+        main += '<input data-cf="o" placeholder="選択肢をカンマ区切りで (例: 新築,リフォーム,その他)" value="' + escAttr(f.o || '') + '">';
+      }
+      main += '</div>';
+      var ops = '<div class="cfops">'
+        + '<button type="button" data-cfop="up" title="上へ"' + (i === 0 ? ' disabled' : '') + '>↑</button>'
+        + '<button type="button" data-cfop="down" title="下へ"' + (i === state.cf.length - 1 ? ' disabled' : '') + '>↓</button>'
+        + '<button type="button" data-cfop="del" title="この項目を削除">×</button>'
+        + '</div>';
+      row.innerHTML = typeSel + main + ops;
+      cfWrap.appendChild(row);
+    });
+  }
+  function renderCfPreview() {
+    var pv = document.getElementById('cf-preview');
+    if (!pv) return;
+    pv.innerHTML = state.cf.map(function (f) {
+      var label = (f.l || '').trim() || '（項目名未設定）';
+      var inner;
+      if (f.t === 'textarea') {
+        inner = '<div class="fake ta">' + escAttr(CF_SAMPLES[label] || '') + '</div>';
+      } else if (f.t === 'select') {
+        inner = '<div class="fake sel">選択してください</div>';
+      } else if (f.t === 'checkbox' || f.t === 'radio') {
+        var opts = (f.o || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+        if (!opts.length) opts = ['選択肢1', '選択肢2'];
+        inner = '<div class="opts">' + opts.map(function (o) {
+          return '<span class="opt"><i class="' + (f.t === 'checkbox' ? 'cb' : 'rd') + '"></i>' + escAttr(o) + '</span>';
+        }).join('') + '</div>';
+      } else {
+        inner = '<div class="fake">' + escAttr(CF_SAMPLES[label] || '') + '</div>';
+      }
+      return '<div class="row"><label>' + escAttr(label) + '</label>' + inner + '</div>';
+    }).join('');
+  }
+  if (cfWrap) {
+    cfWrap.addEventListener('input', function (e) {
+      var row = e.target.closest('.cfrow'); if (!row) return;
+      var f = state.cf[Number(row.dataset.idx)]; if (!f) return;
+      var k = e.target.dataset.cf;
+      if (k === 'l' || k === 'o') { f[k] = e.target.value; persist(); renderCfPreview(); }
+    });
+    cfWrap.addEventListener('change', function (e) {
+      var row = e.target.closest('.cfrow'); if (!row) return;
+      var f = state.cf[Number(row.dataset.idx)]; if (!f) return;
+      if (e.target.dataset.cf === 't') {
+        f.t = e.target.value; persist();
+        renderCfEditor(); renderCfPreview();
+      }
+    });
+    cfWrap.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-cfop]'); if (!btn) return;
+      var row = btn.closest('.cfrow'); var i = Number(row.dataset.idx);
+      var op = btn.dataset.cfop;
+      if (op === 'del') state.cf.splice(i, 1);
+      else if (op === 'up' && i > 0) { var a = state.cf[i]; state.cf[i] = state.cf[i - 1]; state.cf[i - 1] = a; }
+      else if (op === 'down' && i < state.cf.length - 1) { var b = state.cf[i]; state.cf[i] = state.cf[i + 1]; state.cf[i + 1] = b; }
+      persist(); renderCfEditor(); renderCfPreview();
+    });
+    var cfAdd = document.getElementById('cf-add');
+    if (cfAdd) cfAdd.addEventListener('click', function () {
+      state.cf.push({ t: 'text', l: '', o: '' });
+      persist(); renderCfEditor(); renderCfPreview();
+    });
+  }
+  renderCfEditor();
+  renderCfPreview();
+
   // ---- サービス項目のリンク: URLが入っているカードにリンク目印(is-link)を付ける ----
   function applyLinks() {
     document.querySelectorAll('[data-link]').forEach(function (inp) {
@@ -1480,7 +1597,17 @@
       contact: { title: fv('ct-title') || 'お問い合わせ' },
       privacy: { title: 'プライバシーポリシー', content: fv('pv-body') }
     };
-    return { schema: 'jijipom-content', version: 1, generated_by: 'jijipom-content-builder', theme_mods: tm, site: site, pages: pages };
+    // フォーム項目の設計 (実サイトのフォーム作成時の仕様書として同梱)
+    var contact_form = {
+      fields: (Array.isArray(state.cf) ? state.cf : []).map(function (f) {
+        var out = { type: f.t, label: (f.l || '').trim() };
+        if (cfNeedsOptions(f.t)) {
+          out.options = (f.o || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+        }
+        return out;
+      })
+    };
+    return { schema: 'jijipom-content', version: 1, generated_by: 'jijipom-content-builder', theme_mods: tm, site: site, pages: pages, contact_form: contact_form };
   }
 
   // ---- 最小 ZIP 書き出し (無圧縮 store・1ファイル) ----
