@@ -187,13 +187,15 @@
   .jjp .hero__media { position:absolute; inset:0; z-index:0; background-size:cover; background-position:center; pointer-events:none; }
   .jjp .hero__media video, .jjp .hero__media iframe { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border:0; }
   .jjp .hero::before { content:""; position:absolute; inset:0; z-index:1; background:rgba(0,0,0,.3); }
-  .jjp .hero__in { position:relative; z-index:2; text-align:center; padding:42px 20px; margin-inline:auto; max-width:56ch; }
-  .jjp .hero h2 { font-size:3rem; margin:0 0 .5rem; text-wrap:balance; text-shadow:0 2px 12px rgba(0,0,0,.35); line-height:1.4; }
+  .jjp .hero__in { position:relative; z-index:2; width:100%; max-width:var(--pv-wide,1080px); margin-inline:auto;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+    gap:1.2rem; padding-block:3rem; padding-inline:clamp(18px,4vw,40px); }
+  .jjp .hero h2 { font-size:3rem; margin:0; line-height:1.4; }
   .dev-mobile .jjp .hero h2 { font-size:1.9rem; }
-  .jjp .hero__in.is-align-left { text-align:left; margin-left:0; }
-  .jjp .hero__in.is-align-right { text-align:right; margin-right:0; }
-  .jjp .hero p { font-size:1.05rem; margin:0 0 1.3rem; opacity:.96; }
-  .jjp .hero .btn { box-shadow:0 6px 20px rgba(0,0,0,.28); }
+  .jjp .hero__in.is-align-left { align-items:flex-start; text-align:left; }
+  .jjp .hero__in.is-align-right { align-items:flex-end; text-align:right; }
+  .jjp .hero p { font-size:1.25rem; margin:0; }
+  .jjp .hero .btn { margin-top:.5rem; }
 
   .jjp .lead { text-align:center; color:var(--muted); font-size:1.05rem; max-width:62ch; margin:.7rem auto 0; }
   .jjp .page-head { text-align:center; padding:clamp(2rem,5vw,3.2rem) 0 0; }

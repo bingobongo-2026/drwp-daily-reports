@@ -14,7 +14,7 @@
 - 日報マン プラグイン(`drwp-daily-reports`): **1.79.2**
 - テーマ jijipom: **1.19.1**
 - 子テーマ jijipom-child: **1.0.0**
-- プラグイン jijipom-content-builder: **1.10.0**
+- プラグイン jijipom-content-builder: **1.10.1**
 - license-server: 稼働中(バージョン番号なし)
 
 ## 作業ブランチと運用ルール
