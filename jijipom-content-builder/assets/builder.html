@@ -307,6 +307,14 @@
     body.show-preview .editor-col { display:none; }
     body.show-editor .previewWrap { display:none; }
   }
+  /* スマホでの入力時ズーム対策: iOS Safari はフォーカスした入力欄の
+     文字サイズが16px未満だと画面を自動ズームする。タッチ端末・狭い画面
+     ではフォーム部品を16pxにしてズーム自体を発生させない
+     (viewport の maximum-scale=1 はピンチ拡大まで殺すので使わない)。 */
+  @media (pointer:coarse), (max-width:980px) {
+    .fld input, .fld textarea, .fld select,
+    .murl, .cfrow input, .cfrow select, .sns-row input { font-size:16px; }
+  }
   @media (prefers-reduced-motion:reduce){ * { transition:none !important; } }
 
   @media print {
