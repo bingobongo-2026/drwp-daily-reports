@@ -6,6 +6,7 @@ class Test_DRWP_REST extends WP_UnitTestCase {
 
     private function activate_license() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
     }
 
     private function deactivate_license() {

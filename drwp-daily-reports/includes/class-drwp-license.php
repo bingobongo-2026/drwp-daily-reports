@@ -64,11 +64,18 @@ class DRWP_License {
 
     public static function status() {
         $status = get_option(self::OPT_STATUS, 'unknown');
-        if ($status === 'active') return 'active';
         $last_valid = (int) get_option(self::OPT_LAST_VALID_AT, 0);
-        if ($last_valid && (time() - $last_valid) <= self::GRACE_DAYS * DAY_IN_SECONDS) {
-            return 'grace';
+        $fresh = $last_valid && (time() - $last_valid) <= self::GRACE_DAYS * DAY_IN_SECONDS;
+        if ($status === 'active') {
+            // 「有効」は署名検証済みの active 応答が GRACE_DAYS 以内に
+            // あるときだけ。照会のネットワーク失敗 (check_now の WP_Error
+            // 経路) は OPT_STATUS を書き換えないため、無条件に信じると
+            // ライセンスサーバへの到達を遮断されただけで無期限に有効の
+            // ままになる (fail-open)。cron は twicedaily なので、正常時に
+            // last_valid が GRACE_DAYS を超えて古くなることはない。
+            return $fresh ? 'active' : 'inactive';
         }
+        if ($fresh) return 'grace';
         return $status ?: 'inactive';
     }
 
