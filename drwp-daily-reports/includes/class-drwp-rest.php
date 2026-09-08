@@ -374,11 +374,30 @@ class DRWP_REST {
     }
 
     public static function can_convert(WP_REST_Request $request) {
-        // 記事化 (publish_posts) は事務所のみ。can_view_one が「全社員
-        // 読める」に緩んだので、ここでは元の編集権限相当 (can_edit_one
-        // の入口) でゲートする。
+        // 記事化は publish_posts が必要で、対象は「自分の日報」か事務所
+        // (edit_others_posts)。以前は can_edit_one を流用していたが、
+        // あちらは作業員に「承認済みは編集不可」を課すため、記事化の
+        // 対象 (承認済み) を自分で記事化できる人がいなくなる矛盾があった
+        // (記事作成ページは非レビュアーに自分の承認済み日報を出すのに、
+        // REST 側が 403 を返す)。記事化は日報本文の編集ではないので、
+        // 所有権 + 「承認済みのみ」(非レビュアーの場合) で判定する。
+        if (DRWP_User::is_retired()) return false;
         if (!current_user_can('publish_posts')) return false;
-        return self::can_edit_one($request);
+        if (!current_user_can('edit_posts')) return false;
+        $report = self::find_report((int) $request['id']);
+        if (!$report) return new WP_Error('drwp_not_found', '指定された日報が見つかりませんでした。', ['status' => 404]);
+        if (current_user_can('edit_others_posts')) return true;
+        if ((int) $report->user_id !== get_current_user_id()) {
+            return new WP_Error('drwp_forbidden', 'この日報を記事化する権限がありません。', ['status' => 403]);
+        }
+        if ((string) $report->review_status !== 'approved') {
+            return new WP_Error(
+                'drwp_forbidden',
+                __('承認済みの日報のみ記事化できます。', 'drwp-daily-reports'),
+                ['status' => 403]
+            );
+        }
+        return true;
     }
 
     public static function can_archive_report(WP_REST_Request $request) {

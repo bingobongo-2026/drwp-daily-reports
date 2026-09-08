@@ -722,6 +722,51 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         $this->assertStringContainsString('リンク', (string) $saved);
     }
 
+    public function test_author_with_publish_can_convert_own_approved_report() {
+        global $wpdb;
+        // author 相当: publish_posts はあるが edit_others_posts はない。
+        $uid = self::factory()->user->create(['role' => 'author']);
+        wp_set_current_user($uid);
+        $this->activate_license();
+        update_option(DRWP_License::OPT_PLAN, 'pro');
+        $pid = $this->make_project('現場E');
+        $rid = $this->create_report_via_rest($pid);
+        $wpdb->update($wpdb->prefix . 'drwp_reports', ['review_status' => 'approved'], ['id' => $rid]);
+
+        // 旧実装は can_edit_one 流用のため「承認済みは編集不可」に引っかかり
+        // 403 だった — 記事化ページの対象 (承認済み) と矛盾していた。
+        $resp = $this->call('POST', "/drwp/v1/reports/$rid/convert", [
+            'public_title' => '自分の記事',
+            'post_status'  => 'draft',
+        ]);
+        $this->assertSame(200, $resp->get_status());
+        $post_id = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT linked_post_id FROM {$wpdb->prefix}drwp_reports WHERE id = %d", $rid
+        ));
+        $this->assertGreaterThan(0, $post_id);
+    }
+
+    public function test_author_cannot_convert_unapproved_or_others_reports() {
+        global $wpdb;
+        $this->make_admin();
+        $this->activate_license();
+        update_option(DRWP_License::OPT_PLAN, 'pro');
+        $pid = $this->make_project('現場F');
+        $others_rid = $this->create_report_via_rest($pid);
+        $wpdb->update($wpdb->prefix . 'drwp_reports', ['review_status' => 'approved'], ['id' => $others_rid]);
+
+        $uid = self::factory()->user->create(['role' => 'author']);
+        wp_set_current_user($uid);
+        $own_rid = $this->create_report_via_rest($pid); // review_status: pending
+
+        // 自分の未承認 → 403
+        $resp = $this->call('POST', "/drwp/v1/reports/$own_rid/convert", ['post_status' => 'draft']);
+        $this->assertSame(403, $resp->get_status());
+        // 他人の承認済み → 403
+        $resp = $this->call('POST', "/drwp/v1/reports/$others_rid/convert", ['post_status' => 'draft']);
+        $this->assertSame(403, $resp->get_status());
+    }
+
     public function test_convert_rejects_archived_report() {
         $this->activate_license();
         update_option(DRWP_License::OPT_PLAN, 'pro');
