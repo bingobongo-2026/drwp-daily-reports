@@ -379,6 +379,15 @@
 
       <!-- ① TOP -->
       <div class="editor" data-page="basic">
+        <div class="grp">AIでまとめて入力</div>
+        <p class="hintline" style="margin:-2px 0 10px">会社案内・パンフレット・既存サイトの文章から、ChatGPT や Claude などのAIチャットに各項目の文章を作らせて一括入力できます。<br>① 指示文をコピー → ② お使いのAIチャットに貼り付け、続けて会社資料（PDF添付や本文の貼り付け）を渡す → ③ 返ってきたJSONを下の欄に貼り付けて反映。</p>
+        <button type="button" class="filebtn" id="ai-copy">📋 AI用の指示文をコピー</button>
+        <span class="hintline" id="ai-copy-msg" style="margin-left:8px"></span>
+        <label class="fld" style="margin-top:10px"><span>AIの回答（JSON）を貼り付け</span><textarea id="ai-json" style="min-height:90px" placeholder='&#123;"fields": &#123; "site-title": "…", … &#125;&#125;'></textarea></label>
+        <label class="chk"><input type="checkbox" id="ai-keep"> 入力済みの欄は上書きしない</label>
+        <button type="button" class="filebtn" id="ai-apply">この内容を反映</button>
+        <p class="hintline" id="ai-result" style="margin:8px 0 12px"></p>
+
         <div class="grp">サイト基本（全ページ共通）</div>
         <label class="fld"><span>サイトタイトル</span><input data-bind="site-title" data-sample="山田工務店"></label>
         <div class="media" data-target="site-logo" data-mode="logo">
@@ -1630,6 +1639,107 @@
     if (hasContent && !confirm('入力済みの「前文」「各条項の本文」をひな形の内容で置き換えます。よろしいですか？')) return;
     pvSetField('pv-intro', tpl.intro);
     pvSetField('pv-body', tpl.body);
+  });
+
+  // ---- AIでまとめて入力: 指示文の生成とJSON取込 ----
+  // 資料からは書けない・AIに書かせたくない項目 (プライバシー本文はひな形運用、
+  // ショートコードは実サイト固有の値のため除外)
+  var AI_SKIP = { 'pv-intro': 1, 'pv-body': 1, 'ct-form-sc': 1 };
+  var AI_TAB_NAMES = { basic: '基本設定', top: 'トップページ', service: 'サービス', company: '会社概要', contact: 'お問い合わせ', privacy: 'プライバシーポリシー' };
+  function aiFieldList() {
+    var out = [];
+    document.querySelectorAll('.editor').forEach(function (ed) {
+      var tabName = AI_TAB_NAMES[ed.dataset.page] || ed.dataset.page;
+      var grp = '';
+      ed.querySelectorAll('.grp, [data-bind]').forEach(function (el) {
+        if (el.classList.contains('grp')) { grp = el.textContent.trim(); return; }
+        var tag = el.tagName, type = (el.getAttribute('type') || 'text').toLowerCase();
+        if (tag !== 'TEXTAREA' && !(tag === 'INPUT' && type === 'text')) return;
+        if (AI_SKIP[el.dataset.bind]) return;
+        var lab = el.closest('.fld');
+        var labText = lab && lab.querySelector('span') ? lab.querySelector('span').textContent.trim() : el.dataset.bind;
+        var line = el.dataset.bind + ': ' + labText + '【' + tabName + (grp ? ' > ' + grp : '') + '】';
+        if (el.dataset.sample) line += '（例: ' + el.dataset.sample.replace(/\n/g, ' ') + '）';
+        out.push(line);
+      });
+    });
+    return out;
+  }
+  function aiBuildPrompt() {
+    return [
+      'あなたはWebサイトのコンテンツ作成アシスタントです。',
+      'この後に渡す会社資料（パンフレット・会社案内・既存サイトの文章など）を読み、',
+      'コーポレートサイトの各入力項目に入れる文章を作ってください。',
+      '',
+      '# 出力形式（厳守）',
+      '- 次の形式のJSONだけを出力してください。前後の説明文は不要です。',
+      '  { "fields": { "項目キー": "入れる文章", ... } }',
+      '- 資料から書ける項目だけ含め、分からない項目はキーごと省略してください。',
+      '- 値は日本語のプレーンテキスト。HTMLタグは使わないでください。',
+      '- 改行が必要な値は \\n で改行してください。',
+      '- URLの項目は資料に実際に記載されているURLだけ。推測で作らないでください。',
+      '- キャッチコピーや説明文は、資料の内容に沿っていれば新たに作文して構いません。',
+      '',
+      '# 入力項目一覧（キー: 項目名【ページ > グループ】）',
+      aiFieldList().join('\n'),
+      '',
+      '# 会社資料',
+      '（この下に資料の本文を貼り付けるか、ファイルを添付してください）'
+    ].join('\n');
+  }
+  var aiCopyBtn = document.getElementById('ai-copy');
+  var aiCopyMsg = document.getElementById('ai-copy-msg');
+  function aiCopyDone(ok) {
+    if (!aiCopyMsg) return;
+    aiCopyMsg.textContent = ok ? 'コピーしました。AIチャットに貼り付けてください。' : 'コピーできませんでした。';
+    setTimeout(function () { aiCopyMsg.textContent = ''; }, 6000);
+  }
+  if (aiCopyBtn) aiCopyBtn.addEventListener('click', function () {
+    var text = aiBuildPrompt();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { aiCopyDone(true); }, function () { aiCopyDone(aiCopyFallback(text)); });
+    } else {
+      aiCopyDone(aiCopyFallback(text));
+    }
+  });
+  function aiCopyFallback(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+  var aiJsonEl = document.getElementById('ai-json');
+  var aiApplyBtn = document.getElementById('ai-apply');
+  var aiKeepEl = document.getElementById('ai-keep');
+  var aiResultEl = document.getElementById('ai-result');
+  if (aiApplyBtn) aiApplyBtn.addEventListener('click', function () {
+    var raw = (aiJsonEl ? aiJsonEl.value : '').trim();
+    if (!raw) { aiResultEl.textContent = 'AIの回答（JSON）を貼り付けてから押してください。'; return; }
+    // コードフェンスや前置きが混ざっていても、最初の { から最後の } までを拾う
+    var st = raw.indexOf('{'), en = raw.lastIndexOf('}');
+    if (st < 0 || en <= st) { aiResultEl.textContent = 'JSONが見つかりませんでした。AIの回答をそのまま貼り付けてください。'; return; }
+    var data;
+    try { data = JSON.parse(raw.slice(st, en + 1)); } catch (e) { aiResultEl.textContent = 'JSONを読み取れませんでした: ' + e.message; return; }
+    var map = (data && typeof data.fields === 'object' && data.fields) ? data.fields : data;
+    if (!map || typeof map !== 'object') { aiResultEl.textContent = 'JSONの形式が想定と異なります。'; return; }
+    var applied = 0, kept = 0, unknown = [];
+    Object.keys(map).forEach(function (key) {
+      var val = map[key];
+      if (typeof val !== 'string') return;
+      var el = document.querySelector('[data-bind="' + key.replace(/"/g, '') + '"]');
+      var tag = el ? el.tagName : '', type = el ? (el.getAttribute('type') || 'text').toLowerCase() : '';
+      if (!el || AI_SKIP[key] || (tag !== 'TEXTAREA' && !(tag === 'INPUT' && type === 'text'))) { unknown.push(key); return; }
+      if (aiKeepEl && aiKeepEl.checked && el.value.trim() !== '') { kept++; return; }
+      pvSetField(key, val);
+      applied++;
+    });
+    var msg = applied + ' 項目を反映しました。';
+    if (kept) msg += '（入力済みのため保持: ' + kept + '）';
+    if (unknown.length) msg += ' 不明なキーは無視しました: ' + unknown.slice(0, 5).join(', ') + (unknown.length > 5 ? ' 他' : '');
+    aiResultEl.textContent = msg;
   });
 
   // ---- サービス項目のリンク: URLが入っているカードにリンク目印(is-link)を付ける ----
