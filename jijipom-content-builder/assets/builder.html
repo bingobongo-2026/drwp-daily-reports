@@ -300,6 +300,18 @@
   .jjp .btn.pl.is-ph { color:rgba(255,255,255,.78); opacity:1; }
   .is-hidden { display:none !important; }
 
+  /* プレビュー上のクリック編集: 対応するフォームがある要素はホバーで枠を表示し、
+     クリックで該当フォームへジャンプする */
+  .pv-edit { cursor:pointer; }
+  .pv-edit:hover { outline:2px dashed rgba(43,92,255,.85); outline-offset:2px; }
+  /* 入れ子の場合は内側だけ光らせる (:has 未対応ブラウザでは両方光るが実害なし) */
+  .pv-edit:hover:has(.pv-edit:hover) { outline:none; }
+  .is-hit { animation:jcbHit 1.8s ease; border-radius:6px; }
+  @keyframes jcbHit {
+    0%, 55% { box-shadow:0 0 0 3px rgba(43,92,255,.5); background:rgba(43,92,255,.07); }
+    100% { box-shadow:0 0 0 3px rgba(43,92,255,0); background:transparent; }
+  }
+
   @media (max-width:980px) {
     .work { grid-template-columns:1fr; }
     .previewWrap { position:static; }
@@ -1080,6 +1092,61 @@
       fitDevice();
     });
   });
+
+  // ---- プレビューのクリックで該当フォームへジャンプ ----
+  // ctrl (フォーム側の入力要素または任意のブロック) が属するタブを開き、
+  // スクロール + フォーカス + ハイライトで場所を示す。
+  function jumpToField(ctrl) {
+    var ed = ctrl.closest('.editor');
+    if (!ed) return;
+    var tab = document.querySelector('.tab[data-page="' + ed.dataset.page + '"]');
+    if (tab && !tab.classList.contains('is-active')) {
+      // タブ切替はプレビューを先頭に戻すが、クリックした場所を見失わないよう
+      // スクロール位置を保持する (切替後も同じプレビューが表示されるケースのみ)。
+      var st = viewport ? viewport.scrollTop : 0;
+      tab.click();
+      if (viewport) viewport.scrollTop = st;
+    }
+    var box = ctrl.closest('.fld') || ctrl.closest('.media') || ctrl;
+    box.scrollIntoView({ behavior:'smooth', block:'center' });
+    var tag = ctrl.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+      try { ctrl.focus({ preventScroll:true }); } catch (e) { try { ctrl.focus(); } catch (e2) {} }
+    }
+    box.classList.remove('is-hit');
+    void box.offsetWidth;
+    box.classList.add('is-hit');
+    clearTimeout(box._jcbHit);
+    box._jcbHit = setTimeout(function () { box.classList.remove('is-hit'); }, 1900);
+  }
+  function wirePvEdit(el, ctrl) {
+    if (!el || !ctrl || el.dataset.jcbEdit) return;
+    el.dataset.jcbEdit = '1';
+    el.classList.add('pv-edit');
+    if (!el.title) el.title = 'クリックして編集';
+    el.addEventListener('click', function (ev) {
+      // 入れ子 (ヒーロー全体→中のボタン等) では内側を優先する
+      ev.preventDefault(); ev.stopPropagation();
+      jumpToField(ctrl);
+    });
+  }
+  // テキスト系: data-bind と同じ id を持つプレビュー要素
+  fields.forEach(function (f) { wirePvEdit(document.getElementById(f.dataset.bind), f); });
+  // 画像・動画・埋め込み: メディア枠の data-target
+  mediaCtrls.forEach(function (ctrl) {
+    wirePvEdit(document.getElementById(ctrl.dataset.target), ctrl.querySelector('.murl') || ctrl);
+  });
+  // ヘッダー・フッターの共通要素 (全プレビューに複製されているためクラスで対応)
+  function wirePvEditAll(sel, ctrl) {
+    if (!ctrl) return;
+    document.querySelectorAll(sel).forEach(function (el) { wirePvEdit(el, ctrl); });
+  }
+  wirePvEditAll('.jjp .logo, .jjp .site-name', document.querySelector('[data-bind="site-title"]'));
+  wirePvEditAll('.jjp .footer-info', document.querySelector('[data-bind="footer-addr"]'));
+  wirePvEditAll('.jjp .hdr-btns', document.querySelector('[data-bind="hdr-cta-text"]'));
+  wirePvEditAll('.jjp .footer-soc', document.querySelector('[data-bind="sns-x-url"]'));
+  // お問い合わせフォームのプレビュー → 項目エディタへ
+  wirePvEdit(document.querySelector('#page-contact .form'), document.getElementById('cf-fields'));
 
   // ---- デバイス切替 (PC / スマホ) ----
   var device = document.getElementById('device');
