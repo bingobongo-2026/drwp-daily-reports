@@ -156,6 +156,8 @@ $can_review = current_user_can('edit_others_posts');
         'project_group_id'  => $filters['project_group_id'] ?? '' ?: '',
         'date_from'         => $filters['date_from'],
         'date_to'           => $filters['date_to'],
+        // アーカイブ表示の選択も CSV に引き継ぐ (通常のみは省略可)。
+        'archived'          => ($filters['archived'] ?? 'active') !== 'active' ? $filters['archived'] : '',
     ], function ($v) { return $v !== '' && $v !== 0; });
   ?>
   <form id="drwp-csv-form" method="get" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" hidden>

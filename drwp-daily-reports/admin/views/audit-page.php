@@ -119,7 +119,15 @@
              add_query_arg(
                  array_merge(
                      ['action' => 'drwp_export_audit_csv'],
-                     array_filter($filters, function ($v) { return $v !== '' && $v !== 0; })
+                     // 出力ハンドラ (read_filters_from_request) はキーワードを
+                     // 's' で読む。$filters のキーは 'search' なので付け替える
+                     // (以前はそのまま渡していて、キーワード絞り込みだけ CSV に
+                     // 効いていなかった)。
+                     (function ($f) {
+                         $q = array_filter($f, function ($v) { return $v !== '' && $v !== 0; });
+                         if (isset($q['search'])) { $q['s'] = $q['search']; unset($q['search']); }
+                         return $q;
+                     })($filters)
                  ),
                  admin_url('admin-post.php')
              ),

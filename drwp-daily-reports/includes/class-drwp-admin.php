@@ -15,7 +15,6 @@ class DRWP_Admin {
         add_action('admin_menu', [__CLASS__, 'mark_settings_section'], 999);
         add_action('admin_head', [__CLASS__, 'settings_section_css']);
         add_action('admin_post_drwp_bulk_reports', [__CLASS__, 'bulk_reports']);
-        add_action('admin_post_drwp_convert_single', [__CLASS__, 'convert_single']);
         add_action('admin_post_drwp_export_reports_csv', [__CLASS__, 'export_filtered_csv']);
         add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue']);
         add_action('admin_notices', [__CLASS__, 'license_notice']);
@@ -395,8 +394,6 @@ class DRWP_Admin {
         // not from the sidebar. 旧・日報編集ページ (drwp_report_edit) は
         // 一覧モーダルへの統合により削除済み (未公開プラグインのため
         // 旧URL互換のリダイレクトも置かない)。
-        $prev = __('公開プレビュー', 'drwp-daily-reports');
-        add_submenu_page(null, $prev, $prev, self::CAP_EDIT, 'drwp_report_preview', [__CLASS__, 'report_preview_page']);
     }
 
     public static function project_map_public() {
@@ -742,33 +739,11 @@ class DRWP_Admin {
         include DRWP_PATH . 'admin/views/articles-list.php';
     }
 
-    public static function report_preview_page() {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
-        global $wpdb;
-        $table = self::reports_table();
-        $id = isset($_GET['id']) ? absint($_GET['id']) : 0;
-        $report = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
-        if ($report && !self::current_user_can_edit_report($report)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
-        include DRWP_PATH . 'admin/views/report-preview.php';
-    }
-
     // save_report / save_report_publish (旧・日報編集ページの A/B フォーム
-    // 専用ハンドラ) は、ページのモーダル統合に伴い撤去した。日報の保存は
-    // REST (POST/PATCH /reports) に一本化され、公開設定は記事作成モーダル
-    // が同じ REST 経由で保存する。
-
-    public static function convert_single() {
-        if (!current_user_can('publish_posts')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
-        check_admin_referer('drwp_convert_single');
-        $id = absint($_POST['id'] ?? 0);
-        if (!$id) wp_die(esc_html__('ID が指定されていません。', 'drwp-daily-reports'));
-        $result = DRWP_Post_Converter::sync_post($id, true);
-        if (is_wp_error($result)) {
-            wp_die(esc_html($result->get_error_message()));
-        }
-        wp_safe_redirect(admin_url('admin.php?page=drwp_reports&updated=1'));
-        exit;
-    }
+    // 専用ハンドラ) と、公開プレビューページ・単発記事化 (convert_single)
+    // は、ページのモーダル統合に伴い撤去した。日報の保存は REST
+    // (POST/PATCH /reports)、記事化は REST (POST /reports/{id}/convert)
+    // に一本化されている。
 
     public static function bulk_reports() {
         if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
@@ -779,13 +754,7 @@ class DRWP_Admin {
         $action = sanitize_text_field($_POST['bulk_action'] ?? '');
         $count = 0;
 
-        // CSV出力は読み取りなので退職者・ライセンス失効中でも許す。
-        if ($action === 'bulk_export_csv') {
-            self::export_csv($ids);
-            return;
-        }
-
-        // ここから先は全て書き込み。単発の save_report / DRWP_Plan::save と
+        // 全て書き込み。単発の save_report / DRWP_Plan::save と
         // 同じく、退職者とライセンス失効中は止める (この経路だけ抜けていた)。
         DRWP_User::block_write_or_die();
         if (!DRWP_License::can_write()) {
@@ -796,13 +765,11 @@ class DRWP_Admin {
             );
         }
 
-        $review_actions = ['bulk_approve', 'bulk_revision'];
-        // 公開設定の一括変更 (bulk_update_publish) は記事化と同じく
-        // 事務所権限 (publish_posts)。ゲートに入れないと、作業者が自分の
-        // 日報の post_status を publish に書き換えられてしまう。
-        $convert_actions = ['bulk_convert', 'bulk_update_publish'];
-        if (in_array($action, $review_actions, true) && !current_user_can(self::CAP_REVIEW)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
-        if (in_array($action, $convert_actions, true) && !current_user_can(self::CAP_CONVERT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
+        // 一括操作 UI にあるのは承認 / 差し戻しの2つだけ。かつて存在した
+        // bulk_export_csv (→ 絞り込み全件CSVへ)・bulk_convert /
+        // bulk_update_publish (→ 記事作成モーダルへ) の分岐は撤去した。
+        if (!in_array($action, ['bulk_approve', 'bulk_revision'], true)) wp_die(esc_html__('不明な一括操作です。', 'drwp-daily-reports'));
+        if (!current_user_can(self::CAP_REVIEW)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
 
         foreach ($ids as $id) {
             if (!$id) continue;
@@ -822,21 +789,6 @@ class DRWP_Admin {
                     do_action('drwp_review_changed', (int) $id, (string) $report->review_status, 'needs_revision', '');
                     $count++;
                 }
-            } elseif ($action === 'bulk_convert') {
-                $result = DRWP_Post_Converter::sync_post($id, true);
-                if (!is_wp_error($result)) $count++;
-            } elseif ($action === 'bulk_update_publish') {
-                $data = [
-                    'post_template' => DRWP_Labels::sanitize_post_template($_POST['bulk_post_template'] ?? 'standard'),
-                    'post_category_id' => absint($_POST['bulk_post_category_id'] ?? 0) ?: null,
-                    'post_tags' => sanitize_text_field($_POST['bulk_post_tags'] ?? ''),
-                    'post_status' => sanitize_text_field($_POST['bulk_post_status'] ?? 'draft'),
-                    'scheduled_at' => sanitize_text_field($_POST['bulk_scheduled_at'] ?? '') ?: null,
-                ];
-                if ((int) $wpdb->update($table, $data, ['id' => $id])) {
-                    DRWP_Audit::log('publish_settings_updated', '公開設定を一括更新', $id, $data);
-                    $count++;
-                }
             }
         }
         // 日報操作 (drwp_operations) was merged into the 日報一覧
@@ -849,36 +801,6 @@ class DRWP_Admin {
         exit;
     }
 
-    private static function export_csv($ids) {
-        if (!current_user_can(self::CAP_EDIT)) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
-        $ids = array_values(array_filter(array_map('absint', (array) $ids)));
-        if (empty($ids)) {
-            wp_safe_redirect(admin_url('admin.php?page=drwp_reports'));
-            exit;
-        }
-        global $wpdb;
-        $table = self::reports_table();
-        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
-        $scope_args = $ids;
-        $scope_sql = "id IN ($placeholders)";
-        if (!current_user_can(self::CAP_REVIEW)) {
-            $scope_sql .= ' AND user_id = %d';
-            $scope_args[] = get_current_user_id();
-        }
-        $sql = "SELECT id, report_date, review_status, public_title, post_template, post_category_id, post_tags, post_status, scheduled_at, linked_post_id, work_description FROM $table WHERE $scope_sql ORDER BY id DESC";
-        $rows = $wpdb->get_results($wpdb->prepare($sql, $scope_args), ARRAY_A);
-        nocache_headers();
-        // Shift-JIS (CP932) で出力。Excel 日本語版でダブルクリックで
-        // 開いた際の文字化けを避けるため、SJIS-win に変換してから書く。
-        header('Content-Type: text/csv; charset=Shift_JIS');
-        header('Content-Disposition: attachment; filename="drwp-reports-' . gmdate('Ymd-His') . '.csv"');
-        $out = fopen('php://output', 'w');
-        $header = ['id', 'report_date', 'review_status', 'public_title', 'post_template', 'post_category_id', 'post_tags', 'post_status', 'scheduled_at', 'linked_post_id', 'work_description'];
-        self::fputcsv_sjis($out, $header);
-        foreach ($rows as $row) self::fputcsv_sjis($out, $row);
-        fclose($out);
-        exit;
-    }
 
     /**
      * 絞り込み条件にマッチする日報全件を Shift-JIS の CSV で出力する。
