@@ -560,22 +560,74 @@ class DRWP_REST {
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             return new WP_Error('drwp_invalid', '予定日 (planned_date) を YYYY-MM-DD 形式で指定してください。', ['status' => 400]);
         }
+        global $wpdb;
         $project_id = isset($input['project_id']) ? absint($input['project_id']) : 0;
+        if ($project_id) {
+            // update_plan と同じ存在チェック。不正な ID をそのまま挿し込んで
+            // 「案件未設定」に見える宙ぶらりんな行を作らない。
+            $proj_t = $wpdb->prefix . 'drwp_projects';
+            if (!$wpdb->get_var($wpdb->prepare("SELECT id FROM $proj_t WHERE id = %d", $project_id))) {
+                return new WP_Error('drwp_invalid', '案件 ID (project_id) が不正です。', ['status' => 400]);
+            }
+        }
         $started_at = self::sanitize_time_or_null($input['started_at'] ?? null);
         $ended_at   = self::sanitize_time_or_null($input['ended_at'] ?? null);
         $notes      = wp_kses_post((string) ($input['notes'] ?? ''));
 
         $uid = get_current_user_id();
-        global $wpdb;
+
+        // 管理画面の予定モーダルは作成時にも担当者・状態・紐付け日報を
+        // 送るが、従来は無視して常に「自分・active・未リンク」で作成して
+        // いた (事務所が他の作業員の予定を作ると自分の予定になる)。
+        // update_plan と同じ検証・権限で受け付ける。
+        $assignee = $uid;
+        if (array_key_exists('user_id', $input)) {
+            $target_uid = absint($input['user_id']);
+            if ($target_uid !== $uid) {
+                if (!current_user_can('edit_others_posts')) {
+                    return new WP_Error(
+                        'drwp_forbidden',
+                        __('担当者の変更は事務所のみ可能です。', 'drwp-daily-reports'),
+                        ['status' => 403]
+                    );
+                }
+                if ($target_uid) {
+                    $target = get_userdata($target_uid);
+                    if (!$target || !user_can($target, 'edit_posts')) {
+                        return new WP_Error('drwp_invalid', 'ユーザー ID (user_id) が不正です。', ['status' => 400]);
+                    }
+                }
+                $assignee = $target_uid ?: null;
+            }
+        }
+
+        $status = 'active';
+        if (array_key_exists('status', $input)) {
+            $status = sanitize_text_field((string) $input['status']);
+            if (!array_key_exists($status, DRWP_Plan::status_labels())) {
+                return new WP_Error('drwp_invalid', '指定された予定ステータスが不正です。', ['status' => 400]);
+            }
+        }
+
+        $linked = null;
+        if (!empty($input['linked_report_id'])) {
+            $rid = absint($input['linked_report_id']);
+            if ($rid) {
+                $reports_t = $wpdb->prefix . 'drwp_reports';
+                $linked = $wpdb->get_var($wpdb->prepare("SELECT id FROM $reports_t WHERE id = %d", $rid)) ? $rid : null;
+            }
+        }
+
         $wpdb->insert(DRWP_Plan::table(), [
-            'project_id'   => $project_id ?: null,
-            'user_id'      => $uid,
-            'planned_date' => $date,
-            'started_at'   => $started_at,
-            'ended_at'     => $ended_at,
-            'notes'        => $notes,
-            'status'       => 'active',
-            'created_by'   => $uid,
+            'project_id'       => $project_id ?: null,
+            'user_id'          => $assignee,
+            'planned_date'     => $date,
+            'started_at'       => $started_at,
+            'ended_at'         => $ended_at,
+            'notes'            => $notes,
+            'status'           => $status,
+            'linked_report_id' => $linked,
+            'created_by'       => $uid,
         ]);
         $id = (int) $wpdb->insert_id;
         DRWP_Audit::log('plan_created', '予定を作成 (REST)', $id, ['source' => 'rest']);

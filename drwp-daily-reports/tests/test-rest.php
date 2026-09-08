@@ -166,6 +166,73 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         $this->assertSame('更新のみ', $row->work_description);
     }
 
+    public function test_create_plan_honors_assignee_status_and_link_from_operator() {
+        global $wpdb;
+        $admin_id = $this->make_admin();
+        $worker = self::factory()->user->create(['role' => 'contributor']);
+        $this->activate_license();
+        $project = $this->make_project('割当先案件');
+        $report_id = $this->create_report_via_rest($project);
+
+        // 管理画面の予定モーダルは作成時にも担当者・状態・紐付け日報を
+        // 送る。従来の create_plan はこれらを無視して常に「自分・active・
+        // 未リンク」で作成していた。
+        $resp = $this->call('POST', '/drwp/v1/plans', [
+            'planned_date'     => '2026-10-01',
+            'project_id'       => $project,
+            'user_id'          => $worker,
+            'status'           => 'completed',
+            'linked_report_id' => $report_id,
+        ]);
+        $this->assertSame(201, $resp->get_status());
+        $id = (int) $resp->get_data()['id'];
+        $row = $wpdb->get_row($wpdb->prepare(
+            'SELECT * FROM ' . $wpdb->prefix . 'drwp_plans WHERE id = %d', $id
+        ));
+        $this->assertSame((string) $worker, (string) $row->user_id);
+        $this->assertSame('completed', $row->status);
+        $this->assertSame((string) $report_id, (string) $row->linked_report_id);
+        $this->assertSame((string) $admin_id, (string) $row->created_by);
+    }
+
+    public function test_create_plan_rejects_assignee_change_from_non_operator() {
+        $this->make_subscriber_with_edit();
+        $other = self::factory()->user->create(['role' => 'contributor']);
+        $this->activate_license();
+        $resp = $this->call('POST', '/drwp/v1/plans', [
+            'planned_date' => '2026-10-01',
+            'user_id'      => $other,
+        ]);
+        $this->assertSame(403, $resp->get_status());
+    }
+
+    public function test_create_plan_defaults_to_self_and_active_without_extras() {
+        global $wpdb;
+        $uid = $this->make_subscriber_with_edit();
+        $this->activate_license();
+        $resp = $this->call('POST', '/drwp/v1/plans', [
+            'planned_date' => '2026-10-02',
+        ]);
+        $this->assertSame(201, $resp->get_status());
+        $row = $wpdb->get_row($wpdb->prepare(
+            'SELECT * FROM ' . $wpdb->prefix . 'drwp_plans WHERE id = %d',
+            (int) $resp->get_data()['id']
+        ));
+        $this->assertSame((string) $uid, (string) $row->user_id);
+        $this->assertSame('active', $row->status);
+        $this->assertNull($row->linked_report_id);
+    }
+
+    public function test_create_plan_rejects_unknown_project_id() {
+        $this->make_admin();
+        $this->activate_license();
+        $resp = $this->call('POST', '/drwp/v1/plans', [
+            'planned_date' => '2026-10-03',
+            'project_id'   => 424242,
+        ]);
+        $this->assertSame(400, $resp->get_status());
+    }
+
     public function test_patch_plan_lets_operator_reassign_project_and_user() {
         global $wpdb;
         $admin_id = $this->make_admin();
