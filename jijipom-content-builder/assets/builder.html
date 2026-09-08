@@ -303,9 +303,14 @@
   /* プレビュー上のクリック編集: 対応するフォームがある要素はホバーで枠を表示し、
      クリックで該当フォームへジャンプする */
   .pv-edit { cursor:pointer; }
-  .pv-edit:hover { outline:2px dashed rgba(43,92,255,.85); outline-offset:2px; }
+  .pv-inline { cursor:text; }
+  .pv-edit:hover, .pv-inline:hover { outline:2px dashed rgba(43,92,255,.85); outline-offset:2px; }
   /* 入れ子の場合は内側だけ光らせる (:has 未対応ブラウザでは両方光るが実害なし) */
-  .pv-edit:hover:has(.pv-edit:hover) { outline:none; }
+  .pv-edit:hover:has(.pv-edit:hover, .pv-inline:hover, .pv-inline:focus) { outline:none; }
+  /* 直接編集中はソリッド枠 + 薄い地色 */
+  .pv-inline:focus { outline:2px solid rgba(43,92,255,.9); outline-offset:2px; background:rgba(43,92,255,.06); }
+  /* 空にしてもカーソル行の高さを保つ */
+  .pv-inline:focus:empty::before { content:"\200b"; }
   .is-hit { animation:jcbHit 1.8s ease; border-radius:6px; }
   @keyframes jcbHit {
     0%, 55% { box-shadow:0 0 0 3px rgba(43,92,255,.5); background:rgba(43,92,255,.07); }
@@ -1105,7 +1110,7 @@
   // ---- プレビューのクリックで該当フォームへジャンプ ----
   // ctrl (フォーム側の入力要素または任意のブロック) が属するタブを開き、
   // スクロール + フォーカス + ハイライトで場所を示す。
-  function jumpToField(ctrl) {
+  function jumpToField(ctrl, opts) {
     var ed = ctrl.closest('.editor');
     if (!ed) return;
     var tab = document.querySelector('.tab[data-page="' + ed.dataset.page + '"]');
@@ -1119,7 +1124,8 @@
     var box = ctrl.closest('.fld') || ctrl.closest('.media') || ctrl;
     box.scrollIntoView({ behavior:'smooth', block:'center' });
     var tag = ctrl.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+    var noFocus = opts && opts.focus === false;
+    if (!noFocus && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')) {
       try { ctrl.focus({ preventScroll:true }); } catch (e) { try { ctrl.focus(); } catch (e2) {} }
     }
     box.classList.remove('is-hit');
@@ -1136,11 +1142,67 @@
     el.addEventListener('click', function (ev) {
       // 入れ子 (ヒーロー全体→中のボタン等) では内側を優先する
       ev.preventDefault(); ev.stopPropagation();
+      // 直接編集の開始時にプレースホルダが消えて要素が縮むと、mousedown と
+      // mouseup のターゲットがずれて click が祖先 (ここ) に届くことがある。
+      // 編集中の要素があるうちはジャンプを乗っ取らない。
+      var ae = document.activeElement;
+      if (ae && ae.classList && ae.classList.contains('pv-inline')) return;
       jumpToField(ctrl);
     });
   }
+  // ---- プレビューでの直接編集 (テキスト) ----
+  // applyField が textContent を書く単純テキスト要素 (.pl) は contenteditable にし、
+  // プレビュー上で打った内容をフォームと保存状態へ書き戻す。編集開始時には
+  // 該当フォームも表示 (フォーカスは奪わない) して、どこの項目かが分かるようにする。
+  function canInlineEdit(el, f) {
+    if (!el || !el.classList.contains('pl')) return false;
+    var tag = f.tagName, type = (f.getAttribute('type') || 'text').toLowerCase();
+    return tag === 'TEXTAREA' || (tag === 'INPUT' && type === 'text');
+  }
+  function wireInlineEdit(el, f) {
+    if (el.dataset.jcbEdit) return;
+    el.dataset.jcbEdit = '1';
+    var single = (f.tagName === 'INPUT');
+    el.contentEditable = 'plaintext-only';
+    if (el.contentEditable !== 'plaintext-only') el.contentEditable = 'true';
+    el.classList.add('pv-inline');
+    el.title = 'クリックして直接編集';
+    el.spellcheck = false;
+    // 祖先の「クリックでジャンプ」を発火させない (カーソル配置はそのまま)
+    el.addEventListener('click', function (ev) { ev.stopPropagation(); });
+    el.addEventListener('focus', function () {
+      // プレースホルダ (入力例) は編集対象にしない
+      if (el.classList.contains('is-ph')) { el.textContent = ''; el.classList.remove('is-ph'); }
+      jumpToField(f, { focus: false });
+    });
+    el.addEventListener('input', function () {
+      var v = el.innerText.replace(/\u00a0/g, ' ');
+      if (single) v = v.replace(/\n+/g, ' ');
+      if (!v.trim()) v = '';
+      f.value = v;
+      el.classList.remove('is-ph');
+      if (v.trim() !== '') state.f[f.dataset.bind] = v; else delete state.f[f.dataset.bind];
+      persist();
+    });
+    el.addEventListener('keydown', function (ev) {
+      if ((single && ev.key === 'Enter') || ev.key === 'Escape') { ev.preventDefault(); el.blur(); }
+    });
+    el.addEventListener('paste', function (ev) {
+      // plaintext-only 未対応ブラウザ向け: 書式を落として挿入
+      if (el.contentEditable === 'plaintext-only') return;
+      ev.preventDefault();
+      var t = (ev.clipboardData || window.clipboardData).getData('text/plain') || '';
+      document.execCommand('insertText', false, single ? t.replace(/\n+/g, ' ') : t);
+    });
+    // blur で通常経路に戻して表示を正規化 (空ならプレースホルダ復帰)
+    el.addEventListener('blur', function () { applyField(f); });
+  }
   // テキスト系: data-bind と同じ id を持つプレビュー要素
-  fields.forEach(function (f) { wirePvEdit(document.getElementById(f.dataset.bind), f); });
+  fields.forEach(function (f) {
+    var el = document.getElementById(f.dataset.bind);
+    if (canInlineEdit(el, f)) wireInlineEdit(el, f);
+    else wirePvEdit(el, f);
+  });
   // 画像・動画・埋め込み: メディア枠の data-target
   mediaCtrls.forEach(function (ctrl) {
     wirePvEdit(document.getElementById(ctrl.dataset.target), ctrl.querySelector('.murl') || ctrl);
