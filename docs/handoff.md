@@ -12,9 +12,9 @@
 
 ## 現在のバージョン(すべて main にマージ済み)
 - 日報マン プラグイン(`drwp-daily-reports`): **1.79.2**
-- テーマ jijipom: **1.19.1**
+- テーマ jijipom: **1.19.2**
 - 子テーマ jijipom-child: **1.0.0**
-- プラグイン jijipom-content-builder: **1.12.1**
+- プラグイン jijipom-content-builder: **1.12.2**
 - license-server: 稼働中(バージョン番号なし)
 
 ## 作業ブランチと運用ルール

@@ -208,6 +208,7 @@ class Jijipom_Importer {
 			'jijipom_svc_feature_heading' => 'text',
 			'jijipom_svc_feature_text'    => 'textarea',
 			'jijipom_svc_cta_heading'     => 'text',
+			'jijipom_svc_cta_text'        => 'textarea',
 			'jijipom_svc_cta_button_text' => 'text',
 			'jijipom_svc_cta_button_url'  => 'url',
 			'jijipom_company_lead'            => 'textarea',

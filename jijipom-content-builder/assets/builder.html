@@ -620,6 +620,7 @@
 
         <div class="grp">CTA（お問い合わせ誘導）</div>
         <label class="fld"><span>見出し</span><input data-bind="sv-cta-h" data-sample="まずはお気軽にご相談ください"></label>
+        <label class="fld"><span>説明文</span><textarea data-bind="sv-cta-x" data-sample="現地調査・お見積りは無料です。"></textarea></label>
         <label class="fld"><span>ボタンの文言</span><input data-bind="sv-cta-btn" data-sample="お問い合わせはこちら"></label>
         <label class="fld"><span>ボタンのリンク先URL</span><input data-bind="sv-cta-url" placeholder="例: /contact/"></label>
         <label class="chk"><input type="checkbox" data-btn="sv-cta-btn" checked> ボタンを表示する</label>
@@ -790,7 +791,7 @@
               <p class="lead pl" id="sv-feat-x" style="max-width:66ch"></p></div></section>
             <section class="sec sec--muted"><div class="inner" style="text-align:center">
               <h2 class="sec__h pl" id="sv-cta-h" style="margin-bottom:.4rem"></h2>
-              <p class="lead" style="margin:0 auto 1.3rem">現地調査・お見積りは無料です。</p>
+              <p class="lead pl" id="sv-cta-x" style="margin:0 auto 1.3rem"></p>
               <span class="btn pl" id="sv-cta-btn"></span></div></section>
             <footer class="footer"><div class="footer-inner">
               <div class="footer-main">
@@ -1653,6 +1654,7 @@
     set('jijipom_svc_feature_heading', fv('sv-feat-h'));
     set('jijipom_svc_feature_text', fv('sv-feat-x'));
     set('jijipom_svc_cta_heading', fv('sv-cta-h'));
+    set('jijipom_svc_cta_text', fv('sv-cta-x'));
     var ctaBtn = isOn('data-btn', 'sv-cta-btn');
     set('jijipom_svc_cta_button_text', ctaBtn ? fv('sv-cta-btn') : '');
     set('jijipom_svc_cta_button_url', ctaBtn ? fv('sv-cta-url') : '');
