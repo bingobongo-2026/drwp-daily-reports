@@ -312,6 +312,14 @@ class DRWP_Post_Converter {
         $report = $wpdb->get_row($wpdb->prepare("SELECT $table.* FROM $table WHERE id = %d", $report_id));
         if (!$report) return new WP_Error('drwp_missing', '指定された日報が見つかりませんでした。');
         if (!DRWP_License::can_convert()) return new WP_Error('drwp_license', DRWP_License::convert_blocked_message());
+        // すべての変換経路 (REST / 一括 / 単発 / CLI) の共通ガード。
+        if (!empty($report->archived_at)) {
+            return new WP_Error('drwp_archived', __('アーカイブ済みの日報は記事化できません。復元してから実行してください。', 'drwp-daily-reports'));
+        }
+        // 予約日時なしの future は wp_insert_post で即時公開相当になる。
+        if ((string) $report->post_status === 'future' && empty($report->scheduled_at)) {
+            return new WP_Error('drwp_invalid_schedule', __('予約公開が指定されていますが、予約日時 (scheduled_at) が設定されていません。', 'drwp-daily-reports'));
+        }
 
         $is_update = !empty($report->linked_post_id) && $update_existing;
 

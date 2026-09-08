@@ -682,7 +682,9 @@ class DRWP_Admin {
             'date_to'     => isset($_GET['date_to']) ? sanitize_text_field(wp_unslash($_GET['date_to'])) : '',
         ];
 
-        $where = "review_status = 'approved'";
+        // アーカイブ済みは記事作成の対象外 (一覧にも出さない)。復元して
+        // から記事化する運用。変換自体も sync_post 側でブロックされる。
+        $where = "review_status = 'approved' AND archived_at IS NULL";
         $args = [];
         if (!current_user_can(self::CAP_REVIEW)) {
             $where .= ' AND user_id = %d';
