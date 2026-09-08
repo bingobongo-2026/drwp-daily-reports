@@ -655,8 +655,12 @@ class DRWP_Admin {
         }
         natcasesort($reporters);
 
-        // 絞り込み・編集の案件候補は「完了」を除く。
+        // 絞り込みの案件候補は「完了」を除く。編集モーダルは完了案件も
+        // 含めた一覧を使う — 除外すると、完了案件に紐づく日報を開いた
+        // ときに選択が「（未設定）」へ外れ、保存しただけで紐付けが
+        // 消えてしまうため (表示は「（完了）」を付けて区別する)。
         $projects = DRWP_Project::all_for_filter();
+        $projects_all = DRWP_Project::all();
         $customer_groups = DRWP_Customer_Group::all(true);
         $project_groups  = DRWP_Project_Group::all(true);
 

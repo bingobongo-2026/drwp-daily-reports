@@ -969,14 +969,19 @@ class DRWP_REST {
         foreach ($allowed_kses as $k) {
             if (isset($input[$k])) $out[$k] = wp_kses_post((string) $input[$k]);
         }
+        // isset() では JSON の null が「キーなし」と同じ扱いになり、
+        // 編集モーダルの「（未設定）」(project_id: null) や記事化モーダルの
+        // 予約解除 (scheduled_at: null) が黙って無視されていた。明示的な
+        // null はクリア指示として通す (started_at/ended_at と同じ流儀)。
         foreach ($allowed_int as $k) {
-            if (isset($input[$k])) $out[$k] = (int) $input[$k] ?: null;
+            if (!array_key_exists($k, $input)) continue;
+            $out[$k] = (int) $input[$k] ?: null;
         }
         if (isset($input['report_date'])) {
             $d = sanitize_text_field((string) $input['report_date']);
             if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) $out['report_date'] = $d;
         }
-        if (isset($input['scheduled_at'])) {
+        if (array_key_exists('scheduled_at', $input)) {
             $out['scheduled_at'] = sanitize_text_field((string) $input['scheduled_at']) ?: null;
         }
         // started_at / ended_at: accept HH:MM or HH:MM:SS, store as
