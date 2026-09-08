@@ -1399,7 +1399,11 @@ class DRWP_Report_Archive {
                 </div>
             </header>
 
-            <?php echo self::render_filter_form($q, $project, $status, $month_param, $projects, !empty($_GET['drwp_mine']), $view, $range_from, $range_to); ?>
+            <?php // 「自分のみ」チェックは URL パラメータではなく実効スコープ
+                  // ($opts['user_id']) を反映する。スマホは未操作でも既定で
+                  // 自分のみに絞られる (render_list) ため、生の drwp_mine を
+                  // 見るとチェックが外れたまま一覧だけ絞られて見えていた。
+                  echo self::render_filter_form($q, $project, $status, $month_param, $projects, !empty($opts['user_id']), $view, $range_from, $range_to); ?>
 
             <?php
             $total_count = count($rows);
