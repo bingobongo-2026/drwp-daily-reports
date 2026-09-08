@@ -1,90 +1,12 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
+/**
+ * レビュー状態の定義。かつてここにあった admin-post ハンドラ
+ * (drwp_review_report / drwp_add_comment) は、どの画面からも参照されない
+ * 死にコードだったため撤去した。レビューとコメントは REST
+ * (POST /reports/{id}/review, /reports/{id}/comments) に一本化されている。
+ */
 class DRWP_Review {
     const ALLOWED_STATUSES = ['pending', 'approved', 'needs_revision', 'edit_requested'];
-
-    public static function init() {
-        add_action('admin_post_drwp_review_report', [__CLASS__, 'handle']);
-        add_action('admin_post_drwp_add_comment', [__CLASS__, 'add_comment']);
-    }
-
-    public static function handle() {
-        if (!current_user_can('edit_others_posts')) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
-        check_admin_referer('drwp_review_report');
-        // レビューも書き込み — 退職者・ライセンス失効中は他の書き込み系と
-        // 同じく止める (この経路だけ抜けていた)。
-        DRWP_User::block_write_or_die();
-        if (!DRWP_License::can_write()) {
-            wp_die(
-                DRWP_License::blocked_message(__('ライセンス状態によりレビューを保存できません。', 'drwp-daily-reports')),
-                esc_html__('ライセンス未有効', 'drwp-daily-reports'),
-                ['response' => 402]
-            );
-        }
-
-        $id = absint($_POST['id'] ?? 0);
-        $status = sanitize_text_field($_POST['review_status'] ?? '');
-        if (!in_array($status, self::ALLOWED_STATUSES, true)) wp_die(esc_html__('レビュー状態が不正です', 'drwp-daily-reports'));
-
-        global $wpdb;
-        $table = $wpdb->prefix . 'drwp_reports';
-        $report = $id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id)) : null;
-        if (!$report) wp_die(esc_html__('見つかりませんでした', 'drwp-daily-reports'));
-
-        $wpdb->update($table, ['review_status' => $status], ['id' => $id]);
-
-        $comment_id = 0;
-        if (!empty($_POST['comment'])) {
-            $comment_id = DRWP_Comment::insert($id, $_POST['comment']);
-        }
-
-        DRWP_Audit::log('review_status_changed', 'レビュー状態を変更', $id, [
-            'from'       => $report->review_status,
-            'to'         => $status,
-            'comment_id' => $comment_id ?: null,
-        ]);
-
-        do_action(
-            'drwp_review_changed',
-            $id,
-            (string) $report->review_status,
-            $status,
-            isset($_POST['comment']) ? wp_strip_all_tags(wp_unslash($_POST['comment'])) : ''
-        );
-
-        wp_safe_redirect(admin_url('admin.php?page=drwp_reports&view=' . $id . '&reviewed=1'));
-        exit;
-    }
-
-    public static function add_comment() {
-        check_admin_referer('drwp_add_comment');
-        DRWP_User::block_write_or_die();
-        if (!DRWP_License::can_write()) {
-            wp_die(
-                DRWP_License::blocked_message(__('ライセンス状態によりコメントを保存できません。', 'drwp-daily-reports')),
-                esc_html__('ライセンス未有効', 'drwp-daily-reports'),
-                ['response' => 402]
-            );
-        }
-        $id = absint($_POST['id'] ?? 0);
-        if (!$id) wp_die(esc_html__('見つかりませんでした', 'drwp-daily-reports'));
-
-        global $wpdb;
-        $table = $wpdb->prefix . 'drwp_reports';
-        $report = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
-        if (!$report) wp_die(esc_html__('見つかりませんでした', 'drwp-daily-reports'));
-
-        $is_owner = (int) $report->user_id === get_current_user_id();
-        if (!current_user_can('edit_others_posts') && !$is_owner) wp_die(esc_html__('権限がありません', 'drwp-daily-reports'));
-
-        $raw = (string) ($_POST['comment'] ?? '');
-        $comment_id = DRWP_Comment::insert($id, $raw);
-        if ($comment_id) {
-            DRWP_Audit::log('comment_added', 'コメントを追加', $id, ['comment_id' => $comment_id]);
-            do_action('drwp_comment_added', $id, $comment_id, wp_strip_all_tags(wp_unslash($raw)));
-        }
-        wp_safe_redirect(admin_url('admin.php?page=drwp_reports&view=' . $id . '&commented=1'));
-        exit;
-    }
 }

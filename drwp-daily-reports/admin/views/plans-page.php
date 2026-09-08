@@ -118,7 +118,7 @@ $is_retired = DRWP_User::is_retired();
       <?php if (empty($plans)): ?>
         <tr><td colspan="<?php echo $can_view_all ? 9 : 8; ?>">
           <?php
-            if (array_filter($filters)) {
+            if (array_filter(array_diff_key($filters, ['orderby' => 1, 'order' => 1]))) {
                 esc_html_e('該当する予定が見つかりません。', 'drwp-daily-reports');
             } else {
                 esc_html_e('まだ予定がありません。', 'drwp-daily-reports');

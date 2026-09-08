@@ -249,62 +249,6 @@ class DRWP_Post_Converter {
         return $html;
     }
 
-    public static function build_preview_html($report) {
-        $category_name = '';
-        if (!empty($report->post_category_id)) {
-            $term = get_term((int) $report->post_category_id, 'category');
-            if ($term && !is_wp_error($term)) {
-                $category_name = $term->name;
-            }
-        }
-        $tags = self::normalize_tags($report->post_tags ?? '');
-        ob_start();
-        ?>
-        <div class="drwp-preview" style="background:#fff;border:1px solid #dcdcde;padding:16px;margin-top:16px;">
-            <p style="margin:0 0 8px;color:#50575e;"><?php esc_html_e('公開プレビュー', 'drwp-daily-reports'); ?></p>
-            <h2 style="margin-top:0;"><?php echo esc_html($report->public_title ?: __('（公開タイトル未設定）', 'drwp-daily-reports')); ?></h2>
-            <p style="color:#50575e;">
-                <?php
-                  printf(
-                      /* translators: %s: post status label (下書き / 投稿の公開承認待ち / 予約) */
-                      esc_html__('状態: %s', 'drwp-daily-reports'),
-                      esc_html(DRWP_Labels::post_status((string) ($report->post_status ?: 'draft')))
-                  );
-                ?>
-                <?php if (!empty($category_name)): ?>
-                  / <?php
-                    printf(
-                        /* translators: %s: WP category name */
-                        esc_html__('カテゴリ: %s', 'drwp-daily-reports'),
-                        esc_html($category_name)
-                    );
-                  ?>
-                <?php endif; ?>
-                <?php if (!empty($report->scheduled_at)): ?>
-                  / <?php
-                    printf(
-                        /* translators: %s: scheduled publish datetime */
-                        esc_html__('公開予定: %s', 'drwp-daily-reports'),
-                        esc_html($report->scheduled_at)
-                    );
-                  ?>
-                <?php endif; ?>
-            </p>
-            <?php if (!empty($tags)): ?>
-                <p style="color:#50575e;"><?php
-                  printf(
-                      /* translators: %s: comma-separated tag list */
-                      esc_html__('タグ: %s', 'drwp-daily-reports'),
-                      esc_html(implode(', ', $tags))
-                  );
-                ?></p>
-            <?php endif; ?>
-            <hr />
-            <?php echo self::build_content($report); ?>
-        </div>
-        <?php
-        return (string) ob_get_clean();
-    }
 
     public static function sync_post($report_id, $update_existing = true) {
         global $wpdb;
