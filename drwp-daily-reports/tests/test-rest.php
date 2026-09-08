@@ -722,6 +722,75 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         $this->assertStringContainsString('リンク', (string) $saved);
     }
 
+    public function test_convert_rejects_archived_report() {
+        $this->activate_license();
+        update_option(DRWP_License::OPT_PLAN, 'pro');
+        $this->make_admin();
+        $pid = $this->make_project('現場B');
+        $rid = $this->create_report_via_rest($pid);
+        $this->archive_directly($rid);
+
+        $resp = $this->call('POST', "/drwp/v1/reports/$rid/convert", [
+            'public_title' => '記事タイトル',
+            'post_status'  => 'draft',
+        ]);
+        $this->assertSame(409, $resp->get_status());
+        $this->assertSame('drwp_archived', $resp->get_data()['code']);
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare(
+            "SELECT linked_post_id, public_title FROM {$wpdb->prefix}drwp_reports WHERE id = %d", $rid
+        ));
+        // エラー時は何も書き換えない (公開設定も記事リンクも)。
+        $this->assertNull($row->linked_post_id);
+        $this->assertNotSame('記事タイトル', (string) $row->public_title);
+    }
+
+    public function test_convert_rejects_future_status_without_schedule() {
+        $this->activate_license();
+        update_option(DRWP_License::OPT_PLAN, 'pro');
+        $this->make_admin();
+        $pid = $this->make_project('現場C');
+        $rid = $this->create_report_via_rest($pid);
+
+        // 予約日時なしの future — 従来は即時公開相当になっていた。
+        $resp = $this->call('POST', "/drwp/v1/reports/$rid/convert", [
+            'public_title' => '予約記事',
+            'post_status'  => 'future',
+        ]);
+        $this->assertSame(400, $resp->get_status());
+        $this->assertSame('drwp_invalid_schedule', $resp->get_data()['code']);
+
+        // 過去日時でも同じく拒否 (即時公開のなりすまし防止)。
+        $resp = $this->call('POST', "/drwp/v1/reports/$rid/convert", [
+            'post_status'  => 'future',
+            'scheduled_at' => '2000-01-01 09:00:00',
+        ]);
+        $this->assertSame(400, $resp->get_status());
+    }
+
+    public function test_convert_with_future_schedule_creates_scheduled_post() {
+        $this->activate_license();
+        update_option(DRWP_License::OPT_PLAN, 'pro');
+        $this->make_admin();
+        $pid = $this->make_project('現場D');
+        $rid = $this->create_report_via_rest($pid);
+
+        $when = gmdate('Y-m-d H:i:s', time() + 7 * DAY_IN_SECONDS);
+        $resp = $this->call('POST', "/drwp/v1/reports/$rid/convert", [
+            'public_title' => '予約記事',
+            'public_body'  => '本文',
+            'post_status'  => 'future',
+            'scheduled_at' => $when,
+        ]);
+        $this->assertSame(200, $resp->get_status());
+        global $wpdb;
+        $post_id = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT linked_post_id FROM {$wpdb->prefix}drwp_reports WHERE id = %d", $rid
+        ));
+        $this->assertGreaterThan(0, $post_id);
+        $this->assertSame('future', get_post_status($post_id));
+    }
+
     /* ---------- アーカイブ済みの可視性 ---------- */
 
     private function archive_directly($report_id) {

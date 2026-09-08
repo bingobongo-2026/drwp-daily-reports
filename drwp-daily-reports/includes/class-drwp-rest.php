@@ -917,6 +917,36 @@ class DRWP_REST {
         $allowed = ['post_template', 'post_category_id', 'post_tags', 'post_status', 'scheduled_at',
                      'public_title', 'public_intro', 'public_body', 'public_next_plan'];
         $publish_fields = array_intersect_key($sanitized, array_flip($allowed));
+
+        // アーカイブ済みは記事化不可 (一覧からも除外している)。誤って
+        // 古い日報が公開記事になるのを防ぐ。復元してから実行する。
+        if (!empty($report->archived_at)) {
+            return new WP_Error(
+                'drwp_archived',
+                __('アーカイブ済みの日報は記事化できません。復元してから実行してください。', 'drwp-daily-reports'),
+                ['status' => 409]
+            );
+        }
+
+        // 予約公開 (future) は未来の予約日時とセットでのみ受け付ける。
+        // 従来は予約日時なしの future がそのまま wp_insert_post に渡り、
+        // 予約のつもりが即時公開相当になっていた。保存前に検証して、
+        // エラー時は何も書き換えない。
+        $eff_status = array_key_exists('post_status', $publish_fields)
+            ? (string) $publish_fields['post_status'] : (string) $report->post_status;
+        $eff_sched = array_key_exists('scheduled_at', $publish_fields)
+            ? $publish_fields['scheduled_at'] : $report->scheduled_at;
+        if ($eff_status === 'future') {
+            $ts = $eff_sched ? strtotime((string) $eff_sched) : false;
+            if ($ts === false || $ts <= current_time('timestamp')) {
+                return new WP_Error(
+                    'drwp_invalid_schedule',
+                    __('予約公開には未来の予約日時 (scheduled_at) が必要です。', 'drwp-daily-reports'),
+                    ['status' => 400]
+                );
+            }
+        }
+
         if (!empty($publish_fields)) {
             global $wpdb;
             $wpdb->update($wpdb->prefix . 'drwp_reports', $publish_fields, ['id' => $id]);
