@@ -14,7 +14,7 @@
 - 日報マン プラグイン(`drwp-daily-reports`): **1.79.2**
 - テーマ jijipom: **1.19.2**
 - 子テーマ jijipom-child: **1.0.0**
-- プラグイン jijipom-content-builder: **1.12.2**
+- プラグイン jijipom-content-builder: **1.15.0**
 - license-server: 稼働中(バージョン番号なし)
 
 ## 作業ブランチと運用ルール
@@ -78,6 +78,13 @@
   幅変更への追従は resize イベント＋ ResizeObserver(幅が変わった時だけ再計算。
   高さで発火させると 1.5.4 と同種の無限ループになる)。
 - ライブプレビュー: 基本設定タブ(サイトタイトル/ロゴ/フォント/ソーシャル)＋ ①トップ〜⑤プライバシー。PC/スマホ切替。
+- **WiX風の直接操作**(1.13.0〜1.15.0): プレビュー要素クリックで該当フォームへ
+  ジャンプ(1.13.0)。テキスト要素は contenteditable(plaintext-only)でその場編集、
+  フォーム/localStorage に即時反映(1.15.0)。編集中は祖先のジャンプを発動しない
+  ガードあり(プレースホルダ消滅→要素縮小→click が祖先に届く競合対策)。
+- **AIでまとめて入力**(1.14.0): 基本設定タブ。全テキスト項目一覧入りのAI用指示文を
+  コピー → AIチャットに資料と渡す → 返答JSONを貼り付けて一括反映(pvSetField 経由)。
+  APIキー/外部通信なし。項目一覧はDOMから動的生成。pv-intro/pv-body/ct-form-sc は除外。
 - 画像/動画/YouTube、各ブロック・項目・カードの表示切替、サービス項目のリンクURL。
 - 「⬇ ZIPをエクスポート」= `jijipom-content.json`(= jijipom の theme_mods / pages にマッピング)。
 - 「💾 下書き保存 / 📂 下書き読込」= `jijipom-draft.json`(入力途中の state を保存/復元)。
