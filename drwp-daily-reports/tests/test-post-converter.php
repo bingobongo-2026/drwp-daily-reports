@@ -154,6 +154,7 @@ class Test_DRWP_Post_Converter extends WP_UnitTestCase {
 
     public function test_sync_post_creates_post_when_license_active() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
 
         global $wpdb;
         $table = $wpdb->prefix . 'drwp_reports';
@@ -186,6 +187,7 @@ class Test_DRWP_Post_Converter extends WP_UnitTestCase {
 
     public function test_sync_post_uses_drwp_report_cpt_when_configured() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
         DRWP_Output::save_settings(['post_type' => DRWP_CPT::POST_TYPE, 'auto_thumbnail' => false]);
 
         global $wpdb;
@@ -205,6 +207,7 @@ class Test_DRWP_Post_Converter extends WP_UnitTestCase {
 
     public function test_sync_post_preserves_original_type_on_update() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
 
         // First sync as plain `post`.
         DRWP_Output::save_settings(['post_type' => 'post', 'auto_thumbnail' => false]);
@@ -232,6 +235,7 @@ class Test_DRWP_Post_Converter extends WP_UnitTestCase {
 
     public function test_sync_post_sets_first_photo_as_featured_image() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
         DRWP_Output::save_settings(['post_type' => 'post', 'auto_thumbnail' => true]);
 
         $att = self::factory()->attachment->create_object('p.jpg', 0, [
@@ -257,6 +261,7 @@ class Test_DRWP_Post_Converter extends WP_UnitTestCase {
 
     public function test_sync_post_does_not_overwrite_existing_thumbnail() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
         DRWP_Output::save_settings(['post_type' => 'post', 'auto_thumbnail' => true]);
 
         $hand_picked = self::factory()->attachment->create_object('hand.jpg', 0, [
@@ -290,6 +295,7 @@ class Test_DRWP_Post_Converter extends WP_UnitTestCase {
 
     public function test_auto_thumbnail_off_skips_set_post_thumbnail() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
         DRWP_Output::save_settings(['post_type' => 'post', 'auto_thumbnail' => false]);
 
         $att = self::factory()->attachment->create_object('p.jpg', 0, [

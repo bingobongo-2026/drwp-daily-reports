@@ -78,6 +78,7 @@ class Test_DRWP_License extends WP_UnitTestCase {
 
     public function test_status_active_passes_through() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
         update_option(DRWP_License::OPT_PLAN, 'pro');
         $this->assertSame('active', DRWP_License::status());
         $this->assertTrue(DRWP_License::can_write());
@@ -85,9 +86,30 @@ class Test_DRWP_License extends WP_UnitTestCase {
         $this->assertTrue(DRWP_License::can_convert());
     }
 
+    public function test_status_active_goes_stale_without_recent_verified_check() {
+        // ネットワーク遮断などで照会が失敗し続けると check_now は
+        // OPT_STATUS を書き換えないまま WP_Error を返す。その状態でも
+        // GRACE_DAYS を超えたら active を信じない (fail-closed)。
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time() - 8 * DAY_IN_SECONDS);
+        update_option(DRWP_License::OPT_PLAN, 'pro');
+        $this->assertSame('inactive', DRWP_License::status());
+        $this->assertFalse(DRWP_License::can_write());
+        $this->assertFalse(DRWP_License::can_convert());
+    }
+
+    public function test_status_active_requires_last_valid_at() {
+        // 検証済みチェックの記録なしに status だけ active なのは
+        // 正規の経路では作られない状態 — 信じない。
+        update_option(DRWP_License::OPT_STATUS, 'active');
+        $this->assertSame('inactive', DRWP_License::status());
+        $this->assertFalse(DRWP_License::can_write());
+    }
+
     public function test_can_convert_blocked_on_basic_plan() {
         // ベーシックは日報のみ — active でも記事化は不可。
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
         update_option(DRWP_License::OPT_PLAN, 'basic');
         $this->assertTrue(DRWP_License::can_write());
         $this->assertFalse(DRWP_License::can_convert());
@@ -95,6 +117,7 @@ class Test_DRWP_License extends WP_UnitTestCase {
 
     public function test_plan_allows_pro_unlocks_ai_and_convert() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
         update_option(DRWP_License::OPT_PLAN, 'pro');
         $this->assertSame('pro', DRWP_License::plan());
         $this->assertTrue(DRWP_License::plan_allows('ai'));
@@ -103,6 +126,7 @@ class Test_DRWP_License extends WP_UnitTestCase {
 
     public function test_plan_allows_light_unlocks_convert_only() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
         update_option(DRWP_License::OPT_PLAN, 'light');
         $this->assertSame('light', DRWP_License::plan());
         // ライトは日報 + ブログ記事作成 (convert)。AI は不可。
@@ -112,6 +136,7 @@ class Test_DRWP_License extends WP_UnitTestCase {
 
     public function test_plan_allows_basic_blocks_ai_and_convert() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
         update_option(DRWP_License::OPT_PLAN, 'basic');
         // ベーシックは日報のみ (convert / ai どちらも不可)。
         $this->assertFalse(DRWP_License::plan_allows('ai'));
@@ -120,6 +145,7 @@ class Test_DRWP_License extends WP_UnitTestCase {
 
     public function test_plan_allows_free_unlocks_full_features() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
         update_option(DRWP_License::OPT_PLAN, 'free');
         // フリーは 30 日体験 = フル機能 (convert + ai)。
         $this->assertTrue(DRWP_License::plan_allows('ai'));
@@ -128,6 +154,7 @@ class Test_DRWP_License extends WP_UnitTestCase {
 
     public function test_plan_allows_normalises_case_and_whitespace() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
         update_option(DRWP_License::OPT_PLAN, '  PRO ');
         $this->assertSame('pro', DRWP_License::plan());
         $this->assertTrue(DRWP_License::plan_allows('ai'));
@@ -135,6 +162,7 @@ class Test_DRWP_License extends WP_UnitTestCase {
 
     public function test_plan_allows_unknown_plan_falls_back_to_basic() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
         update_option(DRWP_License::OPT_PLAN, 'enterprise');
         // 不明プランは basic 扱い = 日報のみ。ai も convert も不可。
         $this->assertFalse(DRWP_License::plan_allows('ai'));
@@ -157,6 +185,7 @@ class Test_DRWP_License extends WP_UnitTestCase {
 
     public function test_convert_blocked_message_is_plan_specific_on_basic() {
         update_option(DRWP_License::OPT_STATUS, 'active');
+        update_option(DRWP_License::OPT_LAST_VALID_AT, time());
         update_option(DRWP_License::OPT_PLAN, 'basic');
         $msg = DRWP_License::convert_blocked_message();
         // プラン起因であることが分かる文言。ライセンス無効の文言は出さない。
