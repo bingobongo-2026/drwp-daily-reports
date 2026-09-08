@@ -374,8 +374,8 @@ $can_review = current_user_can('edit_others_posts');
             <td>
               <select id="drwp-edit-project">
                 <option value=""><?php esc_html_e('（未設定）', 'drwp-daily-reports'); ?></option>
-                <?php foreach (($projects ?? []) as $p): ?>
-                  <option value="<?php echo (int) $p->id; ?>"><?php echo esc_html($p->name); ?></option>
+                <?php foreach (($projects_all ?? $projects ?? []) as $p): ?>
+                  <option value="<?php echo (int) $p->id; ?>"><?php echo esc_html($p->name . ($p->status === 'completed' ? __('（完了）', 'drwp-daily-reports') : '')); ?></option>
                 <?php endforeach; ?>
               </select>
             </td></tr>

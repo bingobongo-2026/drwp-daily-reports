@@ -111,6 +111,61 @@ class Test_DRWP_REST extends WP_UnitTestCase {
         $this->assertSame('更新', $patched->get_data()['public_body']);
     }
 
+    public function test_patch_with_explicit_null_clears_project_and_schedule() {
+        global $wpdb;
+        $this->make_admin();
+        $this->activate_license();
+        $project = $this->make_project('クリア対象の案件');
+        $created = $this->call('POST', '/drwp/v1/reports', [
+            'project_id'       => $project,
+            'report_date'      => '2026-09-01',
+            'work_description' => '作業',
+            'scheduled_at'     => '2099-01-01 09:00:00',
+        ]);
+        $this->assertSame(201, $created->get_status());
+        $id = (int) $created->get_data()['id'];
+        $table = $wpdb->prefix . 'drwp_reports';
+        $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
+        $this->assertSame((string) $project, (string) $row->project_id);
+        $this->assertNotNull($row->scheduled_at);
+
+        // 明示的な null はクリア指示。isset() ベースの旧実装では JSON の
+        // null が「キーなし」と同じ扱いになり、編集モーダルの「（未設定）」
+        // (project_id: null) や記事化モーダルの予約解除 (scheduled_at: null)
+        // が黙って無視されていた。
+        $patched = $this->call('PATCH', "/drwp/v1/reports/$id", [
+            'project_id'   => null,
+            'scheduled_at' => null,
+        ]);
+        $this->assertSame(200, $patched->get_status());
+        $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
+        $this->assertNull($row->project_id);
+        $this->assertNull($row->scheduled_at);
+    }
+
+    public function test_patch_omitting_keys_leaves_project_and_schedule_untouched() {
+        global $wpdb;
+        $this->make_admin();
+        $this->activate_license();
+        $project = $this->make_project('維持される案件');
+        $created = $this->call('POST', '/drwp/v1/reports', [
+            'project_id'       => $project,
+            'report_date'      => '2026-09-01',
+            'work_description' => '作業',
+            'scheduled_at'     => '2099-01-01 09:00:00',
+        ]);
+        $id = (int) $created->get_data()['id'];
+        $patched = $this->call('PATCH', "/drwp/v1/reports/$id", [
+            'work_description' => '更新のみ',
+        ]);
+        $this->assertSame(200, $patched->get_status());
+        $table = $wpdb->prefix . 'drwp_reports';
+        $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id));
+        $this->assertSame((string) $project, (string) $row->project_id);
+        $this->assertNotNull($row->scheduled_at);
+        $this->assertSame('更新のみ', $row->work_description);
+    }
+
     public function test_patch_plan_lets_operator_reassign_project_and_user() {
         global $wpdb;
         $admin_id = $this->make_admin();
