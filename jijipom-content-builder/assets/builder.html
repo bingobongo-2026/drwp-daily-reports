@@ -73,6 +73,14 @@
   .fld textarea { min-height:52px; }
   .fld input:focus, .fld textarea:focus, .murl:focus { outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent); }
   .cols2 { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  /* 会社概要（表）の行エディタ: 表示チェック + 項目名 + 内容 */
+  .corow { display:grid; grid-template-columns:auto minmax(90px,1fr) 2fr; gap:7px; align-items:center; margin:0 0 7px; }
+  .corow input:not([type="checkbox"]) { width:100%; min-width:0; font:inherit; font-size:13.5px; color:var(--app-ink);
+    background:var(--bg); border:1px solid var(--app-border); border-radius:var(--r-sm); padding:8px 10px; }
+  .corow input:not([type="checkbox"]):focus { outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent); }
+  .corow input[type="checkbox"] { accent-color:var(--accent); width:15px; height:15px; margin:0; cursor:pointer; }
+  .corow-head { font-size:11.5px; color:var(--app-muted); margin:0 0 4px; }
+  .corow-head span:first-child { width:15px; }
   .sns-row { display:flex; gap:8px; }
   .sns-row input:not([type="number"]) { flex:1; min-width:0; }
   .sns-row input[type="number"] { width:58px; flex:none; text-align:center; }
@@ -330,7 +338,7 @@
      (viewport の maximum-scale=1 はピンチ拡大まで殺すので使わない)。 */
   @media (pointer:coarse), (max-width:980px) {
     .fld input, .fld textarea, .fld select,
-    .murl, .cfrow input, .cfrow select, .sns-row input { font-size:16px; }
+    .murl, .cfrow input, .cfrow select, .sns-row input, .corow input { font-size:16px; }
   }
   @media (prefers-reduced-motion:reduce){ * { transition:none !important; } }
 
@@ -667,16 +675,16 @@
         <label class="fld"><span>役職・氏名</span><input data-bind="co-greet-name" data-sample="代表取締役　山田 太郎"></label>
 
         <div class="grp">会社概要（表）</div>
-        <div class="cols2">
-          <label class="fld"><span>会社名</span><input data-bind="co-r1" data-sample="株式会社 山田工務店"></label>
-          <label class="fld"><span>代表者</span><input data-bind="co-r2" data-sample="代表取締役 山田 太郎"></label>
-          <label class="fld"><span>所在地</span><input data-bind="co-r3" data-sample="○○県△△市中央1-2-3"></label>
-          <label class="fld"><span>電話番号</span><input data-bind="co-r4" data-sample="000-000-0000"></label>
-          <label class="fld"><span>設立</span><input data-bind="co-r5" data-sample="1991年4月"></label>
-          <label class="fld"><span>資本金</span><input data-bind="co-r6" data-sample="1,000万円"></label>
-          <label class="fld"><span>事業内容</span><input data-bind="co-r7" data-sample="木造住宅の新築・リフォーム"></label>
-          <label class="fld"><span>許認可番号</span><input data-bind="co-r8" data-sample="○○県知事許可 第00000号"></label>
-        </div>
+        <p class="hintline" style="margin:-2px 0 8px">行ごとに表示/非表示を選べます。項目名も変更できます（空欄なら既定の項目名）。非表示の行は書き出しに含まれません。</p>
+        <div class="corow corow-head" aria-hidden="true"><span></span><span>項目名</span><span>内容</span></div>
+        <div class="corow"><input type="checkbox" data-vis="co-row1" checked title="この行を表示する" aria-label="行1を表示する"><input data-bind="co-l1" data-sample="会社名" aria-label="項目名（既定: 会社名）"><input data-bind="co-r1" data-sample="株式会社 山田工務店" aria-label="会社名"></div>
+        <div class="corow"><input type="checkbox" data-vis="co-row2" checked title="この行を表示する" aria-label="行2を表示する"><input data-bind="co-l2" data-sample="代表者" aria-label="項目名（既定: 代表者）"><input data-bind="co-r2" data-sample="代表取締役 山田 太郎" aria-label="代表者"></div>
+        <div class="corow"><input type="checkbox" data-vis="co-row3" checked title="この行を表示する" aria-label="行3を表示する"><input data-bind="co-l3" data-sample="所在地" aria-label="項目名（既定: 所在地）"><input data-bind="co-r3" data-sample="○○県△△市中央1-2-3" aria-label="所在地"></div>
+        <div class="corow"><input type="checkbox" data-vis="co-row4" checked title="この行を表示する" aria-label="行4を表示する"><input data-bind="co-l4" data-sample="電話番号" aria-label="項目名（既定: 電話番号）"><input data-bind="co-r4" data-sample="000-000-0000" aria-label="電話番号"></div>
+        <div class="corow"><input type="checkbox" data-vis="co-row5" checked title="この行を表示する" aria-label="行5を表示する"><input data-bind="co-l5" data-sample="設立" aria-label="項目名（既定: 設立）"><input data-bind="co-r5" data-sample="1991年4月" aria-label="設立"></div>
+        <div class="corow"><input type="checkbox" data-vis="co-row6" checked title="この行を表示する" aria-label="行6を表示する"><input data-bind="co-l6" data-sample="資本金" aria-label="項目名（既定: 資本金）"><input data-bind="co-r6" data-sample="1,000万円" aria-label="資本金"></div>
+        <div class="corow"><input type="checkbox" data-vis="co-row7" checked title="この行を表示する" aria-label="行7を表示する"><input data-bind="co-l7" data-sample="事業内容" aria-label="項目名（既定: 事業内容）"><input data-bind="co-r7" data-sample="木造住宅の新築・リフォーム" aria-label="事業内容"></div>
+        <div class="corow"><input type="checkbox" data-vis="co-row8" checked title="この行を表示する" aria-label="行8を表示する"><input data-bind="co-l8" data-sample="許認可番号" aria-label="項目名（既定: 許認可番号）"><input data-bind="co-r8" data-sample="○○県知事許可 第00000号" aria-label="許認可番号"></div>
 
         <div class="grp">アクセス</div>
         <label class="fld"><span>住所</span><input data-bind="co-ac-addr" data-sample="○○県△△市中央1-2-3"></label>
@@ -840,14 +848,14 @@
                 <div><p class="pl" id="co-greet"></p><p class="greet__name pl" id="co-greet-name"></p></div></div></div></section>
             <section class="sec sec--muted"><div class="inner"><h2 class="sec__h">会社概要</h2>
               <table class="overview"><tbody>
-                <tr><th>会社名</th><td class="pl" id="co-r1"></td></tr>
-                <tr><th>代表者</th><td class="pl" id="co-r2"></td></tr>
-                <tr><th>所在地</th><td class="pl" id="co-r3"></td></tr>
-                <tr><th>電話番号</th><td class="pl" id="co-r4"></td></tr>
-                <tr><th>設立</th><td class="pl" id="co-r5"></td></tr>
-                <tr><th>資本金</th><td class="pl" id="co-r6"></td></tr>
-                <tr><th>事業内容</th><td class="pl" id="co-r7"></td></tr>
-                <tr><th>許認可番号</th><td class="pl" id="co-r8"></td></tr>
+                <tr id="co-row1"><th class="pl" id="co-l1"></th><td class="pl" id="co-r1"></td></tr>
+                <tr id="co-row2"><th class="pl" id="co-l2"></th><td class="pl" id="co-r2"></td></tr>
+                <tr id="co-row3"><th class="pl" id="co-l3"></th><td class="pl" id="co-r3"></td></tr>
+                <tr id="co-row4"><th class="pl" id="co-l4"></th><td class="pl" id="co-r4"></td></tr>
+                <tr id="co-row5"><th class="pl" id="co-l5"></th><td class="pl" id="co-r5"></td></tr>
+                <tr id="co-row6"><th class="pl" id="co-l6"></th><td class="pl" id="co-r6"></td></tr>
+                <tr id="co-row7"><th class="pl" id="co-l7"></th><td class="pl" id="co-r7"></td></tr>
+                <tr id="co-row8"><th class="pl" id="co-l8"></th><td class="pl" id="co-r8"></td></tr>
               </tbody></table></div></section>
             <section class="sec"><div class="inner"><h2 class="sec__h">アクセス</h2>
               <dl class="access"><dt>住所</dt><dd class="pl" id="co-ac-addr"></dd>
@@ -1719,7 +1727,8 @@
         if (tag !== 'TEXTAREA' && !(tag === 'INPUT' && type === 'text')) return;
         if (AI_SKIP[el.dataset.bind]) return;
         var lab = el.closest('.fld');
-        var labText = lab && lab.querySelector('span') ? lab.querySelector('span').textContent.trim() : el.dataset.bind;
+        var labText = lab && lab.querySelector('span') ? lab.querySelector('span').textContent.trim()
+          : (el.getAttribute('aria-label') || el.dataset.bind);
         var line = el.dataset.bind + ': ' + labText + '【' + tabName + (grp ? ' > ' + grp : '') + '】';
         if (el.dataset.sample) line += '（例: ' + el.dataset.sample.replace(/\n/g, ' ') + '）';
         out.push(line);
@@ -1903,10 +1912,13 @@
     set('jijipom_company_greeting_text', fv('co-greet'));
     set('jijipom_company_greeting_name', fv('co-greet-name'));
     var gi = media('co-greet-img'); set('jijipom_company_greeting_image', gi ? gi.src : '');
+    // 行ごとの表示チェックと項目名。非表示の行は値を空にして書き出す
+    // (テーマ側は値が空の行を表に出さない)。項目名が空欄なら既定名。
     var rowLabels = ['会社名', '代表者', '所在地', '電話番号', '設立', '資本金', '事業内容', '許認可番号'];
     for (var r = 1; r <= 8; r++) {
-      set('jijipom_company_row' + r + '_label', rowLabels[r - 1]);
-      set('jijipom_company_row' + r + '_value', fv('co-r' + r));
+      var rowOn = isOn('data-vis', 'co-row' + r);
+      set('jijipom_company_row' + r + '_label', rowOn ? (fv('co-l' + r) || rowLabels[r - 1]) : '');
+      set('jijipom_company_row' + r + '_value', rowOn ? fv('co-r' + r) : '');
     }
     set('jijipom_company_access_address', fv('co-ac-addr'));
     set('jijipom_company_access_hours', fv('co-ac-hours'));
