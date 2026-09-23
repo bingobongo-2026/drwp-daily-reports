@@ -73,7 +73,19 @@ function jijipom_entry_taxonomies() {
  * body_class にサイドバー有無のクラスを追加
  */
 function jijipom_body_classes( $classes ) {
-	if ( is_active_sidebar( 'sidebar-1' ) && ! is_page_template( 'templates/full-width.php' ) && ! is_404() ) {
+	// サイドバーを描画しないテンプレート。has-sidebar が付くと
+	// .site-content が2カラムグリッドになり右側に 300px の空き列が
+	// できるため、get_sidebar() を呼ばないテンプレートは必ず除外する。
+	// (以前はフルワイドだけ除外していて、サービス/会社概要/お問い合わせ/
+	// プライバシーの4テンプレートがページごと左に寄っていた)
+	$jijipom_sidebarless_templates = array(
+		'templates/full-width.php',
+		'templates/page-service.php',
+		'templates/page-company.php',
+		'templates/page-contact.php',
+		'templates/page-privacy.php',
+	);
+	if ( is_active_sidebar( 'sidebar-1' ) && ! is_page_template( $jijipom_sidebarless_templates ) && ! is_404() ) {
 		$classes[] = 'has-sidebar';
 	} else {
 		$classes[] = 'no-sidebar';
