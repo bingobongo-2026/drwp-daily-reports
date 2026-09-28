@@ -156,6 +156,20 @@ function jijipom_layout_inline_css() {
 		$root[] = '--wide-width:' . $wide . 'px;';
 	}
 
+	// メインビジュアルのオーバーレイ (背景に掛ける色 + 濃さ)。
+	// どちらも標準 (色未設定 + 30%) のときは出力せず、style.css の
+	// 既定 rgba(0,0,0,.3) に任せる。数値欄を空にした場合も標準扱い。
+	$ov_color = sanitize_hex_color( (string) get_theme_mod( 'jijipom_hero_overlay_color', '' ) );
+	$ov_raw   = get_theme_mod( 'jijipom_hero_overlay_opacity', 30 );
+	$ov_op    = ( '' === $ov_raw || null === $ov_raw ) ? 30 : max( 0, min( 100, absint( $ov_raw ) ) );
+	if ( $ov_color || 30 !== $ov_op ) {
+		$hex = $ov_color ? $ov_color : '#000000';
+		$r = hexdec( substr( $hex, 1, 2 ) );
+		$g = hexdec( substr( $hex, 3, 2 ) );
+		$b = hexdec( substr( $hex, 5, 2 ) );
+		$root[] = sprintf( '--hero-overlay:rgba(%d,%d,%d,%s);', $r, $g, $b, rtrim( rtrim( number_format( $ov_op / 100, 2, '.', '' ), '0' ), '.' ) ?: '0' );
+	}
+
 	$rules = array();
 	if ( $root ) {
 		$rules[] = ':root{' . implode( '', $root ) . '}';

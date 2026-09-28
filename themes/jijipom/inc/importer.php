@@ -181,6 +181,8 @@ class Jijipom_Importer {
 			'jijipom_hero_button_url'     => 'url',
 			'jijipom_hero_button_bg'      => 'color',
 			'jijipom_hero_button_color'   => 'color',
+			'jijipom_hero_overlay_color'  => 'color',
+			'jijipom_hero_overlay_opacity' => 'percent',
 			'jijipom_service_enable'      => 'bool',
 			'jijipom_service_heading'     => 'text',
 			'jijipom_service_text'        => 'textarea',
@@ -287,6 +289,14 @@ class Jijipom_Importer {
 					? array_keys( jijipom_front_order_choices() )
 					: array( 'service-blog-about' );
 				return in_array( $v, $ok, true ) ? $v : 'service-blog-about';
+			case 'percent':
+				// 0〜100 の割合。空は「標準 (30)」の意味で受ける
+				// (現状はヒーローのオーバーレイ濃度のみ)。
+				$v = trim( (string) $value );
+				if ( '' === $v ) {
+					return 30;
+				}
+				return max( 0, min( 100, absint( $v ) ) );
 			case 'interval':
 				$n = (int) $value;
 				return ( $n >= 2 && $n <= 12 ) ? $n : 5;
