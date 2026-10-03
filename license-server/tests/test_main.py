@@ -574,6 +574,14 @@ def test_purge_with_zero_days_is_noop(tmp_path, monkeypatch):
     assert len(main.db.recent_audit()) == 1
 
 
+def test_landing_page_served_at_root(client):
+    # "/" は nippo-man.com のトップページ (マーケティング LP) を返す。
+    r = client.get("/")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/html")
+    assert "日報マン" in r.text
+
+
 def test_canonical_form_is_sorted_compact_utf8(tmp_path, monkeypatch):
     # The canonical form is the bytes PHP (or any verifier) must reproduce:
     # keys sorted by string order, no whitespace, unescaped UTF-8 and slashes.
