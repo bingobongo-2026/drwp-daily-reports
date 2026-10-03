@@ -1,14 +1,14 @@
 # 日報マン マーケティング素材
 
 [nippo-man.com](https://nippo-man.com/) のトップページとして使う LP(ランディングページ)です。
-`landing-page.html` は **完全に自己完結した1ファイル**(画像・外部フォント・外部スクリプトなし)なので、
+`index.html` は **完全に自己完結した1ファイル**(画像・外部フォント・外部スクリプトなし)なので、
 置くだけ・貼るだけで動きます。
 
 ## 設置方法
 
 ### 方法 A: 静的ホスティング(推奨・最速)
 
-`landing-page.html` を `index.html` にリネームして nippo-man.com のドキュメントルートに置くだけです。
+`index.html` をそのまま nippo-man.com のドキュメントルートに置くだけです。
 head に title / meta description / OGP / favicon を含んでいるので、そのまま公開できます。
 
 ### 方法 B: WordPress の固定ページ
