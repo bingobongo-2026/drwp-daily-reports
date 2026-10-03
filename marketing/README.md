@@ -1,14 +1,30 @@
 # 日報マン マーケティング素材
 
 [nippo-man.com](https://nippo-man.com/) のトップページとして使う LP(ランディングページ)です。
-`index.html` は **完全に自己完結した1ファイル**(画像・外部フォント・外部スクリプトなし)なので、
-置くだけ・貼るだけで動きます。
 
-## 設置方法
+**LP 本体は [`license-server/app/static/index.html`](../license-server/app/static/index.html) に移動しました。**
+nippo-man.com ではライセンスサーバ (FastAPI) がドメイン直下で動いているため、
+その `/` ルートが LP を配信します (= このファイルがそのままトップページになります)。
 
-### 方法 A: 静的ホスティング(推奨・最速)
+LP は完全に自己完結した1ファイル(画像・外部フォント・外部スクリプトなし)なので、
+別の場所に置くだけ・貼るだけでも動きます。
 
-`index.html` をそのまま nippo-man.com のドキュメントルートに置くだけです。
+## 公開・更新手順 (nippo-man.com)
+
+1. `license-server/app/static/index.html` を編集して main にマージ
+2. VPS で:
+   ```bash
+   git pull
+   docker compose build license
+   docker compose up -d license
+   ```
+3. https://nippo-man.com/ で表示を確認
+
+## 別の場所に設置する場合
+
+### 方法 A: 静的ホスティング
+
+`index.html` をドキュメントルートに置くだけです。
 head に title / meta description / OGP / favicon を含んでいるので、そのまま公開できます。
 
 ### 方法 B: WordPress の固定ページ

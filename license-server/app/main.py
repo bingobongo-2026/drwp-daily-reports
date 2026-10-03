@@ -9,6 +9,7 @@ import re
 import secrets
 import zipfile
 from contextlib import asynccontextmanager
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import quote, urlsplit
@@ -685,6 +686,19 @@ def public_key():
 @app.post("/admin/rotate-signing-key")
 def admin_rotate_signing_key(_: str = Depends(require_admin)):
     return signing.rotate()
+
+
+# nippo-man.com のトップページ (マーケティング LP)。
+# このサーバは本番ではドメイン直下で動いているため、"/" で LP を返す
+# ことでサイトのトップページを兼ねる。LP は画像・外部読み込みなしの
+# 自己完結 HTML (app/static/index.html)。編集したら VPS で
+# `git pull && docker compose build license && docker compose up -d license`。
+_STATIC_DIR = Path(__file__).parent / "static"
+
+
+@app.get("/", include_in_schema=False)
+def landing_page():
+    return FileResponse(_STATIC_DIR / "index.html", media_type="text/html; charset=utf-8")
 
 
 @app.get("/healthz")
