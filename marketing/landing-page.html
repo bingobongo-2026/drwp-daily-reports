@@ -1,404 +1,674 @@
+<!DOCTYPE html>
 <!--
-  日報マン — WordPress 固定ページ用 LP (ランディングページ)
+  日報マン — nippo-man.com トップページ
 
-  使い方:
-    1. WordPress 管理画面 → 固定ページ → 新規追加
-    2. ブロックエディタで「カスタム HTML」ブロックを追加
-    3. このファイルの中身を <body> 内のみコピーして貼り付け
-       (<style> ブロックを含めるとそのまま動きます)
-    4. 必要に応じて [お問い合わせフォーム / ライセンス購入ページ] への
-       リンク先 URL を `href="#"` から差し替えてください
+  設置方法:
+    A) 静的ホスティング: このファイルをそのまま index.html として
+       ドメイン直下に置くだけで動きます (画像・外部読み込みなし)。
+    B) WordPress: 固定ページ(フルワイド/白紙テンプレート)に
+       「カスタム HTML」ブロックを置き、<body> の中身 (<style> 含む)
+       をコピーして貼り付け → 設定 > 表示設定 でフロントページに指定。
 
-  注意:
-    - 全インライン CSS で書いているので、テーマ CSS との競合は最小限です
-    - 画像は使わずグラデーション / 絵文字でビジュアルを作っているので
-      画像差し替えなしですぐ公開できます
-    - ダーク/ライトテーマ両対応の中立配色
+  公開前に差し替えるもの:
+    - 「無料で試す」「お問い合わせ」ボタンの href="#contact" /
+      href="#" → 実際のフォーム URL
+    - フッターの 特定商取引法 / プライバシーポリシー のリンク先
+    - OGP 画像 (og:image) は用意でき次第 <head> に追加
 -->
-<style id="drwp-lp-style">
-  .drwp-lp { max-width: 1100px; margin: 0 auto; padding: 0 16px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif; color: #1f2937; line-height: 1.75; }
-  .drwp-lp * { box-sizing: border-box; }
-  .drwp-lp h1, .drwp-lp h2, .drwp-lp h3 { color: #111827; line-height: 1.4; margin: 0; }
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日報マン | 現場の日報を、お客様への一次情報に変える</title>
+<meta name="description" content="写真と一緒にスマホから日報を送るだけ。レビューを経て、AIが読みやすい公開記事に整えます。工務店・施工管理・サービス業のためのWordPress日報管理プラグイン。30日間の無料体験あり。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="日報マン | 現場の日報を、お客様への一次情報に変える">
+<meta property="og:description" content="スマホで日報を送るだけで、ホームページの施工事例が増えていく。工務店・施工管理のためのWordPressプラグイン。">
+<meta property="og:url" content="https://nippo-man.com/">
+<meta property="og:site_name" content="日報マン">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+<style>
+:root {
+  --ink: #0f172a;
+  --ink-2: #334155;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --bg: #ffffff;
+  --bg-soft: #f6f8fb;
+  --brand: #2456e6;
+  --brand-deep: #173db3;
+  --brand-ink: #0b1b4d;
+  --accent: #f59e0b;
+  --ok: #059669;
+  --warn: #d97706;
+  --r-lg: 18px;
+  --r-md: 12px;
+  --r-sm: 8px;
+  --shadow-1: 0 1px 2px rgba(15,23,42,.05), 0 8px 24px -12px rgba(15,23,42,.12);
+  --shadow-2: 0 2px 4px rgba(15,23,42,.06), 0 18px 44px -16px rgba(15,23,42,.22);
+  --maxw: 1120px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+body {
+  margin: 0;
+  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", "Meiryo", system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.8;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { line-height: 1.4; margin: 0; letter-spacing: .01em; }
+p { margin: 0; }
+a { color: var(--brand); }
+section { scroll-margin-top: 84px; }
+.nm-wrap { max-width: var(--maxw); margin-inline: auto; padding-inline: 24px; }
+@media (max-width: 640px) { .nm-wrap { padding-inline: 18px; } }
 
-  /* ---- Hero ---- */
-  .drwp-lp-hero { padding: 56px 24px; margin: 24px 0; border-radius: 16px; background: linear-gradient(135deg, #1f2937 0%, #2563eb 100%); color: #fff; text-align: center; }
-  .drwp-lp-hero .badge { display: inline-block; padding: 4px 12px; border-radius: 999px; background: rgba(255,255,255,.16); font-size: .82rem; font-weight: 600; letter-spacing: .04em; margin-bottom: 16px; }
-  .drwp-lp-hero h1 { font-size: 2.2rem; color: #fff; margin-bottom: 14px; letter-spacing: .02em; }
-  .drwp-lp-hero p.lead { font-size: 1.1rem; color: rgba(255,255,255,.92); margin: 0 auto 24px; max-width: 720px; }
-  .drwp-lp-hero .ctas { display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
-  .drwp-lp-hero .btn { display: inline-block; padding: 12px 28px; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 1rem; transition: transform .1s; }
-  .drwp-lp-hero .btn:hover { transform: translateY(-1px); }
-  .drwp-lp-hero .btn.primary { background: #fff; color: #1f2937; }
-  .drwp-lp-hero .btn.ghost { background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.4); }
+/* ============ ヘッダー ============ */
+.nm-header {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(255,255,255,.88);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.nm-header .nm-wrap { display: flex; align-items: center; gap: 28px; height: 64px; }
+.nm-logo { font-weight: 800; font-size: 1.15rem; color: var(--ink); text-decoration: none; letter-spacing: .02em; display: flex; align-items: center; gap: 8px; }
+.nm-logo .mk { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--brand), #4f46e5); color: #fff; font-size: 15px; }
+.nm-nav { display: flex; gap: 22px; margin-left: auto; }
+.nm-nav a { color: var(--ink-2); text-decoration: none; font-size: .92rem; font-weight: 600; }
+.nm-nav a:hover { color: var(--brand); }
+.nm-header .nm-cta {
+  background: var(--brand); color: #fff; text-decoration: none; font-weight: 700; font-size: .92rem;
+  padding: 9px 20px; border-radius: 999px; white-space: nowrap;
+}
+.nm-header .nm-cta:hover { background: var(--brand-deep); }
+@media (max-width: 860px) { .nm-nav { display: none; } .nm-header .nm-cta { margin-left: auto; } }
 
-  /* ---- Pain points ---- */
-  .drwp-lp-section { padding: 56px 0; }
-  .drwp-lp-section h2 { font-size: 1.7rem; text-align: center; margin-bottom: 8px; }
-  .drwp-lp-section .sub { text-align: center; color: #6b7280; margin: 0 0 32px; }
-  .drwp-lp-pain { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-  .drwp-lp-pain .card { background: #fef3c7; border: 1px solid #fde68a; padding: 20px; border-radius: 10px; }
-  .drwp-lp-pain .card .ico { font-size: 1.6rem; margin-bottom: 8px; }
-  .drwp-lp-pain .card .ttl { font-weight: 700; color: #92400e; margin-bottom: 6px; }
-  .drwp-lp-pain .card .desc { color: #78350f; font-size: .94rem; }
+/* ============ ヒーロー ============ */
+.nm-hero {
+  position: relative; overflow: hidden;
+  background:
+    radial-gradient(900px 480px at 85% -10%, rgba(36,86,230,.14), transparent 60%),
+    radial-gradient(700px 420px at -10% 30%, rgba(79,70,229,.10), transparent 60%),
+    linear-gradient(#ffffff, #f4f7fd);
+}
+.nm-hero .nm-wrap {
+  display: grid; grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
+  gap: 48px; align-items: center; padding-block: 72px 84px;
+}
+.nm-hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #fff; border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 14px; font-size: .82rem; font-weight: 700; color: var(--ink-2);
+  box-shadow: var(--shadow-1); margin-bottom: 22px;
+}
+.nm-hero-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.nm-hero h1 { font-size: clamp(1.9rem, 4.2vw, 2.9rem); font-weight: 800; }
+.nm-hero h1 .grad {
+  background: linear-gradient(120deg, var(--brand) 20%, #7c3aed 90%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.nm-hero .lead { margin-top: 18px; font-size: 1.06rem; color: var(--ink-2); max-width: 34em; }
+.nm-hero .ctas { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 30px; }
+.nm-btn {
+  display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 700;
+  border-radius: var(--r-md); padding: 14px 30px; font-size: 1rem; transition: transform .12s, box-shadow .12s;
+}
+.nm-btn:hover { transform: translateY(-2px); }
+.nm-btn.primary { background: var(--brand); color: #fff; box-shadow: 0 10px 24px -10px rgba(36,86,230,.55); }
+.nm-btn.primary:hover { background: var(--brand-deep); }
+.nm-btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); box-shadow: var(--shadow-1); }
+.nm-hero .trust { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 24px; font-size: .86rem; color: var(--muted); }
+.nm-hero .trust span::before { content: "✓ "; color: var(--ok); font-weight: 800; }
 
-  /* ---- 3 Steps ---- */
-  .drwp-lp-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
-  .drwp-lp-steps .step { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; position: relative; }
-  .drwp-lp-steps .step .num { position: absolute; top: -16px; left: 20px; width: 36px; height: 36px; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; }
-  .drwp-lp-steps .step h3 { margin: 12px 0 8px; font-size: 1.1rem; }
-  .drwp-lp-steps .step p { color: #4b5563; font-size: .95rem; margin: 0; }
+/* ヒーロー右: アプリのモック (CSSのみ) */
+.nm-mock { position: relative; }
+.nm-mock-win {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2); overflow: hidden;
+}
+.nm-mock-bar { display: flex; align-items: center; gap: 6px; padding: 11px 14px; border-bottom: 1px solid var(--line); background: #fafbfe; }
+.nm-mock-bar i { width: 10px; height: 10px; border-radius: 50%; background: #e2e8f0; }
+.nm-mock-bar i:nth-child(1) { background: #fda4af; } .nm-mock-bar i:nth-child(2) { background: #fcd34d; } .nm-mock-bar i:nth-child(3) { background: #86efac; }
+.nm-mock-bar .url { margin-left: 8px; flex: 1; background: #fff; border: 1px solid var(--line); border-radius: 6px; font-size: .68rem; color: var(--muted); padding: 2px 10px; }
+.nm-mock-body { padding: 18px; }
+.nm-report {
+  border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px 16px; background: #fff;
+}
+.nm-report + .nm-report { margin-top: 12px; }
+.nm-report .head { display: flex; align-items: center; gap: 10px; }
+.nm-report .date { font-size: .78rem; color: var(--muted); font-weight: 600; }
+.nm-report .chip { margin-left: auto; font-size: .7rem; font-weight: 800; border-radius: 999px; padding: 2px 10px; }
+.nm-report .chip.ok { background: #dcfce7; color: #166534; }
+.nm-report .chip.wait { background: #fef3c7; color: #92400e; }
+.nm-report .ttl { font-weight: 700; font-size: .92rem; margin-top: 4px; }
+.nm-report .photos { display: flex; gap: 8px; margin-top: 10px; }
+.nm-report .ph { flex: 1; height: 52px; border-radius: 8px; background: linear-gradient(135deg, #c7d2fe, #93c5fd); position: relative; }
+.nm-report .ph.g2 { background: linear-gradient(135deg, #a7f3d0, #6ee7b7); }
+.nm-report .ph.g3 { background: linear-gradient(135deg, #fde68a, #fbbf24); }
+.nm-report .ph .tag { position: absolute; left: 6px; bottom: 5px; font-size: .62rem; font-weight: 800; background: rgba(15,23,42,.72); color: #fff; border-radius: 4px; padding: 0 6px; }
+.nm-mock-actions { display: flex; gap: 10px; margin-top: 14px; }
+.nm-mock-actions .a {
+  flex: 1; text-align: center; font-size: .8rem; font-weight: 800; padding: 9px 0; border-radius: var(--r-sm);
+  background: var(--brand); color: #fff;
+}
+.nm-mock-actions .a.sub { background: #eef2ff; color: var(--brand-deep); }
+.nm-float {
+  position: absolute; background: #fff; border: 1px solid var(--line); border-radius: 999px;
+  box-shadow: var(--shadow-2); font-size: .8rem; font-weight: 800; padding: 9px 16px; white-space: nowrap;
+}
+.nm-float.f1 { top: -16px; right: -8px; color: #166534; animation: nm-float 5s ease-in-out infinite; }
+.nm-float.f2 { bottom: -14px; left: -10px; color: var(--brand-deep); animation: nm-float 6s ease-in-out 1s infinite; }
+@keyframes nm-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@media (max-width: 920px) {
+  .nm-hero .nm-wrap { grid-template-columns: 1fr; padding-block: 52px 64px; }
+  .nm-mock { max-width: 480px; margin-inline: auto; width: 100%; }
+}
 
-  /* ---- Features grid ---- */
-  .drwp-lp-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
-  .drwp-lp-features .feat { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 22px; }
-  .drwp-lp-features .feat .ico { font-size: 1.8rem; margin-bottom: 10px; }
-  .drwp-lp-features .feat h3 { font-size: 1.05rem; margin-bottom: 6px; }
-  .drwp-lp-features .feat p { color: #4b5563; font-size: .92rem; margin: 0; }
+/* ============ 実績/数字バー ============ */
+.nm-stats { border-block: 1px solid var(--line); background: #fff; }
+.nm-stats .nm-wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding-block: 26px; text-align: center; }
+.nm-stats b { display: block; font-size: 1.5rem; color: var(--brand-deep); letter-spacing: .02em; }
+.nm-stats span { font-size: .84rem; color: var(--muted); font-weight: 600; }
+@media (max-width: 640px) { .nm-stats .nm-wrap { grid-template-columns: 1fr; gap: 14px; } }
 
-  /* ---- AI Pro section ---- */
-  .drwp-lp-ai { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: #fff; padding: 48px 32px; border-radius: 16px; }
-  .drwp-lp-ai h2 { color: #fff; text-align: center; margin-bottom: 8px; }
-  .drwp-lp-ai .sub { color: rgba(255,255,255,.85); text-align: center; margin-bottom: 28px; }
-  .drwp-lp-ai .ai-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
-  .drwp-lp-ai .ai-card { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); padding: 18px; border-radius: 10px; }
-  .drwp-lp-ai .ai-card .ico { font-size: 1.5rem; margin-bottom: 6px; }
-  .drwp-lp-ai .ai-card h3 { color: #fff; font-size: 1rem; margin-bottom: 4px; }
-  .drwp-lp-ai .ai-card p { color: rgba(255,255,255,.88); font-size: .88rem; margin: 0; }
-  .drwp-lp-ai .pill-row { text-align: center; margin-top: 24px; }
-  .drwp-lp-ai .pill { display: inline-block; padding: 4px 14px; border-radius: 999px; background: #fbbf24; color: #78350f; font-weight: 700; font-size: .85rem; letter-spacing: .04em; }
+/* ============ セクション共通 ============ */
+.nm-sec { padding-block: 88px; }
+.nm-sec.soft { background: var(--bg-soft); }
+.nm-eyebrow { display: block; text-align: center; color: var(--brand); font-weight: 800; font-size: .84rem; letter-spacing: .14em; margin-bottom: 10px; }
+.nm-sec > .nm-wrap > h2 { text-align: center; font-size: clamp(1.5rem, 3vw, 2.05rem); font-weight: 800; }
+.nm-sub { text-align: center; color: var(--muted); margin: 14px auto 48px; max-width: 42em; }
+@media (max-width: 640px) { .nm-sec { padding-block: 60px; } .nm-sub { margin-bottom: 34px; } }
 
-  /* ---- Security section ---- */
-  .drwp-lp-security { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 32px; }
-  .drwp-lp-security h2 { text-align: center; margin-bottom: 24px; }
-  .drwp-lp-security .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-  .drwp-lp-security .item { display: flex; gap: 12px; align-items: flex-start; }
-  .drwp-lp-security .item .ico { font-size: 1.4rem; flex-shrink: 0; }
-  .drwp-lp-security .item h3 { font-size: 1rem; margin-bottom: 4px; color: #065f46; }
-  .drwp-lp-security .item p { color: #064e3b; font-size: .92rem; margin: 0; }
+/* ============ 課題 ============ */
+.nm-pain { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+.nm-pain .card {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--r-md); padding: 26px 24px;
+  box-shadow: var(--shadow-1);
+}
+.nm-pain .ico { display: inline-grid; place-items: center; width: 46px; height: 46px; border-radius: 12px; background: #fff7ed; font-size: 22px; margin-bottom: 14px; }
+.nm-pain h3 { font-size: 1.02rem; margin-bottom: 8px; }
+.nm-pain p { color: var(--muted); font-size: .92rem; }
+.nm-pain-bridge { text-align: center; margin-top: 44px; font-weight: 800; font-size: 1.12rem; }
+.nm-pain-bridge .down { display: block; color: var(--brand); font-size: 1.4rem; margin-bottom: 6px; }
 
-  /* ---- Pricing ---- */
-  .drwp-lp-pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; max-width: 1120px; margin: 0 auto; }
-  .drwp-lp-pricing .plan { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 28px; position: relative; }
-  .drwp-lp-pricing .plan.pro { border: 2px solid #8b5cf6; box-shadow: 0 8px 24px rgba(139,92,246,.15); }
-  .drwp-lp-pricing .plan.pro::before { content: "おすすめ"; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #8b5cf6; color: #fff; padding: 4px 16px; border-radius: 999px; font-size: .82rem; font-weight: 700; }
-  .drwp-lp-pricing .plan h3 { font-size: 1.4rem; margin-bottom: 6px; }
-  .drwp-lp-pricing .plan .price { font-size: 1.8rem; font-weight: 700; color: #2563eb; margin: 12px 0; }
-  .drwp-lp-pricing .plan.pro .price { color: #8b5cf6; }
-  .drwp-lp-pricing .plan .price small { font-size: .9rem; font-weight: 400; color: #6b7280; }
-  .drwp-lp-pricing .plan ul { list-style: none; padding: 0; margin: 16px 0; }
-  .drwp-lp-pricing .plan ul li { padding: 6px 0; padding-left: 24px; position: relative; font-size: .94rem; color: #374151; }
-  .drwp-lp-pricing .plan ul li::before { content: "✓"; position: absolute; left: 0; color: #10b981; font-weight: 700; }
-  .drwp-lp-pricing .plan .cta { display: block; width: 100%; padding: 12px; background: #1f2937; color: #fff; border: 0; border-radius: 8px; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; margin-top: 12px; }
-  .drwp-lp-pricing .plan.pro .cta { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+/* ============ 3ステップ ============ */
+.nm-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; counter-reset: step; }
+.nm-steps .step {
+  position: relative; background: #fff; border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: 30px 26px 26px; box-shadow: var(--shadow-1);
+}
+.nm-steps .num {
+  position: absolute; top: -18px; left: 24px; width: 38px; height: 38px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--brand), #4f46e5); color: #fff; font-weight: 800; font-size: 1.05rem;
+  display: grid; place-items: center; box-shadow: 0 8px 18px -8px rgba(36,86,230,.6);
+}
+.nm-steps .ico { font-size: 28px; margin-bottom: 10px; }
+.nm-steps h3 { font-size: 1.08rem; margin-bottom: 8px; }
+.nm-steps p { color: var(--muted); font-size: .93rem; }
+.nm-steps .tagline { display: inline-block; margin-top: 14px; font-size: .74rem; font-weight: 800; color: var(--brand-deep); background: #eef2ff; border-radius: 999px; padding: 3px 12px; }
+@media (max-width: 860px) { .nm-steps { grid-template-columns: 1fr; gap: 30px; } }
 
-  /* ---- FAQ ---- */
-  .drwp-lp-faq { max-width: 760px; margin: 0 auto; }
-  .drwp-lp-faq details { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 18px; margin-bottom: 10px; }
-  .drwp-lp-faq summary { cursor: pointer; font-weight: 700; color: #1f2937; list-style: none; padding-right: 24px; position: relative; }
-  .drwp-lp-faq summary::-webkit-details-marker { display: none; }
-  .drwp-lp-faq summary::after { content: "+"; position: absolute; right: 0; font-size: 1.4rem; font-weight: 400; color: #6b7280; transition: transform .15s; }
-  .drwp-lp-faq details[open] summary::after { transform: rotate(45deg); }
-  .drwp-lp-faq .ans { color: #4b5563; margin-top: 10px; font-size: .94rem; }
+/* ============ 機能 ============ */
+.nm-feats { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.nm-feats .feat {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--r-md); padding: 26px 24px;
+  transition: transform .14s, box-shadow .14s;
+}
+.nm-feats .feat:hover { transform: translateY(-4px); box-shadow: var(--shadow-2); }
+.nm-feats .ico { display: inline-grid; place-items: center; width: 46px; height: 46px; border-radius: 12px; background: #eef2ff; font-size: 22px; margin-bottom: 14px; }
+.nm-feats h3 { font-size: 1.02rem; margin-bottom: 8px; }
+.nm-feats p { color: var(--muted); font-size: .92rem; }
 
-  /* ---- Final CTA ---- */
-  .drwp-lp-finalcta { background: #111827; color: #fff; padding: 48px 32px; border-radius: 16px; text-align: center; }
-  .drwp-lp-finalcta h2 { color: #fff; font-size: 1.8rem; margin-bottom: 12px; }
-  .drwp-lp-finalcta p { color: rgba(255,255,255,.85); margin: 0 auto 24px; max-width: 600px; }
-  .drwp-lp-finalcta a.btn { display: inline-block; padding: 14px 32px; background: #fbbf24; color: #78350f; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 1.05rem; }
+/* ============ AI ============ */
+.nm-ai {
+  background:
+    radial-gradient(640px 320px at 90% 0%, rgba(124,58,237,.35), transparent 65%),
+    radial-gradient(540px 300px at 0% 100%, rgba(36,86,230,.4), transparent 60%),
+    linear-gradient(135deg, #0c1a45 0%, #1e1b4b 100%);
+  border-radius: 24px; padding: 64px 48px; color: #fff;
+}
+.nm-ai .nm-eyebrow { color: #a5b4fc; }
+.nm-ai h2 { color: #fff; text-align: center; font-size: clamp(1.5rem, 3vw, 2.05rem); font-weight: 800; }
+.nm-ai .nm-sub { color: rgba(255,255,255,.75); }
+.nm-ai-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.nm-ai-card { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); border-radius: var(--r-md); padding: 22px 20px; }
+.nm-ai-card .ico { font-size: 22px; margin-bottom: 8px; }
+.nm-ai-card h3 { color: #fff; font-size: .98rem; margin-bottom: 6px; }
+.nm-ai-card p { color: rgba(255,255,255,.72); font-size: .88rem; }
+.nm-ai .pill-row { text-align: center; margin-top: 34px; }
+.nm-ai .pill { display: inline-block; background: var(--accent); color: #431407; font-weight: 800; font-size: .84rem; letter-spacing: .06em; border-radius: 999px; padding: 6px 20px; }
+@media (max-width: 640px) { .nm-ai { padding: 44px 24px; border-radius: 18px; } }
 
-  /* スマホ — H1 を控えめに、padding を詰める */
-  @media (max-width: 640px) {
-    .drwp-lp-hero { padding: 36px 18px; }
-    .drwp-lp-hero h1 { font-size: 1.6rem; }
-    .drwp-lp-hero p.lead { font-size: 1rem; }
-    .drwp-lp-section { padding: 36px 0; }
-    .drwp-lp-section h2 { font-size: 1.4rem; }
-  }
+/* ============ セキュリティ ============ */
+.nm-sec-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 720px) { .nm-sec-grid2 { grid-template-columns: 1fr; } }
+.nm-trust-item { display: flex; gap: 16px; background: #fff; border: 1px solid var(--line); border-radius: var(--r-md); padding: 22px; }
+.nm-trust-item .ico { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; background: #ecfdf5; font-size: 20px; }
+.nm-trust-item h3 { font-size: .99rem; margin-bottom: 6px; }
+.nm-trust-item p { color: var(--muted); font-size: .9rem; }
+
+/* ============ 料金 ============ */
+.nm-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; align-items: stretch; }
+.nm-plan {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--r-lg); padding: 30px 26px;
+  display: flex; flex-direction: column; position: relative;
+}
+.nm-plan.featured { border: 2px solid var(--brand); box-shadow: var(--shadow-2); }
+.nm-plan .ribbon {
+  position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+  background: var(--brand); color: #fff; font-size: .74rem; font-weight: 800; border-radius: 999px; padding: 4px 16px; white-space: nowrap;
+}
+.nm-plan h3 { font-size: 1.05rem; }
+.nm-plan .for { color: var(--muted); font-size: .84rem; margin-top: 4px; min-height: 2.6em; }
+.nm-plan .price { margin-top: 14px; font-weight: 800; font-size: 1.9rem; letter-spacing: .01em; }
+.nm-plan .price small { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.nm-plan ul { list-style: none; margin: 18px 0 24px; padding: 0; border-top: 1px solid var(--line); }
+.nm-plan li { padding: 9px 0 9px 24px; font-size: .9rem; color: var(--ink-2); border-bottom: 1px solid #f1f5f9; position: relative; }
+.nm-plan li::before { content: "✓"; position: absolute; left: 2px; color: var(--ok); font-weight: 800; }
+.nm-plan .cta {
+  margin-top: auto; text-align: center; display: block; text-decoration: none; font-weight: 700;
+  border-radius: var(--r-md); padding: 12px 0;
+  background: #eef2ff; color: var(--brand-deep);
+}
+.nm-plan .cta:hover { background: #e0e7ff; }
+.nm-plan.featured .cta { background: var(--brand); color: #fff; }
+.nm-plan.featured .cta:hover { background: var(--brand-deep); }
+.nm-plans-note { text-align: center; color: var(--muted); font-size: .84rem; margin-top: 22px; }
+
+/* ============ FAQ ============ */
+.nm-faq { max-width: 780px; margin-inline: auto; }
+.nm-faq details { background: #fff; border: 1px solid var(--line); border-radius: var(--r-md); margin-bottom: 12px; overflow: hidden; }
+.nm-faq summary {
+  list-style: none; cursor: pointer; font-weight: 700; padding: 18px 48px 18px 22px; position: relative; font-size: .97rem;
+}
+.nm-faq summary::-webkit-details-marker { display: none; }
+.nm-faq summary::after { content: "＋"; position: absolute; right: 20px; top: 50%; transform: translateY(-50%); color: var(--brand); font-weight: 800; }
+.nm-faq details[open] summary::after { content: "－"; }
+.nm-faq .ans { padding: 0 22px 18px; color: var(--ink-2); font-size: .93rem; }
+
+/* ============ 最終CTA ============ */
+.nm-final {
+  background:
+    radial-gradient(700px 360px at 80% -20%, rgba(124,58,237,.35), transparent 60%),
+    linear-gradient(135deg, #10224f 0%, #2456e6 100%);
+  border-radius: 24px; text-align: center; color: #fff; padding: 72px 32px;
+}
+.nm-final h2 { color: #fff; font-size: clamp(1.5rem, 3vw, 2.1rem); font-weight: 800; }
+.nm-final p { color: rgba(255,255,255,.85); margin: 16px auto 32px; max-width: 36em; }
+.nm-final .nm-btn.primary { background: #fff; color: var(--brand-ink); box-shadow: none; }
+.nm-final .trust { margin-top: 20px; font-size: .84rem; color: rgba(255,255,255,.75); }
+@media (max-width: 640px) { .nm-final { padding: 52px 20px; border-radius: 18px; } }
+
+/* ============ フッター ============ */
+.nm-footer { border-top: 1px solid var(--line); margin-top: 88px; background: #fff; }
+.nm-footer .nm-wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; padding-block: 28px; font-size: .84rem; color: var(--muted); }
+.nm-footer a { color: var(--muted); text-decoration: none; }
+.nm-footer a:hover { color: var(--brand); }
+.nm-footer .cr { margin-left: auto; }
+@media (max-width: 640px) { .nm-footer .cr { margin-left: 0; } }
 </style>
+</head>
+<body>
 
-<div class="drwp-lp">
+<!-- ============ ヘッダー ============ -->
+<header class="nm-header">
+  <div class="nm-wrap">
+    <a class="nm-logo" href="#"><span class="mk">📋</span>日報マン</a>
+    <nav class="nm-nav">
+      <a href="#flow">使い方</a>
+      <a href="#features">機能</a>
+      <a href="#ai">AI</a>
+      <a href="#pricing">料金</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="nm-cta" href="#contact">無料で試す</a>
+  </div>
+</header>
 
-  <!-- =================================================================
-       Hero
-       ================================================================= -->
-  <section class="drwp-lp-hero">
-    <span class="badge">📋 WordPress プラグイン</span>
-    <h1>現場の日報を、お客様への一次情報に変える。</h1>
-    <p class="lead">
-      写真と一緒にスマホから日報を送るだけ。レビューを経て、AI が読みやすい公開記事に整えます。<br>
-      工務店・施工管理・サービス業のための、WordPress と統合した日報管理プラグイン。
-    </p>
-    <div class="ctas">
-      <a href="#" class="btn primary">無料で試す</a>
-      <a href="#features" class="btn ghost">機能を見る</a>
+<!-- ============ ヒーロー ============ -->
+<section class="nm-hero">
+  <div class="nm-wrap">
+    <div>
+      <span class="nm-hero-badge"><span class="dot"></span>WordPress プラグイン / 30日間無料体験</span>
+      <h1>現場の日報を、<br><span class="grad">お客様への一次情報</span>に変える。</h1>
+      <p class="lead">写真と一緒にスマホから日報を送るだけ。事務所のレビューを経て、AI が読みやすい公開記事に整えます。工務店・施工管理・サービス業のための日報管理プラグインです。</p>
+      <div class="ctas">
+        <a class="nm-btn primary" href="#contact">無料で試す →</a>
+        <a class="nm-btn ghost" href="#features">機能を見る</a>
+      </div>
+      <div class="trust">
+        <span>クレジットカード不要</span>
+        <span>既存のWordPressに入れるだけ</span>
+        <span>期間終了後は自動停止</span>
+      </div>
     </div>
-  </section>
+    <div class="nm-mock" aria-hidden="true">
+      <span class="nm-float f1">✓ 承認しました</span>
+      <div class="nm-mock-win">
+        <div class="nm-mock-bar"><i></i><i></i><i></i><span class="url">nippo-man.com/wp-admin</span></div>
+        <div class="nm-mock-body">
+          <div class="nm-report">
+            <div class="head"><span class="date">6/18（木）山田様邸 外壁塗装</span><span class="chip ok">承認済み</span></div>
+            <div class="ttl">高圧洗浄と下地処理が完了しました</div>
+            <div class="photos">
+              <div class="ph"><span class="tag">Before</span></div>
+              <div class="ph g2"><span class="tag">After</span></div>
+              <div class="ph g3"></div>
+            </div>
+          </div>
+          <div class="nm-report">
+            <div class="head"><span class="date">6/18（木）S様邸 キッチン改修</span><span class="chip wait">レビュー待ち</span></div>
+            <div class="ttl">既存キッチンの解体を行いました</div>
+          </div>
+          <div class="nm-mock-actions">
+            <span class="a">📰 記事を作成</span>
+            <span class="a sub">✨ AIで下書き生成</span>
+          </div>
+        </div>
+      </div>
+      <span class="nm-float f2">📰 施工事例を公開しました</span>
+    </div>
+  </div>
+</section>
 
-  <!-- =================================================================
-       Pain points
-       ================================================================= -->
-  <section class="drwp-lp-section">
+<!-- ============ 数字バー ============ -->
+<div class="nm-stats">
+  <div class="nm-wrap">
+    <div><b>3 ステップ</b><span>入力 → 承認 → 公開のシンプル運用</span></div>
+    <div><b>1 プラグイン</b><span>日報・レビュー・記事化・AIまで集約</span></div>
+    <div><b>30 日間</b><span>全機能を無料で体験（カード不要）</span></div>
+  </div>
+</div>
+
+<!-- ============ 課題 ============ -->
+<section class="nm-sec">
+  <div class="nm-wrap">
+    <span class="nm-eyebrow">PROBLEM</span>
     <h2>こんな課題、ありませんか？</h2>
-    <p class="sub">現場の日報が「書いて終わり」になっていませんか？</p>
-    <div class="drwp-lp-pain">
+    <p class="nm-sub">現場の日報が「書いて終わり」になっていませんか？</p>
+    <div class="nm-pain">
       <div class="card">
-        <div class="ico">📝</div>
-        <div class="ttl">日報が社内で死蔵</div>
-        <div class="desc">毎日書いている日報が紙やチャットに埋もれ、お客様にも社外にも届いていない。</div>
+        <span class="ico">📝</span>
+        <h3>日報が社内で死蔵</h3>
+        <p>毎日書いている日報が紙やチャットに埋もれ、お客様にも社外にも届いていない。</p>
       </div>
       <div class="card">
-        <div class="ico">🌐</div>
-        <div class="ttl">ホームページが更新されない</div>
-        <div class="desc">「施工事例」が 2 年前で止まっている。新規問い合わせを取り逃がしている可能性。</div>
+        <span class="ico">🌐</span>
+        <h3>ホームページが更新されない</h3>
+        <p>「施工事例」が2年前で止まっている。新規問い合わせを取り逃がしている可能性。</p>
       </div>
       <div class="card">
-        <div class="ico">📞</div>
-        <div class="ttl">進捗報告が口頭ばかり</div>
-        <div class="desc">お客様への報告が電話と口頭中心。「言った言わない」が後で発生する。</div>
+        <span class="ico">📞</span>
+        <h3>進捗報告が口頭ばかり</h3>
+        <p>お客様への報告が電話と口頭中心。「言った言わない」が後で発生する。</p>
       </div>
       <div class="card">
-        <div class="ico">🤖</div>
-        <div class="ttl">記事を書く時間がない</div>
-        <div class="desc">「ブログを書きましょう」と言われても、現場で疲れて手が動かない。</div>
+        <span class="ico">⏰</span>
+        <h3>記事を書く時間がない</h3>
+        <p>「ブログを書きましょう」と言われても、現場で疲れて手が動かない。</p>
       </div>
     </div>
-  </section>
+    <p class="nm-pain-bridge"><span class="down">↓</span>毎日の日報が、そのままホームページの施工事例になるとしたら？</p>
+  </div>
+</section>
 
-  <!-- =================================================================
-       3 Steps
-       ================================================================= -->
-  <section class="drwp-lp-section">
-    <h2>3 ステップで日報が公開記事になる</h2>
-    <p class="sub">入力 → 承認 → 公開、現場と事務所の役割を分けて運用</p>
-    <div class="drwp-lp-steps">
+<!-- ============ 3ステップ ============ -->
+<section class="nm-sec soft" id="flow">
+  <div class="nm-wrap">
+    <span class="nm-eyebrow">HOW IT WORKS</span>
+    <h2>3ステップで日報が公開記事になる</h2>
+    <p class="nm-sub">現場と事務所の役割を分けて、ムリなく毎日まわる運用に</p>
+    <div class="nm-steps">
       <div class="step">
-        <div class="num">1</div>
-        <h3>📱 現場から日報を送る</h3>
-        <p>スマホで写真を撮って、作業内容を入力。Before / After のラベルも付けられます。送信先は「レビュー待ち」へ。</p>
-      </div>
-      <div class="step">
-        <div class="num">2</div>
-        <h3>✅ 事務所がレビュー</h3>
-        <p>表現の調整やコメントを付けて「承認」または「差戻し」。承認後は公開記事化のステージへ進みます。</p>
-      </div>
-      <div class="step">
-        <div class="num">3</div>
-        <h3>📰 ワンクリックで公開</h3>
-        <p>テンプレートを選んで「記事を作成」。AI がタイトルから本文まで整え、WordPress 投稿として公開できます。</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- =================================================================
-       Features
-       ================================================================= -->
-  <section class="drwp-lp-section" id="features">
-    <h2>主要機能</h2>
-    <p class="sub">運用に必要なものを 1 プラグインに集約</p>
-    <div class="drwp-lp-features">
-      <div class="feat">
+        <span class="num">1</span>
         <div class="ico">📱</div>
-        <h3>スマホ最適化フォーム</h3>
-        <p>現場から片手で日報を送れる入力 UI。写真のドラッグ並び替え、キャプション、Before / After 指定対応。</p>
+        <h3>現場から日報を送る</h3>
+        <p>スマホで写真を撮って、作業内容を入力。Before / After のラベルも付けられます。送信すると「レビュー待ち」へ。</p>
+        <span class="tagline">現場は片手で1分</span>
       </div>
-      <div class="feat">
+      <div class="step">
+        <span class="num">2</span>
         <div class="ico">✅</div>
-        <h3>レビューワークフロー</h3>
-        <p>レビュー待ち / 承認 / 差戻し / 編集依頼の 4 状態。コメントで現場とやり取りでき、操作はすべて履歴に残ります。</p>
+        <h3>事務所がレビュー</h3>
+        <p>表現の調整やコメントを付けて「承認」または「差戻し」。やり取りはすべて履歴に残ります。</p>
+        <span class="tagline">品質は事務所が担保</span>
       </div>
-      <div class="feat">
+      <div class="step">
+        <span class="num">3</span>
         <div class="ico">📰</div>
-        <h3>3 つの記事テンプレート</h3>
-        <p>「標準」「案件レポート」「ビフォーアフター」の 3 種類。写真の振り分けや案件情報の見せ方を切替できます。</p>
+        <h3>ワンクリックで公開</h3>
+        <p>テンプレートを選んで「記事を作成」。AI がタイトルから本文まで整え、WordPress の投稿として公開できます。</p>
+        <span class="tagline">施工事例が自動で増える</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 機能 ============ -->
+<section class="nm-sec" id="features">
+  <div class="nm-wrap">
+    <span class="nm-eyebrow">FEATURES</span>
+    <h2>運用に必要なものを、1プラグインに集約</h2>
+    <p class="nm-sub">「入力しやすさ」と「あとから困らない管理」の両方にこだわりました</p>
+    <div class="nm-feats">
+      <div class="feat">
+        <span class="ico">📱</span>
+        <h3>スマホ最適化フォーム</h3>
+        <p>現場から片手で日報を送れる入力UI。写真のドラッグ並び替え、キャプション、Before / After 指定に対応。</p>
       </div>
       <div class="feat">
-        <div class="ico">📅</div>
+        <span class="ico">✅</span>
+        <h3>レビューワークフロー</h3>
+        <p>レビュー待ち / 承認 / 差戻し / 編集依頼の4状態。コメントで現場とやり取りでき、操作はすべて履歴に残ります。</p>
+      </div>
+      <div class="feat">
+        <span class="ico">📰</span>
+        <h3>3つの記事テンプレート</h3>
+        <p>「標準」「案件レポート」「ビフォーアフター」の3種類。写真の振り分けや案件情報の見せ方を切り替えられます。</p>
+      </div>
+      <div class="feat">
+        <span class="ico">📅</span>
         <h3>カレンダー × リスト</h3>
-        <p>月単位カレンダーで「いつ何があったか」、リストで「内容のスキャン」。状態色で一目で進捗が分かります。</p>
+        <p>月カレンダーで「いつ何があったか」、リストで「内容のスキャン」。状態の色分けで進捗が一目で分かります。</p>
       </div>
       <div class="feat">
-        <div class="ico">🏢</div>
+        <span class="ico">🏢</span>
         <h3>顧客 / 案件マスタ</h3>
-        <p>顧客 → 案件 → 日報 → 記事 の一気通貫管理。グループでタグ付け、絞り込みも自由自在。</p>
+        <p>顧客 → 案件 → 日報 → 記事の一気通貫管理。グループでタグ付けし、絞り込みも自由自在。</p>
       </div>
       <div class="feat">
-        <div class="ico">📆</div>
+        <span class="ico">📆</span>
         <h3>予定（プラン）機能</h3>
-        <p>次回訪問予定をカレンダーに登録。チップをタップすれば、その予定から日報をワンタップで起こせます。</p>
+        <p>次回訪問予定をカレンダーに登録。予定チップをタップすれば、そこから日報をワンタップで起こせます。</p>
       </div>
       <div class="feat">
-        <div class="ico">📊</div>
+        <span class="ico">📊</span>
         <h3>CSV エクスポート</h3>
-        <p>絞り込んだ日報を Shift-JIS で一括出力。Excel 日本語版でそのまま開けます。</p>
+        <p>絞り込んだ日報を Shift-JIS で一括出力。日本語版 Excel でそのまま開けます。</p>
       </div>
       <div class="feat">
-        <div class="ico">🗄️</div>
+        <span class="ico">🗄️</span>
         <h3>アーカイブ / 法定保存</h3>
-        <p>建設業法対応。日報のハード削除はなし、論理アーカイブ → 30 日後に管理者のみ完全削除可能。</p>
+        <p>建設業法に対応。日報のハード削除はなし、論理アーカイブ → 30日経過後に管理者のみ完全削除できます。</p>
       </div>
       <div class="feat">
-        <div class="ico">📜</div>
-        <h3>操作履歴 (監査ログ)</h3>
-        <p>「誰が・いつ・何をしたか」を全イベント記録。自動保存期間設定で長期保持にも対応。</p>
+        <span class="ico">📜</span>
+        <h3>操作履歴（監査ログ）</h3>
+        <p>「誰が・いつ・何をしたか」を全イベント記録。保存期間を設定でき、長期保持にも対応します。</p>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- =================================================================
-       AI Pro
-       ================================================================= -->
-  <section class="drwp-lp-ai">
-    <h2>🤖 AI が記事化と運用を後押し</h2>
-    <p class="sub">OpenAI / Anthropic の API キーで動作。Pro プランの強み。</p>
-    <div class="ai-grid">
-      <div class="ai-card">
-        <div class="ico">✨</div>
-        <h3>公開記事の下書き生成</h3>
-        <p>「何を / どこで / いつ」が明確なタイトル、導入文、本文、今後の予定をワンクリック生成。</p>
+<!-- ============ AI ============ -->
+<section class="nm-sec" id="ai">
+  <div class="nm-wrap">
+    <div class="nm-ai">
+      <span class="nm-eyebrow">AI ASSIST</span>
+      <h2>🤖 AI が記事化と運用を後押し</h2>
+      <p class="nm-sub">OpenAI / Anthropic の API キーで動作します</p>
+      <div class="nm-ai-grid">
+        <div class="nm-ai-card">
+          <div class="ico">✨</div>
+          <h3>公開記事の下書き生成</h3>
+          <p>「何を / どこで / いつ」が明確なタイトル、導入文、本文、今後の予定をワンクリックで生成。</p>
+        </div>
+        <div class="nm-ai-card">
+          <div class="ico">🧭</div>
+          <h3>次回訪問ブリーフィング</h3>
+          <p>過去の日報を読み込み、次の訪問で持っていくべき情報・確認事項を要約します。</p>
+        </div>
+        <div class="nm-ai-card">
+          <div class="ico">📈</div>
+          <h3>案件サマリ</h3>
+          <p>月次・四半期で案件の進捗、気付き、課題を AI がまとめて報告書化します。</p>
+        </div>
+        <div class="nm-ai-card">
+          <div class="ico">⚠️</div>
+          <h3>対応必須アラート</h3>
+          <p>特記事項から「これは要対応」を抽出し、ダッシュボードに警告を表示します。</p>
+        </div>
+        <div class="nm-ai-card">
+          <div class="ico">🔍</div>
+          <h3>振り返りアドバイス</h3>
+          <p>絞り込み中の日報を分析し、過去の成功例 / 失敗例から今後の向き合い方を提案します。</p>
+        </div>
+        <div class="nm-ai-card">
+          <div class="ico">🔐</div>
+          <h3>個人情報の自動検知 + マスク</h3>
+          <p>公開前に顧客名・電話・メール・郵便番号を検知。ワンクリックで「Y様」などにマスクできます。</p>
+        </div>
       </div>
-      <div class="ai-card">
-        <div class="ico">🧭</div>
-        <h3>次回訪問ブリーフィング</h3>
-        <p>過去の日報を読み込み、次の訪問で持っていくべき情報・確認事項を要約します。</p>
+      <div class="pill-row"><span class="pill">PRO プラン限定</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ セキュリティ ============ -->
+<section class="nm-sec soft">
+  <div class="nm-wrap">
+    <span class="nm-eyebrow">SECURITY</span>
+    <h2>🔒 セキュリティと法令対応</h2>
+    <p class="nm-sub">現場の記録は会社の資産。だから「消えない・漏れない・改ざんされない」を最優先に設計しています</p>
+    <div class="nm-sec-grid2">
+      <div class="nm-trust-item">
+        <span class="ico">🛡️</span>
+        <div>
+          <h3>Ed25519 でライセンス検証</h3>
+          <p>応答に電子署名を付与。通信経路で改ざんされても機能解放にはつながりません。</p>
+        </div>
       </div>
-      <div class="ai-card">
-        <div class="ico">📈</div>
-        <h3>案件サマリ</h3>
-        <p>月次・四半期で案件の進捗、気付き、課題を AI がまとめて報告書化。</p>
+      <div class="nm-trust-item">
+        <span class="ico">📚</span>
+        <div>
+          <h3>建設業法 / 個人情報保護法 対応</h3>
+          <p>日報のハード削除を禁止し、論理アーカイブ + 30日経過後の管理者削除で法令と GDPR / APPI の両方に対応。</p>
+        </div>
       </div>
-      <div class="ai-card">
-        <div class="ico">⚠️</div>
-        <h3>対応必須アラート</h3>
-        <p>特記事項から「これは要対応」を抽出。ダッシュボードに警告を表示します。</p>
+      <div class="nm-trust-item">
+        <span class="ico">👤</span>
+        <div>
+          <h3>役割ベースの権限分離</h3>
+          <p>現場 / レビュアー / 管理者で操作範囲を分離。退職した社員のアカウントは書き込みを即遮断します。</p>
+        </div>
       </div>
-      <div class="ai-card">
-        <div class="ico">🔍</div>
-        <h3>振り返りアドバイス</h3>
-        <p>絞り込み中の日報を分析、過去の成功例 / 失敗例から今後の向き合い方を提案。</p>
-      </div>
-      <div class="ai-card">
-        <div class="ico">🔐</div>
-        <h3>個人情報の自動検知 + マスク</h3>
-        <p>公開前に顧客名・電話・メール・郵便番号を検知。ワンクリックで「Y様」「○○○-○○○○-○○○○」にマスク。</p>
+      <div class="nm-trust-item">
+        <span class="ico">⏰</span>
+        <div>
+          <h3>操作履歴の自動削除</h3>
+          <p>監査ログの保存期間を設定可能。日次で古い行を自動削除し、データベースを肥大化させません。</p>
+        </div>
       </div>
     </div>
-    <div class="pill-row"><span class="pill">PRO プラン限定</span></div>
-  </section>
+  </div>
+</section>
 
-  <!-- =================================================================
-       Security
-       ================================================================= -->
-  <section class="drwp-lp-section">
-    <div class="drwp-lp-security">
-      <h2>🔒 セキュリティと法令対応</h2>
-      <div class="grid">
-        <div class="item">
-          <div class="ico">🛡️</div>
-          <div>
-            <h3>Ed25519 でライセンス検証</h3>
-            <p>応答に電子署名を付与。通信経路で改ざんされても機能解放につながりません。</p>
-          </div>
-        </div>
-        <div class="item">
-          <div class="ico">📚</div>
-          <div>
-            <h3>建設業法 / 個人情報保護法 対応</h3>
-            <p>日報のハード削除を禁止し、論理アーカイブ + 30 日経過後の管理者削除で法令と GDPR / APPI 両対応。</p>
-          </div>
-        </div>
-        <div class="item">
-          <div class="ico">👤</div>
-          <div>
-            <h3>役割ベースの権限分離</h3>
-            <p>現場 / レビュアー / 管理者で操作範囲を分離。退職社員はログイン即遮断。</p>
-          </div>
-        </div>
-        <div class="item">
-          <div class="ico">⏰</div>
-          <div>
-            <h3>操作履歴の自動削除</h3>
-            <p>監査ログの保存期間を設定可能。日次 cron で古い行を自動削除し、DB を肥大化させません。</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- =================================================================
-       Pricing
-       ================================================================= -->
-  <section class="drwp-lp-section">
+<!-- ============ 料金 ============ -->
+<section class="nm-sec" id="pricing">
+  <div class="nm-wrap">
+    <span class="nm-eyebrow">PRICING</span>
     <h2>料金プラン</h2>
-    <p class="sub">まずは無料体験から。必要な機能に合わせて選べる 4 プラン</p>
-    <div class="drwp-lp-pricing">
-      <div class="plan">
+    <p class="nm-sub">まずは無料体験から。必要な機能に合わせて選べる4プラン</p>
+    <div class="nm-plans">
+      <div class="nm-plan">
         <h3>フリー</h3>
-        <div class="price">¥0<small> / 30日間</small></div>
-        <p style="color:#6b7280;font-size:.9rem;margin:0;">まずは全機能をおためし</p>
+        <p class="for">まずは全機能をおためし</p>
+        <div class="price">¥0 <small>/ 30日間</small></div>
         <ul>
-          <li>全機能を 30 日間おためし</li>
-          <li>日報・ブログ記事化・AI まで</li>
+          <li>全機能を30日間おためし</li>
+          <li>日報・記事化・AI まで</li>
           <li>クレジットカード不要</li>
           <li>期間終了後は自動で停止</li>
         </ul>
-        <a href="#" class="cta">無料で試す</a>
+        <a class="cta" href="#contact">無料で試す</a>
       </div>
-      <div class="plan">
+      <div class="nm-plan">
         <h3>ベーシック</h3>
-        <div class="price">¥7,700<small> / 月（税込）</small></div>
-        <p style="color:#6b7280;font-size:.9rem;margin:0;">まずは日報を続けたい方向け</p>
+        <p class="for">まずは日報を続けたい方向け</p>
+        <div class="price">¥7,700 <small>/ 月（税込）</small></div>
         <ul>
-          <li>日報入力 (PC / スマホ)</li>
+          <li>日報入力（PC / スマホ）</li>
           <li>レビューワークフロー</li>
           <li>顧客 / 案件マスタ</li>
           <li>予定カレンダー</li>
           <li>CSV エクスポート</li>
           <li>操作履歴 + 自動削除</li>
         </ul>
-        <a href="#" class="cta">お問い合わせ</a>
+        <a class="cta" href="#contact">お問い合わせ</a>
       </div>
-      <div class="plan">
+      <div class="nm-plan">
         <h3>ライト</h3>
-        <div class="price">¥11,000<small> / 月（税込）</small></div>
-        <p style="color:#6b7280;font-size:.9rem;margin:0;">日報を施工事例として発信したい方向け</p>
+        <p class="for">日報を施工事例として発信したい方向け</p>
+        <div class="price">¥11,000 <small>/ 月（税込）</small></div>
         <ul>
-          <li>ベーシックのすべての機能</li>
-          <li>📝 ブログ記事化（WordPress 投稿）</li>
-          <li>3 つの記事テンプレート</li>
-          <li>🔐 個人情報の自動検知 + マスク</li>
+          <li>ベーシックの全機能</li>
+          <li>ブログ記事化（WordPress 投稿）</li>
+          <li>3つの記事テンプレート</li>
+          <li>個人情報の自動検知 + マスク</li>
         </ul>
-        <a href="#" class="cta">お問い合わせ</a>
+        <a class="cta" href="#contact">お問い合わせ</a>
       </div>
-      <div class="plan pro">
+      <div class="nm-plan featured">
+        <span class="ribbon">おすすめ</span>
         <h3>プロ</h3>
-        <div class="price">¥19,800<small> / 月（税込）</small></div>
-        <p style="color:#6b7280;font-size:.9rem;margin:0;">AI で運用を加速したい事業者向け</p>
+        <p class="for">AI で運用を加速したい事業者向け</p>
+        <div class="price">¥19,800 <small>/ 月（税込）</small></div>
         <ul>
-          <li>ライトのすべての機能</li>
-          <li>✨ AI 公開記事下書き生成</li>
-          <li>🧭 AI 次回訪問ブリーフィング</li>
-          <li>📈 AI 案件サマリ (月次/四半期)</li>
-          <li>⚠️ AI 対応必須アラート</li>
-          <li>🔍 AI 振り返りアドバイス</li>
+          <li>ライトの全機能</li>
+          <li>AI 公開記事下書き生成</li>
+          <li>AI 次回訪問ブリーフィング</li>
+          <li>AI 案件サマリ（月次 / 四半期）</li>
+          <li>AI 対応必須アラート</li>
+          <li>AI 振り返りアドバイス</li>
         </ul>
-        <a href="#" class="cta">お問い合わせ</a>
+        <a class="cta" href="#contact">お問い合わせ</a>
       </div>
     </div>
-  </section>
+    <p class="nm-plans-note">※ AI 機能は OpenAI / Anthropic の API キーが必要です（プロバイダ側の従量課金が別途発生します）</p>
+  </div>
+</section>
 
-  <!-- =================================================================
-       FAQ
-       ================================================================= -->
-  <section class="drwp-lp-section">
+<!-- ============ FAQ ============ -->
+<section class="nm-sec soft" id="faq">
+  <div class="nm-wrap">
+    <span class="nm-eyebrow">FAQ</span>
     <h2>よくある質問</h2>
-    <div class="drwp-lp-faq">
+    <p class="nm-sub"></p>
+    <div class="nm-faq">
       <details>
         <summary>既存の WordPress サイトに導入できますか？</summary>
-        <div class="ans">はい、プラグインを有効化するだけで、既存サイトに日報マンの管理メニューと WordPress 投稿として記事が出るようになります。テーマは選びません。</div>
+        <div class="ans">はい、プラグインを有効化するだけで、既存サイトに日報マンの管理メニューが追加され、記事は WordPress の投稿として公開されます。テーマは選びません。</div>
       </details>
       <details>
         <summary>AI 機能には別途料金がかかりますか？</summary>
-        <div class="ans">OpenAI / Anthropic の API キーを「AI 設定」に入力していただきます。プロバイダ側の従量課金（記事 1 本生成あたり数円程度）が別途発生します。</div>
+        <div class="ans">OpenAI / Anthropic の API キーを「AI 設定」に入力していただきます。プロバイダ側の従量課金（記事1本の生成あたり数円程度）が別途発生します。</div>
       </details>
       <details>
         <summary>現場の社員はスマホで日報を送れますか？</summary>
@@ -406,30 +676,46 @@
       </details>
       <details>
         <summary>個人情報の取り扱いはどうなっていますか？</summary>
-        <div class="ans">公開記事化前に顧客名・電話番号・メール・郵便番号を自動検知して警告します。ワンクリックで「Y様」「○○○-○○○○-○○○○」のような形式に自動マスクできます。</div>
+        <div class="ans">公開記事化の前に顧客名・電話番号・メール・郵便番号を自動検知して警告します。ワンクリックで「Y様」「○○○-○○○○-○○○○」のような形式に自動マスクできます。</div>
       </details>
       <details>
         <summary>過去の日報を消したい場合はどうすれば？</summary>
-        <div class="ans">建設業法の保存義務と内部不正対策の観点から、ハード削除は管理者のみ・アーカイブ後 30 日経過後のみ可能です。それまでは「アーカイブ」で一覧から非表示にできます。</div>
+        <div class="ans">建設業法の保存義務と内部不正対策の観点から、完全削除は管理者のみ・アーカイブ後30日経過後のみ可能です。それまでは「アーカイブ」で一覧から非表示にできます。</div>
       </details>
       <details>
-        <summary>ライセンス検証はどう動きますか？</summary>
-        <div class="ans">独立したライセンスサーバーが Ed25519 で署名応答を返し、プラグイン側で libsodium 検証します。応答を改ざんしても機能解放にはつながりません。</div>
+        <summary>ライセンス検証はどのように動きますか？</summary>
+        <div class="ans">独立したライセンスサーバーが Ed25519 の署名付き応答を返し、プラグイン側で検証します。応答を改ざんしても機能解放にはつながりません。</div>
       </details>
       <details>
         <summary>無料体験はできますか？</summary>
         <div class="ans">はい。お問い合わせフォームから無料体験ライセンスをお申し込みください。すぐに発行してメールでお送りします。</div>
       </details>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- =================================================================
-       Final CTA
-       ================================================================= -->
-  <section class="drwp-lp-finalcta">
-    <h2>現場の日報を、ビジネスの資産に変える</h2>
-    <p>導入から運用までサポートします。まずはお気軽にご相談ください。</p>
-    <a href="#" class="btn">無料体験を申し込む →</a>
-  </section>
+<!-- ============ 最終CTA ============ -->
+<section class="nm-sec" id="contact">
+  <div class="nm-wrap">
+    <div class="nm-final">
+      <h2>現場の日報を、ビジネスの資産に変える</h2>
+      <p>導入から運用までサポートします。30日間の無料体験で、まずは自社の運用に合うか確かめてください。</p>
+      <a class="nm-btn primary" href="#">無料体験を申し込む →</a>
+      <p class="trust">クレジットカード不要・期間終了後は自動停止・しつこい営業はしません</p>
+    </div>
+  </div>
+</section>
 
-</div>
+<!-- ============ フッター ============ -->
+<footer class="nm-footer">
+  <div class="nm-wrap">
+    <a class="nm-logo" href="#" style="font-size:.95rem;"><span class="mk" style="width:24px;height:24px;font-size:12px;">📋</span>日報マン</a>
+    <a href="#">特定商取引法に基づく表記</a>
+    <a href="#">プライバシーポリシー</a>
+    <a href="#contact">お問い合わせ</a>
+    <span class="cr">© 2026 日報マン</span>
+  </div>
+</footer>
+
+</body>
+</html>
