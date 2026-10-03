@@ -230,3 +230,17 @@ AIエラーの生表示 など)。着手時はデバッグ報告の一覧を参�
 
 ## VPS / デプロイ(参考・秘密情報は各自の保管先で)
 - nippo-man.com (133.167.125.119)、SSH は `ubuntu`(root ではない)、鍵はパスフレーズ付き。
+- **本番は compose プロジェクト「license-server」**(コンテナ:
+  `license-server-caddy-1` = TLS終端 + `license-server-license-1` = FastAPI)。
+  場所は `docker inspect license-server-license-1 --format
+  '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'` で引ける。
+- リポジトリ直下の docker-compose.yml は**開発用の別プロジェクト**
+  (drwp-daily-reports)。VPS 上で動いていたものは 2026-10-03 に
+  `docker compose down`(-v なし・ボリュームは残存)で停止済み。
+  ここを build しても本番には反映されないので注意 (10/3 に一度ハマった)。
+- ライセンスサーバの再デプロイ: 本番プロジェクトのディレクトリで
+  `git pull && docker compose build license && docker compose up -d license`。
+  **`down -v` は厳禁** (ライセンスDB・署名鍵のボリュームが消える)。
+- https://nippo-man.com/ のトップページは license-server の
+  `GET /` が配信する LP (`license-server/app/static/index.html`、#318)。
+  LP 更新も上と同じ再デプロイ手順。
