@@ -582,6 +582,19 @@ def test_landing_page_served_at_root(client):
     assert "日報マン" in r.text
 
 
+def test_site_pages_served(client):
+    # 特商法 / プライバシーポリシー / お問い合わせの固定ページ。
+    for path, needle in [
+        ("/tokushoho", "特定商取引法"),
+        ("/privacy", "プライバシーポリシー"),
+        ("/contact", "お問い合わせ"),
+    ]:
+        r = client.get(path)
+        assert r.status_code == 200, path
+        assert r.headers["content-type"].startswith("text/html"), path
+        assert needle in r.text, path
+
+
 def test_canonical_form_is_sorted_compact_utf8(tmp_path, monkeypatch):
     # The canonical form is the bytes PHP (or any verifier) must reproduce:
     # keys sorted by string order, no whitespace, unescaped UTF-8 and slashes.

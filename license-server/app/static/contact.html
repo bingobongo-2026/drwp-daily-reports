@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<!--
+  日報マン — お問い合わせ (https://nippo-man.com/contact)
+
+  ⚠ 公開前にやること:
+    - <script> 内の CONTACT_EMAIL を実際の受付メールアドレスに差し替える
+      (ページ上の表示メールアドレスも自動で同じものになります)
+  フォームはサーバーを使わない mailto 方式です。「メールを作成」を押すと、
+  入力内容が本文に入った状態でお使いのメールソフトが開きます。
+  後で Google フォーム等に切り替える場合は form 部分を差し替えてください。
+-->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>お問い合わせ | 日報マン</title>
+<meta name="description" content="日報マンの無料体験のお申し込み・導入のご相談・サポートのお問い合わせはこちらから。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+<style>
+:root { --ink:#0f172a; --ink-2:#334155; --muted:#64748b; --line:#e2e8f0; --bg-soft:#f6f8fb; --brand:#2456e6; --brand-deep:#173db3; --ok:#059669; --r-md:12px; --r-lg:18px; --maxw:720px; --shadow-1:0 1px 2px rgba(15,23,42,.05), 0 8px 24px -12px rgba(15,23,42,.12); }
+* { box-sizing:border-box; }
+body { margin:0; font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic","Meiryo",system-ui,-apple-system,sans-serif; color:var(--ink); background:#fff; line-height:1.8; font-size:16px; -webkit-font-smoothing:antialiased; }
+h1,h2,h3 { line-height:1.4; margin:0; }
+a { color:var(--brand); }
+.nm-wrap { max-width:var(--maxw); margin-inline:auto; padding-inline:24px; }
+.nm-header { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.88); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+.nm-header .nm-wrap { max-width:1120px; display:flex; align-items:center; gap:28px; height:64px; }
+.nm-logo { font-weight:800; font-size:1.15rem; color:var(--ink); text-decoration:none; display:flex; align-items:center; gap:8px; }
+.nm-logo .mk { display:inline-grid; place-items:center; width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,var(--brand),#4f46e5); color:#fff; font-size:15px; }
+.nm-header .nm-cta { margin-left:auto; background:var(--brand); color:#fff; text-decoration:none; font-weight:700; font-size:.92rem; padding:9px 20px; border-radius:999px; white-space:nowrap; }
+.nm-pagehead { background:linear-gradient(#fff,#f4f7fd); border-bottom:1px solid var(--line); }
+.nm-pagehead .nm-wrap { padding-block:46px 40px; }
+.nm-pagehead h1 { font-size:clamp(1.4rem,3vw,1.9rem); font-weight:800; }
+.nm-pagehead p { color:var(--muted); font-size:.92rem; margin-top:8px; }
+main .nm-wrap { padding-block:48px 72px; }
+.intro { color:var(--ink-2); font-size:.96rem; }
+.intro .mail { display:inline-flex; align-items:center; gap:8px; margin-top:12px; background:var(--bg-soft); border:1px solid var(--line); border-radius:999px; padding:8px 18px; font-weight:700; }
+form { margin-top:34px; background:#fff; border:1px solid var(--line); border-radius:var(--r-lg); padding:30px 28px; box-shadow:var(--shadow-1); }
+.fld { display:block; margin-bottom:20px; }
+.fld > span { display:block; font-weight:700; font-size:.9rem; margin-bottom:7px; }
+.fld > span .req { color:#dc2626; font-size:.76rem; margin-left:6px; font-weight:800; }
+.fld input, .fld select, .fld textarea { width:100%; font:inherit; font-size:16px; color:var(--ink); background:#fff; border:1px solid #cbd5e1; border-radius:10px; padding:11px 14px; }
+.fld input:focus, .fld select:focus, .fld textarea:focus { outline:2px solid var(--brand); outline-offset:1px; border-color:var(--brand); }
+.fld textarea { min-height:140px; resize:vertical; }
+.send { display:inline-flex; align-items:center; gap:8px; border:0; cursor:pointer; background:var(--brand); color:#fff; font:inherit; font-weight:700; font-size:1rem; border-radius:var(--r-md); padding:14px 34px; }
+.send:hover { background:var(--brand-deep); }
+.hint { color:var(--muted); font-size:.84rem; margin-top:14px; }
+.privacy-note { color:var(--muted); font-size:.86rem; margin-top:26px; }
+.nm-footer { border-top:1px solid var(--line); background:#fff; }
+.nm-footer .nm-wrap { max-width:1120px; display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; padding-block:28px; font-size:.84rem; color:var(--muted); }
+.nm-footer a { color:var(--muted); text-decoration:none; }
+.nm-footer a:hover { color:var(--brand); }
+.nm-footer .cr { margin-left:auto; }
+@media (max-width:640px) { .nm-footer .cr { margin-left:0; } form { padding:24px 18px; } }
+</style>
+</head>
+<body>
+
+<header class="nm-header">
+  <div class="nm-wrap">
+    <a class="nm-logo" href="/"><span class="mk">📋</span>日報マン</a>
+    <a class="nm-cta" href="/contact">無料で試す</a>
+  </div>
+</header>
+
+<div class="nm-pagehead">
+  <div class="nm-wrap">
+    <h1>お問い合わせ</h1>
+    <p><a href="/">ホーム</a> / お問い合わせ</p>
+  </div>
+</div>
+
+<main>
+  <div class="nm-wrap">
+    <p class="intro">
+      無料体験のお申し込み・導入のご相談・サポートのご連絡は、下のフォームからどうぞ。
+      通常【◯営業日】以内にメールでご返信します。<br>
+      メールソフトから直接お送りいただいても構いません:
+      <span class="mail">✉ <a id="nm-mail-link" href="#">(メールアドレス)</a></span>
+    </p>
+
+    <form id="nm-cform">
+      <label class="fld"><span>お問い合わせの種類</span>
+        <select id="nm-kind">
+          <option>無料体験の申し込み</option>
+          <option>導入のご相談・デモ希望</option>
+          <option>サポート(不具合・使い方)</option>
+          <option>その他</option>
+        </select>
+      </label>
+      <label class="fld"><span>お名前<span class="req">必須</span></span>
+        <input id="nm-name" type="text" autocomplete="name" required>
+      </label>
+      <label class="fld"><span>会社名</span>
+        <input id="nm-company" type="text" autocomplete="organization">
+      </label>
+      <label class="fld"><span>ご返信先メールアドレス<span class="req">必須</span></span>
+        <input id="nm-email" type="email" autocomplete="email" required>
+      </label>
+      <label class="fld"><span>お問い合わせ内容<span class="req">必須</span></span>
+        <textarea id="nm-body" required placeholder="例: 無料体験を申し込みたい。WordPressのサイトは運用中で、現場スタッフは5名です。"></textarea>
+      </label>
+      <button type="submit" class="send">✉ メールを作成する</button>
+      <p class="hint">ボタンを押すと、入力内容が本文に入った状態でお使いのメールソフトが開きます。そのまま送信してください。</p>
+    </form>
+
+    <p class="privacy-note">ご提供いただいた情報は、お問い合わせへの回答とご案内のためにのみ利用します。詳しくは<a href="/privacy">プライバシーポリシー</a>をご覧ください。</p>
+  </div>
+</main>
+
+<footer class="nm-footer">
+  <div class="nm-wrap">
+    <a class="nm-logo" href="/" style="font-size:.95rem;"><span class="mk" style="width:24px;height:24px;font-size:12px;">📋</span>日報マン</a>
+    <a href="/tokushoho">特定商取引法に基づく表記</a>
+    <a href="/privacy">プライバシーポリシー</a>
+    <a href="/contact">お問い合わせ</a>
+    <span class="cr">© 2026 日報マン</span>
+  </div>
+</footer>
+
+<script>
+  // ★ 公開前にここを実際の受付アドレスに差し替えてください。
+  var CONTACT_EMAIL = 'info@nippo-man.com';
+
+  var mailLink = document.getElementById('nm-mail-link');
+  mailLink.textContent = CONTACT_EMAIL;
+  mailLink.href = 'mailto:' + CONTACT_EMAIL;
+
+  document.getElementById('nm-cform').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var kind = document.getElementById('nm-kind').value;
+    var name = document.getElementById('nm-name').value.trim();
+    var company = document.getElementById('nm-company').value.trim();
+    var email = document.getElementById('nm-email').value.trim();
+    var body = document.getElementById('nm-body').value.trim();
+    var subject = '【日報マン】' + kind + '(' + name + ')';
+    var lines = [
+      'お問い合わせの種類: ' + kind,
+      'お名前: ' + name,
+      '会社名: ' + (company || '-'),
+      'ご返信先: ' + email,
+      '',
+      '--- お問い合わせ内容 ---',
+      body
+    ];
+    location.href = 'mailto:' + CONTACT_EMAIL
+      + '?subject=' + encodeURIComponent(subject)
+      + '&body=' + encodeURIComponent(lines.join('\n'));
+  });
+</script>
+
+</body>
+</html>

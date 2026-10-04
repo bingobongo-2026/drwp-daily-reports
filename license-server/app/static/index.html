@@ -10,10 +10,8 @@
        をコピーして貼り付け → 設定 > 表示設定 でフロントページに指定。
 
   公開前に差し替えるもの:
-    - 「無料で試す」「お問い合わせ」ボタンの href="#contact" /
-      href="#" → 実際のフォーム URL
-    - フッターの 特定商取引法 / プライバシーポリシー のリンク先
     - OGP 画像 (og:image) は用意でき次第 <head> に追加
+    (CTA は /contact、フッターは /tokushoho・/privacy に接続済み)
 -->
 <html lang="ja">
 <head>
@@ -320,7 +318,7 @@ section { scroll-margin-top: 84px; }
 <!-- ============ ヘッダー ============ -->
 <header class="nm-header">
   <div class="nm-wrap">
-    <a class="nm-logo" href="#"><span class="mk">📋</span>日報マン</a>
+    <a class="nm-logo" href="/"><span class="mk">📋</span>日報マン</a>
     <nav class="nm-nav">
       <a href="#flow">使い方</a>
       <a href="#features">機能</a>
@@ -328,7 +326,7 @@ section { scroll-margin-top: 84px; }
       <a href="#pricing">料金</a>
       <a href="#faq">FAQ</a>
     </nav>
-    <a class="nm-cta" href="#contact">無料で試す</a>
+    <a class="nm-cta" href="/contact">無料で試す</a>
   </div>
 </header>
 
@@ -340,7 +338,7 @@ section { scroll-margin-top: 84px; }
       <h1>現場の日報を、<br><span class="grad">お客様への一次情報</span>に変える。</h1>
       <p class="lead">写真と一緒にスマホから日報を送るだけ。事務所のレビューを経て、AI が読みやすい公開記事に整えます。工務店・施工管理・サービス業のための日報管理プラグインです。</p>
       <div class="ctas">
-        <a class="nm-btn primary" href="#contact">無料で試す →</a>
+        <a class="nm-btn primary" href="/contact">無料で試す →</a>
         <a class="nm-btn ghost" href="#features">機能を見る</a>
       </div>
       <div class="trust">
@@ -607,7 +605,7 @@ section { scroll-margin-top: 84px; }
           <li>クレジットカード不要</li>
           <li>期間終了後は自動で停止</li>
         </ul>
-        <a class="cta" href="#contact">無料で試す</a>
+        <a class="cta" href="/contact">無料で試す</a>
       </div>
       <div class="nm-plan">
         <h3>ベーシック</h3>
@@ -621,7 +619,7 @@ section { scroll-margin-top: 84px; }
           <li>CSV エクスポート</li>
           <li>操作履歴 + 自動削除</li>
         </ul>
-        <a class="cta" href="#contact">お問い合わせ</a>
+        <a class="cta" href="/contact">お問い合わせ</a>
       </div>
       <div class="nm-plan">
         <h3>ライト</h3>
@@ -633,7 +631,7 @@ section { scroll-margin-top: 84px; }
           <li>3つの記事テンプレート</li>
           <li>個人情報の自動検知 + マスク</li>
         </ul>
-        <a class="cta" href="#contact">お問い合わせ</a>
+        <a class="cta" href="/contact">お問い合わせ</a>
       </div>
       <div class="nm-plan featured">
         <span class="ribbon">おすすめ</span>
@@ -648,7 +646,7 @@ section { scroll-margin-top: 84px; }
           <li>AI 対応必須アラート</li>
           <li>AI 振り返りアドバイス</li>
         </ul>
-        <a class="cta" href="#contact">お問い合わせ</a>
+        <a class="cta" href="/contact">お問い合わせ</a>
       </div>
     </div>
     <p class="nm-plans-note">※ AI 機能は OpenAI / Anthropic の API キーが必要です（プロバイダ側の従量課金が別途発生します）</p>
@@ -700,7 +698,7 @@ section { scroll-margin-top: 84px; }
     <div class="nm-final">
       <h2>現場の日報を、ビジネスの資産に変える</h2>
       <p>導入から運用までサポートします。30日間の無料体験で、まずは自社の運用に合うか確かめてください。</p>
-      <a class="nm-btn primary" href="#">無料体験を申し込む →</a>
+      <a class="nm-btn primary" href="/contact">無料体験を申し込む →</a>
       <p class="trust">クレジットカード不要・期間終了後は自動停止・しつこい営業はしません</p>
     </div>
   </div>
@@ -709,10 +707,10 @@ section { scroll-margin-top: 84px; }
 <!-- ============ フッター ============ -->
 <footer class="nm-footer">
   <div class="nm-wrap">
-    <a class="nm-logo" href="#" style="font-size:.95rem;"><span class="mk" style="width:24px;height:24px;font-size:12px;">📋</span>日報マン</a>
-    <a href="#">特定商取引法に基づく表記</a>
-    <a href="#">プライバシーポリシー</a>
-    <a href="#contact">お問い合わせ</a>
+    <a class="nm-logo" href="/" style="font-size:.95rem;"><span class="mk" style="width:24px;height:24px;font-size:12px;">📋</span>日報マン</a>
+    <a href="/tokushoho">特定商取引法に基づく表記</a>
+    <a href="/privacy">プライバシーポリシー</a>
+    <a href="/contact">お問い合わせ</a>
     <span class="cr">© 2026 日報マン</span>
   </div>
 </footer>

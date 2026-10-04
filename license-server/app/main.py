@@ -701,6 +701,24 @@ def landing_page():
     return FileResponse(_STATIC_DIR / "index.html", media_type="text/html; charset=utf-8")
 
 
+# サイトの固定ページ (特商法 / プライバシーポリシー / お問い合わせ)。
+# パスはホワイトリストで列挙する (静的ディレクトリをそのまま mount して
+# 任意パスを配信する形は取らない)。
+_SITE_PAGES = {
+    "tokushoho": "tokushoho.html",
+    "privacy": "privacy.html",
+    "contact": "contact.html",
+}
+
+
+@app.get("/tokushoho", include_in_schema=False)
+@app.get("/privacy", include_in_schema=False)
+@app.get("/contact", include_in_schema=False)
+def site_page(request: Request):
+    name = request.url.path.strip("/")
+    return FileResponse(_STATIC_DIR / _SITE_PAGES[name], media_type="text/html; charset=utf-8")
+
+
 @app.get("/healthz")
 def healthz():
     return {"ok": True}
